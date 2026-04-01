@@ -1,0 +1,63 @@
+---
+name: Run tests
+
+permissions: {}
+
+on:
+  push:
+    branches:
+      - main
+      - v*.x
+  pull_request:
+  schedule:
+    - cron: "0 0 * * *"  # once per day
+
+# Required shell entrypoint to have properly configured bash shell
+defaults:
+  run:
+    shell: bash -l {0}
+
+jobs:
+  run_tests_on_linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    name: Run tests on Linux Python ${{ matrix.python-version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Conda environment
+        uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
+        with:
+          activate-environment: benchmarking
+          environment-file: environment.yml
+          python-version: ${{ matrix.python-version }}
+          miniforge-version: latest
+          use-mamba: true
+      - name: Create artifacts directory
+        run: mkdir -p test_linux_artifacts_python_${{ matrix.python-version }}
+      - name: Report Conda version
+        run: conda --version 2>&1 | tee test_linux_artifacts_python_${{ matrix.python-version }}/conda_version.txt
+      - name: Report Python version
+        run: python -V 2>&1 | tee test_linux_artifacts_python_${{ matrix.python-version }}/python_version.txt
+      - name: Show environment
+        run: conda list
+      - name: Install
+        run: pip install --no-deps -e .[develop] 2>&1 | tee test_linux_artifacts_python_${{ matrix.python-version }}/install.txt
+      - name: Show environment
+        run: conda list
+      - name: Check dependencies
+        run: pip check
+      - name: Run tests
+        run: pytest -n 2 -vv 2>&1 | tee test_linux_artifacts_python_${{ matrix.python-version }}/test_report.txt
+      - name: Upload artifacts
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        if: ${{ always() }} # upload artifacts even if fail
+        with:
+          name: Test_Linux_python_${{ matrix.python-version }}
+          path: test_linux_artifacts_python_${{ matrix.python-version }}

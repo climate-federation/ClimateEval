@@ -1,0 +1,11 @@
+---
+
+extends: default
+
+rules:
+  line-length:
+    level: warning
+    max: 120
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true

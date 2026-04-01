@@ -1,0 +1,15 @@
+---
+name: benchmarking
+channels:
+  - conda-forge
+  - nodefaults
+
+dependencies:
+  - esmvalcore
+
+  # develop
+  - pre-commit
+  - pytest
+  - pytest-cov
+  - pytest-mock
+  - pytest-xdist
