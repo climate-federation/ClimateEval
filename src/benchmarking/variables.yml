@@ -1,0 +1,10 @@
+pr:
+  coordinates: [time, lat, lon]
+  realm: atmosphere
+  standard_name: precipitation_flux
+  units: kg m-2 s-1
+tas:
+  coordinates: [time, lat, lon]
+  realm: atmosphere
+  standard_name: air_temperature
+  units: K
