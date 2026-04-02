@@ -5,7 +5,15 @@ channels:
   - nodefaults
 
 dependencies:
+  - cf-units
   - esmvalcore
+  - esmvaltool
+  - iris
+  - ncdata
+  - pandas
+  - plotly
+  - pyyaml
+  - xarray
 
   # develop
   - pre-commit

@@ -25,7 +25,15 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
+    "cf-units",
     "esmvalcore",
+    "esmvaltool",
+    "ncdata",
+    "pandas",
+    "plotly",
+    "pyyaml",
+    "scitools-iris",
+    "xarray",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +53,7 @@ xfail_strict = true
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+    "ANN401",     # Dynamically typed expressions (typing.Any) are disallowed
     "G004",       # Logging statement uses f-string
 ]
 future-annotations = true
