@@ -33,7 +33,6 @@ dependencies = [
     "intake-esgf",
     "loguru",
     "ncdata",
-    "plotly",
     "pyyaml",
     "scitools-iris",
     "xarray",

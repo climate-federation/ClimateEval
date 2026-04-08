@@ -14,7 +14,6 @@ dependencies:
   - iris
   - loguru
   - ncdata
-  - plotly
   - pyyaml
   - xarray
 
