@@ -1,3 +1,5 @@
+# Atmosphere
+# Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_atmos.json
 pr:
   coordinates: [time, lat, lon]
   realm: atmosphere

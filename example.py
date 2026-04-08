@@ -3,20 +3,22 @@
 from pathlib import Path
 
 import iris
+import plotly.express as px
 
-from benchmarking._config import Config
-from benchmarking._data.hadcrut5 import HadCRUT5
-from benchmarking._diagnostics.timeseries import TimeSeries
+from benchmarking import Config
+from benchmarking.data import GPCPSG, HadCRUT5
+from benchmarking.diags import TimeSeries
 
-variables = ["tas"]
-reference_data = {"tas": HadCRUT5}
+reference_data = {
+    "pr": GPCPSG,
+    "tas": HadCRUT5,
+}
 config = Config(
     output_dir=Path.home() / "benchmarking_output",
     timerange="19950101/20141231",
 )
 
 diag = TimeSeries(
-    variables=variables,
     reference_data=reference_data,
     other_data={},
     config=config,
@@ -31,8 +33,15 @@ cubes = iris.load(
     ],
 )
 
+df = diag.get_table(cubes, "MPI-ESM1-2-LR")
 
-figs = diag.create_plots(cubes, "MPI-ESM1-2-LR", template="simple_white")
-for fig in figs:
-    path = Path.home() / "benchmarking" / "index.html"
-    fig.write_html(Path.home() / "benchmarking" / "index.html")
+path = Path.home() / "benchmarking" / "index.html"
+fig = px.line(
+    data_frame=df,
+    x="year",
+    y="tas",
+    color="Dataset",
+    template="simple_white",
+)
+fig.write_html(Path.home() / "benchmarking" / "index.html")
+print(path)

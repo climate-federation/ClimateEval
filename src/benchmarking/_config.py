@@ -25,6 +25,6 @@ class Config:
             _dir.mkdir(parents=True, exist_ok=True)
 
 
-def configure_esmvaltool(_config: Config) -> None:
-    """Configure ESMValTool."""
-    CFG.load_from_dirs([])  # Reset ESMValTool configuration to default values
+def reset_esmvaltool_config() -> None:
+    """Rest ESMValTool configuration to default values."""
+    CFG.load_from_dirs([])

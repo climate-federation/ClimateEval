@@ -6,33 +6,38 @@ import shutil
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import intake_esgf
 import iris
 from esmvalcore.config import CFG
 from esmvaltool.cmorizers.data.cmorizer import DataCommand
 
-from benchmarking import get_prepared_cube
-from benchmarking._config import configure_esmvaltool
-from benchmarking._variable import Variable
+from benchmarking import Variable
+from benchmarking._config import reset_esmvaltool_config
 
 if TYPE_CHECKING:
     from iris.cube import Cube
 
     from benchmarking._config import Config
-    from benchmarking._diagnostics import Diagnostic
 
 
-class Data(ABC):
-    """Manage data."""
+class DataSource(ABC):
+    """Manage data source."""
 
-    def __init__(self, variable: str | Variable) -> None:
+    def __init__(self, variable: str | Variable, config: Config) -> None:
         """Initialize class instance."""
         if isinstance(variable, str):
             self._variable = Variable(variable)
         else:
             self._variable = variable
+        self._config = config
         self._name = self.__class__.__name__
+
+    @property
+    def config(self) -> Config:
+        """Get configuration."""
+        return self._config
 
     @property
     def name(self) -> str:
@@ -49,32 +54,29 @@ class Data(ABC):
         """Get variable."""
         return self._variable
 
-    def get_cube(self, diagnostic: Diagnostic, config: Config) -> Cube:
-        """Get data as single cube."""
-        paths = list(self._get_data_dir(config).glob("*.nc"))
+    def get_cubes(self) -> Cube:
+        """Get raw data as cubes."""
+        paths = list(self._get_data_dir().glob("*.nc"))
         if not paths:
-            self._download(config)
-        cubes = iris.load(paths)
-        cube = get_prepared_cube(cubes, self.variable, config)
-        return diagnostic.preprocess(cube)
+            self._download()
+        return iris.load(paths)
 
     @abstractmethod
-    def _download(self, config: Config) -> None:
+    def _download(self) -> None:
         """Download data."""
 
     def _esmvaltool_download(
         self,
         dataset_name: str,
-        config: Config,
         file_prefix_pattern: str = "*_",
         tier: int = 2,
     ) -> None:
         """Use ESMValTool to download data."""
-        configure_esmvaltool(config)
+        reset_esmvaltool_config()
 
         # Raw downloaded data by ESMValTool will be stored in temporary
         # directory. Our "raw" data will be the formatted data by ESMValTool.
-        # Store all output ESMValTool in temporary directory and only save the
+        # Store all ESMValTool output in temporary directory and only save the
         # relevant files.
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
         download_dir = tmp_dir / "download"
@@ -83,8 +85,8 @@ class Data(ABC):
         esmvaltool_dir.mkdir(parents=True, exist_ok=True)
 
         # Download and format data
-        CFG["output_dir"] = esmvaltool_dir
-        DataCommand().prepare(dataset_name, original_data_dir=download_dir)
+        with CFG.context(output_dir=esmvaltool_dir):
+            DataCommand().prepare(dataset_name, original_data_dir=download_dir)
 
         # Move formatted data into raw directory
         latest_esmvaltool_output_dir = (
@@ -95,11 +97,20 @@ class Data(ABC):
         raw_files = latest_esmvaltool_output_dir.glob(
             f"{file_prefix_pattern}{self.variable.var_name}_*.nc",
         )
-        data_dir = self._get_data_dir(config)
+        data_dir = self._get_data_dir()
         data_dir.mkdir(parents=True, exist_ok=True)
         for file in raw_files:
             shutil.move(file, data_dir / file.name)
 
-    def _get_data_dir(self, config: Config) -> Path:
+    def _intake_esgf_download(self, **facets: Any) -> None:
+        """Use intake-esgf to download data."""
+        cat = intake_esgf.ESGFCatalog()
+        with intake_esgf.conf.set(local_cache=self.config.data_dir):
+            cat.search(**facets)
+            paths = cat.to_path_dict()
+        print(paths)
+        assert 0
+
+    def _get_data_dir(self) -> Path:
         """Get data directory."""
-        return config.data_dir / self.name / self.variable.var_name
+        return self.config.data_dir / self.name / self.variable.var_name

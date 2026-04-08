@@ -4,14 +4,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from benchmarking._config import Config
-from benchmarking._data.gpcp_sg import GPCPSG
-from benchmarking._data.hadcrut5 import HadCRUT5
+from benchmarking import Config
+from benchmarking.data import GPCPSG, HadCRUT5
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from benchmarking._data import Data
+    from benchmarking.data import DataSource
 
 
 @pytest.fixture
@@ -20,7 +19,7 @@ def config(tmp_path: Path) -> Config:
 
 
 @pytest.fixture
-def reference_data() -> dict[str, type[Data]]:
+def reference_data() -> dict[str, type[DataSource]]:
     return {
         "tas": HadCRUT5,
         "pr": GPCPSG,

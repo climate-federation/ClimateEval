@@ -8,9 +8,10 @@ dependencies:
   - cf-units
   - esmvalcore
   - esmvaltool
+  - ibis-duckdb
+  - intake-esgf
   - iris
   - ncdata
-  - pandas
   - plotly
   - pyyaml
   - xarray

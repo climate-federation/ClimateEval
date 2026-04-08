@@ -2,21 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from benchmarking._data import Data
-
-if TYPE_CHECKING:
-    from benchmarking._config import Config
+from benchmarking.data import DataSource
 
 
-class HadCRUT5(Data):
+class HadCRUT5(DataSource):
     """Manage HadCRUT5 data."""
 
-    def _download(self, config: Config) -> None:
+    def _download(self) -> None:
         """Download data."""
         self._esmvaltool_download(
             "HadCRUT5",
-            config,
             file_prefix_pattern="*_5.0.1.0-analysis_*_",
         )

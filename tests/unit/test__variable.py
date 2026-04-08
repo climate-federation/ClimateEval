@@ -1,4 +1,4 @@
-from benchmarking._variable import COORDINATES, VARIABLES, Coordinate, Variable
+from benchmarking import COORDINATES, VARIABLES, Coordinate, Variable
 
 
 def test_variables() -> None:

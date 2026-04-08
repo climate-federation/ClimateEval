@@ -1,3 +1,4 @@
+# Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_coordinate.json
 lat:
   standard_name: latitude
   units: degrees_north
