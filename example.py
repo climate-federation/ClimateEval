@@ -45,9 +45,12 @@ cubes = iris.load(
     ],
 )
 
-table = diag.get_table(cubes, "MPI-ESM1-2-LR")
+table, metrics = diag.get_tables(cubes, "MPI-ESM1-2-LR")
 
 print(table.to_pandas())
+print(table.schema())
+print(metrics.to_pandas())
+print(metrics.schema())
 
 db_path = Path.home() / "benchmarking.ddb"
 con = ibis.connect(f"duckdb://{db_path}")
