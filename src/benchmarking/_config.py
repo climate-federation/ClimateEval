@@ -8,7 +8,6 @@ from esmvalcore.config import CFG
 
 @dataclass(kw_only=True)
 class Config:
-    output_dir: Path = Path.cwd() / "benchmarking_output"
     data_dir: Path = Path.home() / ".benchmarking" / "data"
     timerange: str = "*"
     min_lat: float = -90.0
@@ -20,9 +19,7 @@ class Config:
         """Initialize class instance."""
         self.data_dir_raw = self.data_dir / "raw"
         self.data_dir_preprocessed = self.data_dir / "preprocessed"
-        dirs = (self.output_dir, self.data_dir)
-        for _dir in dirs:
-            _dir.mkdir(parents=True, exist_ok=True)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
 
 
 def reset_esmvaltool_config() -> None:

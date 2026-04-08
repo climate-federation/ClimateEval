@@ -1,26 +1,38 @@
 """Small script to test everything manually."""
 
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+import ibis
 import iris
-import plotly.express as px
 
-from benchmarking import Config
-from benchmarking.data import GPCPSG, HadCRUT5
+from benchmarking import Config, Variable
+from benchmarking.data import ERA5, GPCP, HadCRUT5
 from benchmarking.diags import TimeSeries
 
+if TYPE_CHECKING:
+    from benchmarking.data._base import DataSource
+
 reference_data = {
-    "pr": GPCPSG,
-    "tas": HadCRUT5,
+    Variable("pr", "mon"): ERA5,
+    Variable("tas", "mon"): ERA5,
+    # Variable("pr", "mon"): GPCP,
+    # Variable("tas", "mon"): HadCRUT5,
+}
+other_data: dict[Variable, list[type[DataSource]]] = {
+    Variable("pr", "mon"): [GPCP],
+    Variable("tas", "mon"): [HadCRUT5],
 }
 config = Config(
-    output_dir=Path.home() / "benchmarking_output",
+    data_dir=Path.home() / "work" / "benchmarking_input" / "data",
     timerange="19950101/20141231",
 )
 
 diag = TimeSeries(
     reference_data=reference_data,
-    other_data={},
+    other_data=other_data,
     config=config,
 )
 
@@ -33,15 +45,11 @@ cubes = iris.load(
     ],
 )
 
-df = diag.get_table(cubes, "MPI-ESM1-2-LR")
+table = diag.get_table(cubes, "MPI-ESM1-2-LR")
 
-path = Path.home() / "benchmarking" / "index.html"
-fig = px.line(
-    data_frame=df,
-    x="year",
-    y="tas",
-    color="Dataset",
-    template="simple_white",
-)
-fig.write_html(Path.home() / "benchmarking" / "index.html")
-print(path)
+print(table.to_pandas())
+
+db_path = Path.home() / "benchmarking.ddb"
+con = ibis.connect(f"duckdb://{db_path}")
+con.create_table("timeseries", table, overwrite=True)
+print("Wrote", db_path)

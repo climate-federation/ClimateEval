@@ -5,12 +5,14 @@ channels:
   - nodefaults
 
 dependencies:
+  - cdsapi
   - cf-units
   - esmvalcore
   - esmvaltool
   - ibis-duckdb
   - intake-esgf
   - iris
+  - loguru
   - ncdata
   - plotly
   - pyyaml

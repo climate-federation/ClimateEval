@@ -24,7 +24,7 @@ class TimeSeries(Diagnostic):
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
         cube = area_statistics(cube, "mean")
-        cube = annual_statistics(cube, "mean", keep_group_coordinates=True)
+        cube = annual_statistics(cube, "mean")
         cube = regrid_time(
             cube,
             frequency="yr",

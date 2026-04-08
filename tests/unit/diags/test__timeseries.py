@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING
 from benchmarking.diags import TimeSeries
 
 if TYPE_CHECKING:
-    from benchmarking import Config
+    from benchmarking import Config, Variable
     from benchmarking.data import DataSource
 
 
-def test_tags(reference_data: dict[str, type[DataSource]], config: Config) -> None:
+def test_tags(reference_data: dict[Variable, type[DataSource]], config: Config) -> None:
     diag = TimeSeries(
         reference_data=reference_data,
         other_data={},

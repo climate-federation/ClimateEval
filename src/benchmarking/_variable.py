@@ -37,6 +37,7 @@ class Variable:
     """Manage variables."""
 
     var_name: str
+    frequency: str
     coordinates: list[Coordinate] = field(init=False, repr=False, compare=False)
     realm: str = field(init=False, repr=False, compare=False)
     standard_name: str = field(init=False, repr=False, compare=False)

@@ -25,11 +25,13 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
+    "cdsapi",
     "cf-units",
     "esmvalcore",
     "esmvaltool",
     "ibis-duckdb",
     "intake-esgf",
+    "loguru",
     "ncdata",
     "plotly",
     "pyyaml",

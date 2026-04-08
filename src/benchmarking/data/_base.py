@@ -1,4 +1,4 @@
-"""Manage datasets."""
+"""Manage data sources."""
 
 from __future__ import annotations
 
@@ -6,31 +6,32 @@ import shutil
 import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
+from pprint import pformat
 from typing import TYPE_CHECKING, Any
 
 import intake_esgf
 import iris
 from esmvalcore.config import CFG
 from esmvaltool.cmorizers.data.cmorizer import DataCommand
+from loguru import logger
 
-from benchmarking import Variable
-from benchmarking._config import reset_esmvaltool_config
+from benchmarking import _get_prepared_cube
 
 if TYPE_CHECKING:
     from iris.cube import Cube
 
+    from benchmarking import Variable
     from benchmarking._config import Config
+
+
+logger = logger.opt(colors=True)
 
 
 class DataSource(ABC):
     """Manage data source."""
 
-    def __init__(self, variable: str | Variable, config: Config) -> None:
+    def __init__(self, config: Config) -> None:
         """Initialize class instance."""
-        if isinstance(variable, str):
-            self._variable = Variable(variable)
-        else:
-            self._variable = variable
         self._config = config
         self._name = self.__class__.__name__
 
@@ -49,31 +50,28 @@ class DataSource(ABC):
         """Set dataset name."""
         self._name = value
 
-    @property
-    def variable(self) -> Variable:
-        """Get variable."""
-        return self._variable
-
-    def get_cubes(self) -> Cube:
-        """Get raw data as cubes."""
-        paths = list(self._get_data_dir().glob("*.nc"))
+    def get_cube(self, variable: Variable) -> Cube:
+        """Get data cube."""
+        paths: list[Path] = list(self._get_data_dir(variable).glob("*.nc"))
         if not paths:
-            self._download()
-        return iris.load(paths)
+            logger.info(f"Downloading {variable} for {self.name}")
+            paths = self._download(variable)
+            logger.info(f"Downloaded {variable} for {self.name}:\n{pformat(paths)}")
+        cubes = iris.load(paths)
+        return _get_prepared_cube(cubes, variable, self.config)
 
     @abstractmethod
-    def _download(self) -> None:
+    def _download(self, variable: Variable) -> list[Path]:
         """Download data."""
 
     def _esmvaltool_download(
         self,
+        variable: Variable,
         dataset_name: str,
         file_prefix_pattern: str = "*_",
         tier: int = 2,
-    ) -> None:
+    ) -> list[Path]:
         """Use ESMValTool to download data."""
-        reset_esmvaltool_config()
-
         # Raw downloaded data by ESMValTool will be stored in temporary
         # directory. Our "raw" data will be the formatted data by ESMValTool.
         # Store all ESMValTool output in temporary directory and only save the
@@ -95,22 +93,27 @@ class DataSource(ABC):
             / dataset_name
         )
         raw_files = latest_esmvaltool_output_dir.glob(
-            f"{file_prefix_pattern}{self.variable.var_name}_*.nc",
+            f"{file_prefix_pattern}{variable.var_name}_*.nc",
         )
-        data_dir = self._get_data_dir()
+        data_dir = self._get_data_dir(variable)
         data_dir.mkdir(parents=True, exist_ok=True)
         for file in raw_files:
             shutil.move(file, data_dir / file.name)
+        return list(data_dir.glob("*.nc"))
 
-    def _intake_esgf_download(self, **facets: Any) -> None:
+    def _intake_esgf_download(self, project: str, **facets: Any) -> list[Path]:
         """Use intake-esgf to download data."""
-        cat = intake_esgf.ESGFCatalog()
-        with intake_esgf.conf.set(local_cache=self.config.data_dir):
+        with intake_esgf.conf.set(
+            all_indices=True,
+            esg_dataroot=[],
+            local_cache=self.config.data_dir,
+        ):
+            cat = intake_esgf.ESGFCatalog()
+            cat.project = intake_esgf.projects.projects[project.lower()]
             cat.search(**facets)
             paths = cat.to_path_dict()
-        print(paths)
-        assert 0
+        return list(paths.values())
 
-    def _get_data_dir(self) -> Path:
+    def _get_data_dir(self, variable: Variable) -> Path:
         """Get data directory."""
-        return self.config.data_dir / self.name / self.variable.var_name
+        return self.config.data_dir / self.name / variable.var_name
