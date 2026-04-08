@@ -9,7 +9,7 @@ dependencies:
   - cf-units
   - esmvalcore
   - esmvaltool
-  - ibis-duckdb
+  - ibis-framework
   - intake-esgf
   - iris
   - loguru
