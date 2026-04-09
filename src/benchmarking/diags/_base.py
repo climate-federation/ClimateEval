@@ -125,6 +125,7 @@ class Diagnostic(ABC):
                 {
                     "var_id": pd.Series(dtype="str"),
                     **dict.fromkeys(self._get_metric_names(), pd.Series(dtype="float")),
+                    "reference": pd.Series(dtype="str"),
                 },
             ),
         )
@@ -151,6 +152,7 @@ class Diagnostic(ABC):
                     {
                         "var_id": variable.id,
                         **self._get_metrics(cube_dict[variable], reference_cube),
+                        "reference": reference_data.name,
                     },
                     index=[0],
                 ),

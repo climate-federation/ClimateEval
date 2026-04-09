@@ -92,6 +92,8 @@ print("Wrote", table_path)
 
 db_path = Path.home() / "benchmarking" / "benchmarking.ddb"
 con = ibis.connect(f"duckdb://{db_path}")
-con.create_table("timeseries", timeseries_table, overwrite=True)
-con.create_table("map", timeseries_table, overwrite=True)
+con.create_table(timeseries_diag.name, timeseries_table, overwrite=True)
+con.create_table(f"{timeseries_diag.name}_metrics", timeseries_metrics, overwrite=True)
+con.create_table(map_diag.name, map_table, overwrite=True)
+con.create_table(f"{map_diag.name}_metrics", map_metrics, overwrite=True)
 print("Wrote", db_path)
