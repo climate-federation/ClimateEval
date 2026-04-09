@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 import ibis
 import ibis.selectors
@@ -31,6 +31,7 @@ class Diagnostic(ABC):
 
     DATASET_STR: ClassVar[str] = "Dataset"
     DATA_TYPE_STR: ClassVar[str] = "Data Type"
+    DTYPE: ClassVar[ibis.DataType] = "float32"
     FINAL_COORDINATES: ClassVar[tuple[str, ...]] = ()
     """Coordinates (standard names) of preprocessed output."""
 
@@ -117,80 +118,129 @@ class Diagnostic(ABC):
 
         """
         logger.debug(f"Loading {data_name}")
-        cube_dict = {var: self._get_cube(data, var) for var in self.variables}
-        table = self._get_table_of_data(cube_dict, data_name)
+        ref_cube_dict = {
+            v: self._safely_preprocess(r.get_cube(v))
+            for v, r in self.reference_data.items()
+        }
 
+        # Create empty tables with correct columns
+        table = ibis.memtable(
+            pd.DataFrame(
+                {
+                    self.DATASET_STR: pd.Series(dtype="str"),
+                    self.DATA_TYPE_STR: pd.Series(dtype="str"),
+                    **dict.fromkeys(
+                        self.FINAL_COORDINATES,
+                        pd.Series(dtype=self.DTYPE),
+                    ),
+                    **dict.fromkeys(
+                        sorted(v.id for v in self.variables),
+                        pd.Series(dtype=self.DTYPE),
+                    ),
+                },
+            ),
+        )
+        if "time" in self.FINAL_COORDINATES:
+            table = table.cast(time="timestamp")
         metrics = ibis.memtable(
             pd.DataFrame(
                 {
                     "var_id": pd.Series(dtype="str"),
-                    **dict.fromkeys(self._get_metric_names(), pd.Series(dtype="float")),
-                    "to_benchmark": pd.Series(dtype="str"),
+                    **dict.fromkeys(
+                        self._get_metric_names(),
+                        pd.Series(dtype=self.DTYPE),
+                    ),
+                    self.DATASET_STR: pd.Series(dtype="str"),
                     "reference": pd.Series(dtype="str"),
                 },
             ),
         )
 
-        # Reference data
-        for variable, reference_data in self.reference_data.items():
-            reference_cube = self._safely_preprocess(reference_data.get_cube(variable))
-
-            # Expand table
+        # Process data to benchmark
+        for variable in self.variables:
+            cube = self._get_cube(data, variable)
             new_table = self._get_table_of_cube(
-                reference_cube,
-                reference_data.name,
-                variable,
+                cube,
+                variable=variable,
+                data_name=data_name,
+                data_type="to_benchmark",
             )
-            new_table = new_table.mutate(
-                **{self.DATA_TYPE_STR: ibis.literal("reference")},
-            )
-            new_table = self._add_missing_columns(new_table, table)
             table = ibis.union(table, new_table)
-
-            # Calculate metrics
-            new_metrics = ibis.memtable(
-                pd.DataFrame(
-                    {
-                        "var_id": variable.id,
-                        **self._get_metrics(cube_dict[variable], reference_cube),
-                        "to_benchmark": data_name,
-                        "reference": reference_data.name,
-                    },
-                    index=[0],
-                ),
+            new_metrics = self._get_metrics_table(
+                cube,
+                ref_cube_dict[variable],
+                variable=variable,
+                data_name=data_name,
             )
             metrics = ibis.union(metrics, new_metrics)
 
-        # Other data
+        # Process other data
         for variable, other_datas in self.other_data.items():
             for other_data in other_datas:
                 other_cube = self._safely_preprocess(other_data.get_cube(variable))
                 new_table = self._get_table_of_cube(
                     other_cube,
-                    other_data.name,
-                    variable,
+                    variable=variable,
+                    data_name=other_data.name,
+                    data_type="other",
                 )
-                new_table = new_table.mutate(
-                    **{self.DATA_TYPE_STR: ibis.literal("other")},
-                )
-                new_table = self._add_missing_columns(new_table, table)
                 table = ibis.union(table, new_table)
+                new_metrics = self._get_metrics_table(
+                    other_cube,
+                    ref_cube_dict[variable],
+                    variable=variable,
+                    data_name=other_data.name,
+                )
+                metrics = ibis.union(metrics, new_metrics)
+
+        # Add reference data to table
+        for variable, reference_cube in ref_cube_dict.items():
+            new_table = self._get_table_of_cube(
+                reference_cube,
+                variable=variable,
+                data_name=self.reference_data[variable].name,
+                data_type="reference",
+            )
+            table = ibis.union(table, new_table)
 
         return table, metrics
 
-    def _add_missing_columns(
+    def _get_metrics_table(
         self,
-        table: ibis.Table,
-        target_table: ibis.Table,
+        cube: Cube,
+        reference_cube: Cube,
+        *,
+        variable: Variable,
+        data_name: str,
     ) -> ibis.Table:
-        """Add missing columns to table (compared to target table)."""
-        missing_columns = set(target_table.columns) - set(table.columns)
+        """Get metrics."""
+        metrics = ibis.memtable(
+            pd.DataFrame(
+                {
+                    "var_id": variable.id,
+                    **self._get_metrics(cube, reference_cube),
+                    self.DATASET_STR: data_name,
+                    "reference": self.reference_data[variable].name,
+                },
+                index=[0],
+            ),
+        )
+        cast_operations = dict.fromkeys(self._get_metric_names(), self.DTYPE)
+        return metrics.cast(**cast_operations)
+
+    def _add_missing_columns(self, table: ibis.Table) -> ibis.Table:
+        """Add missing columns to table (one column per variable)."""
+        missing_columns = {v.id for v in self.variables} - set(table.columns)
         if missing_columns:
             table = table.mutate(**{col: ibis.literal(None) for col in missing_columns})
-            table = table.cast(
-                **{col: target_table[col].type() for col in missing_columns},
-            )
-        return table.select(target_table.columns)
+            table = table.cast(**dict.fromkeys(missing_columns, self.DTYPE))
+        new_col_order = (
+            self.DATASET_STR,
+            self.DATA_TYPE_STR,
+            *self.FINAL_COORDINATES,
+            *sorted(v.id for v in self.variables),
+        )
+        return table.select(new_col_order)
 
     def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
         """Get data cube."""
@@ -213,19 +263,24 @@ class Diagnostic(ABC):
     def _get_table_of_cube(
         self,
         cube: Cube,
-        name: str,
+        *,
         variable: Variable,
+        data_name: str,
+        data_type: Literal["to_benchmark", "reference", "other"],
     ) -> ibis.Table:
         """Get table of a single cube."""
         df = as_data_frame(cube).reset_index()
         if "time" in df.columns:
             df["time"] = df["time"].astype(str)
         table = ibis.memtable(df)
+        cast_operations = {
+            c: {"time": "timestamp"}.get(c, self.DTYPE) for c in table.columns
+        }
+        table = table.cast(**cast_operations)
         table = table.rename(**{variable.id: cube.name()})
-        table = table.mutate(**{self.DATASET_STR: ibis.literal(name)})
-        if "time" in table.columns:
-            table = table.cast(time="timestamp")
-        return table
+        table = table.mutate(**{self.DATASET_STR: ibis.literal(data_name)})
+        table = table.mutate(**{self.DATA_TYPE_STR: ibis.literal(data_type)})
+        return self._add_missing_columns(table)
 
     def _get_table_of_data(
         self,
@@ -235,10 +290,20 @@ class Diagnostic(ABC):
         """Get table of data to benchmark."""
         variable = self.variables[0]  # self.variables will never be empty
         cube = cube_dict[variable]
-        table = self._get_table_of_cube(cube, data_name, variable)
+        table = self._get_table_of_cube(
+            cube,
+            variable=variable,
+            data_name=data_name,
+            data_type="to_benchmark",
+        )
         for variable in self.variables[1:]:
             cube = cube_dict[variable]
-            new_table = self._get_table_of_cube(cube, data_name, variable)
+            new_table = self._get_table_of_cube(
+                cube,
+                variable=variable,
+                data_name=data_name,
+                data_type="to_benchmark",
+            )
 
             # Join tables (add columns)
             table = table.join(
@@ -259,9 +324,6 @@ class Diagnostic(ABC):
                 )
             table = table.mutate(**mutate_kwargs)
             table = table.select(ibis.selectors.matches(r"^(?!.*_DUPLICATE)"))
-
-        # Specify data type
-        table = table.mutate(**{self.DATA_TYPE_STR: ibis.literal("to_benchmark")})
 
         # Sort columns (variables to the right)
         new_col_order = (
