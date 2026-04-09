@@ -15,7 +15,7 @@ dependencies:
   - loguru
   - ncdata
   - numpy
-  - pandas
+  - pandas>=3
   - pyyaml
   - xarray
 

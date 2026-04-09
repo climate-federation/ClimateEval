@@ -125,6 +125,7 @@ class Diagnostic(ABC):
                 {
                     "var_id": pd.Series(dtype="str"),
                     **dict.fromkeys(self._get_metric_names(), pd.Series(dtype="float")),
+                    "to_benchmark": pd.Series(dtype="str"),
                     "reference": pd.Series(dtype="str"),
                 },
             ),
@@ -152,6 +153,7 @@ class Diagnostic(ABC):
                     {
                         "var_id": variable.id,
                         **self._get_metrics(cube_dict[variable], reference_cube),
+                        "to_benchmark": data_name,
                         "reference": reference_data.name,
                     },
                     index=[0],
