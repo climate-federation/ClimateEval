@@ -4,23 +4,21 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from benchmarking import Config, Variable
-from benchmarking.data import GPCP, HadCRUT5
+from benchmarking import Variable
+from benchmarking.data import GPCP, DiagnosticData, HadCRUT5
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from benchmarking.data import DataSource
+
+@pytest.fixture
+def data_dir(tmp_path: Path) -> Path:
+    return tmp_path / "data"
 
 
 @pytest.fixture
-def config(tmp_path: Path) -> Config:
-    return Config(data_dir=tmp_path / "data")
-
-
-@pytest.fixture
-def reference_data() -> dict[Variable, type[DataSource]]:
+def diagnostic_data_2d() -> dict[Variable, DiagnosticData]:
     return {
-        Variable("tas", "mon"): HadCRUT5,
-        Variable("pr", "mon"): GPCP,
+        Variable("my_tas", "tas", "mon"): DiagnosticData(reference=HadCRUT5),
+        Variable("my_pr", "pr", "mon"): DiagnosticData(reference=GPCP),
     }

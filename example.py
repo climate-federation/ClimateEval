@@ -8,32 +8,26 @@ from typing import TYPE_CHECKING
 import ibis
 import iris
 
-from benchmarking import Config, Variable
-from benchmarking.data import ERA5, GPCP, HadCRUT5
+from benchmarking import Variable
+from benchmarking.data import ERA5, GPCP, HadCRUT5, DiagnosticData
 from benchmarking.diags import TimeSeries
 
 if TYPE_CHECKING:
     from benchmarking.data._base import DataSource
 
-reference_data = {
-    Variable("pr", "mon"): ERA5,
-    Variable("tas", "mon"): ERA5,
-    # Variable("pr", "mon"): GPCP,
-    # Variable("tas", "mon"): HadCRUT5,
+data = {
+    Variable("my_pr", "pr", "mon", timerange="20000101/2005231"): DiagnosticData(
+        reference=ERA5,
+    ),
+    Variable("my_tas", "tas", "mon", timerange="20030101/20061231"): DiagnosticData(
+        reference=ERA5,
+        other=(HadCRUT5,),
+    ),
 }
-other_data: dict[Variable, list[type[DataSource]]] = {
-    Variable("pr", "mon"): [GPCP],
-    Variable("tas", "mon"): [HadCRUT5],
-}
-config = Config(
-    data_dir=Path.home() / "work" / "benchmarking_input" / "data",
-    timerange="19950101/20141231",
-)
 
 diag = TimeSeries(
-    reference_data=reference_data,
-    other_data=other_data,
-    config=config,
+    data,
+    data_dir=Path.home() / "work" / "benchmarking_input" / "data",
 )
 
 cubes = iris.load(
@@ -51,6 +45,10 @@ print(table.to_pandas())
 print(table.schema())
 print(metrics.to_pandas())
 print(metrics.schema())
+
+table_path = Path.home() / "benchmarking" / "table.html"
+table.to_pandas().to_html(table_path)
+print("Wrote", table_path)
 
 db_path = Path.home() / "benchmarking.ddb"
 con = ibis.connect(f"duckdb://{db_path}")

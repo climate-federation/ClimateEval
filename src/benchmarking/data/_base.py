@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
 from typing import TYPE_CHECKING, Any
@@ -18,27 +19,32 @@ from loguru import logger
 from benchmarking import _get_prepared_cube
 
 if TYPE_CHECKING:
-    from iris.cube import Cube
+    from iris.cube import CubeList
 
     from benchmarking import Variable
-    from benchmarking._config import Config
 
 
 logger = logger.opt(colors=True)
 
 
+@dataclass(frozen=True, kw_only=True)
+class DiagnosticData:
+    reference: type[DataSource]
+    other: tuple[type[DataSource], ...] = ()
+
+
 class DataSource(ABC):
     """Manage data source."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, data_dir: Path) -> None:
         """Initialize class instance."""
-        self._config = config
+        self._data_dir = data_dir
         self._name = self.__class__.__name__
 
     @property
-    def config(self) -> Config:
-        """Get configuration."""
-        return self._config
+    def data_dir(self) -> Path:
+        """Get path to data directory."""
+        return self._data_dir
 
     @property
     def name(self) -> str:
@@ -50,7 +56,7 @@ class DataSource(ABC):
         """Set dataset name."""
         self._name = value
 
-    def get_cube(self, variable: Variable) -> Cube:
+    def get_cube(self, variable: Variable) -> CubeList:
         """Get data cube."""
         paths: list[Path] = list(self._get_data_dir(variable).glob("*.nc"))
         if not paths:
@@ -58,7 +64,7 @@ class DataSource(ABC):
             paths = self._download(variable)
             logger.info(f"Downloaded {variable} for {self.name}:\n{pformat(paths)}")
         cubes = iris.load(paths)
-        return _get_prepared_cube(cubes, variable, self.config)
+        return _get_prepared_cube(cubes, variable)
 
     @abstractmethod
     def _download(self, variable: Variable) -> list[Path]:
@@ -106,7 +112,7 @@ class DataSource(ABC):
         with intake_esgf.conf.set(
             all_indices=True,
             esg_dataroot=[],
-            local_cache=self.config.data_dir,
+            local_cache=self.data_dir,
         ):
             cat = intake_esgf.ESGFCatalog()
             cat.project = intake_esgf.projects.projects[project.lower()]
@@ -116,4 +122,4 @@ class DataSource(ABC):
 
     def _get_data_dir(self, variable: Variable) -> Path:
         """Get data directory."""
-        return self.config.data_dir / self.name / variable.var_name
+        return self.data_dir / self.name / variable.var_name

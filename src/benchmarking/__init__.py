@@ -12,7 +12,7 @@ from iris.coords import CoordExtent
 from ncdata.iris_xarray import cubes_from_xarray
 from xarray import Dataset
 
-from benchmarking._config import Config, reset_esmvaltool_config
+from benchmarking._config import reset_esmvaltool_config
 from benchmarking._variable import COORDINATES, VARIABLES, Coordinate, Variable
 
 if TYPE_CHECKING:
@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 __all__ = [
     "COORDINATES",
     "VARIABLES",
-    "Config",
     "Coordinate",
     "Variable",
 ]
@@ -44,11 +43,7 @@ logging.getLogger("esmvalcore").setLevel(logging.ERROR)
 logging.getLogger("esmvaltool").setLevel(logging.ERROR)
 
 
-def _get_prepared_cube(
-    data: CubeList | Dataset,
-    variable: Variable,
-    config: Config,
-) -> Cube:
+def _get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     """Get prepared Iris cube."""
     if isinstance(data, Dataset):
         data = cubes_from_xarray(data)
@@ -62,18 +57,18 @@ def _get_prepared_cube(
         cube = _set_lon_to_0_360(cube)
 
     # Extract desired time range and bounding box
-    if cube.coords("time") and config.timerange != "*":
-        cube = clip_timerange(cube, config.timerange)
+    if cube.coords("time") and variable.timerange != "*":
+        cube = clip_timerange(cube, variable.timerange)
     if cube.coords("latitude"):
         cube = cube.extract(
             Constraint(
-                latitude=lambda cell: config.min_lat <= cell <= config.max_lat,
+                latitude=lambda cell: variable.min_lat <= cell <= variable.max_lat,
             ),
         )
     if cube.coords("longitude"):
         cube = cube.extract(
             Constraint(
-                longitude=lambda cell: config.min_lon <= cell <= config.max_lon,
+                longitude=lambda cell: variable.min_lon <= cell <= variable.max_lon,
             ),
         )
 

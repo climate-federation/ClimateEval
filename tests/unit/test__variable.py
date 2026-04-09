@@ -10,8 +10,9 @@ def test_coordinates() -> None:
 
 
 def test_tas() -> None:
-    var = Variable("tas", "mon")
+    var = Variable("my_tas", "tas", "mon")
 
+    assert var.id == "my_tas"
     assert var.var_name == "tas"
     assert var.frequency == "mon"
     assert var.coordinates == [

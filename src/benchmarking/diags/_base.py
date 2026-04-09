@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 import ibis
@@ -14,52 +15,54 @@ from iris.pandas import as_data_frame
 from benchmarking import _get_prepared_cube
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
-
     from iris.cube import Cube, CubeList
     from xarray import Dataset
 
-    from benchmarking import Config, Variable
-    from benchmarking.data import DataSource
+    from benchmarking import Variable
+    from benchmarking.data import DataSource, DiagnosticData
 
 
 class Diagnostic(ABC):
     """Manage diagnostics."""
 
     DATASET_STR: ClassVar[str] = "Dataset"
+    COORDINATES: ClassVar[tuple[str, ...]] = ()
+    """Coordinates of preprocessed output."""
 
     def __init__(
         self,
+        data: dict[Variable, DiagnosticData],
         *,
-        reference_data: Mapping[Variable, type[DataSource]],
-        other_data: Mapping[Variable, Iterable[type[DataSource]]],
-        config: Config,
+        data_dir: Path | None = None,
     ) -> None:
         """Initialize class instance."""
-        self._config = config
+        if data_dir is None:
+            data_dir = Path.home() / ".benchmarking" / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        self._data_dir = data_dir
 
-        if not reference_data:
-            msg = "At least a single variable and reference dataset must be given."
+        if not data:
+            msg = "At least a single variable must be given."
             raise ValueError(msg)
 
-        self._variables = sorted(reference_data.keys())
-        self._reference_data = {v: r(self.config) for v, r in reference_data.items()}
+        self._variables = sorted(data.keys())
+        self._reference_data = {v: d.reference(self.data_dir) for v, d in data.items()}
 
         _other_data: dict[Variable, tuple[DataSource, ...]] = {}
-        for var in self.variables:
-            if var.var_name in other_data:
-                val = tuple(o(self.config) for o in other_data[var])
+        for variable, data_item in data.items():
+            if data_item.other:
+                val = tuple(o(self.data_dir) for o in data_item.other)
             else:
                 val = ()
-            _other_data[var] = val
+            _other_data[variable] = val
         self._other_data = _other_data
 
         self._tags = self._get_tags()
 
     @property
-    def config(self) -> Config:
-        """Get configuration."""
-        return self._config
+    def data_dir(self) -> Path:
+        """Get path to data directory."""
+        return self._data_dir
 
     @property
     def name(self) -> str:
@@ -112,7 +115,7 @@ class Diagnostic(ABC):
         metrics = ibis.memtable(
             pd.DataFrame(
                 {
-                    "var_name": pd.Series(dtype="str"),
+                    "var_id": pd.Series(dtype="str"),
                     **dict.fromkeys(self._get_metric_names(), pd.Series(dtype="float")),
                 },
             ),
@@ -135,7 +138,7 @@ class Diagnostic(ABC):
             new_metrics = ibis.memtable(
                 pd.DataFrame(
                     {
-                        "var_name": variable.var_name,
+                        "var_id": variable.id,
                         **self._get_metrics(cube_dict[variable], reference_cube),
                     },
                     index=[0],
@@ -173,7 +176,7 @@ class Diagnostic(ABC):
 
     def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
         """Get data cube."""
-        cube = _get_prepared_cube(data, variable, self.config)
+        cube = _get_prepared_cube(data, variable)
         return self._preprocess(cube)
 
     def _get_metric_names(self) -> tuple[str, ...]:
@@ -200,7 +203,7 @@ class Diagnostic(ABC):
         if "time" in df.columns:
             df["time"] = df["time"].astype(str)
         table = ibis.memtable(df)
-        table = table.rename(**{variable.var_name: cube.name()})
+        table = table.rename(**{variable.id: cube.name()})
         table = table.mutate(**{self.DATASET_STR: ibis.literal(name)})
         if "time" in table.columns:
             table = table.cast(time="timestamp")
@@ -218,7 +221,25 @@ class Diagnostic(ABC):
         for variable in self.variables[1:]:
             cube = cube_dict[variable]
             new_table = self._get_table_of_cube(cube, data_name, variable)
-            table = table.join(new_table, how="outer", rname="{name}_DUPLICATE")
+
+            # Join tables (add columns)
+            table = table.join(
+                new_table,
+                self.COORDINATES,
+                how="outer",
+                rname="{name}_DUPLICATE",
+            )
+
+            # Coalesce duplicated columns (take first non-null value)
+            dup_cols = [col for col in table.columns if col.endswith("_DUPLICATE")]
+            mutate_kwargs = {}
+            for dup_col in dup_cols:
+                orig_col = dup_col.replace("_DUPLICATE", "")
+                mutate_kwargs[orig_col] = ibis.coalesce(
+                    table[orig_col],
+                    table[dup_col],
+                )
+            table = table.mutate(**mutate_kwargs)
             table = table.select(ibis.selectors.matches(r"^(?!.*_DUPLICATE)"))
 
         return table

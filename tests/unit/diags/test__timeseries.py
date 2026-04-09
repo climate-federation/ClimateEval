@@ -5,14 +5,15 @@ from typing import TYPE_CHECKING
 from benchmarking.diags import TimeSeries
 
 if TYPE_CHECKING:
-    from benchmarking import Config, Variable
-    from benchmarking.data import DataSource
+    from pathlib import Path
+
+    from benchmarking import Variable
+    from benchmarking.data import DiagnosticData
 
 
-def test_tags(reference_data: dict[Variable, type[DataSource]], config: Config) -> None:
-    diag = TimeSeries(
-        reference_data=reference_data,
-        other_data={},
-        config=config,
-    )
+def test_tags(
+    diagnostic_data_2d: dict[Variable, DiagnosticData],
+    data_dir: Path,
+) -> None:
+    diag = TimeSeries(diagnostic_data_2d, data_dir=data_dir)
     assert diag.tags == ("atmosphere", "pr", "tas", "timeseries")

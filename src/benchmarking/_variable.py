@@ -36,8 +36,15 @@ class Coordinate:
 class Variable:
     """Manage variables."""
 
-    var_name: str
-    frequency: str
+    id: str
+    var_name: str = field(repr=False)
+    frequency: str = field(repr=False)
+    level: str = field(default="*", repr=False, kw_only=True)
+    min_lat: float = field(default=-90.0, repr=False, kw_only=True)
+    max_lat: float = field(default=90.0, repr=False, kw_only=True)
+    min_lon: float = field(default=0.0, repr=False, kw_only=True)
+    max_lon: float = field(default=360.0, repr=False, kw_only=True)
+    timerange: str = field(default="*", repr=False, kw_only=True)
     coordinates: list[Coordinate] = field(init=False, repr=False, compare=False)
     realm: str = field(init=False, repr=False, compare=False)
     standard_name: str = field(init=False, repr=False, compare=False)

@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 class TimeSeries(Diagnostic):
     """Manage atmosphere timeseries diagnostics."""
 
+    COORDINATES = ("time",)
+
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
         cube = regrid(cube, "2x2", "linear")  # to ensure we are on a regular grid
