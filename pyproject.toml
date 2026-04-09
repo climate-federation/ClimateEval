@@ -33,6 +33,7 @@ dependencies = [
     "intake-esgf",
     "loguru",
     "ncdata",
+    "numpy",
     "pandas",
     "pyyaml",
     "scitools-iris",
