@@ -60,9 +60,20 @@ class DataSource(ABC):
         """Get data cube."""
         paths: list[Path] = list(self._get_data_dir(variable).glob("*.nc"))
         if not paths:
-            logger.info(f"Downloading {variable} for {self.name}")
-            paths = self._download(variable)
-            logger.info(f"Downloaded {variable} for {self.name}:\n{pformat(paths)}")
+            logger.debug(f"No data found for {variable}, trying required variables")
+            for required_variable in variable.get_required_variables():
+                paths_for_required_variable = list(
+                    self._get_data_dir(required_variable).glob("*.nc"),
+                )
+                if not paths_for_required_variable:
+                    logger.debug(f"No data found for {paths_for_required_variable}")
+                    logger.info(f"Downloading {required_variable} for {self.name}")
+                    paths_for_required_variable = self._download(required_variable)
+                    logger.info(
+                        f"Downloaded {required_variable} for {self.name}:\n"
+                        f"{pformat(paths_for_required_variable)}",
+                    )
+                paths.extend(paths_for_required_variable)
         cubes = iris.load(paths)
         return _get_prepared_cube(cubes, variable)
 

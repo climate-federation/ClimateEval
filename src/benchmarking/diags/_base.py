@@ -26,6 +26,7 @@ class Diagnostic(ABC):
     """Manage diagnostics."""
 
     DATASET_STR: ClassVar[str] = "Dataset"
+    DATA_TYPE_STR: ClassVar[str] = "Data Type"
     COORDINATES: ClassVar[tuple[str, ...]] = ()
     """Coordinates of preprocessed output."""
 

@@ -6,9 +6,11 @@ import logging
 from typing import TYPE_CHECKING
 
 import iris
-from esmvalcore.preprocessor import clip_timerange
+from esmvalcore.preprocessor import clip_timerange, derive
 from iris import Constraint, NameConstraint
 from iris.coords import CoordExtent
+from iris.cube import CubeList
+from loguru import logger
 from ncdata.iris_xarray import cubes_from_xarray
 from xarray import Dataset
 
@@ -16,7 +18,9 @@ from benchmarking._config import reset_esmvaltool_config
 from benchmarking._variable import COORDINATES, VARIABLES, Coordinate, Variable
 
 if TYPE_CHECKING:
-    from iris.cube import Cube, CubeList
+    from iris.cube import Cube
+
+logger = logger.opt(colors=True)
 
 
 __all__ = [
@@ -47,7 +51,24 @@ def _get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     """Get prepared Iris cube."""
     if isinstance(data, Dataset):
         data = cubes_from_xarray(data)
-    cube = data.extract_cube(NameConstraint(var_name=variable.var_name))
+    try:
+        cube = data.extract_cube(NameConstraint(var_name=variable.var_name))
+    except iris.exceptions.ConstraintMismatchError:
+        if not variable.derived:
+            raise
+        logger.debug(f"Data for {variable} not found, trying derivation")
+        cubes: CubeList = CubeList([])
+        for required_variable in variable.get_required_variables():
+            cubes.append(
+                data.extract_cube(NameConstraint(var_name=required_variable.var_name)),
+            )
+        cube = derive(
+            cubes,
+            short_name=variable.var_name,
+            long_name=variable.long_name,
+            units=variable.units,
+            standard_name=variable.standard_name,
+        )
 
     # Make sure units are correct (this will potentiall raise an error)
     cube.convert_units(variable.units)

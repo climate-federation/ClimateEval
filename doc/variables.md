@@ -1,6 +1,6 @@
 # Overview of Required Variables
 
-TODO: Generate this automatically from
+TODO: Generate this automatically from variables.yml
 
 ## Variables
 

@@ -22,4 +22,4 @@ class GPCP(DataSource):
             variable_id=variable.var_name,
             source_id="GPCP-3-3",
             frequency=variable.frequency,
-        )  # does not work yet...
+        )

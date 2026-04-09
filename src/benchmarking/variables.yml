@@ -2,11 +2,35 @@
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_atmos.json
 pr:
   coordinates: [time, lat, lon]
+  long_name: Precipitation
   realm: atmosphere
   standard_name: precipitation_flux
   units: kg m-2 s-1
+rlut:
+  coordinates: [time, lat, lon]
+  long_name: TOA Outgoing Longwave Radiation
+  realm: atmosphere
+  standard_name: toa_outgoing_longwave_flux
+  units: W m-2
+rlutcs:
+  coordinates: [time, lat, lon]
+  long_name: TOA Outgoing Clear-Sky Longwave Radiation
+  realm: atmosphere
+  standard_name: toa_outgoing_longwave_flux_assuming_clear_sky
+  units: W m-2
 tas:
   coordinates: [time, lat, lon]
+  long_name: Near-Surface Air Temperature
   realm: atmosphere
   standard_name: air_temperature
   units: K
+
+# ESMValTool derived variables
+# Source: https://github.com/ESMValGroup/ESMValCore/blob/main/esmvalcore/cmor/tables/cmip6-custom/CMIP6_custom.json
+lwcre:
+  coordinates: [time, lat, lon]
+  derived: true
+  long_name: TOA Longwave Cloud Radiative Effect
+  realm: atmosphere
+  standard_name: ""
+  units: W m-2
