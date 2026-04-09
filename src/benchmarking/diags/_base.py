@@ -132,6 +132,9 @@ class Diagnostic(ABC):
                 reference_data.name,
                 variable,
             )
+            new_table = new_table.mutate(
+                **{self.DATA_TYPE_STR: ibis.literal("reference")},
+            )
             new_table = self._add_missing_columns(new_table, table)
             table = ibis.union(table, new_table)
 
@@ -156,6 +159,9 @@ class Diagnostic(ABC):
                     other_data.name,
                     variable,
                 )
+                new_table = new_table.mutate(
+                    **{self.DATA_TYPE_STR: ibis.literal("other")},
+                )
                 new_table = self._add_missing_columns(new_table, table)
                 table = ibis.union(table, new_table)
 
@@ -173,7 +179,7 @@ class Diagnostic(ABC):
             table = table.cast(
                 **{col: target_table[col].type() for col in missing_columns},
             )
-        return table
+        return table.select(target_table.columns)
 
     def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
         """Get data cube."""
@@ -243,7 +249,17 @@ class Diagnostic(ABC):
             table = table.mutate(**mutate_kwargs)
             table = table.select(ibis.selectors.matches(r"^(?!.*_DUPLICATE)"))
 
-        return table
+        # Specify data type
+        table = table.mutate(**{self.DATA_TYPE_STR: ibis.literal("to_benchmark")})
+
+        # Sort columns (variables to the right)
+        new_col_order = (
+            self.DATASET_STR,
+            self.DATA_TYPE_STR,
+            *self.COORDINATES,
+            *sorted(v.id for v in self.variables),
+        )
+        return table.select(new_col_order)
 
     def _get_tags(self) -> tuple[str, ...]:
         """Get diagnostic tags."""
