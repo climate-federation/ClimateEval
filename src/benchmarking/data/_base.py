@@ -16,7 +16,7 @@ from esmvalcore.config import CFG
 from esmvaltool.cmorizers.data.cmorizer import DataCommand
 from loguru import logger
 
-from benchmarking import _get_prepared_cube
+from benchmarking import get_prepared_cube
 
 if TYPE_CHECKING:
     from iris.cube import CubeList
@@ -58,6 +58,7 @@ class DataSource(ABC):
 
     def get_cube(self, variable: Variable) -> CubeList:
         """Get data cube."""
+        logger.debug(f"Loading {self.name}")
         paths: list[Path] = list(self._get_data_dir(variable).glob("*.nc"))
         if not paths:
             logger.debug(f"No data found for {variable}, trying required variables")
@@ -66,7 +67,7 @@ class DataSource(ABC):
                     self._get_data_dir(required_variable).glob("*.nc"),
                 )
                 if not paths_for_required_variable:
-                    logger.debug(f"No data found for {paths_for_required_variable}")
+                    logger.debug(f"No data found for {required_variable}")
                     logger.info(f"Downloading {required_variable} for {self.name}")
                     paths_for_required_variable = self._download(required_variable)
                     logger.info(
@@ -75,7 +76,7 @@ class DataSource(ABC):
                     )
                 paths.extend(paths_for_required_variable)
         cubes = iris.load(paths)
-        return _get_prepared_cube(cubes, variable)
+        return get_prepared_cube(cubes, variable)
 
     @abstractmethod
     def _download(self, variable: Variable) -> list[Path]:

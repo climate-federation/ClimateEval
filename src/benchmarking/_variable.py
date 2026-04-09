@@ -9,9 +9,13 @@ from typing import TYPE_CHECKING, Any
 import yaml
 from esmvalcore.preprocessor._derive import get_required  # not part of public API yet
 
+from benchmarking import NO_LEVEL
+
 if TYPE_CHECKING:
     from importlib.resources.abc import Traversable
     from pathlib import Path
+
+    from benchmarking import VerticalLevel
 
 
 @dataclass(frozen=True, order=True)
@@ -43,7 +47,8 @@ class Variable:
     frequency: str = field(repr=False)
 
     # Settings
-    level: str = field(default="*", repr=False, kw_only=True)
+    settings: dict[str, Any] = field(init=False, repr=False, compare=False)
+    vertical_level: VerticalLevel = field(default=NO_LEVEL, repr=False, kw_only=True)
     min_lat: float = field(default=-90.0, repr=False, kw_only=True)
     max_lat: float = field(default=90.0, repr=False, kw_only=True)
     min_lon: float = field(default=0.0, repr=False, kw_only=True)
@@ -66,6 +71,7 @@ class Variable:
         var_info = VARIABLES[self.var_name]
 
         # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
+        object.__setattr__(self, "settings", self._get_settings())
         object.__setattr__(
             self,
             "coordinates",
@@ -76,7 +82,7 @@ class Variable:
                 continue
             object.__setattr__(self, key, val)
 
-    def get_settings(self) -> dict[str, Any]:
+    def _get_settings(self) -> dict[str, Any]:
         """Get settings."""
         settings: dict[str, Any] = {}
         for field_ in fields(self):
@@ -94,7 +100,7 @@ class Variable:
                 v["short_name"],
                 v["short_name"],
                 self.frequency,
-                **self.get_settings(),
+                **self.settings,
             )
             for v in required_facets
         )

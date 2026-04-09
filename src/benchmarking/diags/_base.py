@@ -11,8 +11,9 @@ import ibis.selectors
 import pandas as pd
 from esmvalcore.preprocessor import distance_metric
 from iris.pandas import as_data_frame
+from loguru import logger
 
-from benchmarking import _get_prepared_cube
+from benchmarking import get_prepared_cube
 
 if TYPE_CHECKING:
     from iris.cube import Cube, CubeList
@@ -22,13 +23,16 @@ if TYPE_CHECKING:
     from benchmarking.data import DataSource, DiagnosticData
 
 
+logger = logger.opt(colors=True)
+
+
 class Diagnostic(ABC):
     """Manage diagnostics."""
 
     DATASET_STR: ClassVar[str] = "Dataset"
     DATA_TYPE_STR: ClassVar[str] = "Data Type"
-    COORDINATES: ClassVar[tuple[str, ...]] = ()
-    """Coordinates of preprocessed output."""
+    FINAL_COORDINATES: ClassVar[tuple[str, ...]] = ()
+    """Coordinates (standard names) of preprocessed output."""
 
     def __init__(
         self,
@@ -37,6 +41,8 @@ class Diagnostic(ABC):
         data_dir: Path | None = None,
     ) -> None:
         """Initialize class instance."""
+        logger.debug(f"Initializing diagnostic {self.name}")
+
         if data_dir is None:
             data_dir = Path.home() / ".benchmarking" / "data"
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -110,6 +116,7 @@ class Diagnostic(ABC):
             (Data table, metrics table).
 
         """
+        logger.debug(f"Loading {data_name}")
         cube_dict = {var: self._get_cube(data, var) for var in self.variables}
         table = self._get_table_of_data(cube_dict, data_name)
 
@@ -183,7 +190,7 @@ class Diagnostic(ABC):
 
     def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
         """Get data cube."""
-        cube = _get_prepared_cube(data, variable)
+        cube = get_prepared_cube(data, variable)
         return self._preprocess(cube)
 
     def _get_metric_names(self) -> tuple[str, ...]:
@@ -232,7 +239,7 @@ class Diagnostic(ABC):
             # Join tables (add columns)
             table = table.join(
                 new_table,
-                self.COORDINATES,
+                self.FINAL_COORDINATES,
                 how="outer",
                 rname="{name}_DUPLICATE",
             )
@@ -256,7 +263,7 @@ class Diagnostic(ABC):
         new_col_order = (
             self.DATASET_STR,
             self.DATA_TYPE_STR,
-            *self.COORDINATES,
+            *self.FINAL_COORDINATES,
             *sorted(v.id for v in self.variables),
         )
         return table.select(new_col_order)

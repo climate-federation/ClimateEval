@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import iris
-from esmvalcore.preprocessor import clip_timerange, derive
+from esmvalcore.preprocessor import clip_timerange, derive, extract_levels
 from iris import Constraint, NameConstraint
 from iris.coords import CoordExtent
 from iris.cube import CubeList
@@ -14,7 +14,7 @@ from loguru import logger
 from ncdata.iris_xarray import cubes_from_xarray
 from xarray import Dataset
 
-from benchmarking._config import reset_esmvaltool_config
+from benchmarking._config import NO_LEVEL, VerticalLevel, reset_esmvaltool_config
 from benchmarking._variable import COORDINATES, VARIABLES, Coordinate, Variable
 
 if TYPE_CHECKING:
@@ -25,9 +25,11 @@ logger = logger.opt(colors=True)
 
 __all__ = [
     "COORDINATES",
+    "NO_LEVEL",
     "VARIABLES",
     "Coordinate",
     "Variable",
+    "VerticalLevel",
 ]
 
 # Make Iris as flexible as possible when combining cubes (e.g., during loading)
@@ -47,28 +49,35 @@ logging.getLogger("esmvalcore").setLevel(logging.ERROR)
 logging.getLogger("esmvaltool").setLevel(logging.ERROR)
 
 
-def _get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
-    """Get prepared Iris cube."""
+def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
+    """Get prepared data.
+
+    This performs preprocessing according to `variable.settings`.
+
+    Parameters
+    ----------
+    data:
+        Input data.
+    variable:
+        Variable.
+
+    Returns
+    -------
+    :
+        Prepared data.
+
+    """
     if isinstance(data, Dataset):
         data = cubes_from_xarray(data)
+
     try:
         cube = data.extract_cube(NameConstraint(var_name=variable.var_name))
     except iris.exceptions.ConstraintMismatchError:
         if not variable.derived:
             raise
-        logger.debug(f"Data for {variable} not found, trying derivation")
-        cubes: CubeList = CubeList([])
-        for required_variable in variable.get_required_variables():
-            cubes.append(
-                data.extract_cube(NameConstraint(var_name=required_variable.var_name)),
-            )
-        cube = derive(
-            cubes,
-            short_name=variable.var_name,
-            long_name=variable.long_name,
-            units=variable.units,
-            standard_name=variable.standard_name,
-        )
+        cube = _get_derived_cube(data, variable)
+
+    _check_data(cube, variable)
 
     # Make sure units are correct (this will potentiall raise an error)
     cube.convert_units(variable.units)
@@ -93,7 +102,75 @@ def _get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
             ),
         )
 
+    # Extract level
+    if variable.vertical_level is not NO_LEVEL:
+        cube = _extract_level(cube, variable.vertical_level)
+
     return cube
+
+
+def _check_data(cube: Cube, variable: Variable) -> None:
+    """Check data."""
+    # Coordinates
+    actual_coord_names = {c.name() for c in cube.coords(dim_coords=True)}
+    expected_coord_names = {c.standard_name for c in variable.coordinates}
+    if actual_coord_names != expected_coord_names:
+        msg = (
+            f"Expected coordinates {expected_coord_names} (standard names), got "
+            f"{actual_coord_names}"
+        )
+        raise ValueError(msg)
+
+    # Time
+    if not cube.coords("time"):
+        return
+    time_coord = cube.coord("time")
+    datetimes = time_coord.units.num2date(time_coord.points)
+    actual_min_year = datetimes[0].year
+    actual_max_year = datetimes[-1].year
+    expected_min_year = int(variable.timerange.split("/")[0][:4])
+    expected_max_year = int(variable.timerange.split("/")[1][:4])
+    if expected_min_year < actual_min_year:
+        msg = (
+            f"Selected timerange is {variable.timerange}, but data starts in "
+            f"year {actual_min_year} for cube \n{cube}"
+        )
+        raise ValueError(msg)
+    if expected_max_year > actual_max_year:
+        msg = (
+            f"Selected timerange is {variable.timerange}, but data ends in "
+            f"year {actual_max_year} for cube \n{cube}"
+        )
+        raise ValueError(msg)
+
+
+def _extract_level(cube: Cube, vertical_level: VerticalLevel) -> Cube:
+    """Extract level from cube."""
+    coord = cube.coord(vertical_level.coordinate_name)
+    coord.convert_units(vertical_level.units)
+    return extract_levels(
+        cube,
+        vertical_level.value,
+        "linear",
+        coordinate=vertical_level.coordinate_name,
+    )
+
+
+def _get_derived_cube(cubes: CubeList, variable: Variable) -> Cube:
+    """Derive variable."""
+    logger.debug(f"Data for {variable} not found, trying derivation")
+    cubes_for_derivation: CubeList = CubeList([])
+    for required_variable in variable.get_required_variables():
+        cubes_for_derivation.append(
+            cubes.extract_cube(NameConstraint(var_name=required_variable.var_name)),
+        )
+    return derive(
+        cubes_for_derivation,
+        short_name=variable.var_name,
+        long_name=variable.long_name,
+        units=variable.units,
+        standard_name=variable.standard_name,
+    )
 
 
 def _set_lon_to_0_360(cube: Cube) -> Cube:

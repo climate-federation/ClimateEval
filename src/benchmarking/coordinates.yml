@@ -7,6 +7,10 @@ lon:
   long_name: Longitude
   standard_name: longitude
   units: degrees_east
+plev:
+  long_name: Pressure Levels
+  standard_name: air_pressure
+  units: Pa
 time:
   long_name: Time Intervals
   standard_name: time

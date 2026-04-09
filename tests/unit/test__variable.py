@@ -2,7 +2,13 @@ import re
 
 import pytest
 
-from benchmarking import COORDINATES, VARIABLES, Coordinate, Variable
+from benchmarking import (
+    COORDINATES,
+    NO_LEVEL,
+    VARIABLES,
+    Coordinate,
+    Variable,
+)
 
 
 def test_variables() -> None:
@@ -19,7 +25,7 @@ def test_tas() -> None:
     assert var.id == "my_tas"
     assert var.var_name == "tas"
     assert var.frequency == "mon"
-    assert var.level == "*"
+    assert var.vertical_level is NO_LEVEL
     assert var.min_lat == -90.0
     assert var.max_lat == 90.0
     assert var.min_lon == 0.0
@@ -43,7 +49,7 @@ def test_lwcre() -> None:
     assert var.id == "my_lwcre"
     assert var.var_name == "lwcre"
     assert var.frequency == "yr"
-    assert var.level == "*"
+    assert var.vertical_level is NO_LEVEL
     assert var.min_lat == 0.0
     assert var.max_lat == 90.0
     assert var.min_lon == 0.0
@@ -61,11 +67,10 @@ def test_lwcre() -> None:
     assert var.units == "W m-2"
 
 
-def test_get_settings() -> None:
+def test_settings() -> None:
     var = Variable("my_lwcre", "lwcre", "yr", min_lat=0.0, max_lon=180.0)
-    settings = var.get_settings()
-    assert settings == {
-        "level": "*",
+    assert var.settings == {
+        "vertical_level": NO_LEVEL,
         "min_lat": 0.0,
         "max_lat": 90.0,
         "min_lon": 0.0,

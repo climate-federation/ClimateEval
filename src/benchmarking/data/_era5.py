@@ -15,22 +15,78 @@ from benchmarking.data import DataSource
 if TYPE_CHECKING:
     from benchmarking import Variable
 
+MONTHS = [f"{m:02d}" for m in range(1, 13)]
+YEARS = [str(y) for y in range(1979, 2025)]
+PRESSURE_LEVELS = [
+    "1",
+    "2",
+    "3",
+    "5",
+    "7",
+    "10",
+    "20",
+    "30",
+    "50",
+    "70",
+    "100",
+    "125",
+    "150",
+    "175",
+    "200",
+    "225",
+    "250",
+    "300",
+    "350",
+    "400",
+    "450",
+    "500",
+    "550",
+    "600",
+    "650",
+    "700",
+    "750",
+    "775",
+    "800",
+    "825",
+    "850",
+    "875",
+    "900",
+    "925",
+    "950",
+    "975",
+    "1000",
+]
+
 REQUEST_MAP: dict[str, Any] = {
     "pr": {
         "dataset": "reanalysis-era5-single-levels-monthly-means",
         "product_type": ["monthly_averaged_reanalysis"],
         "variable": ["total_precipitation"],
+        "month": MONTHS,
+        "time": ["00:00"],
+        "year": YEARS,
+        "cmip6_table_id": "Amon",  # for ESMValTool
+    },
+    "ta": {
+        "dataset": "reanalysis-era5-pressure-levels-monthly-means",
+        "product_type": ["monthly_averaged_reanalysis"],
+        "variable": ["temperature"],
+        "month": MONTHS,
+        "time": ["00:00"],
+        "year": YEARS,
+        "pressure_level": PRESSURE_LEVELS,
         "cmip6_table_id": "Amon",  # for ESMValTool
     },
     "tas": {
         "dataset": "reanalysis-era5-single-levels-monthly-means",
         "product_type": ["monthly_averaged_reanalysis"],
         "variable": ["2m_temperature"],
+        "month": MONTHS,
+        "time": ["00:00"],
+        "year": YEARS,
         "cmip6_table_id": "Amon",  # for ESMValTool
     },
 }
-MONTHS = [f"{m:02d}" for m in range(1, 13)]
-YEARS = [str(y) for y in range(1979, 2025)]
 
 
 class ERA5(DataSource):
@@ -45,9 +101,6 @@ class ERA5(DataSource):
         request = dict(REQUEST_MAP[variable.var_name])
         request["data_format"] = "netcdf"
         request["download_format"] = "unarchived"
-        request["month"] = MONTHS
-        request["time"] = ["00:00"]
-        request["year"] = YEARS
         dataset = request.pop("dataset")
         cmip6_table_id = request.pop("cmip6_table_id")
 

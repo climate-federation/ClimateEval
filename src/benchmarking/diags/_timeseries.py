@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 
 
 class TimeSeries(Diagnostic):
-    """Manage atmosphere timeseries diagnostics."""
+    """Manage timeseries diagnostics."""
 
-    COORDINATES = ("time",)
+    FINAL_COORDINATES = ("time",)
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""

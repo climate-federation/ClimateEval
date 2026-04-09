@@ -18,6 +18,12 @@ rlutcs:
   realm: atmosphere
   standard_name: toa_outgoing_longwave_flux_assuming_clear_sky
   units: W m-2
+ta:
+  coordinates: [time, plev, lat, lon]
+  long_name: Air Temperature
+  realm: atmosphere
+  standard_name: air_temperature
+  units: K
 tas:
   coordinates: [time, lat, lon]
   long_name: Near-Surface Air Temperature
