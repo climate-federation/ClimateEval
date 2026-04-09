@@ -95,6 +95,6 @@ def test_get_required_variables_not_derived() -> None:
 
 
 def test_var_not_implemented_fail() -> None:
-    msg = "Variable 'var' not supported yet"
+    msg = r"Variable 'var' not supported yet"
     with pytest.raises(NotImplementedError, match=re.escape(msg)):
         Variable("my_var", "var", "mon")

@@ -13,7 +13,7 @@ from esmvalcore.preprocessor import distance_metric
 from iris.pandas import as_data_frame
 from loguru import logger
 
-from benchmarking import get_prepared_cube
+from benchmarking._utils import check_coordinates, get_prepared_cube
 
 if TYPE_CHECKING:
     from iris.cube import Cube, CubeList
@@ -131,7 +131,7 @@ class Diagnostic(ABC):
 
         # Reference data
         for variable, reference_data in self.reference_data.items():
-            reference_cube = self._preprocess(reference_data.get_cube(variable))
+            reference_cube = self._safely_preprocess(reference_data.get_cube(variable))
 
             # Expand table
             new_table = self._get_table_of_cube(
@@ -160,7 +160,7 @@ class Diagnostic(ABC):
         # Other data
         for variable, other_datas in self.other_data.items():
             for other_data in other_datas:
-                other_cube = self._preprocess(other_data.get_cube(variable))
+                other_cube = self._safely_preprocess(other_data.get_cube(variable))
                 new_table = self._get_table_of_cube(
                     other_cube,
                     other_data.name,
@@ -191,7 +191,7 @@ class Diagnostic(ABC):
     def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
         """Get data cube."""
         cube = get_prepared_cube(data, variable)
-        return self._preprocess(cube)
+        return self._safely_preprocess(cube)
 
     def _get_metric_names(self) -> tuple[str, ...]:
         """Get metric names."""
@@ -279,3 +279,9 @@ class Diagnostic(ABC):
     @abstractmethod
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess cube."""
+
+    def _safely_preprocess(self, cube: Cube) -> Cube:
+        """Safely preprocess cube."""
+        cube = self._preprocess(cube)
+        check_coordinates(cube, self.FINAL_COORDINATES)
+        return cube

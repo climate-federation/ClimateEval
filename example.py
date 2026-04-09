@@ -2,23 +2,17 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
-from typing import TYPE_CHECKING
 import warnings
+from pathlib import Path
 
 import ibis
 import iris
-
-from benchmarking import VerticalLevel, Variable
-from benchmarking.data import CERESEBAF, ERA5, GPCP, HadCRUT5, DiagnosticData
-from benchmarking.diags import TimeSeries
-
 from loguru import logger
 
-
-if TYPE_CHECKING:
-    from benchmarking.data._base import DataSource
+from benchmarking import Variable, VerticalLevel
+from benchmarking.data import CERESEBAF, ERA5, GPCP, DiagnosticData, HadCRUT5
+from benchmarking.diags import Map, TimeSeries
 
 logger = logger.opt(colors=True)
 logger.remove()
@@ -43,17 +37,12 @@ data = {
         "ta800",
         "ta",
         "mon",
-        vertical_level=VerticalLevel("air_pressure", "hPa", 200),
+        vertical_level=VerticalLevel("air_pressure", "hPa", 800),
         timerange="20000101/20011231",
     ): DiagnosticData(
         reference=ERA5,
     ),
 }
-
-diag = TimeSeries(
-    data,
-    data_dir=Path.home() / "work" / "benchmarking_input" / "data",
-)
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -72,18 +61,37 @@ with warnings.catch_warnings():
         ],
     )
 
-table, metrics = diag.get_tables(cubes, "MPI-ESM1-2-LR")
-
-print(table.to_pandas())
-print(table.schema())
-print(metrics.to_pandas())
-print(metrics.schema())
-
-table_path = Path.home() / "benchmarking" / "table.html"
-table.to_pandas().to_html(table_path)
+timeseries_diag = TimeSeries(
+    data,
+    data_dir=Path.home() / "work" / "benchmarking_input" / "data",
+)
+timeseries_table, timeseries_metrics = timeseries_diag.get_tables(
+    cubes,
+    "MPI-ESM1-2-LR",
+)
+print(timeseries_table.to_pandas())
+print(timeseries_table.schema())
+print(timeseries_metrics.to_pandas())
+print(timeseries_metrics.schema())
+table_path = Path.home() / "benchmarking" / "timeseries_table.html"
+timeseries_table.to_pandas().to_html(table_path)
 print("Wrote", table_path)
 
-db_path = Path.home() / "benchmarking.ddb"
+map_diag = Map(
+    data,
+    data_dir=Path.home() / "work" / "benchmarking_input" / "data",
+)
+map_table, map_metrics = map_diag.get_tables(cubes, "MPI-ESM1-2-LR")
+print(map_table.to_pandas())
+print(map_table.schema())
+print(map_metrics.to_pandas())
+print(map_metrics.schema())
+table_path = Path.home() / "benchmarking" / "map_table.html"
+map_table.to_pandas().to_html(table_path)
+print("Wrote", table_path)
+
+db_path = Path.home() / "benchmarking" / "benchmarking.ddb"
 con = ibis.connect(f"duckdb://{db_path}")
-con.create_table("timeseries", table, overwrite=True)
+con.create_table("timeseries", timeseries_table, overwrite=True)
+con.create_table("map", timeseries_table, overwrite=True)
 print("Wrote", db_path)

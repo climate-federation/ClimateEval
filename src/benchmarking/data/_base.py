@@ -16,7 +16,7 @@ from esmvalcore.config import CFG
 from esmvaltool.cmorizers.data.cmorizer import DataCommand
 from loguru import logger
 
-from benchmarking import get_prepared_cube
+from benchmarking._utils import get_prepared_cube
 
 if TYPE_CHECKING:
     from iris.cube import CubeList
