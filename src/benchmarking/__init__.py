@@ -6,8 +6,15 @@ import logging
 
 import iris
 
-from benchmarking._config import NO_LEVEL, VerticalLevel, reset_esmvaltool_config
-from benchmarking._variable import COORDINATES, VARIABLES, Coordinate, Variable
+from benchmarking._config import reset_esmvaltool_config
+from benchmarking._variable import (
+    COORDINATES,
+    NO_LEVEL,
+    VARIABLES,
+    Coordinate,
+    Variable,
+    VerticalLevel,
+)
 
 __all__ = [
     "COORDINATES",

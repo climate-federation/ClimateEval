@@ -13,15 +13,14 @@ from loguru import logger
 from ncdata.iris_xarray import cubes_from_xarray
 from xarray import Dataset
 
-from benchmarking._config import NO_LEVEL
+from benchmarking import NO_LEVEL
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from iris.cube import Cube
 
-    from benchmarking._config import VerticalLevel
-    from benchmarking._variable import Variable
+    from benchmarking import Variable, VerticalLevel
 
 logger = logger.opt(colors=True)
 

@@ -6,16 +6,39 @@ from dataclasses import dataclass, field, fields
 from importlib import resources
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import yaml
 from esmvalcore.preprocessor._derive import get_required  # not part of public API yet
-
-from benchmarking import NO_LEVEL
 
 if TYPE_CHECKING:
     from importlib.resources.abc import Traversable
     from pathlib import Path
 
-    from benchmarking import VerticalLevel
+
+@dataclass(frozen=True, order=True)
+class VerticalLevel:
+    """Manage vertical levels."""
+
+    coordinate_name: str
+    units: str
+    value: float
+
+
+@dataclass(frozen=True, order=True)
+class _NoLevel(VerticalLevel):
+    """Represent no vertical levels."""
+
+    coordinate_name: str = field(default="", init=False)
+    units: str = field(default="", init=False)
+    value: float = field(default=np.nan, init=False)
+
+    def __repr__(self) -> str:
+        """Get string representation."""
+        return "NO_LEVEL"
+
+
+NO_LEVEL = _NoLevel()
+"""Represent no vertical level."""
 
 
 @dataclass(frozen=True, order=True)
