@@ -159,7 +159,11 @@ class Diagnostic(ABC):
             cube.data  # noqa: B018
 
         # Process data to benchmark
-        diagnostic_output = self._get_output_of_data(data, data_name, reference_cubes)
+        diagnostic_output = self._get_output_of_to_benchmark_data(
+            data,
+            data_name,
+            reference_cubes,
+        )
 
         # Process other data
         other_output = self._get_output_of_other_data(reference_cubes)
@@ -288,7 +292,7 @@ class Diagnostic(ABC):
             )
         return metrics
 
-    def _get_output_of_data(
+    def _get_output_of_to_benchmark_data(
         self,
         data: CubeList | Dataset,
         data_name: str,
