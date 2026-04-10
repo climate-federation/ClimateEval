@@ -123,6 +123,11 @@ class Diagnostic(ABC):
             for v, r in self.reference_data.items()
         }
 
+        # Load cube data ahead to avoid potential bug in ESMValCore (see
+        # https://github.com/ESMValGroup/ESMValCore/pull/3038)
+        for cube in ref_cube_dict.values():
+            cube.data  # noqa: B018
+
         # Create empty tables with correct columns
         table = ibis.memtable(
             pd.DataFrame(
