@@ -40,6 +40,7 @@ class Diagnostic(ABC):
         data: dict[Variable, DiagnosticData],
         *,
         data_dir: Path | None = None,
+        fail_on_missing_data: bool = False,
     ) -> None:
         """Initialize class instance."""
         logger.debug(f"Initializing diagnostic {self.name}")
@@ -66,6 +67,8 @@ class Diagnostic(ABC):
         self._other_data = _other_data
 
         self._tags = self._get_tags()
+
+        self._fail_on_missing_data = fail_on_missing_data
 
     @property
     def data_dir(self) -> Path:
@@ -117,18 +120,66 @@ class Diagnostic(ABC):
             (Data table, metrics table).
 
         """
-        logger.debug(f"Loading {data_name}")
-        ref_cube_dict = {
-            v: self._safely_preprocess(r.get_cube(v))
-            for v, r in self.reference_data.items()
-        }
+        # Load reference cubes
+        reference_cubes: dict[Variable, Cube] = {}
+        for variable, reference_data in self.reference_data.items():
+            try:
+                reference_cube = self._safely_preprocess(
+                    reference_data.get_cube(variable),
+                )
+            except Exception as exc:
+                if self._fail_on_missing_data:
+                    raise
+                logger.warning(
+                    f"Failed to get reference data {reference_data.name} for"
+                    f"variable {variable}: {exc}",
+                )
+                continue
+            reference_cubes[variable] = reference_cube
 
         # Load cube data ahead to avoid potential bug in ESMValCore (see
         # https://github.com/ESMValGroup/ESMValCore/pull/3038)
-        for cube in ref_cube_dict.values():
+        for cube in reference_cubes.values():
             cube.data  # noqa: B018
 
-        # Create empty tables with correct columns
+        # Process data to benchmark
+        table, metrics = self._get_tables_of_data(data, data_name, reference_cubes)
+
+        # Process other data
+        other_table, other_metrics = self._get_tables_of_other_data(reference_cubes)
+        table = ibis.union(table, other_table)
+        metrics = ibis.union(metrics, other_metrics)
+
+        # Add reference data to table
+        for variable, reference_cube in reference_cubes.items():
+            reference_table = self._get_table_of_cube(
+                reference_cube,
+                variable=variable,
+                data_name=self.reference_data[variable].name,
+                data_type="reference",
+            )
+            table = ibis.union(table, reference_table)
+
+        return table, metrics
+
+    def _get_empty_metrics(self) -> ibis.Table:
+        """Get empty metrics with correct schema."""
+        return ibis.memtable(
+            pd.DataFrame(
+                {
+                    "var_id": pd.Series(dtype="str"),
+                    **dict.fromkeys(
+                        self._get_metric_names(),
+                        pd.Series(dtype=self.DTYPE),
+                    ),
+                    self.DATASET_STR: pd.Series(dtype="str"),
+                    "reference": pd.Series(dtype="str"),
+                },
+            ),
+        )
+
+    def _get_empty_table(self) -> ibis.Table:
+        """Get empty table with correct schema."""
         table = ibis.memtable(
             pd.DataFrame(
                 {
@@ -147,68 +198,7 @@ class Diagnostic(ABC):
         )
         if "time" in self.FINAL_COORDINATES:
             table = table.cast(time="timestamp")
-        metrics = ibis.memtable(
-            pd.DataFrame(
-                {
-                    "var_id": pd.Series(dtype="str"),
-                    **dict.fromkeys(
-                        self._get_metric_names(),
-                        pd.Series(dtype=self.DTYPE),
-                    ),
-                    self.DATASET_STR: pd.Series(dtype="str"),
-                    "reference": pd.Series(dtype="str"),
-                },
-            ),
-        )
-
-        # Process data to benchmark
-        for variable in self.variables:
-            cube = self._get_cube(data, variable)
-            new_table = self._get_table_of_cube(
-                cube,
-                variable=variable,
-                data_name=data_name,
-                data_type="to_benchmark",
-            )
-            table = ibis.union(table, new_table)
-            new_metrics = self._get_metrics_table(
-                cube,
-                ref_cube_dict[variable],
-                variable=variable,
-                data_name=data_name,
-            )
-            metrics = ibis.union(metrics, new_metrics)
-
-        # Process other data
-        for variable, other_datas in self.other_data.items():
-            for other_data in other_datas:
-                other_cube = self._safely_preprocess(other_data.get_cube(variable))
-                new_table = self._get_table_of_cube(
-                    other_cube,
-                    variable=variable,
-                    data_name=other_data.name,
-                    data_type="other",
-                )
-                table = ibis.union(table, new_table)
-                new_metrics = self._get_metrics_table(
-                    other_cube,
-                    ref_cube_dict[variable],
-                    variable=variable,
-                    data_name=other_data.name,
-                )
-                metrics = ibis.union(metrics, new_metrics)
-
-        # Add reference data to table
-        for variable, reference_cube in ref_cube_dict.items():
-            new_table = self._get_table_of_cube(
-                reference_cube,
-                variable=variable,
-                data_name=self.reference_data[variable].name,
-                data_type="reference",
-            )
-            table = ibis.union(table, new_table)
-
-        return table, metrics
+        return table
 
     def _get_metrics_table(
         self,
@@ -287,57 +277,92 @@ class Diagnostic(ABC):
         table = table.mutate(**{self.DATA_TYPE_STR: ibis.literal(data_type)})
         return self._add_missing_columns(table)
 
-    def _get_table_of_data(
+    def _get_tables_of_data(
         self,
-        cube_dict: dict[Variable, Cube],
+        data: CubeList | Dataset,
         data_name: str,
-    ) -> ibis.Table:
-        """Get table of data to benchmark."""
-        variable = self.variables[0]  # self.variables will never be empty
-        cube = cube_dict[variable]
-        table = self._get_table_of_cube(
-            cube,
-            variable=variable,
-            data_name=data_name,
-            data_type="to_benchmark",
-        )
-        for variable in self.variables[1:]:
-            cube = cube_dict[variable]
+        reference_cubes: dict[Variable, Cube],
+    ) -> tuple[ibis.Table, ibis.Table]:
+        """Get tables of data to benchmark."""
+        table = self._get_empty_table()
+        metrics = self._get_empty_metrics()
+
+        for variable in self.variables:
+            logger.debug(f"Loading {variable} of {data_name}")
+            try:
+                cube = self._get_cube(data, variable)
+            except Exception as exc:
+                if self._fail_on_missing_data:
+                    raise
+                logger.warning(
+                    f"Failed to get data {data_name} forvariable {variable}: {exc}",
+                )
+                continue
+
+            # Expand table
             new_table = self._get_table_of_cube(
                 cube,
                 variable=variable,
                 data_name=data_name,
                 data_type="to_benchmark",
             )
+            table = ibis.union(table, new_table)
 
-            # Join tables (add columns)
-            table = table.join(
-                new_table,
-                self.FINAL_COORDINATES,
-                how="outer",
-                rname="{name}_DUPLICATE",
+            # Expand metrics
+            if variable not in reference_cubes:
+                continue
+            new_metrics = self._get_metrics_table(
+                cube,
+                reference_cubes[variable],
+                variable=variable,
+                data_name=data_name,
             )
+            metrics = ibis.union(metrics, new_metrics)
 
-            # Coalesce duplicated columns (take first non-null value)
-            dup_cols = [col for col in table.columns if col.endswith("_DUPLICATE")]
-            mutate_kwargs = {}
-            for dup_col in dup_cols:
-                orig_col = dup_col.replace("_DUPLICATE", "")
-                mutate_kwargs[orig_col] = ibis.coalesce(
-                    table[orig_col],
-                    table[dup_col],
+        return table, metrics
+
+    def _get_tables_of_other_data(
+        self,
+        reference_cubes: dict[Variable, Cube],
+    ) -> tuple[ibis.Table, ibis.Table]:
+        """Get tables of other data."""
+        table = self._get_empty_table()
+        metrics = self._get_empty_metrics()
+
+        for variable, other_datas in self.other_data.items():
+            for other_data in other_datas:
+                try:
+                    other_cube = self._safely_preprocess(other_data.get_cube(variable))
+                except Exception as exc:
+                    if self._fail_on_missing_data:
+                        raise
+                    logger.warning(
+                        f"Failed to get other data {other_data.name} for variable "
+                        f"{variable}: {exc}",
+                    )
+                    continue
+
+                # Expand table
+                new_table = self._get_table_of_cube(
+                    other_cube,
+                    variable=variable,
+                    data_name=other_data.name,
+                    data_type="other",
                 )
-            table = table.mutate(**mutate_kwargs)
-            table = table.select(ibis.selectors.matches(r"^(?!.*_DUPLICATE)"))
+                table = ibis.union(table, new_table)
 
-        # Sort columns (variables to the right)
-        new_col_order = (
-            self.DATASET_STR,
-            self.DATA_TYPE_STR,
-            *self.FINAL_COORDINATES,
-            *sorted(v.id for v in self.variables),
-        )
-        return table.select(new_col_order)
+                # Expand metrics
+                if variable not in reference_cubes:
+                    continue
+                new_metrics = self._get_metrics_table(
+                    other_cube,
+                    reference_cubes[variable],
+                    variable=variable,
+                    data_name=other_data.name,
+                )
+                metrics = ibis.union(metrics, new_metrics)
+
+        return table, metrics
 
     def _get_tags(self) -> tuple[str, ...]:
         """Get diagnostic tags."""

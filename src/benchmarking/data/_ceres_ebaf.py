@@ -23,7 +23,17 @@ class CERESEBAF(DataSource):
     def _download(self, variable: Variable) -> list[Path]:
         """Download data."""
         return self._intake_esgf_download(
+            variable,
             "obs4MIPs",
+            supported_var_names=[
+                "rlut",
+                "rlutcs",
+                "rsdt",
+                "rsut",
+                "rsutcs",
+                "rtmt",
+                "rtnt",
+            ],
             variable_id=variable.var_name,
             source_id="CERES-EBAF-4-2-1",
             frequency=variable.frequency,

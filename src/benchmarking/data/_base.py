@@ -19,6 +19,8 @@ from loguru import logger
 from benchmarking._utils import get_prepared_cube
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from iris.cube import CubeList
 
     from benchmarking import Variable
@@ -58,7 +60,7 @@ class DataSource(ABC):
 
     def get_cube(self, variable: Variable) -> CubeList:
         """Get data cube."""
-        logger.debug(f"Loading {self.name}")
+        logger.debug(f"Loading {variable} of {self.name}")
         paths: list[Path] = list(self._get_data_dir(variable).glob("*.nc"))
         if not paths:
             logger.debug(f"No data found for {variable}, trying required variables")
@@ -68,7 +70,9 @@ class DataSource(ABC):
                 )
                 if not paths_for_required_variable:
                     logger.debug(f"No data found for {required_variable}")
-                    logger.info(f"Downloading {required_variable} for {self.name}")
+                    logger.debug(
+                        f"Trying downloading {required_variable} for {self.name}",
+                    )
                     paths_for_required_variable = self._download(required_variable)
                     logger.info(
                         f"Downloaded {required_variable} for {self.name}:\n"
@@ -78,6 +82,19 @@ class DataSource(ABC):
         cubes = iris.load(paths)
         return get_prepared_cube(cubes, variable)
 
+    def _check_supported_variables(
+        self,
+        variable: Variable,
+        supported_var_names: Iterable[str] | None,
+    ) -> None:
+        """Raise an error if a variable is not supported."""
+        if (
+            supported_var_names is not None
+            and variable.var_name not in supported_var_names
+        ):
+            msg = f"{self.name} does not provide variable '{variable.var_name}'"
+            raise ValueError(msg)
+
     @abstractmethod
     def _download(self, variable: Variable) -> list[Path]:
         """Download data."""
@@ -86,10 +103,14 @@ class DataSource(ABC):
         self,
         variable: Variable,
         dataset_name: str,
+        *,
+        supported_var_names: Iterable[str] | None = None,
         file_prefix_pattern: str = "*_",
         tier: int = 2,
     ) -> list[Path]:
         """Use ESMValTool to download data."""
+        self._check_supported_variables(variable, supported_var_names)
+
         # Raw downloaded data by ESMValTool will be stored in temporary
         # directory. Our "raw" data will be the formatted data by ESMValTool.
         # Store all ESMValTool output in temporary directory and only save the
@@ -119,8 +140,16 @@ class DataSource(ABC):
             shutil.move(file, data_dir / file.name)
         return list(data_dir.glob("*.nc"))
 
-    def _intake_esgf_download(self, project: str, **facets: Any) -> list[Path]:
+    def _intake_esgf_download(
+        self,
+        variable: Variable,
+        project: str,
+        *,
+        supported_var_names: Iterable[str] | None = None,
+        **facets: Any,
+    ) -> list[Path]:
         """Use intake-esgf to download data."""
+        self._check_supported_variables(variable, supported_var_names)
         with intake_esgf.conf.set(
             all_indices=True,
             esg_dataroot=[],

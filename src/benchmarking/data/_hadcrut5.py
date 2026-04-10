@@ -20,5 +20,6 @@ class HadCRUT5(DataSource):
         return self._esmvaltool_download(
             variable,
             "HadCRUT5",
+            supported_var_names=["tas", "tasa"],
             file_prefix_pattern="*_5.0.1.0-analysis_*_",
         )

@@ -30,6 +30,9 @@ data = {
         reference=ERA5,
         other=(HadCRUT5,),
     ),
+    Variable("my_rsut", "rsut", "mon", timerange="20000101/20101231"): DiagnosticData(
+        reference=HadCRUT5,
+    ),
     Variable("my_lwcre", "lwcre", "mon", timerange="20000101/20101231"): DiagnosticData(
         reference=CERESEBAF,
     ),
