@@ -1,10 +1,10 @@
-"""Manage GPCP data."""
+"""Provide GPCP data."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from benchmarking.data import DataSource
+from benchmarking.data._base import DataSource
 
 if TYPE_CHECKING:
     from pathlib import Path

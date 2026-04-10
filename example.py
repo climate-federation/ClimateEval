@@ -6,13 +6,10 @@ import sys
 import warnings
 from pathlib import Path
 
-import ibis
 import iris
 from loguru import logger
 
-from benchmarking import Variable, VerticalLevel
-from benchmarking.data import CERESEBAF, ERA5, GPCP, DiagnosticData, HadCRUT5
-from benchmarking.diags import Map, TimeSeries
+from benchmarking.suites import AtmosphereMonthly
 
 logger = logger.opt(colors=True)
 logger.remove()
@@ -21,31 +18,6 @@ format_str = (
     "<level>{level: <8}</level> |  <level>{message}</level>"
 )
 logger.add(sys.stdout, level="DEBUG", format=format_str, colorize=True)
-
-data = {
-    Variable("my_pr", "pr", "mon", timerange="20000101/2005231"): DiagnosticData(
-        reference=GPCP,
-    ),
-    Variable("my_tas", "tas", "mon", timerange="20030101/20061231"): DiagnosticData(
-        reference=ERA5,
-        other=(HadCRUT5,),
-    ),
-    Variable("my_rsut", "rsut", "mon", timerange="20000101/20101231"): DiagnosticData(
-        reference=HadCRUT5,
-    ),
-    Variable("my_lwcre", "lwcre", "mon", timerange="20000101/20101231"): DiagnosticData(
-        reference=CERESEBAF,
-    ),
-    Variable(
-        "ta800",
-        "ta",
-        "mon",
-        vertical_level=VerticalLevel("air_pressure", "hPa", 800),
-        timerange="20000101/20011231",
-    ): DiagnosticData(
-        reference=ERA5,
-    ),
-}
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -64,39 +36,9 @@ with warnings.catch_warnings():
         ],
     )
 
-timeseries_diag = TimeSeries(
-    data,
-    data_dir=Path.home() / "work" / "benchmarking_input" / "data",
-)
-timeseries_table, timeseries_metrics = timeseries_diag.get_tables(
-    cubes,
-    "MPI-ESM1-2-LR",
-)
-print(timeseries_table.to_pandas())
-print(timeseries_table.schema())
-print(timeseries_metrics.to_pandas())
-print(timeseries_metrics.schema())
-table_path = Path.home() / "benchmarking" / "timeseries_table.html"
-timeseries_table.to_pandas().to_html(table_path)
-print("Wrote", table_path)
 
-map_diag = Map(
-    data,
-    data_dir=Path.home() / "work" / "benchmarking_input" / "data",
-)
-map_table, map_metrics = map_diag.get_tables(cubes, "MPI-ESM1-2-LR")
-print(map_table.to_pandas())
-print(map_table.schema())
-print(map_metrics.to_pandas())
-print(map_metrics.schema())
-table_path = Path.home() / "benchmarking" / "map_table.html"
-map_table.to_pandas().to_html(table_path)
-print("Wrote", table_path)
-
+data_dir = Path.home() / "work" / "benchmarking_input" / "data"
 db_path = Path.home() / "benchmarking" / "benchmarking.ddb"
-con = ibis.connect(f"duckdb://{db_path}")
-con.create_table(timeseries_diag.name, timeseries_table, overwrite=True)
-con.create_table(f"{timeseries_diag.name}_metrics", timeseries_metrics, overwrite=True)
-con.create_table(map_diag.name, map_table, overwrite=True)
-con.create_table(f"{map_diag.name}_metrics", map_metrics, overwrite=True)
-print("Wrote", db_path)
+
+suite = AtmosphereMonthly(diagnostic_kwargs={"data_dir": data_dir})
+con = suite.run(cubes, "MPI-ESM1-2-LR", database_path=db_path, overwrite=True)

@@ -1,4 +1,4 @@
-"""Benchmarking Diagnostics."""
+"""Provide timeseries diagnostics."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from esmvalcore.preprocessor import (
 )
 
 from benchmarking import COORDINATES
-from benchmarking.diags import Diagnostic
+from benchmarking.diags._base import Diagnostic
 
 if TYPE_CHECKING:
     from iris.cube import Cube

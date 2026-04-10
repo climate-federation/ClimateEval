@@ -1,10 +1,10 @@
-"""Manage HadCRUT5 data."""
+"""Provide CERES-EBAF data."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from benchmarking.data import DataSource
+from benchmarking.data._base import DataSource
 
 if TYPE_CHECKING:
     from pathlib import Path

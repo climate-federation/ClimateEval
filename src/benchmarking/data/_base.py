@@ -1,4 +1,4 @@
-"""Manage data sources."""
+"""Provide base class for data sources."""
 
 from __future__ import annotations
 

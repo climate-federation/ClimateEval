@@ -1,4 +1,4 @@
-"""Manage ERA5 data."""
+"""Provide ERA5 data."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import cdsapi
 import iris
 from esmvalcore.cmor.fix import fix_data, fix_metadata
 
-from benchmarking.data import DataSource
+from benchmarking.data._base import DataSource
 
 if TYPE_CHECKING:
     from benchmarking import Variable

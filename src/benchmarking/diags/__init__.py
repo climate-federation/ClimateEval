@@ -1,4 +1,4 @@
-"""Benchmarking Diagnostics."""
+"""Provide diagnostics."""
 
 from __future__ import annotations
 

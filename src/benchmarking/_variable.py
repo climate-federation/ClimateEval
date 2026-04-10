@@ -24,6 +24,11 @@ class VerticalLevel:
     value: float
 
 
+LEVEL_200HPA = VerticalLevel("air_pressure", "hPa", 200.0)
+LEVEL_400HPA = VerticalLevel("air_pressure", "hPa", 400.0)
+LEVEL_800HPA = VerticalLevel("air_pressure", "hPa", 800.0)
+
+
 @dataclass(frozen=True, order=True)
 class _NoLevel(VerticalLevel):
     """Represent no vertical levels."""
@@ -43,7 +48,7 @@ NO_LEVEL = _NoLevel()
 
 @dataclass(frozen=True, order=True)
 class Coordinate:
-    """Manage coordinate."""
+    """Manage coordinates."""
 
     var_name: str
     long_name: str = field(init=False, repr=False, compare=False)

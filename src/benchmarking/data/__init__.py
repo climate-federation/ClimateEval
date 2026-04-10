@@ -1,4 +1,4 @@
-"""Manage datasets."""
+"""Provide data source."""
 
 from __future__ import annotations
 

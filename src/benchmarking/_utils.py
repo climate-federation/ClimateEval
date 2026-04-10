@@ -1,4 +1,4 @@
-"""Manage utility functions."""
+"""Provide utility functions."""
 
 from __future__ import annotations
 
