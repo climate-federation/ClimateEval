@@ -76,6 +76,7 @@ def test_settings() -> None:
         "min_lon": 0.0,
         "max_lon": 180.0,
         "timerange": "*",
+        "convert_units": "",
     }
 
 

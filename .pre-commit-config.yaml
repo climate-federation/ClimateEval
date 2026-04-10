@@ -3,7 +3,8 @@
 ---
 exclude: |
   (?x)^(
-    example.py
+    example.py|
+    db.py
   )$
 
 repos:

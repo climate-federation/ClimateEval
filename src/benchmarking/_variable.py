@@ -82,6 +82,7 @@ class Variable:
     min_lon: float = field(default=0.0, repr=False, kw_only=True)
     max_lon: float = field(default=360.0, repr=False, kw_only=True)
     timerange: str = field(default="*", repr=False, kw_only=True)
+    convert_units: str = field(default="", repr=False, kw_only=True)
 
     # Automatically filled fields
     coordinates: list[Coordinate] = field(init=False, repr=False, compare=False)

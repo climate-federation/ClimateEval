@@ -28,7 +28,13 @@ class AtmosphereMonthly(Suite):
             Variable("lwcre", "lwcre", **variable_kwargs): DiagnosticData(
                 reference=CERESEBAF,
             ),
-            Variable("pr", "pr", "mon", timerange="20040101/20061231"): DiagnosticData(
+            Variable(
+                "pr",
+                "pr",
+                "mon",
+                timerange="20040101/20061231",
+                convert_units="mm day-1",
+            ): DiagnosticData(
                 reference=GPCP,
                 other=(ERA5,),
             ),

@@ -5,7 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import iris
-from esmvalcore.preprocessor import clip_timerange, derive, extract_levels
+from esmvalcore.preprocessor import (
+    clip_timerange,
+    convert_units,
+    derive,
+    extract_levels,
+)
 from iris import Constraint, NameConstraint
 from iris.coords import CoordExtent
 from iris.cube import CubeList
@@ -74,8 +79,9 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
 
     _check_data(cube, variable)
 
-    # Make sure units are correct (this will potentiall raise an error)
-    cube.convert_units(variable.units)
+    # Make sure units are correct
+    target_units = variable.convert_units or variable.units
+    cube = convert_units(cube, target_units)
 
     # Make sure longitude is in [0, 360]
     if cube.coords("longitude"):
@@ -100,6 +106,8 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     # Extract level
     if variable.vertical_level is not NO_LEVEL:
         cube = _extract_level(cube, variable.vertical_level)
+
+    # Unit conversion
 
     return cube
 
