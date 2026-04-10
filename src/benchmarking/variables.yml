@@ -18,6 +18,18 @@ rlutcs:
   realm: atmosphere
   standard_name: toa_outgoing_longwave_flux_assuming_clear_sky
   units: W m-2
+rsut:
+  coordinates: [time, lat, lon]
+  long_name: TOA Outgoing Shortwave Radiation
+  realm: atmosphere
+  standard_name: toa_outgoing_shortwave_flux
+  units: W m-2
+rsutcs:
+  coordinates: [time, lat, lon]
+  long_name: TOA Outgoing Clear-Sky Shortwave Radiation
+  realm: atmosphere
+  standard_name: toa_outgoing_shortwave_flux_assuming_clear_sky
+  units: W m-2
 ta:
   coordinates: [time, plev, lat, lon]
   long_name: Air Temperature
@@ -37,6 +49,13 @@ lwcre:
   coordinates: [time, lat, lon]
   derived: true
   long_name: TOA Longwave Cloud Radiative Effect
+  realm: atmosphere
+  standard_name: ""
+  units: W m-2
+swcre:
+  coordinates: [time, lat, lon]
+  derived: true
+  long_name: TOA Shortwave Cloud Radiative Effect
   realm: atmosphere
   standard_name: ""
   units: W m-2
