@@ -11,6 +11,7 @@ import ibis
 import ibis.selectors
 import pandas as pd
 from esmvalcore.preprocessor import distance_metric
+from ibis import _
 from iris.pandas import as_data_frame
 from loguru import logger
 
@@ -43,8 +44,8 @@ class DiagnosticOutput:
 class Diagnostic(ABC):
     """Manage diagnostics."""
 
-    DATASET_STR: ClassVar[str] = "Dataset"
-    DATA_TYPE_STR: ClassVar[str] = "Data Type"
+    DATASET_COLUMN: ClassVar[str] = "Dataset"
+    DATA_TYPE_COLUMN: ClassVar[str] = "Data Type"
     DTYPE: ClassVar[ibis.DataType] = "float32"
     FINAL_COORDINATES: ClassVar[tuple[str, ...]] = ()
     """Coordinates (standard names) of preprocessed output."""
@@ -180,8 +181,8 @@ class Diagnostic(ABC):
         data_table = ibis.memtable(
             pd.DataFrame(
                 {
-                    self.DATASET_STR: pd.Series(dtype="str"),
-                    self.DATA_TYPE_STR: pd.Series(dtype="str"),
+                    self.DATASET_COLUMN: pd.Series(dtype="str"),
+                    self.DATA_TYPE_COLUMN: pd.Series(dtype="str"),
                     **dict.fromkeys(
                         self.FINAL_COORDINATES,
                         pd.Series(dtype=self.DTYPE),
@@ -207,7 +208,7 @@ class Diagnostic(ABC):
                         self._get_metric_names(),
                         pd.Series(dtype=self.DTYPE),
                     ),
-                    self.DATASET_STR: pd.Series(dtype="str"),
+                    self.DATASET_COLUMN: pd.Series(dtype="str"),
                     "reference": pd.Series(dtype="str"),
                 },
             ),
@@ -227,7 +228,7 @@ class Diagnostic(ABC):
                 {
                     "var_id": variable.id,
                     **self._get_metrics(cube, reference_cube),
-                    self.DATASET_STR: data_name,
+                    self.DATASET_COLUMN: data_name,
                     "reference": self.reference_data[variable].name,
                 },
                 index=[0],
@@ -245,8 +246,8 @@ class Diagnostic(ABC):
             )
             data_table = data_table.cast(**dict.fromkeys(missing_columns, self.DTYPE))
         new_col_order = (
-            self.DATASET_STR,
-            self.DATA_TYPE_STR,
+            self.DATASET_COLUMN,
+            self.DATA_TYPE_COLUMN,
             *self.FINAL_COORDINATES,
             *sorted(v.id for v in self.variables),
         )
@@ -275,8 +276,10 @@ class Diagnostic(ABC):
         }
         data_table = data_table.cast(**cast_operations)
         data_table = data_table.rename(**{variable.id: cube.name()})
-        data_table = data_table.mutate(**{self.DATASET_STR: ibis.literal(data_name)})
-        data_table = data_table.mutate(**{self.DATA_TYPE_STR: ibis.literal(data_type)})
+        data_table = data_table.mutate(**{self.DATASET_COLUMN: ibis.literal(data_name)})
+        data_table = data_table.mutate(
+            **{self.DATA_TYPE_COLUMN: ibis.literal(data_type)},
+        )
         return self._add_missing_columns(data_table)
 
     def _get_metric_names(self) -> tuple[str, ...]:
@@ -291,6 +294,74 @@ class Diagnostic(ABC):
                 distance_metric([cube], metric, reference=reference_cube)[0].data,
             )
         return metrics
+
+    def _get_output_of_other_data(
+        self,
+        reference_cubes: dict[Variable, Cube],
+    ) -> DiagnosticOutput:
+        """Get output of other data."""
+        data_table = self._get_empty_data_table()
+        metrics_table = self._get_empty_metrics_table()
+
+        for variable, other_datas in self.other_data.items():
+            for other_data in other_datas:
+                try:
+                    other_cube = self._safely_preprocess(other_data.get_cube(variable))
+                except Exception as exc:
+                    if self._fail_on_missing_data:
+                        raise
+                    logger.warning(
+                        f"Failed to get other data {other_data.name} for variable "
+                        f"{variable}: {exc}",
+                    )
+                    continue
+
+                # Expand table
+                new_data_table = self._get_data_table_of_cube(
+                    other_cube,
+                    variable=variable,
+                    data_name=other_data.name,
+                    data_type="other",
+                )
+                data_table = ibis.union(data_table, new_data_table)
+
+                # Expand metrics
+                if variable not in reference_cubes:
+                    continue
+                new_metrics_table = self._get_metrics_table(
+                    other_cube,
+                    reference_cubes[variable],
+                    variable=variable,
+                    data_name=other_data.name,
+                )
+                metrics_table = ibis.union(metrics_table, new_metrics_table)
+
+        # Drop superfluous rows by removing NaN entries
+        data_table = self._remove_superfluous_rows(data_table)
+
+        return DiagnosticOutput(data=data_table, metrics=metrics_table)
+
+    def _get_output_of_reference_data(
+        self,
+        reference_cubes: dict[Variable, Cube],
+    ) -> DiagnosticOutput:
+        """Get output of other data."""
+        data_table = self._get_empty_data_table()
+        metrics_table = self._get_empty_metrics_table()  # will stay empty
+
+        for variable, reference_cube in reference_cubes.items():
+            new_data_table = self._get_data_table_of_cube(
+                reference_cube,
+                variable=variable,
+                data_name=self.reference_data[variable].name,
+                data_type="reference",
+            )
+            data_table = ibis.union(data_table, new_data_table)
+
+        # Drop superfluous rows by removing NaN entries
+        data_table = self._remove_superfluous_rows(data_table)
+
+        return DiagnosticOutput(data=data_table, metrics=metrics_table)
 
     def _get_output_of_to_benchmark_data(
         self,
@@ -334,67 +405,8 @@ class Diagnostic(ABC):
             )
             metrics_table = ibis.union(metrics_table, new_metrics_table)
 
-        return DiagnosticOutput(data=data_table, metrics=metrics_table)
-
-    def _get_output_of_other_data(
-        self,
-        reference_cubes: dict[Variable, Cube],
-    ) -> DiagnosticOutput:
-        """Get output of other data."""
-        data_table = self._get_empty_data_table()
-        metrics_table = self._get_empty_metrics_table()
-
-        for variable, other_datas in self.other_data.items():
-            for other_data in other_datas:
-                try:
-                    other_cube = self._safely_preprocess(other_data.get_cube(variable))
-                except Exception as exc:
-                    if self._fail_on_missing_data:
-                        raise
-                    logger.warning(
-                        f"Failed to get other data {other_data.name} for variable "
-                        f"{variable}: {exc}",
-                    )
-                    continue
-
-                # Expand table
-                new_data_table = self._get_data_table_of_cube(
-                    other_cube,
-                    variable=variable,
-                    data_name=other_data.name,
-                    data_type="other",
-                )
-                data_table = ibis.union(data_table, new_data_table)
-
-                # Expand metrics
-                if variable not in reference_cubes:
-                    continue
-                new_metrics_table = self._get_metrics_table(
-                    other_cube,
-                    reference_cubes[variable],
-                    variable=variable,
-                    data_name=other_data.name,
-                )
-                metrics_table = ibis.union(metrics_table, new_metrics_table)
-
-        return DiagnosticOutput(data=data_table, metrics=metrics_table)
-
-    def _get_output_of_reference_data(
-        self,
-        reference_cubes: dict[Variable, Cube],
-    ) -> DiagnosticOutput:
-        """Get output of other data."""
-        data_table = self._get_empty_data_table()
-        metrics_table = self._get_empty_metrics_table()  # will stay empty
-
-        for variable, reference_cube in reference_cubes.items():
-            new_data_table = self._get_data_table_of_cube(
-                reference_cube,
-                variable=variable,
-                data_name=self.reference_data[variable].name,
-                data_type="reference",
-            )
-            data_table = ibis.union(data_table, new_data_table)
+        # Drop superfluous rows by removing NaN entries
+        data_table = self._remove_superfluous_rows(data_table)
 
         return DiagnosticOutput(data=data_table, metrics=metrics_table)
 
@@ -409,6 +421,27 @@ class Diagnostic(ABC):
     @abstractmethod
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess cube."""
+
+    def _remove_superfluous_rows(self, table: ibis.Table) -> ibis.Table:
+        """Drop superfluous rows by removing NaN entries.
+
+        Note
+        ----
+        Currently, we first add NaNs and then remove it again. The reason is
+        that the logic is simply and the code robust. There are certainly
+        smarter and more efficient ways to do this, but since our tables are
+        usually quite small, it's probably not necessary.
+
+        """
+        unique_columns = (
+            self.DATASET_COLUMN,
+            self.DATA_TYPE_COLUMN,
+            *self.FINAL_COORDINATES,
+        )
+        table = table.group_by(unique_columns).aggregate(
+            **{v.id: _[v.id].first() for v in self.variables},
+        )
+        return table.drop_null([v.id for v in self.variables], how="all")
 
     def _safely_preprocess(self, cube: Cube) -> Cube:
         """Safely preprocess cube."""

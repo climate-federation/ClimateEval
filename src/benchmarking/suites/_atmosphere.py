@@ -28,14 +28,19 @@ class AtmosphereMonthly(Suite):
             Variable("lwcre", "lwcre", **variable_kwargs): DiagnosticData(
                 reference=CERESEBAF,
             ),
-            Variable("pr", "pr", **variable_kwargs): DiagnosticData(
+            Variable("pr", "pr", "mon", timerange="20040101/20061231"): DiagnosticData(
                 reference=GPCP,
                 other=(ERA5,),
             ),
             Variable("rsut", "rsut", **variable_kwargs): DiagnosticData(
                 reference=CERESEBAF,
             ),
-            Variable("tas", "tas", **variable_kwargs): DiagnosticData(
+            Variable(
+                "tas",
+                "tas",
+                "mon",
+                timerange="20000101/20051231",
+            ): DiagnosticData(
                 reference=HadCRUT5,
                 other=(ERA5,),
             ),
@@ -55,4 +60,4 @@ class AtmosphereMonthly(Suite):
 
     def _get_diagnostics(self) -> tuple[type[Diagnostic], ...]:
         """Get diagnostics to run."""
-        return (Map, TimeSeries)
+        return (TimeSeries, Map)
