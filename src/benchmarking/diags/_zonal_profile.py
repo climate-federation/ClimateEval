@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from iris.cube import Cube
 
 
-class ZonalMeanProfile(Diagnostic):
-    """Manage timeseries diagnostics."""
+class ZonalProfile(Diagnostic):
+    """Manage zonal mean profile diagnostics."""
 
     FINAL_COORDINATES = ("air_pressure", "latitude")
 
@@ -30,7 +30,6 @@ class ZonalMeanProfile(Diagnostic):
             "linear",
             coordinate="air_pressure",
         )
-        cube = cube.ext
         cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
         cube = zonal_statistics(cube, "mean")
         cube = climate_statistics(cube, operator="mean", period="full")
