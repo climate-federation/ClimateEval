@@ -23,6 +23,10 @@ class VerticalLevel:
     units: str
     value: float
 
+    def __str__(self) -> str:
+        """Get human-readable string."""
+        return f"{self.coordinate_name} = {self.value} {self.units}"
+
 
 LEVEL_200HPA = VerticalLevel("air_pressure", "hPa", 200.0)
 LEVEL_400HPA = VerticalLevel("air_pressure", "hPa", 400.0)
@@ -40,6 +44,10 @@ class _NoLevel(VerticalLevel):
     def __repr__(self) -> str:
         """Get string representation."""
         return "NO_LEVEL"
+
+    def __str__(self) -> str:
+        """Get human-readable string."""
+        return ""
 
 
 NO_LEVEL = _NoLevel()

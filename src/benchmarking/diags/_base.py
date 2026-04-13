@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Literal
 
@@ -15,6 +15,7 @@ from ibis import _
 from iris.pandas import as_data_frame
 from loguru import logger
 
+from benchmarking import NO_LEVEL
 from benchmarking._utils import check_coordinates, get_prepared_cube
 
 if TYPE_CHECKING:
@@ -32,13 +33,22 @@ logger = logger.opt(colors=True)
 class DiagnosticOutput:
     data: ibis.Table
     metrics: ibis.Table
+    variables: ibis.Table
 
     @classmethod
-    def union(cls, *diagnostic_output: DiagnosticOutput) -> DiagnosticOutput:
+    def union(
+        cls,
+        *diagnostic_output: DiagnosticOutput,
+        perform_variables_union: bool = False,
+    ) -> DiagnosticOutput:
         """Create union of output."""
         data_union = ibis.union(*(o.data for o in diagnostic_output))
         metrics_union = ibis.union(*(o.metrics for o in diagnostic_output))
-        return cls(data=data_union, metrics=metrics_union)
+        if perform_variables_union:
+            variables_union = ibis.union(*(o.variables for o in diagnostic_output))
+        else:
+            variables_union = diagnostic_output[0].variables
+        return cls(data=data_union, metrics=metrics_union, variables=variables_union)
 
 
 class Diagnostic(ABC):
@@ -346,7 +356,13 @@ class Diagnostic(ABC):
         # Drop superfluous rows by removing NaN entries
         data_table = self._remove_superfluous_rows(data_table)
 
-        return DiagnosticOutput(data=data_table, metrics=metrics_table)
+        variables_table = self._get_variables_table()
+
+        return DiagnosticOutput(
+            data=data_table,
+            metrics=metrics_table,
+            variables=variables_table,
+        )
 
     def _get_output_of_reference_data(
         self,
@@ -368,7 +384,13 @@ class Diagnostic(ABC):
         # Drop superfluous rows by removing NaN entries
         data_table = self._remove_superfluous_rows(data_table)
 
-        return DiagnosticOutput(data=data_table, metrics=metrics_table)
+        variables_table = self._get_variables_table()
+
+        return DiagnosticOutput(
+            data=data_table,
+            metrics=metrics_table,
+            variables=variables_table,
+        )
 
     def _get_output_of_to_benchmark_data(
         self,
@@ -415,7 +437,13 @@ class Diagnostic(ABC):
         # Drop superfluous rows by removing NaN entries
         data_table = self._remove_superfluous_rows(data_table)
 
-        return DiagnosticOutput(data=data_table, metrics=metrics_table)
+        variables_table = self._get_variables_table()
+
+        return DiagnosticOutput(
+            data=data_table,
+            metrics=metrics_table,
+            variables=variables_table,
+        )
 
     def _get_tags(self) -> tuple[str, ...]:
         """Get diagnostic tags."""
@@ -455,3 +483,25 @@ class Diagnostic(ABC):
         cube = self._preprocess(cube)
         check_coordinates(cube, self.FINAL_COORDINATES)
         return cube
+
+    def _get_variables_table(self) -> ibis.Table:
+        """Get variables table."""
+        df = pd.DataFrame(self.variables)
+        df = df.drop("settings", axis=1)
+        df["coordinates"] = df["coordinates"].map(
+            lambda r: " ".join(c["var_name"] for c in r),
+        )
+
+        def vertical_level_dict_to_str(
+            vertical_level_dict: dict[str, str | float],
+        ) -> str:
+            """Convert vertical level dictionary to string."""
+            if vertical_level_dict == asdict(NO_LEVEL):
+                return ""
+            return (
+                f"{vertical_level_dict['coordinate_name']} = "
+                f"{vertical_level_dict['value']} {vertical_level_dict['units']}"
+            )
+
+        df["vertical_level"] = df["vertical_level"].map(vertical_level_dict_to_str)
+        return ibis.memtable(df)

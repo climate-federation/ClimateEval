@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import fields
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -75,8 +76,13 @@ class Suite(ABC):
             diagnostic = diag_cls(variables_and_data, **self._diagnostic_kwargs)
             output = diagnostic.get_output(data, data_name)
             connection.create_database(diagnostic.name)
-            connection.create_table("data", output.data, database=diagnostic.name)
-            connection.create_table("metrics", output.metrics, database=diagnostic.name)
+            for output_field in fields(output):
+                table_name = output_field.name
+                connection.create_table(
+                    table_name,
+                    getattr(output, table_name),
+                    database=diagnostic.name,
+                )
             logger.debug(f"Created database for diagnostic {diagnostic.name}")
 
         return connection
