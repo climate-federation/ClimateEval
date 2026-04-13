@@ -60,17 +60,19 @@ Whenever inspecting databases, use `ibis`.
 
 ### Data Flow
 
-**Option 1: Use a Suite (recommended)**
+#### Option 1: Use a Suite (recommended)
+
 1. Create a Suite subclass instance (e.g., `AtmosphereMonthly`)
 2. Call `suite.run(cubes, "dataset_name", database_path=...)`
-3. Output: Ibis connection with `data` and `metrics` tables per diagnostic
+3. Output: Ibis connection with `data`, `metrics`, and `variables` tables per diagnostic
 
-**Option 2: Direct Diagnostic usage**
+#### Option 2: Direct Diagnostic usage
+
 1. Define variables with `Variable("id", "var_name", "frequency", **settings)`
 2. Create `DiagnosticData` with reference/other data sources
 3. Pass dict of `{Variable: DiagnosticData}` to diagnostic constructor
 4. Call `diagnostic.get_output(cubes, "dataset_name")` with Iris cubes
-5. Output: `DiagnosticOutput(data_table, metrics_table)` as Ibis tables
+5. Output: `DiagnosticOutput(data_table, metrics_table, variables_table)` as Ibis tables
 
 ### Example Usage
 
@@ -103,45 +105,71 @@ dbs = conn.list_databases()  # e.g., ['Map', 'TimeSeries', ...]
 # Access tables within a diagnostic
 data = conn.table('data', database='Map')
 metrics = conn.table('metrics', database='Map')
+variables = conn.table('variables', database='Map')
 ```
 
 ### Database Hierarchy
 
 For example,
 
-```
+```bash
 benchmarking.ddb
 ├── Map/           # Map diagnostic database
 │   ├── data       # Spatial data (lat/lon grid)
-│   └── metrics    # Comparison metrics
+│   ├── metrics    # Comparison metrics
+│   └── variables  # Variable metadata
 └── TimeSeries/    # TimeSeries diagnostic database
     ├── data       # Temporal data (time series)
-    └── metrics    # Comparison metrics
+    ├── metrics    # Comparison metrics
+    └── variables  # Variable metadata
 ```
 
 ### Table Schemas
 
-**data table (both diagnostics)**
-| Column    | Type      | Description |
-|-----------|-----------|-------------|
-| Dataset   | string    | Model/dataset name (e.g., MPI-ESM1-2-LR, ERA5) |
-| Data Type | string    | One of: `to_benchmark`, `reference`, `other` |
-| [coords]  | float/ts  | Diagnostic-specific coordinates (lat/lon or time) |
-| var...    | float     | Variable columns (e.g., lwcre, pr, rsut, ta200, ta800, tas) |
+#### data table (both diagnostics)
 
-**metrics table (both diagnostics)**
-| Column            | Type   | Description |
-|-------------------|--------|-------------|
-| var_id            | string | Variable identifier |
+| Column    | Type     | Description                                                 |
+| --------- | -------- | ----------------------------------------------------------- |
+| Dataset   | string   | Model/dataset name (e.g., MPI-ESM1-2-LR, ERA5)              |
+| Data Type | string   | One of: `to_benchmark`, `reference`, `other`                |
+| [coords]  | float/ts | Diagnostic-specific coordinates (lat/lon or time)           |
+| var...    | float    | Variable columns (e.g., lwcre, pr, rsut, ta200, ta800, tas) |
+
+#### metrics table (both diagnostics)
+
+| Column            | Type   | Description                     |
+| ----------------- | ------ | ------------------------------- |
+| var_id            | string | Variable identifier             |
 | weighted_rmse     | float  | Weighted root mean square error |
-| weighted_pearsonr | float  | Weighted Pearson correlation |
+| weighted_pearsonr | float  | Weighted Pearson correlation    |
 | weighted_emd      | float  | Weighted Earth mover's distance |
-| Dataset           | string | Model being evaluated |
-| reference         | string | Reference dataset used |
+| Dataset           | string | Model being evaluated           |
+| reference         | string | Reference dataset used          |
+
+#### variables table (both diagnostics)
+
+| Column         | Type    | Description                                    |
+| -------------- | ------- | ---------------------------------------------- |
+| id             | string  | Variable identifier                            |
+| var_name       | string  | CMIP variable name                             |
+| frequency      | string  | Temporal frequency (e.g., mon)                 |
+| vertical_level | string  | Vertical level if applicable (e.g., 200 hPa)   |
+| min_lat        | float   | Minimum latitude of the data                   |
+| max_lat        | float   | Maximum latitude of the data                   |
+| min_lon        | float   | Minimum longitude of the data                  |
+| max_lon        | float   | Maximum longitude of the data                  |
+| timerange      | string  | Time range of the data                         |
+| units          | string  | Units of the variable                          |
+| coordinates    | string  | Required coordinates                           |
+| derived        | boolean | Whether the variable is derived via ESMValTool |
+| long_name      | string  | Long descriptive name                          |
+| realm          | string  | CMIP realm (e.g., atmosphere)                  |
+| standard_name  | string  | CF standard name                               |
 
 ### Future Extensibility
 
 The hierarchy supports expansion with:
+
 1. **Additional diagnostics**: New database entries (e.g., `ZonalMean`, `TaylorDiagram`)
 2. **Additional variables**: New columns added to data tables
 3. **Additional suites**: Different suite types create their own diagnostic hierarchy
