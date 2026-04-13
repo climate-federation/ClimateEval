@@ -8,17 +8,28 @@ import pytest
 from benchmarking import Variable
 from benchmarking.data import DiagnosticData, HadCRUT5
 from benchmarking.diags import TimeSeries
+from tests.unit.diags import assert_preprocessing_works
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from iris.cube import Cube
 
-def test_tags(
+
+@pytest.fixture
+def diagnostic(
     variables_and_data_2d: dict[Variable, DiagnosticData],
     data_dir: Path,
-) -> None:
-    diag = TimeSeries(variables_and_data_2d, data_dir=data_dir)
-    assert diag.tags == ("atmosphere", "pr", "tas", "timeseries")
+) -> TimeSeries:
+    return TimeSeries(variables_and_data_2d, data_dir=data_dir)
+
+
+def test__preprocess(diagnostic: TimeSeries, cube_2d: Cube) -> None:
+    assert_preprocessing_works(diagnostic, cube_2d)
+
+
+def test_tags(diagnostic: TimeSeries) -> None:
+    assert diagnostic.tags == ("atmosphere", "pr", "tas", "timeseries")
 
 
 def test_non_unique_variables_fail(data_dir: Path) -> None:
