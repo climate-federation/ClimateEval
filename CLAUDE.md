@@ -27,9 +27,6 @@ pre-commit run --all
 # Run test script and visualize example database
 python example.py
 python db.py
-
-# Generate interactive HTML report (requires streamlit, plotly)
-streamlit run generate_report.py
 ```
 
 Whenever inspecting databases, use `ibis`.
