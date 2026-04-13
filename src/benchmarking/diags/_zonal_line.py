@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class ZonalLine(Diagnostic):
-    """Manage zonal mean line diagnostics."""
+    """Manage zonal line diagnostics."""
 
     FINAL_COORDINATES = ("latitude",)
 

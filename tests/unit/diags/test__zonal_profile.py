@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from benchmarking.diags import ZonalProfile
+from benchmarking.diags import ZonalProfileAirPressure
 from tests.unit.diags import assert_preprocessing_works
 
 if TYPE_CHECKING:
@@ -20,9 +20,9 @@ if TYPE_CHECKING:
 def diagnostic(
     variables_and_data_3d: dict[Variable, DiagnosticData],
     data_dir: Path,
-) -> ZonalProfile:
-    return ZonalProfile(variables_and_data_3d, data_dir=data_dir)
+) -> ZonalProfileAirPressure:
+    return ZonalProfileAirPressure(variables_and_data_3d, data_dir=data_dir)
 
 
-def test__preprocess(diagnostic: ZonalProfile, cube_3d: Cube) -> None:
+def test__preprocess(diagnostic: ZonalProfileAirPressure, cube_3d: Cube) -> None:
     assert_preprocessing_works(diagnostic, cube_3d)
