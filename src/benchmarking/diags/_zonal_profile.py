@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from iris.cube import Cube
 
 
-class ZonalProfile(Diagnostic):
-    """Manage zonal mean profile diagnostics."""
+class ZonalProfileAirPressure(Diagnostic):
+    """Manage zonal profile diagnostics."""
 
     FINAL_COORDINATES = ("air_pressure", "latitude")
 
