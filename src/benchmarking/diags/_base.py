@@ -28,6 +28,8 @@ if TYPE_CHECKING:
 
 logger = logger.opt(colors=True)
 
+DEFAULT_GRID: str = "2x2"
+
 
 @dataclass(frozen=True, kw_only=True)
 class DiagnosticOutput:

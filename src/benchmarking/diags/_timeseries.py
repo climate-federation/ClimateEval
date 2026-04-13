@@ -12,7 +12,7 @@ from esmvalcore.preprocessor import (
 )
 
 from benchmarking import COORDINATES
-from benchmarking.diags._base import Diagnostic
+from benchmarking.diags._base import DEFAULT_GRID, Diagnostic
 
 if TYPE_CHECKING:
     from iris.cube import Cube
@@ -25,7 +25,11 @@ class TimeSeries(Diagnostic):
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
-        cube = regrid(cube, "2x2", "linear")  # to ensure we are on a regular grid
+        cube = regrid(
+            cube,
+            DEFAULT_GRID,
+            "linear",
+        )  # to ensure we are on a regular grid
         cube = area_statistics(cube, "mean")
         cube = annual_statistics(cube, "mean")
         cube = regrid_time(
