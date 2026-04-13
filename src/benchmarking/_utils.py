@@ -77,7 +77,10 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
             raise
         cube = _get_derived_cube(data, variable)
 
-    _check_data(cube, variable)
+    _check_data_availability(cube, variable)
+
+    # Add bounds if necessary
+    cube = _set_coordinate_bounds(cube)
 
     # Make sure units are correct
     cube = convert_units(cube, variable.units)
@@ -106,12 +109,10 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     if variable.vertical_level is not NO_LEVEL:
         cube = _extract_level(cube, variable.vertical_level)
 
-    # Unit conversion
-
     return cube
 
 
-def _check_data(cube: Cube, variable: Variable) -> None:
+def _check_data_availability(cube: Cube, variable: Variable) -> None:
     """Check data."""
     expected_coordinates = {c.standard_name for c in variable.coordinates}
     check_coordinates(cube, expected_coordinates)
@@ -166,6 +167,16 @@ def _get_derived_cube(cubes: CubeList, variable: Variable) -> Cube:
         units=variable.units,
         standard_name=variable.standard_name,
     )
+
+
+def _set_coordinate_bounds(cube: Cube) -> Cube:
+    """Set coordinate bounds (in-place)."""
+    for coord_name in ("time", "latitude", "longitude"):
+        if cube.coords(coord_name, dim_coords=True):
+            coord = cube.coord(coord_name, dim_coords=True)
+            if not coord.has_bounds():
+                coord.guess_bounds()
+    return cube
 
 
 def _set_lon_to_0_360(cube: Cube) -> Cube:
