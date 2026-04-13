@@ -73,6 +73,13 @@ class Diagnostic(ABC):
         self._reference_data = {
             v: d.reference(self.data_dir) for v, d in variables_and_data.items()
         }
+        variable_ids = [v.id for v in self.variables]
+        if len(set(variable_ids)) != len(variable_ids):
+            msg = (
+                f"Variable IDs must be unique for diagnostic {self.name}, got "
+                f"{variable_ids}"
+            )
+            raise ValueError(msg)
 
         _other_data: dict[Variable, tuple[DataSource, ...]] = {}
         for variable, data_item in variables_and_data.items():

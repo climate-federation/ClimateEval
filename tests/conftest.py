@@ -17,7 +17,7 @@ def data_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def diagnostic_data_2d() -> dict[Variable, DiagnosticData]:
+def variables_and_data_2d() -> dict[Variable, DiagnosticData]:
     return {
         Variable("my_tas", "tas", "mon"): DiagnosticData(reference=HadCRUT5),
         Variable("my_pr", "pr", "mon"): DiagnosticData(reference=GPCP),
