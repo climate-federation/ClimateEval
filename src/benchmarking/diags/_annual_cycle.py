@@ -24,7 +24,10 @@ class AnnualCycle(Diagnostic):
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
         cube = regrid(
-            cube, DEFAULT_GRID, "linear", cache_weights=True,
+            cube,
+            DEFAULT_GRID,
+            "linear",
+            cache_weights=True,
         )  # to ensure we are on a regular grid
         cube = area_statistics(cube, "mean")
         cube = climate_statistics(cube, operator="mean", period="month")
