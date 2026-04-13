@@ -37,7 +37,7 @@ with warnings.catch_warnings():
     )
 
 
-data_dir = Path.home() / "work" / "benchmarking_input" / "data"
+data_dir = Path("/work/bd0854/b309141/benchmarking_input/data")
 db_path = Path.home() / "benchmarking" / "benchmarking.ddb"
 
 suite = AtmosphereMonthly(diagnostic_kwargs={"data_dir": data_dir})
