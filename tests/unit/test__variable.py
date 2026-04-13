@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 import pytest
 
@@ -67,17 +68,41 @@ def test_lwcre() -> None:
     assert var.units == "W m-2"
 
 
-def test_settings() -> None:
-    var = Variable("my_lwcre", "lwcre", "yr", min_lat=0.0, max_lon=180.0)
-    assert var.settings == {
-        "vertical_level": NO_LEVEL,
-        "min_lat": 0.0,
-        "max_lat": 90.0,
-        "min_lon": 0.0,
-        "max_lon": 180.0,
-        "timerange": "*",
-        "convert_units": "",
-    }
+@pytest.mark.parametrize(
+    ("variable_kwargs", "expected_settings"),
+    [
+        (
+            {"min_lat": 0.0, "max_lon": 180.0},
+            {
+                "vertical_level": NO_LEVEL,
+                "min_lat": 0.0,
+                "max_lat": 90.0,
+                "min_lon": 0.0,
+                "max_lon": 180.0,
+                "timerange": "*",
+                "units": "W m-2",
+            },
+        ),
+        (
+            {"units": "kW w-2"},
+            {
+                "vertical_level": NO_LEVEL,
+                "min_lat": -90.0,
+                "max_lat": 90.0,
+                "min_lon": 0.0,
+                "max_lon": 360.0,
+                "timerange": "*",
+                "units": "kW w-2",
+            },
+        ),
+    ],
+)
+def test_settings(
+    variable_kwargs: dict[str, Any],
+    expected_settings: dict[str, Any],
+) -> None:
+    var = Variable("my_lwcre", "lwcre", "yr", **variable_kwargs)
+    assert var.settings == expected_settings
 
 
 def test_get_required_variables_derived() -> None:

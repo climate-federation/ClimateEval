@@ -82,7 +82,7 @@ class Variable:
     min_lon: float = field(default=0.0, repr=False, kw_only=True)
     max_lon: float = field(default=360.0, repr=False, kw_only=True)
     timerange: str = field(default="*", repr=False, kw_only=True)
-    convert_units: str = field(default="", repr=False, kw_only=True)
+    units: str = field(default="", repr=False, kw_only=True)
 
     # Automatically filled fields
     coordinates: list[Coordinate] = field(init=False, repr=False, compare=False)
@@ -90,7 +90,6 @@ class Variable:
     long_name: str = field(init=False, repr=False, compare=False)
     realm: str = field(init=False, repr=False, compare=False)
     standard_name: str = field(init=False, repr=False, compare=False)
-    units: str = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         """Initialize class instance."""
@@ -100,7 +99,6 @@ class Variable:
         var_info = VARIABLES[self.var_name]
 
         # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
-        object.__setattr__(self, "settings", self._get_settings())
         object.__setattr__(
             self,
             "coordinates",
@@ -109,7 +107,10 @@ class Variable:
         for key, val in var_info.items():
             if key == "coordinates":
                 continue
+            if key == "units" and self.units != "":
+                continue
             object.__setattr__(self, key, val)
+        object.__setattr__(self, "settings", self._get_settings())
 
     def _get_settings(self) -> dict[str, Any]:
         """Get settings."""

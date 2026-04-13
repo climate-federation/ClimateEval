@@ -80,8 +80,7 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     _check_data(cube, variable)
 
     # Make sure units are correct
-    target_units = variable.convert_units or variable.units
-    cube = convert_units(cube, target_units)
+    cube = convert_units(cube, variable.units)
 
     # Make sure longitude is in [0, 360]
     if cube.coords("longitude"):

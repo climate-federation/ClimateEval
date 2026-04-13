@@ -33,7 +33,7 @@ class AtmosphereMonthly(Suite):
                 "pr",
                 "mon",
                 timerange="20040101/20061231",
-                convert_units="mm day-1",
+                units="mm day-1",
             ): DiagnosticData(
                 reference=GPCP,
                 other=(ERA5,),
