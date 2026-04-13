@@ -24,8 +24,9 @@ pytest --cov=src/benchmarking --cov-report=html
 # Lint
 pre-commit run --all
 
-# Run test script
+# Run test script and visualize example database
 python example.py
+python db.py
 
 # Generate interactive HTML report (requires streamlit, plotly)
 streamlit run generate_report.py
@@ -77,6 +78,7 @@ Whenever inspecting databases, use `ibis`.
 ### Example Usage
 
 See [example.py](example.py) for a complete workflow loading CMIP6 data and computing diagnostics.
+See [db.py](db.py) for an example how to work with the output database.
 
 ## Key Patterns
 
