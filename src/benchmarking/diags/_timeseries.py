@@ -29,6 +29,7 @@ class TimeSeries(Diagnostic):
             cube,
             DEFAULT_GRID,
             "linear",
+            cache_weights=True,
         )  # to ensure we are on a regular grid
         cube = area_statistics(cube, "mean")
         cube = annual_statistics(cube, "mean")

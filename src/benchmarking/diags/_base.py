@@ -29,6 +29,27 @@ if TYPE_CHECKING:
 logger = logger.opt(colors=True)
 
 DEFAULT_GRID: str = "2x2"
+PLEV19_LEVELS: list[float] = [
+    100000.0,
+    92500.0,
+    85000.0,
+    70000.0,
+    60000.0,
+    50000.0,
+    40000.0,
+    30000.0,
+    25000.0,
+    20000.0,
+    15000.0,
+    10000.0,
+    7000.0,
+    5000.0,
+    3000.0,
+    2000.0,
+    1000.0,
+    500.0,
+    100.0,
+]
 
 
 @dataclass(frozen=True, kw_only=True)

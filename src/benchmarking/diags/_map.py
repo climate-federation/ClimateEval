@@ -22,6 +22,6 @@ class Map(Diagnostic):
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
-        cube = regrid(cube, DEFAULT_GRID, "linear")
+        cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
         cube = climate_statistics(cube, "mean", "full")
         return cube  # noqa: RET504
