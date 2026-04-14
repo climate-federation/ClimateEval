@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from benchmarking import LEVEL_200HPA, LEVEL_800HPA, Variable
 from benchmarking.data import CERESEBAF, ERA5, GPCP, DiagnosticData, HadCRUT5
-from benchmarking.diags import Map, TimeSeries, ZonalLine, ZonalProfile
+from benchmarking.diags import Map, TimeSeries, ZonalLine, ZonalProfileAirPressure
 from benchmarking.suites._base import Suite
 
 if TYPE_CHECKING:
