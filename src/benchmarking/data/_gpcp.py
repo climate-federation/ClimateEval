@@ -17,11 +17,12 @@ class GPCP(DataSource):
 
     def _download(self, variable: Variable) -> list[Path]:
         """Download data."""
-        return self._intake_esgf_download(
+        return self._esmvaltool_intake_download(
             variable,
-            "obs4MIPs",
             supported_var_names=["pr"],
-            variable_id=variable.var_name,
-            source_id="GPCP-3-3",
+            project="obs4MIPs",
+            dataset="GPCP-3-3",
+            mip="Amon",
+            short_name=variable.var_name,
             frequency=variable.frequency,
         )

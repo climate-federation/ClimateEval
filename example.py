@@ -40,5 +40,5 @@ with warnings.catch_warnings():
 data_dir = Path("/work/bd0854/b309141/benchmarking_input/data")
 db_path = Path.home() / "benchmarking" / "benchmarking.ddb"
 
-suite = Tier2Atmosphere(diagnostic_kwargs={"data_dir": data_dir})
+suite = Tier2Atmosphere(diagnostic_kwargs={"data_dir": data_dir, "fail_on_missing_data": True})
 con = suite.run(cubes, "MPI-ESM1-2-LR", database_path=db_path, overwrite=True)

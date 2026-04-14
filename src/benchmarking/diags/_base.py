@@ -191,11 +191,12 @@ class Diagnostic(ABC):
                 )
             except Exception as exc:
                 if self._fail_on_missing_data:
-                    raise
-                logger.warning(
-                    f"Failed to get reference data {reference_data.name} for "
-                    f"variable {variable}: {exc}",
-                )
+                    msg = (
+                        f"Failed to get reference data {reference_data.name} for "
+                        f"variable {variable}: {exc}"
+                    )
+                    raise ValueError(msg) from exc
+                logger.warning(msg)
                 continue
             reference_cubes[variable] = reference_cube
 
@@ -353,12 +354,13 @@ class Diagnostic(ABC):
                 try:
                     other_cube = self._safely_preprocess(other_data.get_cube(variable))
                 except Exception as exc:
-                    if self._fail_on_missing_data:
-                        raise
-                    logger.warning(
+                    msg = (
                         f"Failed to get other data {other_data.name} for variable "
-                        f"{variable}: {exc}",
+                        f"{variable}: {exc}"
                     )
+                    if self._fail_on_missing_data:
+                        raise ValueError(msg) from exc
+                    logger.warning(msg)
                     continue
 
                 # Expand table
@@ -435,11 +437,10 @@ class Diagnostic(ABC):
             try:
                 cube = self._get_cube(data, variable)
             except Exception as exc:
+                msg = f"Failed to get data {data_name} for variable {variable}: {exc}"
                 if self._fail_on_missing_data:
-                    raise
-                logger.warning(
-                    f"Failed to get data {data_name} for variable {variable}: {exc}",
-                )
+                    raise ValueError(msg) from exc
+                logger.warning(msg)
                 continue
 
             # Expand table

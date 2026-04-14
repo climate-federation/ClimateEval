@@ -10,18 +10,19 @@ from pathlib import Path
 from pprint import pformat
 from typing import TYPE_CHECKING, Any
 
-import intake_esgf
 import iris
 from esmvalcore.config import CFG
+from esmvalcore.dataset import Dataset
 from esmvaltool.cmorizers.data.cmorizer import DataCommand
 from loguru import logger
 
+from benchmarking._config import setup_esmvaltool_intake_data_source
 from benchmarking._utils import get_prepared_cube
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from iris.cube import CubeList
+    from iris.cube import Cube, CubeList
 
     from benchmarking import Variable
 
@@ -99,7 +100,7 @@ class DataSource(ABC):
     def _download(self, variable: Variable) -> list[Path]:
         """Download data."""
 
-    def _esmvaltool_download(
+    def _esmvaltool_cmorizer_download(
         self,
         variable: Variable,
         dataset_name: str,
@@ -108,7 +109,12 @@ class DataSource(ABC):
         file_prefix_pattern: str = "*_",
         tier: int = 2,
     ) -> list[Path]:
-        """Use ESMValTool to download data."""
+        """Use ESMValTool CMORizer to download data.
+
+        See
+        https://docs.esmvaltool.org/en/latest/input.html#using-a-cmorizer-script.
+
+        """
         self._check_supported_variables(variable, supported_var_names)
 
         # Raw downloaded data by ESMValTool will be stored in temporary
@@ -140,27 +146,50 @@ class DataSource(ABC):
             shutil.move(file, data_dir / file.name)
         return list(data_dir.glob("*.nc"))
 
-    def _intake_esgf_download(
+    def _esmvaltool_intake_download(
         self,
         variable: Variable,
-        project: str,
         *,
         supported_var_names: Iterable[str] | None = None,
         **facets: Any,
     ) -> list[Path]:
-        """Use intake-esgf to download data."""
+        """Use ESMValTool's intake-esgf data source to download data.
+
+        See
+        https://docs.esmvaltool.org/projects/ESMValCore/en/latest/quickstart/configure.html#data-sources
+
+        """
         self._check_supported_variables(variable, supported_var_names)
-        with intake_esgf.conf.set(
-            all_indices=True,
-            esg_dataroot=[],
-            local_cache=self.data_dir,
-        ):
-            cat = intake_esgf.ESGFCatalog()
-            cat.project = intake_esgf.projects.projects[project.lower()]
-            cat.search(**facets)
-            paths = cat.to_path_dict()
-        return list(paths.values())
+
+        # Store downloaded data in temporary directory
+        tmp_dir = Path(tempfile.TemporaryDirectory().name)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        with setup_esmvaltool_intake_data_source(tmp_dir):
+            cube = Dataset(**facets).load()
+
+        # Save file into data directory
+        data_dir = self._get_data_dir(variable)
+        data_dir.mkdir(parents=True, exist_ok=True)
+        output_path = data_dir / self._get_output_filename(cube, **facets)
+        iris.save(cube, output_path)
+        logger.debug(f"Saved {output_path}")
+        return [output_path]
 
     def _get_data_dir(self, variable: Variable) -> Path:
         """Get data directory."""
         return self.data_dir / self.name / variable.var_name
+
+    def _get_output_filename(self, cube: Cube, **facets: Any) -> str:
+        """Get output file name."""
+        suffix = ".nc"
+        if cube.coords("time"):
+            time_coord = cube.coord("time")
+            start_date = time_coord.units.num2date(time_coord.points[0]).strftime(
+                "%Y%m%d%H%M%S",
+            )
+            end_date = time_coord.units.num2date(time_coord.points[-1]).strftime(
+                "%Y%m%d%H%M%S",
+            )
+            suffix = f"_{start_date}-{end_date}{suffix}"
+        prefix = "_".join(str(facet_value) for facet_value in facets.values())
+        return f"{prefix}{suffix}"
