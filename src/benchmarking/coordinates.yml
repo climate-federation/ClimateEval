@@ -1,12 +1,32 @@
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_coordinate.json
+alt:
+  long_name: Altitude
+  standard_name: altitude
+  units: m
+basin:
+  long_name: Ocean Basin
+  standard_name: region
+  units: ""
+hour:
+  long_name: "hour"
+  standard_name: ""
+  units: ""
 lat:
   long_name: Latitude
   standard_name: latitude
   units: degrees_north
+lev:
+  long_name: ocean depth coordinate
+  standard_name: depth
+  units: m
 lon:
   long_name: Longitude
   standard_name: longitude
   units: degrees_east
+month_number:
+  long_name: month_number
+  standard_name: ""
+  units: ""
 plev:
   long_name: Pressure Levels
   standard_name: air_pressure
@@ -15,3 +35,13 @@ time:
   long_name: Time Intervals
   standard_name: time
   units: days since 1970-01-01 00:00:00
+
+
+# Generic coordinates (any of the allowed coordinates is ok)
+alevel:
+  allowed_coordinates:
+    - alt
+    - plev
+olevel:
+  allowed_coordinates:
+    - lev

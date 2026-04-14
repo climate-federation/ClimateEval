@@ -10,6 +10,7 @@ from esmvalcore.preprocessor import (
     zonal_statistics,
 )
 
+from benchmarking import Coordinate
 from benchmarking.diags._base import DEFAULT_GRID, Diagnostic
 
 if TYPE_CHECKING:
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 class ZonalLine(Diagnostic):
     """Manage zonal line diagnostics."""
 
-    FINAL_COORDINATES = ("latitude",)
+    FINAL_COORDINATES = (Coordinate("lat"),)
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""

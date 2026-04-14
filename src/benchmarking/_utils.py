@@ -25,22 +25,37 @@ if TYPE_CHECKING:
 
     from iris.cube import Cube
 
-    from benchmarking import Variable, VerticalLevel
+    from benchmarking import Coordinate, Variable, VerticalLevel
 
 logger = logger.opt(colors=True)
 
 
-def check_coordinates(cube: Cube, expected_coordinates: Iterable[str]) -> None:
+def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) -> None:
     """Check coordinates of data."""
     covered_dimensions: list[int] = []
-    for expected_coordinate in expected_coordinates:
-        if not cube.coords(expected_coordinate):
+    for coordinate in expected_coordinates:
+        if coordinate.allowed_coordinates:
+            for allowed_coordinate in coordinate.allowed_coordinates:
+                if cube.coords(allowed_coordinate.name()):
+                    expected_coordinate = allowed_coordinate
+                    break
+            else:
+                msg = (
+                    f"Expected general coordinate {coordinate} with allowed "
+                    f"coordinates {coordinate.allowed_coordinates} missing in "
+                    f"cube\n{cube}"
+                )
+                raise ValueError(msg)
+        else:
+            expected_coordinate = coordinate
+        coord_name = expected_coordinate.name()
+        if not cube.coords(coord_name):
             msg = (
-                f"Expected coordinate '{expected_coordinate}' (standard_name) "
+                f"Expected coordinate {coordinate} with name '{coord_name}' "
                 f"missing in cube\n{cube}"
             )
             raise ValueError(msg)
-        covered_dimensions.extend(cube.coord_dims(expected_coordinate))
+        covered_dimensions.extend(cube.coord_dims(coord_name))
     if set(covered_dimensions) != set(range(cube.ndim)):
         msg = (
             f"Expected coordinates {expected_coordinates} do not cover all "
@@ -77,7 +92,7 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
             raise
         cube = _get_derived_cube(data, variable)
 
-    _check_data_availability(cube, variable)
+    _check_data(cube, variable)
 
     # Add bounds if necessary
     cube = _set_coordinate_bounds(cube)
@@ -112,10 +127,9 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     return cube
 
 
-def _check_data_availability(cube: Cube, variable: Variable) -> None:
+def _check_data(cube: Cube, variable: Variable) -> None:
     """Check data."""
-    expected_coordinates = {c.standard_name for c in variable.coordinates}
-    check_coordinates(cube, expected_coordinates)
+    check_coordinates(cube, variable.coordinates)
 
     # Time
     if not cube.coords("time"):

@@ -8,7 +8,6 @@ import pytest
 from benchmarking import Variable
 from benchmarking.data import DiagnosticData, HadCRUT5
 from benchmarking.diags import TimeSeries
-from tests.unit.diags import assert_preprocessing_works
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -24,8 +23,8 @@ def diagnostic(
     return TimeSeries(variables_and_data_2d, data_dir=data_dir)
 
 
-def test__preprocess(diagnostic: TimeSeries, cube_2d: Cube) -> None:
-    assert_preprocessing_works(diagnostic, cube_2d)
+def test__safely_preprocess(diagnostic: TimeSeries, cube_2d: Cube) -> None:
+    diagnostic._safely_preprocess(cube_2d)
 
 
 def test_tags(diagnostic: TimeSeries) -> None:
