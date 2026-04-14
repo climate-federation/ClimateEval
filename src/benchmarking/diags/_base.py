@@ -133,6 +133,11 @@ class Diagnostic(ABC):
         return self._data_dir
 
     @property
+    def final_coordinate_names(self) -> tuple[str, ...]:
+        """Get names of final coordinate."""
+        return tuple(c.name() for c in self.FINAL_COORDINATES)
+
+    @property
     def name(self) -> str:
         """Get diagnostic name."""
         return self.__class__.__name__
@@ -224,7 +229,7 @@ class Diagnostic(ABC):
                     self.DATASET_COLUMN: pd.Series(dtype="str"),
                     self.DATA_TYPE_COLUMN: pd.Series(dtype="str"),
                     **dict.fromkeys(
-                        self.FINAL_COORDINATES,
+                        self.final_coordinate_names,
                         pd.Series(dtype=self.DTYPE),
                     ),
                     **dict.fromkeys(
@@ -234,7 +239,7 @@ class Diagnostic(ABC):
                 },
             ),
         )
-        if "time" in self.FINAL_COORDINATES:
+        if "time" in self.final_coordinate_names:
             data_table = data_table.cast(time="timestamp")
         return data_table
 
@@ -288,7 +293,7 @@ class Diagnostic(ABC):
         new_col_order = (
             self.DATASET_COLUMN,
             self.DATA_TYPE_COLUMN,
-            *self.FINAL_COORDINATES,
+            *self.final_coordinate_names,
             *sorted(v.id for v in self.variables),
         )
         return data_table.select(new_col_order)
@@ -494,7 +499,7 @@ class Diagnostic(ABC):
         unique_columns = (
             self.DATASET_COLUMN,
             self.DATA_TYPE_COLUMN,
-            *self.FINAL_COORDINATES,
+            *self.final_coordinate_names,
         )
         table = table.group_by(unique_columns).aggregate(
             **{v.id: _[v.id].first() for v in self.variables},
