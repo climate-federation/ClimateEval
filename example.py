@@ -9,7 +9,7 @@ from pathlib import Path
 import iris
 from loguru import logger
 
-from benchmarking.suites import AtmosphereMonthly
+from benchmarking.suites import Tier2Atmosphere
 
 logger = logger.opt(colors=True)
 logger.remove()
@@ -40,5 +40,5 @@ with warnings.catch_warnings():
 data_dir = Path("/work/bd0854/b309141/benchmarking_input/data")
 db_path = Path.home() / "benchmarking" / "benchmarking.ddb"
 
-suite = AtmosphereMonthly(diagnostic_kwargs={"data_dir": data_dir})
+suite = Tier2Atmosphere(diagnostic_kwargs={"data_dir": data_dir})
 con = suite.run(cubes, "MPI-ESM1-2-LR", database_path=db_path, overwrite=True)

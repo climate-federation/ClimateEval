@@ -1,4 +1,4 @@
-"""Provide atmosphere evaluation suite."""
+"""Provide Tier 2 evaluation suite."""
 
 from __future__ import annotations
 
@@ -13,18 +13,18 @@ if TYPE_CHECKING:
     from benchmarking.diags import Diagnostic
 
 
-class AtmosphereMonthly(Suite):
-    """Manage atmosphere evaluation suite (monthly data)."""
+class Tier2Atmosphere(Suite):
+    """Manage Tier 2 atmosphere evaluation suite."""
 
-    def _get_variables_and_data(self) -> dict[Variable, DiagnosticData]:
-        """Get data to evaluate."""
+    def _get_diagnostics(self) -> tuple[Diagnostic, ...]:
+        """Get diagnostics to run."""
         variable_kwargs: dict[str, Any] = {
             "frequency": "mon",
             "timerange": "20000101/20011231",
         }
         variable_kwargs.update(self._variable_kwargs)
 
-        return {
+        variables_and_data = {
             Variable("lwcre", "lwcre", **variable_kwargs): DiagnosticData(
                 reference=CERESEBAF,
             ),
@@ -69,6 +69,7 @@ class AtmosphereMonthly(Suite):
             ): DiagnosticData(reference=ERA5),
         }
 
-    def _get_diagnostics(self) -> tuple[type[Diagnostic], ...]:
-        """Get diagnostics to run."""
-        return (TimeSeries, Map, ZonalLine, ZonalProfile)
+        return (
+            TimeSeries(variables_and_data, **self._diagnostic_kwargs),
+            Map(variables_and_data, **self._diagnostic_kwargs),
+        )

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from benchmarking.suites._atmosphere import AtmosphereMonthly
 from benchmarking.suites._base import Suite
+from benchmarking.suites._tier2 import Tier2Atmosphere
 
 __all__ = [
-    "AtmosphereMonthly",
     "Suite",
+    "Tier2Atmosphere",
 ]

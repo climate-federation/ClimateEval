@@ -14,8 +14,6 @@ if TYPE_CHECKING:
     from iris.cube import CubeList
     from xarray import Dataset
 
-    from benchmarking import Variable
-    from benchmarking.data import DiagnosticData
     from benchmarking.diags import Diagnostic
 
 logger = logger.opt(colors=True)
@@ -71,9 +69,7 @@ class Suite(ABC):
 
         connection = ibis.connect(database_resource, **database_kwargs)
 
-        variables_and_data = self._get_variables_and_data()
-        for diag_cls in self._get_diagnostics():
-            diagnostic = diag_cls(variables_and_data, **self._diagnostic_kwargs)
+        for diagnostic in self._get_diagnostics():
             output = diagnostic.get_output(data, data_name)
             connection.create_database(diagnostic.name)
             for output_field in fields(output):
@@ -88,9 +84,5 @@ class Suite(ABC):
         return connection
 
     @abstractmethod
-    def _get_variables_and_data(self) -> dict[Variable, DiagnosticData]:
-        """Get data to evaluate."""
-
-    @abstractmethod
-    def _get_diagnostics(self) -> tuple[type[Diagnostic], ...]:
+    def _get_diagnostics(self) -> tuple[Diagnostic, ...]:
         """Get diagnostics to run."""
