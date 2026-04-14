@@ -48,6 +48,9 @@ develop = [
     "pytest-xdist",
 ]
 
+[tool.codespell]
+ignore-words-list = "vas"
+
 [tool.pytest.ini_options]
 addopts = ["-ra", "--strict-config", "--strict-markers"]
 minversion = "6.0"
