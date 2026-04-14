@@ -28,11 +28,6 @@ class VerticalLevel:
         return f"{self.coordinate_name} = {self.value} {self.units}"
 
 
-LEVEL_200HPA = VerticalLevel("air_pressure", "hPa", 200.0)
-LEVEL_400HPA = VerticalLevel("air_pressure", "hPa", 400.0)
-LEVEL_800HPA = VerticalLevel("air_pressure", "hPa", 800.0)
-
-
 @dataclass(frozen=True, order=True)
 class _NoLevel(VerticalLevel):
     """Represent no vertical levels."""

@@ -190,11 +190,11 @@ class Diagnostic(ABC):
                     reference_data.get_cube(variable),
                 )
             except Exception as exc:
+                msg = (
+                    f"Failed to get reference data {reference_data.name} for "
+                    f"variable {variable}: {exc}"
+                )
                 if self._fail_on_missing_data:
-                    msg = (
-                        f"Failed to get reference data {reference_data.name} for "
-                        f"variable {variable}: {exc}"
-                    )
                     raise ValueError(msg) from exc
                 logger.warning(msg)
                 continue
