@@ -19,26 +19,25 @@ format_str = (
 )
 logger.add(sys.stdout, level="DEBUG", format=format_str, colorize=True)
 
+variables = (
+    "pr",
+    "rlut",
+    "rlutcs",
+    "ta",
+    "tas",
+)
+paths = [
+    f"/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/{var}/gn/v20190710/{var}_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc"
+    for var in variables
+]
+
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    cubes = iris.load(
-        [
-            "/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/tas/gn/v20190710/tas_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc",
-            "/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/tas/gn/v20190710/tas_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_201001-201412.nc",
-            "/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/pr/gn/v20190710/pr_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc",
-            "/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/pr/gn/v20190710/pr_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_201001-201412.nc",
-            "/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/rlut/gn/v20190710/rlut_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc",
-            "/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/rlut/gn/v20190710/rlut_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_201001-201412.nc",
-            "/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/rlutcs/gn/v20190710/rlutcs_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc",
-            "/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/rlutcs/gn/v20190710/rlutcs_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_201001-201412.nc",
-            "/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/ta/gn/v20190710/ta_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc",
-            "/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/ta/gn/v20190710/ta_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_201001-201412.nc",
-        ],
-    )
+    cubes = iris.load(paths)
 
 
 data_dir = Path("/work/bd0854/b309141/benchmarking_input/data")
 db_path = Path.home() / "benchmarking" / "benchmarking.ddb"
 
-suite = Tier2Atmosphere(diagnostic_kwargs={"data_dir": data_dir, "fail_on_missing_data": True})
+suite = Tier2Atmosphere(diagnostic_kwargs={"data_dir": data_dir})
 con = suite.run(cubes, "MPI-ESM1-2-LR", database_path=db_path, overwrite=True)
