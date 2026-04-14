@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from iris.cube import Cube, CubeList
     from xarray import Dataset
 
-    from benchmarking import Variable
+    from benchmarking import Coordinate, Variable
     from benchmarking.data import DataSource, DiagnosticData
 
 
@@ -80,8 +80,8 @@ class Diagnostic(ABC):
     DATASET_COLUMN: ClassVar[str] = "Dataset"
     DATA_TYPE_COLUMN: ClassVar[str] = "Data Type"
     DTYPE: ClassVar[ibis.DataType] = "float32"
-    FINAL_COORDINATES: ClassVar[tuple[str, ...]] = ()
-    """Coordinates (standard names) of preprocessed output."""
+    FINAL_COORDINATES: ClassVar[tuple[Coordinate, ...]] = ()
+    """Coordinates of preprocessed output."""
 
     def __init__(
         self,

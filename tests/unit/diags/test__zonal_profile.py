@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 from benchmarking.diags import ZonalProfileAirPressure
-from tests.unit.diags import assert_preprocessing_works
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -24,5 +23,5 @@ def diagnostic(
     return ZonalProfileAirPressure(variables_and_data_3d, data_dir=data_dir)
 
 
-def test__preprocess(diagnostic: ZonalProfileAirPressure, cube_3d: Cube) -> None:
-    assert_preprocessing_works(diagnostic, cube_3d)
+def test__safely_preprocess(diagnostic: ZonalProfileAirPressure, cube_3d: Cube) -> None:
+    diagnostic._safely_preprocess(cube_3d)

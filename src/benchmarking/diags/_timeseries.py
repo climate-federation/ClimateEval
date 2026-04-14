@@ -11,7 +11,7 @@ from esmvalcore.preprocessor import (
     regrid_time,
 )
 
-from benchmarking import COORDINATES
+from benchmarking import COORDINATES, Coordinate
 from benchmarking.diags._base import DEFAULT_GRID, Diagnostic
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class TimeSeries(Diagnostic):
     """Manage timeseries diagnostics."""
 
-    FINAL_COORDINATES = ("time",)
+    FINAL_COORDINATES = (Coordinate("time"),)
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""

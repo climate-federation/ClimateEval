@@ -9,6 +9,7 @@ from esmvalcore.preprocessor import (
     regrid,
 )
 
+from benchmarking import Coordinate
 from benchmarking.diags._base import DEFAULT_GRID, Diagnostic
 
 if TYPE_CHECKING:
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 class Map(Diagnostic):
     """Manage map diagnostics."""
 
-    FINAL_COORDINATES = ("latitude", "longitude")
+    FINAL_COORDINATES = (Coordinate("lat"), Coordinate("lon"))
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""

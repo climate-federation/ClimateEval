@@ -20,6 +20,38 @@ def test_coordinates() -> None:
     assert COORDINATES
 
 
+def test_lat() -> None:
+    coord = Coordinate("lat")
+
+    assert coord.var_name == "lat"
+    assert coord.long_name == "Latitude"
+    assert coord.standard_name == "latitude"
+    assert coord.units == "degrees_north"
+    assert coord.allowed_coordinates == ()
+
+
+def test_alevel() -> None:
+    coord = Coordinate("alevel")
+
+    assert coord.var_name == "alevel"
+    assert coord.long_name == ""
+    assert coord.standard_name == ""
+    assert coord.units == ""
+    assert coord.allowed_coordinates == (Coordinate("alt"), Coordinate("plev"))
+
+
+@pytest.mark.parametrize(
+    ("coord", "name"),
+    [
+        ("alt", "altitude"),
+        ("hour", "hour"),
+        ("plev", "air_pressure"),
+    ],
+)
+def test_coordinate_name(coord: str, name: str) -> None:
+    assert Coordinate(coord).name() == name
+
+
 def test_tas() -> None:
     var = Variable("my_tas", "tas", "mon")
 

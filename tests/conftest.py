@@ -53,8 +53,12 @@ def cube_2d() -> Cube:
     )
 
 
-@pytest.fixture
-def cube_3d() -> Cube:
+@pytest.fixture(params=["altitude", "air_pressure"])
+def cube_3d(request: pytest.FixtureRequest) -> Cube:
+    if request.param == "altitude":
+        z_coord = _get_altitude_coord()
+    else:
+        z_coord = _get_air_pressure_coord()
     return Cube(
         np.arange(1 * 2 * 3 * 4).reshape(1, 2, 3, 4),
         var_name="ta",
@@ -63,7 +67,7 @@ def cube_3d() -> Cube:
         units="K",
         dim_coords_and_dims=[
             (_get_time_coord(), 0),
-            (_get_air_pressure_coord(), 1),
+            (z_coord, 1),
             (_get_latitude_coord(), 2),
             (_get_longitude_coord(), 3),
         ],
@@ -81,6 +85,17 @@ def _get_time_coord() -> DimCoord:
     )
 
 
+def _get_altitude_coord() -> DimCoord:
+    return DimCoord(
+        [100.0, 200.0],
+        var_name="alt",
+        standard_name="altitude",
+        long_name="Altitude",
+        units="m",
+        attributes={"positive": "up"},
+    )
+
+
 def _get_air_pressure_coord() -> DimCoord:
     return DimCoord(
         [100000.0, 80000.0],
@@ -88,6 +103,7 @@ def _get_air_pressure_coord() -> DimCoord:
         standard_name="air_pressure",
         long_name="Pressure Levels",
         units="Pa",
+        attributes={"positive": "down"},
     )
 
 

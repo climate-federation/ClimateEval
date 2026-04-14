@@ -59,9 +59,15 @@ class Coordinate:
     """Manage coordinates."""
 
     var_name: str
-    long_name: str = field(init=False, repr=False, compare=False)
-    standard_name: str = field(init=False, repr=False, compare=False)
-    units: str = field(init=False, repr=False, compare=False)
+    long_name: str = field(default="", init=False, repr=False, compare=False)
+    standard_name: str = field(default="", init=False, repr=False, compare=False)
+    units: str = field(default="", init=False, repr=False, compare=False)
+    allowed_coordinates: tuple[Coordinate, ...] = field(
+        default_factory=tuple,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def __post_init__(self) -> None:
         """Initialize class instance."""
@@ -70,8 +76,25 @@ class Coordinate:
             raise NotImplementedError(msg)
 
         # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
-        for key, val in COORDINATES[self.var_name].items():
+        coord_info = COORDINATES[self.var_name]
+        for key, val in coord_info.items():
+            if key == "allowed_coordinates":
+                continue
             object.__setattr__(self, key, val)
+        if "allowed_coordinates" in coord_info:
+            object.__setattr__(
+                self,
+                "allowed_coordinates",
+                tuple(Coordinate(c) for c in coord_info["allowed_coordinates"]),
+            )
+
+    def name(self) -> str:
+        """Get human-readable name of coordinate."""
+        if self.standard_name:
+            return self.standard_name
+        if self.long_name:
+            return self.long_name
+        return self.var_name
 
 
 @dataclass(frozen=True, order=True)

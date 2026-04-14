@@ -10,6 +10,7 @@ from esmvalcore.preprocessor import (
     regrid,
 )
 
+from benchmarking import Coordinate
 from benchmarking.diags._base import DEFAULT_GRID, Diagnostic
 
 if TYPE_CHECKING:
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 class AnnualCycle(Diagnostic):
     """Manage annual cycle diagnostics."""
 
-    FINAL_COORDINATES = ("month_number",)
+    FINAL_COORDINATES = (Coordinate("month_number"),)
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""

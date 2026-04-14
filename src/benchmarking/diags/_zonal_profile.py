@@ -11,6 +11,7 @@ from esmvalcore.preprocessor import (
     zonal_statistics,
 )
 
+from benchmarking import Coordinate
 from benchmarking.diags._base import DEFAULT_GRID, PLEV19_LEVELS, Diagnostic
 
 if TYPE_CHECKING:
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 class ZonalProfileAirPressure(Diagnostic):
     """Manage zonal profile diagnostics."""
 
-    FINAL_COORDINATES = ("air_pressure", "latitude")
+    FINAL_COORDINATES = (Coordinate("plev"), Coordinate("lat"))
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
