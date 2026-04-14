@@ -16,6 +16,72 @@ from plotly.subplots import make_subplots
 
 
 # ---------------------------------------------------------------------------
+# Coastline extraction (cartopy, cached)
+# ---------------------------------------------------------------------------
+
+_COASTLINES: tuple[list, list] | None = None
+
+
+def _extract_coastlines(simplify_deg: float = 0.5) -> tuple[list, list]:
+    """Return (lons, lats) coastline coords with None breaks between segments."""
+    try:
+        import cartopy.feature as cfeature
+    except ImportError:
+        return [], []
+    lons: list = []
+    lats: list = []
+    for geom in cfeature.COASTLINE.geometries():
+        parts = list(geom.geoms) if hasattr(geom, "geoms") else [geom]
+        for part in parts:
+            part = part.simplify(simplify_deg, preserve_topology=False)
+            coords = list(part.coords)
+            if len(coords) < 2:
+                continue
+            lons.extend([c[0] for c in coords] + [None])
+            lats.extend([c[1] for c in coords] + [None])
+    return lons, lats
+
+
+def _coastlines() -> tuple[list, list]:
+    global _COASTLINES
+    if _COASTLINES is None:
+        _COASTLINES = _extract_coastlines()
+    return _COASTLINES
+
+
+# ---------------------------------------------------------------------------
+# Dataset reference catalogue
+# ---------------------------------------------------------------------------
+
+_DATASET_REFS: dict[str, dict[str, str]] = {
+    "ERA5": {
+        "full_name": "ECMWF Reanalysis v5",
+        "provider": "ECMWF / Copernicus Climate Change Service",
+        "reference": "Hersbach et al. (2020), Q. J. R. Meteorol. Soc., doi:10.1002/qj.3803",
+        "url": "https://cds.climate.copernicus.eu/datasets/reanalysis-era5-pressure-levels",
+    },
+    "GPCP": {
+        "full_name": "Global Precipitation Climatology Project v2.3",
+        "provider": "NOAA / NASA",
+        "reference": "Adler et al. (2003), J. Hydrometeorol., doi:10.1175/1525-7541(2003)004",
+        "url": "https://www.ncei.noaa.gov/products/global-precipitation-climatology-project",
+    },
+    "HadCRUT5": {
+        "full_name": "HadCRUT5 Near-Surface Temperature Dataset",
+        "provider": "UK Met Office Hadley Centre / CRU",
+        "reference": "Morice et al. (2021), J. Geophys. Res. Atmos., doi:10.1029/2019JD032361",
+        "url": "https://www.metoffice.gov.uk/hadobs/hadcrut5/",
+    },
+    "CERES-EBAF": {
+        "full_name": "CERES Energy Balanced and Filled Ed4.2",
+        "provider": "NASA CERES Science Team",
+        "reference": "Loeb et al. (2018), J. Climate, doi:10.1175/JCLI-D-17-0208.1",
+        "url": "https://ceres.larc.nasa.gov/data/#ebaf-surface-ed4-2",
+    },
+}
+
+
+# ---------------------------------------------------------------------------
 # Database reading
 # ---------------------------------------------------------------------------
 
@@ -47,7 +113,6 @@ def get_var_cols(data_df: pd.DataFrame) -> list[str]:
 
 
 def detect_diag_type(columns: list[str]) -> str:
-    """Detect diagnostic type from coordinate columns of the data table."""
     cols = set(columns)
     if "latitude" in cols and "longitude" in cols:
         return "Map"
@@ -61,15 +126,21 @@ def detect_diag_type(columns: list[str]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Figure builders
+# Shared plot helpers
 # ---------------------------------------------------------------------------
 
-_COLORSCALE = "RdBu_r"
 _LINE_STYLES: dict[str, str] = {
     "to_benchmark": "solid",
     "reference": "dash",
     "other": "dot",
 }
+
+_VAR_COLORSCALE: dict[str, str] = {"pr": "YlGnBu"}
+_DEFAULT_COLORSCALE = "RdBu_r"
+
+_PLOT_FONT = dict(family="'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif", size=12)
+_AXIS_STYLE = dict(showgrid=True, gridcolor="rgba(180,180,180,0.25)", zeroline=False,
+                   linecolor="#ccc", linewidth=1, mirror=True)
 
 
 def _vrange(series: pd.Series) -> tuple[float, float]:
@@ -87,22 +158,50 @@ def _var_label(var_id: str, variables_df: pd.DataFrame) -> tuple[str, str]:
     return str(long_name), str(units)
 
 
+def _sort_datasets(data_df: pd.DataFrame, datasets: list[str]) -> list[str]:
+    """Sort: reference first, other second, model last."""
+    priority = {"reference": 0, "other": 1, "to_benchmark": 2}
+
+    def key(ds: str) -> int:
+        dtype = data_df[data_df["Dataset"] == ds]["Data Type"].iloc[0]
+        return priority.get(dtype, 3)
+
+    return sorted(datasets, key=key)
+
+
+def _base_layout(**kwargs: object) -> dict:
+    base = dict(
+        font=_PLOT_FONT,
+        paper_bgcolor="white",
+        plot_bgcolor="#fafbfc",
+        legend=dict(
+            bgcolor="rgba(255,255,255,0.85)",
+            bordercolor="#ddd",
+            borderwidth=1,
+            font=dict(size=11),
+        ),
+    )
+    base.update(kwargs)
+    return base
+
+
+# ---------------------------------------------------------------------------
+# Figure builders
+# ---------------------------------------------------------------------------
+
 def build_map_figures(
     data_df: pd.DataFrame, variables_df: pd.DataFrame
 ) -> dict[str, go.Figure]:
-    """Geographic scatter maps with coastlines; one subplot per dataset."""
+    """Filled heatmap maps with cartopy coastlines; one subplot per dataset."""
+    coast_lons, coast_lats = _coastlines()
     figures: dict[str, go.Figure] = {}
     var_cols = get_var_cols(data_df)
-
-    def _sort_key(ds: str) -> int:
-        dtype = data_df[data_df["Dataset"] == ds]["Data Type"].iloc[0]
-        return {"reference": 0, "other": 1, "to_benchmark": 2}.get(dtype, 3)
-
-    all_datasets = sorted(data_df["Dataset"].unique(), key=_sort_key)
+    all_datasets = _sort_datasets(data_df, data_df["Dataset"].unique().tolist())
 
     for var_id in var_cols:
         long_name, units = _var_label(var_id, variables_df)
         vmin, vmax = _vrange(data_df[var_id])
+        cs = _VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE)
 
         valid_datasets = [
             ds for ds in all_datasets
@@ -114,14 +213,12 @@ def build_map_figures(
         ncols = min(len(valid_datasets), 3)
         nrows = max(1, (len(valid_datasets) + ncols - 1) // ncols)
 
-        specs = [[{"type": "geo"} for _ in range(ncols)] for _ in range(nrows)]
         fig = make_subplots(
             rows=nrows,
             cols=ncols,
-            specs=specs,
             subplot_titles=[str(ds) for ds in valid_datasets],
-            horizontal_spacing=0.02,
-            vertical_spacing=0.08,
+            horizontal_spacing=0.06,
+            vertical_spacing=0.14,
         )
 
         show_colorbar = True
@@ -129,62 +226,100 @@ def build_map_figures(
             row = i // ncols + 1
             col = i % ncols + 1
             sub = data_df[data_df["Dataset"] == dataset]
-            # Aggregate duplicates at the same grid cell
-            sub_var = (
-                sub[["latitude", "longitude", var_id]]
-                .dropna(subset=[var_id])
-                .groupby(["latitude", "longitude"], as_index=False)[var_id]
-                .mean()
-            )
+            sub_var = sub[["latitude", "longitude", var_id]].dropna(subset=[var_id]).copy()
             if sub_var.empty:
                 continue
 
+            sub_var["lon"] = sub_var["longitude"].apply(lambda x: x - 360 if x > 180 else x)
+            pivot = (
+                sub_var.groupby(["latitude", "lon"], as_index=False)[var_id]
+                .mean()
+                .pivot(index="latitude", columns="lon", values=var_id)
+                .sort_index(axis=1)
+            )
+            if pivot.empty:
+                continue
+
             fig.add_trace(
-                go.Scattergeo(
-                    lat=sub_var["latitude"],
-                    lon=sub_var["longitude"],
-                    marker=dict(
-                        color=sub_var[var_id],
-                        colorscale=_COLORSCALE,
-                        cmin=vmin,
-                        cmax=vmax,
-                        size=6,
-                        opacity=1.0,
-                        colorbar=dict(title=units, thickness=15, len=0.6)
-                        if show_colorbar
-                        else None,
-                        showscale=show_colorbar,
-                    ),
-                    mode="markers",
+                go.Heatmap(
+                    z=pivot.values,
+                    x=pivot.columns.tolist(),
+                    y=pivot.index.tolist(),
+                    colorscale=cs,
+                    zmin=vmin,
+                    zmax=vmax,
+                    colorbar=dict(
+                        title=dict(text=units, side="right"),
+                        thickness=14,
+                        len=0.85,
+                        x=1.01,
+                        tickfont=dict(size=10),
+                        outlinewidth=0,
+                    )
+                    if show_colorbar
+                    else None,
+                    showscale=show_colorbar,
                     name=dataset,
                     hovertemplate=(
-                        "lat: %{lat:.1f}<br>lon: %{lon:.1f}"
-                        f"<br>{var_id}: %{{marker.color:.3g}} {units}"
+                        "lon %{x:.1f}°  lat %{y:.1f}°"
+                        f"<br><b>{var_id}</b>: %{{z:.4g}} {units}"
                         "<extra>" + dataset + "</extra>"
                     ),
                 ),
-                row=row,
-                col=col,
+                row=row, col=col,
             )
             show_colorbar = False
 
-        fig.update_geos(
-            showcoastlines=True,
-            coastlinecolor="#333",
-            coastlinewidth=1,
-            showland=True,
-            landcolor="whitesmoke",
-            showocean=True,
-            oceancolor="#ddeeff",
-            showlakes=False,
-            showframe=False,
-            projection_type="natural earth",
-        )
+            if coast_lons:
+                fig.add_trace(
+                    go.Scatter(
+                        x=coast_lons, y=coast_lats,
+                        mode="lines",
+                        line=dict(color="rgba(20,20,20,0.80)", width=0.6),
+                        showlegend=False, hoverinfo="skip",
+                    ),
+                    row=row, col=col,
+                )
+
+            lon_ticks = dict(
+                tickvals=[-120, -60, 0, 60, 120],
+                ticktext=["120°W", "60°W", "0°", "60°E", "120°E"],
+            )
+            lat_ticks = dict(
+                tickvals=[-60, -30, 0, 30, 60],
+                ticktext=["60°S", "30°S", "0°", "30°N", "60°N"],
+            )
+            fig.update_xaxes(
+                range=[-180, 180],
+                showgrid=True, gridcolor="rgba(180,180,180,0.25)",
+                zeroline=True, zerolinecolor="rgba(150,150,150,0.4)", zerolinewidth=1,
+                linecolor="#bbb", linewidth=1, mirror=True,
+                tickfont=dict(size=9),
+                title_text="Longitude" if row == nrows else "",
+                **lon_ticks, row=row, col=col,
+            )
+            fig.update_yaxes(
+                range=[-90, 90],
+                showgrid=True, gridcolor="rgba(180,180,180,0.25)",
+                zeroline=True, zerolinecolor="rgba(150,150,150,0.4)", zerolinewidth=1,
+                linecolor="#bbb", linewidth=1, mirror=True,
+                tickfont=dict(size=9),
+                title_text="Latitude" if col == 1 else "",
+                **lat_ticks, row=row, col=col,
+            )
+
+        title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
-            title_text=f"{long_name} [{units}]",
-            height=300 * nrows + 80,
-            margin=dict(t=80, b=20, l=10, r=10),
+            **_base_layout(
+                title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
+                plot_bgcolor="#dce9f5",
+                height=300 * nrows + 100,
+                margin=dict(t=80, b=50, l=60, r=90),
+            )
         )
+        for ann in fig.layout.annotations:
+            ann.font = dict(size=11, color="#333")
+
         figures[var_id] = fig
 
     return figures
@@ -195,40 +330,46 @@ def build_timeseries_figures(
 ) -> dict[str, go.Figure]:
     """Annual time series, one figure per variable, all datasets overlaid."""
     figures: dict[str, go.Figure] = {}
-    var_cols = get_var_cols(data_df)
+    all_datasets = _sort_datasets(data_df, data_df["Dataset"].unique().tolist())
 
-    for var_id in var_cols:
+    for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
             continue
         long_name, units = _var_label(var_id, variables_df)
         fig = go.Figure()
 
-        for dataset, grp in data_df.groupby("Dataset"):
+        for dataset in all_datasets:
+            grp = data_df[data_df["Dataset"] == dataset]
             sub = grp[["time", var_id]].dropna(subset=[var_id]).sort_values("time")
             if sub.empty:
                 continue
             dtype = grp["Data Type"].iloc[0]
             dash = _LINE_STYLES.get(dtype, "solid")
-            width = 2 if dtype == "to_benchmark" else 1.5
+            width = 2.5 if dtype == "to_benchmark" else 1.8
             fig.add_trace(
                 go.Scatter(
-                    x=sub["time"],
-                    y=sub[var_id],
-                    mode="lines+markers",
-                    name=str(dataset),
+                    x=sub["time"], y=sub[var_id],
+                    mode="lines+markers", name=str(dataset),
                     line=dict(dash=dash, width=width),
-                    marker=dict(size=4),
-                    hovertemplate="%{y:.3g}<extra>" + str(dataset) + "</extra>",
+                    marker=dict(size=5, symbol="circle"),
+                    hovertemplate=f"<b>{dataset}</b><br>%{{x|%Y-%m}}<br>{var_id}: %{{y:.4g}} {units}<extra></extra>",
                 )
             )
 
+        yax = dict(title_text=units, **_AXIS_STYLE)
+        xax = dict(title_text="Date", **_AXIS_STYLE)
+        title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
-            title_text=f"{long_name} [{units}]",
-            xaxis_title="Year",
-            yaxis_title=f"{units}",
-            height=420,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            margin=dict(t=80, b=60, l=60, r=20),
+            **_base_layout(
+                title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
+                xaxis=xax, yaxis=yax, height=440,
+                legend=dict(
+                    orientation="h", yanchor="bottom", y=1.02,
+                    xanchor="right", x=1, bgcolor="rgba(255,255,255,0.85)",
+                    bordercolor="#ddd", borderwidth=1, font=dict(size=11),
+                ),
+                margin=dict(t=80, b=60, l=70, r=30),
+            )
         )
         figures[var_id] = fig
 
@@ -240,39 +381,57 @@ def build_zonal_line_figures(
 ) -> dict[str, go.Figure]:
     """Zonal mean line plots, one figure per variable, all datasets overlaid."""
     figures: dict[str, go.Figure] = {}
-    var_cols = get_var_cols(data_df)
+    all_datasets = _sort_datasets(data_df, data_df["Dataset"].unique().tolist())
 
-    for var_id in var_cols:
+    for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
             continue
         long_name, units = _var_label(var_id, variables_df)
         fig = go.Figure()
 
-        for dataset, grp in data_df.groupby("Dataset"):
+        for dataset in all_datasets:
+            grp = data_df[data_df["Dataset"] == dataset]
             sub = grp[["latitude", var_id]].dropna(subset=[var_id]).sort_values("latitude")
             if sub.empty:
                 continue
             dtype = grp["Data Type"].iloc[0]
             dash = _LINE_STYLES.get(dtype, "solid")
-            width = 2 if dtype == "to_benchmark" else 1.5
+            width = 2.5 if dtype == "to_benchmark" else 1.8
             fig.add_trace(
                 go.Scatter(
-                    x=sub["latitude"],
-                    y=sub[var_id],
-                    mode="lines",
-                    name=str(dataset),
+                    x=sub["latitude"], y=sub[var_id],
+                    mode="lines", name=str(dataset),
                     line=dict(dash=dash, width=width),
-                    hovertemplate="%{y:.3g}<extra>" + str(dataset) + "</extra>",
+                    hovertemplate=f"<b>{dataset}</b><br>lat: %{{x:.1f}}°<br>{var_id}: %{{y:.4g}} {units}<extra></extra>",
                 )
             )
 
+        for lat_ref, label in [(0, "Equator"), (23.5, "N Tropic"), (-23.5, "S Tropic")]:
+            fig.add_vline(
+                x=lat_ref,
+                line=dict(color="rgba(150,150,150,0.45)", width=1, dash="dot"),
+                annotation=dict(text=label, font=dict(size=8, color="#aaa"), y=0.02),
+            )
+
+        xax = dict(
+            title_text="Latitude (°)",
+            tickvals=[-90, -60, -30, 0, 30, 60, 90],
+            ticktext=["90°S", "60°S", "30°S", "0°", "30°N", "60°N", "90°N"],
+            **_AXIS_STYLE,
+        )
+        yax = dict(title_text=units, **_AXIS_STYLE)
+        title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
-            title_text=f"{long_name} [{units}]",
-            xaxis_title="Latitude",
-            yaxis_title=f"{units}",
-            height=420,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            margin=dict(t=80, b=60, l=60, r=20),
+            **_base_layout(
+                title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
+                xaxis=xax, yaxis=yax, height=420,
+                legend=dict(
+                    orientation="h", yanchor="bottom", y=1.02,
+                    xanchor="right", x=1, bgcolor="rgba(255,255,255,0.85)",
+                    bordercolor="#ddd", borderwidth=1, font=dict(size=11),
+                ),
+                margin=dict(t=80, b=60, l=70, r=30),
+            )
         )
         figures[var_id] = fig
 
@@ -282,17 +441,11 @@ def build_zonal_line_figures(
 def build_zonal_profile_figures(
     data_df: pd.DataFrame, variables_df: pd.DataFrame
 ) -> dict[str, go.Figure]:
-    """Zonal mean profile heatmaps (pressure × latitude), one figure per variable."""
+    """Zonal mean profile heatmaps (pressure × latitude); one figure per variable."""
     figures: dict[str, go.Figure] = {}
-    var_cols = get_var_cols(data_df)
+    all_datasets = _sort_datasets(data_df, data_df["Dataset"].unique().tolist())
 
-    def _sort_key(ds: str) -> int:
-        dtype = data_df[data_df["Dataset"] == ds]["Data Type"].iloc[0]
-        return {"reference": 0, "other": 1, "to_benchmark": 2}.get(dtype, 3)
-
-    all_datasets = sorted(data_df["Dataset"].unique(), key=_sort_key)
-
-    for var_id in var_cols:
+    for var_id in get_var_cols(data_df):
         long_name, units = _var_label(var_id, variables_df)
         vmin, vmax = _vrange(data_df[var_id])
 
@@ -307,11 +460,9 @@ def build_zonal_profile_figures(
         nrows = max(1, (len(valid_datasets) + ncols - 1) // ncols)
 
         fig = make_subplots(
-            rows=nrows,
-            cols=ncols,
+            rows=nrows, cols=ncols,
             subplot_titles=[str(ds) for ds in valid_datasets],
-            vertical_spacing=0.08,
-            horizontal_spacing=0.05,
+            vertical_spacing=0.12, horizontal_spacing=0.07,
         )
         first_trace = True
         for i, dataset in enumerate(valid_datasets):
@@ -320,44 +471,63 @@ def build_zonal_profile_figures(
             sub = data_df[data_df["Dataset"] == dataset]
             try:
                 pivot = sub.pivot_table(
-                    index="air_pressure",
-                    columns="latitude",
-                    values=var_id,
-                    aggfunc="mean",
+                    index="air_pressure", columns="latitude", values=var_id, aggfunc="mean"
                 )
                 pivot = pivot.dropna(how="all").dropna(axis=1, how="all")
             except Exception:
                 continue
             if pivot.empty:
                 continue
+
+            pivot.index = pivot.index / 100
+
             fig.add_trace(
                 go.Heatmap(
                     z=pivot.values,
                     x=pivot.columns.tolist(),
                     y=pivot.index.tolist(),
-                    colorscale=_COLORSCALE,
-                    zmin=vmin,
-                    zmax=vmax,
-                    colorbar=dict(title=units, len=0.8) if first_trace else None,
+                    colorscale=_VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE),
+                    zmin=vmin, zmax=vmax,
+                    colorbar=dict(
+                        title=dict(text=units, side="right"),
+                        thickness=14, len=0.85, x=1.01,
+                        tickfont=dict(size=10), outlinewidth=0,
+                    ) if first_trace else None,
                     showscale=first_trace,
                     name=dataset,
                     hovertemplate=(
-                        "lat: %{x:.1f}<br>plev: %{y:.0f}<br>value: %{z:.3g}"
+                        "lat: %{x:.1f}°<br>pressure: %{y:.0f} hPa"
+                        f"<br><b>{var_id}</b>: %{{z:.4g}} {units}"
                         "<extra>" + dataset + "</extra>"
                     ),
                 ),
-                row=row,
-                col=col,
+                row=row, col=col,
             )
-            fig.update_yaxes(autorange="reversed", title_text="Pressure (Pa)", row=row, col=col)
-            fig.update_xaxes(title_text="Latitude", row=row, col=col)
+            plev_ticks = [1000, 700, 500, 300, 200, 100, 50, 20, 10]
+            fig.update_yaxes(
+                type="log", autorange="reversed",
+                tickvals=plev_ticks, ticktext=[str(p) for p in plev_ticks],
+                title_text="Pressure (hPa)" if col == 1 else "",
+                **_AXIS_STYLE, row=row, col=col,
+            )
+            fig.update_xaxes(
+                title_text="Latitude" if row == nrows else "",
+                tickvals=[-60, -30, 0, 30, 60],
+                ticktext=["60°S", "30°S", "0°", "30°N", "60°N"],
+                **_AXIS_STYLE, row=row, col=col,
+            )
             first_trace = False
 
+        title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
-            title_text=f"{long_name} [{units}]",
-            height=340 * nrows + 80,
-            margin=dict(t=80, b=60, l=80, r=60),
+            **_base_layout(
+                title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
+                height=360 * nrows + 100,
+                margin=dict(t=80, b=60, l=80, r=90),
+            )
         )
+        for ann in fig.layout.annotations:
+            ann.font = dict(size=11, color="#333")
         figures[var_id] = fig
 
     return figures
@@ -377,6 +547,13 @@ _DIAG_LABELS = {
     "ZonalProfile": "Zonal Profile",
 }
 
+_DIAG_ICONS = {
+    "Map": "🗺",
+    "TimeSeries": "📈",
+    "ZonalLine": "〰",
+    "ZonalProfile": "🌡",
+}
+
 
 # ---------------------------------------------------------------------------
 # Leaderboard
@@ -385,10 +562,6 @@ _DIAG_LABELS = {
 def build_leaderboard_data(
     all_metrics: dict[str, dict[str, pd.DataFrame]],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Build leaderboard from {tier_label: {diag_name: metrics_df}}.
-
-    Returns (summary_df, detail_df).
-    """
     dfs = []
     for tier_label, tier_metrics in all_metrics.items():
         for diag_name, mdf in tier_metrics.items():
@@ -398,7 +571,6 @@ def build_leaderboard_data(
             m["tier"] = tier_label
             m["diagnostic"] = diag_name
             dfs.append(m)
-
     if not dfs:
         return pd.DataFrame(), pd.DataFrame()
 
@@ -436,14 +608,12 @@ def build_leaderboard_data(
         .sort_values("Overall Score", ascending=False)
     )
     summary["Rank"] = range(1, len(summary) + 1)
-    summary = summary[["Rank", "Dataset", "Overall Score"]].reset_index(drop=True)
-
-    return summary, detail
+    return summary[["Rank", "Dataset", "Overall Score"]].reset_index(drop=True), detail
 
 
 def _score_color(score: float) -> str:
     h = int(score * 120)
-    return f"hsl({h},70%,50%)"
+    return f"hsl({h},65%,45%)"
 
 
 def _render_summary_table(summary_df: pd.DataFrame, table_id: str) -> str:
@@ -456,14 +626,14 @@ def _render_summary_table(summary_df: pd.DataFrame, table_id: str) -> str:
         pct = f"{score * 100:.1f}"
         color = _score_color(score)
         rank_cls = medal.get(rank, "")
-        bar_width = f"{score * 100:.1f}%"
+        bar_w = f"{score * 100:.1f}%"
         rows_html.append(
             f"<tr>"
             f"<td class='rank {rank_cls}'>{rank}</td>"
-            f"<td>{dataset}</td>"
+            f"<td><strong>{dataset}</strong></td>"
             f"<td class='score-cell bar-cell'>"
-            f"  <div class='bar-bg' style='width:{bar_width};background:{color};'></div>"
-            f"  <span class='bar-val' style='color:{color};font-weight:600'>{pct}%</span>"
+            f"  <div class='bar-bg' style='width:{bar_w};background:{color};'></div>"
+            f"  <span class='bar-val' style='color:{color}'>{pct}%</span>"
             f"</td>"
             f"</tr>"
         )
@@ -489,7 +659,6 @@ def _render_detail_table(detail_df: pd.DataFrame, table_id: str) -> str:
     ]
     str_cols = {"Dataset", "tier", "diagnostic", "var_id"}
     cols_show = ["Dataset", "tier", "diagnostic", "var_id"] + metric_cols
-    # Hide "tier" column when there's only one tier
     if "tier" in detail_df.columns and detail_df["tier"].nunique() <= 1:
         cols_show = [c for c in cols_show if c != "tier"]
     cols_show = [c for c in cols_show if c in detail_df.columns]
@@ -501,7 +670,6 @@ def _render_detail_table(detail_df: pd.DataFrame, table_id: str) -> str:
         f"{html_module.escape(c)}</th>"
         for i, c in enumerate(cols_show)
     )
-
     rows_html = []
     for _, row in sub.iterrows():
         cells = []
@@ -514,7 +682,6 @@ def _render_detail_table(detail_df: pd.DataFrame, table_id: str) -> str:
             else:
                 cells.append(f"<td>{html_module.escape(str(val))}</td>")
         rows_html.append(f"<tr>{''.join(cells)}</tr>")
-
     return (
         f"<div class='lb-table-wrap'>"
         f"<table class='lb' id='{table_id}'>"
@@ -528,25 +695,19 @@ def render_leaderboard_section(
     all_metrics: dict[str, dict[str, pd.DataFrame]],
     table_suffix: str = "",
 ) -> str:
-    """Build the full leaderboard HTML section."""
     summary_df, detail_df = build_leaderboard_data(all_metrics)
-
     if summary_df.empty:
-        return "<p>No metrics data found.</p>"
-
+        return "<p class='empty-note'>No metrics data found.</p>"
     summary_html = _render_summary_table(summary_df, f"lb-summary{table_suffix}")
     detail_html = _render_detail_table(detail_df, f"lb-detail{table_suffix}")
-
     metric_note = (
-        "<p style='font-size:0.83rem;color:#666;margin:0 0 20px'>"
+        "<div class='metric-note'>"
         "Overall Score = normalized average of weighted RMSE, Pearson r, and Earth Mover's Distance "
-        "across all variables and diagnostics (100% = best possible)."
-        "</p>"
+        "across all diagnostics and variables. 100% = best possible."
+        "</div>"
     )
-
     return (
         f"<div class='lb-section'>"
-        f"<h3>Overall Ranking</h3>"
         f"{metric_note}"
         f"{summary_html}"
         f"<div class='detail-section'>"
@@ -557,33 +718,149 @@ def render_leaderboard_section(
 
 
 # ---------------------------------------------------------------------------
+# Detail box (per-plot dataset info)
+# ---------------------------------------------------------------------------
+
+def _build_detail_html(
+    var_id: str,
+    variables_df: pd.DataFrame,
+    data_df: pd.DataFrame,
+) -> str:
+    """Build the expandable dataset-info box shown below each plot."""
+    rows: list[str] = []
+
+    # Variable metadata
+    var_row = variables_df[variables_df["id"] == var_id] if variables_df is not None else pd.DataFrame()
+    if not var_row.empty:
+        r = var_row.iloc[0]
+        meta_items = []
+        for col, label in [
+            ("long_name", "Name"), ("standard_name", "CF Standard Name"),
+            ("units", "Units"), ("realm", "Realm"), ("frequency", "Frequency"),
+            ("timerange", "Time Range"), ("coordinates", "Coordinates"),
+            ("vertical_level", "Vertical Level"), ("derived", "Derived"),
+        ]:
+            val = r.get(col, "")
+            if val is not None and str(val).strip() and str(val) != "nan":
+                meta_items.append(
+                    f"<div class='detail-meta-row'>"
+                    f"<span class='detail-meta-key'>{label}</span>"
+                    f"<span class='detail-meta-val'>{html_module.escape(str(val))}</span>"
+                    f"</div>"
+                )
+        if meta_items:
+            rows.append(
+                f"<div class='detail-block'>"
+                f"<div class='detail-block-title'>Variable Metadata</div>"
+                f"{''.join(meta_items)}"
+                f"</div>"
+            )
+
+    # Datasets used for this variable
+    if data_df is not None and var_id in data_df.columns:
+        sub = data_df[data_df[var_id].notna()][["Dataset", "Data Type"]].drop_duplicates()
+        type_order = {"reference": 0, "other": 1, "to_benchmark": 2}
+        sub = sub.sort_values("Data Type", key=lambda s: s.map(type_order).fillna(3))
+
+        ds_items: list[str] = []
+        for _, ds_row in sub.iterrows():
+            ds_name = str(ds_row["Dataset"])
+            dtype = str(ds_row["Data Type"])
+            type_badge = {"reference": "ref", "other": "other", "to_benchmark": "model"}.get(dtype, dtype)
+            ref_info = _DATASET_REFS.get(ds_name, {})
+            full_name = ref_info.get("full_name", "")
+            provider = ref_info.get("provider", "")
+            reference = ref_info.get("reference", "")
+            url = ref_info.get("url", "")
+
+            detail_lines = []
+            if full_name:
+                detail_lines.append(f"<em>{html_module.escape(full_name)}</em>")
+            if provider:
+                detail_lines.append(f"Provider: {html_module.escape(provider)}")
+            if reference:
+                detail_lines.append(f"Citation: {html_module.escape(reference)}")
+            if url:
+                detail_lines.append(
+                    f'URL: <a href="{html_module.escape(url)}" target="_blank" '
+                    f'rel="noopener">{html_module.escape(url)}</a>'
+                )
+
+            ds_items.append(
+                f"<div class='detail-ds-item'>"
+                f"<div class='detail-ds-header'>"
+                f"<strong>{html_module.escape(ds_name)}</strong>"
+                f"<span class='detail-badge detail-badge-{type_badge}'>{type_badge}</span>"
+                f"</div>"
+                + (f"<div class='detail-ds-body'>{'<br>'.join(detail_lines)}</div>" if detail_lines else "")
+                + "</div>"
+            )
+
+        if ds_items:
+            rows.append(
+                f"<div class='detail-block'>"
+                f"<div class='detail-block-title'>Datasets</div>"
+                f"{''.join(ds_items)}"
+                f"</div>"
+            )
+
+    if not rows:
+        return ""
+    return f"<div class='plot-detail-body'>{''.join(rows)}</div>"
+
+
+# ---------------------------------------------------------------------------
 # Diagnostic section rendering
 # ---------------------------------------------------------------------------
 
-def render_diagnostic_section(scope_id: str, figures: dict[str, go.Figure]) -> str:
+def render_diagnostic_section(
+    scope_id: str,
+    figures: dict[str, go.Figure],
+    variables_df: pd.DataFrame | None = None,
+    data_df: pd.DataFrame | None = None,
+) -> str:
     """Render plots for one diagnostic.
 
-    scope_id uniquely namespaces all element IDs (e.g. "Map" or "t0-Map").
-    Figures are stored as embedded JSON and rendered lazily by renderPanel().
+    scope_id namespaces all element IDs.
+    Figures are embedded as JSON and rendered lazily by renderPanel().
     """
     if not figures:
-        return "<p>No data available.</p>"
+        return "<p class='empty-note'>No data available.</p>"
 
     var_cols = list(figures.keys())
     first_var = var_cols[0]
 
+    def _btn_label(v: str) -> str:
+        if variables_df is not None and not variables_df.empty:
+            row = variables_df[variables_df["id"] == v]
+            if not row.empty:
+                ln = str(row["long_name"].values[0])
+                u = str(row["units"].values[0])
+                return f"{ln} [{u}]" if u else ln
+        return v
+
+    def _search_terms(v: str) -> str:
+        terms = [v]
+        if variables_df is not None and not variables_df.empty:
+            row = variables_df[variables_df["id"] == v]
+            if not row.empty:
+                terms.append(str(row["long_name"].values[0]))
+                terms.append(str(row.get("standard_name", pd.Series([""])).values[0]))
+        return " ".join(terms).lower()
+
     var_buttons = "".join(
-        f"<button class='{'active' if v == first_var else ''}' "
-        f"data-var='{v}' "
-        f"onclick='showVarPanel(\"{scope_id}\", \"{v}\")'>{v}</button>"
+        f"<button class='var-pill {'active' if v == first_var else ''}' "
+        f"data-var='{html_module.escape(v)}' title='{html_module.escape(v)}' "
+        f"onclick='showVarPanel(\"{scope_id}\", \"{v}\")'>"
+        f"{html_module.escape(_btn_label(v))}</button>"
         for v in var_cols
     )
 
     legend_note = (
         "<div class='legend-note'>"
-        "<span><span class='line-solid'></span> Model (to benchmark)</span>"
-        "<span><span class='line-dash'></span> Reference</span>"
-        "<span><span class='line-dot'></span> Other</span>"
+        "<span><span class='ln-solid'></span>Model</span>"
+        "<span><span class='ln-dash'></span>Reference</span>"
+        "<span><span class='ln-dot'></span>Other</span>"
         "</div>"
     )
 
@@ -591,18 +868,43 @@ def render_diagnostic_section(scope_id: str, figures: dict[str, go.Figure]) -> s
     for var_id, fig in figures.items():
         panel_id = f"plot-{scope_id}-{var_id}"
         graph_id = f"graph-{scope_id}-{var_id}"
-        height = fig.layout.height or 420
+        detail_id = f"detail-{scope_id}-{var_id}"
+        height = fig.layout.height or 440
         active_cls = "active" if var_id == first_var else ""
-        fig_json = fig.to_json()
+        search_key = html_module.escape(_search_terms(var_id))
+        btn_label = html_module.escape(_btn_label(var_id))
+
+        detail_html = _build_detail_html(
+            var_id,
+            variables_df if variables_df is not None else pd.DataFrame(),
+            data_df if data_df is not None else pd.DataFrame(),
+        )
+
+        detail_block = ""
+        if detail_html:
+            detail_block = (
+                f"<div class='plot-detail-footer'>"
+                f"<button class='detail-toggle-btn' onclick='toggleDetail(\"{detail_id}\")'>"
+                f"<span class='detail-icon'>ℹ</span> Dataset Info &amp; References"
+                f"</button>"
+                f"<div class='plot-detail-box' id='{detail_id}'>{detail_html}</div>"
+                f"</div>"
+            )
+
         plot_panels += (
-            f"<div class='plot-panel {active_cls}' id='{panel_id}' data-graph='{graph_id}'>"
+            f"<div class='plot-panel {active_cls}' id='{panel_id}' "
+            f"data-graph='{graph_id}' data-search='{search_key}'>"
+            f"<div class='plot-title-bar'>"
+            f"<span class='plot-title-text'>{btn_label}</span>"
+            f"</div>"
             f"<div id='{graph_id}' style='height:{height}px;width:100%;'></div>"
-            f"<script type='application/json' id='figdata-{graph_id}'>{fig_json}</script>"
+            f"<script type='application/json' id='figdata-{graph_id}'>{fig.to_json()}</script>"
+            f"{detail_block}"
             f"</div>"
         )
 
     return (
-        f"<div id='diag-{scope_id}'>"
+        f"<div id='diag-{scope_id}' class='diag-content'>"
         f"<div class='var-nav'>{var_buttons}</div>"
         f"{legend_note}"
         f"{plot_panels}"
@@ -611,138 +913,406 @@ def render_diagnostic_section(scope_id: str, figures: dict[str, go.Figure]) -> s
 
 
 # ---------------------------------------------------------------------------
-# CSS & JS
+# CSS
 # ---------------------------------------------------------------------------
 
 _CSS = """
-* { box-sizing: border-box; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  margin: 0; padding: 0; background: #f5f7fa; color: #1a1a2e;
-}
-header {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  color: #e0e0e0; padding: 28px 40px;
-}
-header h1 { margin: 0 0 6px; font-size: 1.8rem; color: #fff; }
-header p { margin: 0; font-size: 0.88rem; opacity: 0.7; }
+*, *::before, *::after { box-sizing: border-box; }
 
-/* Top-level navigation */
-.main-nav {
-  display: flex; gap: 4px; background: #fff;
-  border-bottom: 2px solid #e0e4ea;
-  padding: 0 32px; position: sticky; top: 0; z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+:root {
+  --navy: #0d1f35;
+  --navy-mid: #163657;
+  --navy-light: #1a5276;
+  --accent: #2e86c1;
+  --accent-hover: #1a6fa8;
+  --sidebar-w: 230px;
+  --header-h: 72px;
+  --toolbar-h: 52px;
+  --bg: #f0f3f7;
+  --surface: #ffffff;
+  --border: #dde2eb;
+  --text: #1e2535;
+  --muted: #6a7890;
+  --font: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
 }
-.main-nav button {
-  background: none; border: none; padding: 14px 20px;
-  font-size: 0.92rem; font-weight: 500; cursor: pointer;
-  color: #555; border-bottom: 3px solid transparent; margin-bottom: -2px;
-  transition: color .15s, border-color .15s;
+
+html, body {
+  height: 100%; margin: 0; padding: 0;
+  font-family: var(--font); font-size: 14px; color: var(--text);
+  background: var(--bg); overflow: hidden;
 }
-.main-nav button:hover { color: #0f3460; }
-.main-nav button.active { color: #0f3460; border-bottom-color: #0f3460; }
 
-.tab-panel { display: none; padding: 32px 40px; }
-.tab-panel.active { display: block; }
-
-/* Diagnostic sub-navigation (within a tier) */
-.sub-nav {
-  display: flex; gap: 4px; flex-wrap: wrap;
-  border-bottom: 1px solid #e0e4ea; margin-bottom: 24px;
+/* ── App shell ── */
+.app-shell {
+  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
 }
-.sub-nav button {
-  background: none; border: none; padding: 10px 16px;
-  font-size: 0.88rem; font-weight: 500; cursor: pointer;
-  color: #555; border-bottom: 2px solid transparent; margin-bottom: -1px;
-  transition: color .15s, border-color .15s;
+
+/* ── Header ── */
+.app-header {
+  flex-shrink: 0; height: var(--header-h);
+  background: linear-gradient(110deg, var(--navy) 0%, var(--navy-mid) 50%, var(--navy-light) 100%);
+  color: #c8daf0; padding: 0 28px;
+  display: flex; align-items: center; gap: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  box-shadow: 0 2px 12px rgba(0,0,0,.35);
+  z-index: 300;
 }
-.sub-nav button:hover { color: #0f3460; }
-.sub-nav button.active { color: #0f3460; border-bottom-color: #0f3460; }
 
-.diag-panel { display: none; }
-.diag-panel.active { display: block; }
+.header-logo {
+  flex-shrink: 0; width: 42px; height: 42px;
+  background: rgba(255,255,255,0.10); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
 
-/* Leaderboard */
-.lb-section { margin-bottom: 36px; }
-.lb-section h3 { font-size: 1.05rem; color: #16213e; margin: 0 0 12px; }
+.header-title { flex: 1; min-width: 0; }
+.header-title h1 {
+  margin: 0 0 2px; font-size: 1.15rem; font-weight: 700;
+  color: #fff; letter-spacing: -.1px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.header-meta {
+  display: flex; gap: 20px; flex-wrap: wrap;
+  font-size: 0.76rem; opacity: 0.65; line-height: 1.2;
+}
+.header-meta span::before { content: ""; }
+.header-chip {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,0.08); border-radius: 20px;
+  padding: 3px 10px; font-size: 0.74rem; color: #b8cde4;
+  white-space: nowrap;
+}
+.header-chip strong { color: #e0edf8; font-weight: 600; }
 
-.lb-table-wrap { overflow-x: auto; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+/* ── Body split ── */
+.app-body {
+  display: flex; flex: 1; overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  flex-shrink: 0; width: var(--sidebar-w);
+  background: var(--navy); color: #a8bdd4;
+  display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+
+.sidebar-section-label {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: rgba(255,255,255,0.25);
+  padding: 18px 18px 6px;
+}
+
+.sidebar-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 18px; cursor: pointer;
+  font-size: 0.875rem; font-weight: 500; color: #94adc8;
+  border-left: 3px solid transparent;
+  border-radius: 0 8px 8px 0; margin: 1px 8px 1px 0;
+  transition: background .12s, color .12s, border-color .12s;
+  user-select: none;
+}
+.sidebar-item:hover { background: rgba(255,255,255,0.06); color: #cce0f5; }
+.sidebar-item.active {
+  background: rgba(46,134,193,0.18); color: #fff;
+  border-left-color: var(--accent); font-weight: 600;
+}
+.sidebar-item .sidebar-icon { font-size: 1rem; flex-shrink: 0; opacity: 0.8; }
+
+.sidebar-divider {
+  height: 1px; background: rgba(255,255,255,0.07); margin: 8px 16px;
+}
+
+/* ── Content area ── */
+.content-wrap {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* ── Toolbar (diagnostic filter + search) ── */
+.content-toolbar {
+  flex-shrink: 0; height: var(--toolbar-h);
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  z-index: 100;
+}
+
+.diag-filter-btns {
+  display: flex; gap: 6px; align-items: center; flex-shrink: 0;
+}
+.diag-filter-btn {
+  background: none; border: 1.5px solid var(--border);
+  border-radius: 20px; padding: 5px 14px;
+  font-size: 0.8rem; font-weight: 500; cursor: pointer;
+  color: var(--muted); display: flex; align-items: center; gap: 5px;
+  transition: background .12s, border-color .12s, color .12s;
+  white-space: nowrap;
+}
+.diag-filter-btn:hover { background: #eef3fa; border-color: var(--accent); color: var(--navy-mid); }
+.diag-filter-btn.active {
+  background: var(--accent); border-color: var(--accent);
+  color: #fff; font-weight: 600;
+}
+
+.toolbar-sep {
+  width: 1px; height: 24px; background: var(--border); flex-shrink: 0;
+}
+
+.search-wrap {
+  flex: 1; position: relative; max-width: 320px;
+}
+.search-wrap svg {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  width: 15px; height: 15px; color: var(--muted); pointer-events: none;
+}
+.search-input {
+  width: 100%; padding: 7px 12px 7px 32px;
+  border: 1.5px solid var(--border); border-radius: 20px;
+  font-size: 0.82rem; font-family: var(--font); color: var(--text);
+  background: var(--bg); outline: none;
+  transition: border-color .15s, background .15s;
+}
+.search-input:focus { border-color: var(--accent); background: #fff; }
+.search-input::placeholder { color: var(--muted); }
+
+/* ── Main scrolling content ── */
+.main-content {
+  flex: 1; overflow-y: auto; padding: 28px 32px 48px;
+}
+
+/* ── Content panels ── */
+.content-panel { display: none; }
+.content-panel.active { display: block; }
+
+/* ── Diagnostic sections within a tier ── */
+.diag-section { margin-bottom: 48px; }
+.diag-section.hidden { display: none; }
+
+.diag-section-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 18px; padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+}
+.diag-section-icon { font-size: 1.2rem; }
+.diag-section-title {
+  font-size: 1.05rem; font-weight: 700; color: var(--navy-mid);
+}
+
+/* ── Section headings ── */
+.section-heading {
+  font-size: 1.1rem; font-weight: 700; color: var(--navy-mid);
+  margin: 0 0 22px; padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+}
+
+/* ── Leaderboard ── */
+.lb-section { max-width: 900px; }
+
+.metric-note {
+  font-size: 0.82rem; color: #6a7790;
+  background: #f0f4fa; border-left: 3px solid var(--accent);
+  padding: 9px 14px; border-radius: 0 6px 6px 0; margin-bottom: 20px;
+}
+
+.lb-table-wrap {
+  overflow-x: auto; border-radius: 10px;
+  box-shadow: 0 2px 14px rgba(0,0,0,.09); margin-bottom: 16px;
+}
 table.lb {
-  border-collapse: collapse; width: 100%; min-width: 480px;
-  background: #fff; font-size: 0.88rem;
+  border-collapse: collapse; width: 100%; min-width: 440px;
+  background: #fff; font-size: 0.87rem;
 }
 table.lb thead th {
-  background: #16213e; color: #e8eaf6; font-weight: 600;
-  padding: 11px 16px; text-align: left; white-space: nowrap;
+  background: var(--navy-mid); color: #d8e4f0; font-weight: 600;
+  padding: 11px 18px; text-align: left; white-space: nowrap;
+  letter-spacing: .03em; font-size: 0.82rem; text-transform: uppercase;
 }
 table.lb thead th.sortable { cursor: pointer; user-select: none; }
-table.lb thead th.sortable::after { content: " ↕"; opacity: 0.5; }
-table.lb thead th.asc::after { content: " ↑"; opacity: 1; }
-table.lb thead th.desc::after { content: " ↓"; opacity: 1; }
-table.lb tbody tr:nth-child(even) { background: #f8f9fd; }
-table.lb tbody tr:hover { background: #eef2ff; }
-table.lb tbody td { padding: 9px 16px; white-space: nowrap; }
-td.rank { font-weight: 700; font-size: 1.0rem; text-align: center; }
+table.lb thead th.sortable::after { content: " ↕"; opacity: 0.4; font-size: 0.78em; }
+table.lb thead th.asc::after   { content: " ↑"; opacity: 1; }
+table.lb thead th.desc::after  { content: " ↓"; opacity: 1; }
+table.lb tbody tr { border-bottom: 1px solid #edf0f6; }
+table.lb tbody tr:last-child { border-bottom: none; }
+table.lb tbody tr:nth-child(even) { background: #f7f9fc; }
+table.lb tbody tr:hover { background: #ecf2fb; }
+table.lb tbody td { padding: 10px 18px; white-space: nowrap; }
+td.rank { font-weight: 800; font-size: 1.05rem; text-align: center; width: 50px; }
 td.score-cell { text-align: right; font-variant-numeric: tabular-nums; }
-.medal-1 { color: #c9973e; }
-.medal-2 { color: #8d9297; }
-.medal-3 { color: #8c5e3c; }
-
-.bar-cell { position: relative; }
+.medal-1 { color: #c0860a; }
+.medal-2 { color: #7a8390; }
+.medal-3 { color: #8b5e3c; }
+.bar-cell { position: relative; min-width: 140px; }
 .bar-bg {
-  position: absolute; top: 25%; left: 4px;
-  height: 50%; border-radius: 3px; opacity: 0.22; pointer-events: none;
+  position: absolute; top: 20%; left: 8px;
+  height: 60%; border-radius: 4px; opacity: 0.18; pointer-events: none;
 }
-.bar-val { position: relative; z-index: 1; }
-
+.bar-val { position: relative; z-index: 1; font-weight: 700; font-size: 0.92rem; }
 .detail-section { margin-top: 20px; }
 details > summary {
-  cursor: pointer; font-weight: 600; color: #0f3460;
-  padding: 10px 0; user-select: none;
+  cursor: pointer; font-weight: 600; color: var(--navy-light);
+  font-size: 0.87rem; padding: 8px 0; user-select: none;
+  list-style: none; display: flex; align-items: center; gap: 6px;
 }
+details > summary::before { content: "▶"; font-size: 0.7em; transition: transform .15s; }
+details[open] > summary::before { transform: rotate(90deg); }
 details > summary:hover { opacity: 0.75; }
 
-/* Variable pill navigation */
+/* ── Variable pill nav ── */
 .var-nav {
-  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px;
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
 }
-.var-nav button {
-  background: #e8eaf6; border: none; border-radius: 20px;
-  padding: 6px 16px; font-size: 0.85rem; cursor: pointer;
-  color: #16213e; font-weight: 500; transition: background .15s;
+.var-pill {
+  background: #fff; border: 1.5px solid var(--border); border-radius: 24px;
+  padding: 6px 18px; font-size: 0.80rem; cursor: pointer;
+  color: #3a4a66; font-weight: 500; font-family: var(--font);
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  transition: background .13s, border-color .13s, color .13s, box-shadow .13s;
+  max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.var-nav button:hover { background: #c5cae9; }
-.var-nav button.active { background: #0f3460; color: #fff; }
+.var-pill:hover { background: #edf2fb; border-color: var(--accent); color: var(--navy-mid); }
+.var-pill.active {
+  background: var(--navy-mid); color: #fff; border-color: var(--navy-mid);
+  box-shadow: 0 3px 8px rgba(22,54,87,.28);
+}
 
+/* ── Plot panel card ── */
 .plot-panel { display: none; }
 .plot-panel.active { display: block; }
 
+.plot-panel-card {
+  background: var(--surface); border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  overflow: hidden; margin-bottom: 8px;
+}
+
+.plot-title-bar {
+  padding: 10px 18px; background: #f8fafc;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.plot-title-text {
+  font-size: 0.88rem; font-weight: 600; color: var(--navy-mid);
+}
+
+/* ── Dataset detail box ── */
+.plot-detail-footer {
+  border-top: 1px solid var(--border); padding: 10px 18px 14px;
+  background: #f8fafc;
+}
+
+.detail-toggle-btn {
+  background: none; border: 1.5px solid var(--border);
+  border-radius: 6px; padding: 5px 14px;
+  font-size: 0.78rem; font-weight: 500; cursor: pointer;
+  color: var(--muted); font-family: var(--font);
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.detail-toggle-btn:hover { background: #eef3fa; border-color: var(--accent); color: var(--navy-mid); }
+.detail-icon { font-style: normal; font-size: 1em; }
+
+.plot-detail-box {
+  display: none; margin-top: 12px;
+}
+.plot-detail-box.open { display: block; }
+
+.plot-detail-body {
+  display: flex; flex-wrap: wrap; gap: 16px;
+}
+
+.detail-block {
+  flex: 1; min-width: 260px;
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px; font-size: 0.82rem;
+}
+
+.detail-block-title {
+  font-weight: 700; color: var(--navy-mid); font-size: 0.80rem;
+  text-transform: uppercase; letter-spacing: .05em;
+  margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-meta-row {
+  display: flex; gap: 8px; padding: 3px 0;
+  border-bottom: 1px solid #f0f2f5;
+}
+.detail-meta-row:last-child { border-bottom: none; }
+.detail-meta-key {
+  flex-shrink: 0; width: 130px; font-weight: 600; color: var(--muted);
+  font-size: 0.78rem;
+}
+.detail-meta-val { color: var(--text); word-break: break-word; }
+
+.detail-ds-item {
+  margin-bottom: 10px; padding-bottom: 10px;
+  border-bottom: 1px solid #f0f2f5;
+}
+.detail-ds-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.detail-ds-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+}
+.detail-badge {
+  font-size: 0.7rem; font-weight: 700; padding: 2px 8px;
+  border-radius: 10px; text-transform: uppercase; letter-spacing: .04em;
+}
+.detail-badge-ref   { background: #e3f2fd; color: #1565c0; }
+.detail-badge-model { background: #e8f5e9; color: #2e7d32; }
+.detail-badge-other { background: #fff3e0; color: #e65100; }
+.detail-ds-body {
+  font-size: 0.79rem; color: var(--muted); line-height: 1.6;
+}
+.detail-ds-body a { color: var(--accent); text-decoration: none; }
+.detail-ds-body a:hover { text-decoration: underline; }
+
+/* ── Legend ── */
 .legend-note {
-  font-size: 0.82rem; color: #666; margin: 0 0 14px;
-  display: flex; gap: 20px; flex-wrap: wrap;
+  font-size: 0.79rem; color: #7a8aa0; margin: 0 0 14px;
+  display: flex; gap: 18px; flex-wrap: wrap; align-items: center;
 }
-.legend-note span { display: flex; align-items: center; gap: 6px; }
-.legend-note .line-solid { display: inline-block; width: 28px; height: 3px; background: #555; }
-.legend-note .line-dash {
-  display: inline-block; width: 28px; height: 3px;
-  background: repeating-linear-gradient(to right,#555 0 6px,transparent 6px 10px);
+.legend-note span { display: flex; align-items: center; gap: 7px; }
+.ln-solid {
+  display: inline-block; width: 26px; height: 2.5px;
+  background: #555; border-radius: 2px;
 }
-.legend-note .line-dot {
-  display: inline-block; width: 28px; height: 3px;
+.ln-dash {
+  display: inline-block; width: 26px; height: 2.5px; border-radius: 2px;
+  background: repeating-linear-gradient(to right,#555 0 5px,transparent 5px 9px);
+}
+.ln-dot {
+  display: inline-block; width: 26px; height: 2.5px; border-radius: 2px;
   background: repeating-linear-gradient(to right,#555 0 2px,transparent 2px 6px);
 }
 
-.db-source {
-  font-size: 0.78rem; color: #999; margin: 0 0 16px;
-  font-style: italic;
+/* ── Search no-results ── */
+.search-no-results {
+  display: none; padding: 40px 0; text-align: center;
+  color: var(--muted); font-style: italic;
 }
+.search-no-results.visible { display: block; }
+
+/* ── Misc ── */
+.db-source { font-size: 0.76rem; color: #aab; margin: 0 0 14px; font-style: italic; }
+.empty-note { color: #888; font-style: italic; padding: 20px 0; }
+.diag-content { padding: 0; }
+
+/* ── Scrollbar styling ── */
+.sidebar::-webkit-scrollbar { width: 5px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+.main-content::-webkit-scrollbar { width: 7px; }
+.main-content::-webkit-scrollbar-track { background: var(--bg); }
+.main-content::-webkit-scrollbar-thumb { background: #c8d0de; border-radius: 4px; }
 """
 
+# ---------------------------------------------------------------------------
+# JavaScript
+# ---------------------------------------------------------------------------
+
 _JS = """
-// Lazy Plotly rendering: plots are only initialized when their panel first
-// becomes visible. Double requestAnimationFrame ensures the browser has
-// computed layout (width/height) before Plotly measures the div.
 var _rendered = {};
 
 function renderPanel(panelId) {
@@ -755,71 +1325,145 @@ function renderPanel(panelId) {
     requestAnimationFrame(function() {
       var div = document.getElementById(graphId);
       if (!div) return;
-      if (_rendered[graphId]) {
-        Plotly.relayout(div, {autosize: true});
-        return;
-      }
+      if (_rendered[graphId]) { Plotly.relayout(div, {autosize:true}); return; }
       var scriptEl = document.getElementById('figdata-' + graphId);
       if (!scriptEl) return;
       var figData = JSON.parse(scriptEl.textContent);
       figData.layout.autosize = true;
-      Plotly.newPlot(div, figData.data, figData.layout, {responsive: true, displayModeBar: true});
+      Plotly.newPlot(div, figData.data, figData.layout,
+        {responsive:true, displayModeBar:true, displaylogo:false});
       _rendered[graphId] = true;
     });
   });
 }
 
-// Top-level tab switching (works for both flat single-tier and multi-tier layouts)
-function showMainTab(tabId) {
-  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
-  document.querySelectorAll('.main-nav button').forEach(function(b) { b.classList.remove('active'); });
-  document.getElementById('tab-' + tabId).classList.add('active');
-  document.querySelector('.main-nav button[data-tab="' + tabId + '"]').classList.add('active');
-  // Find and render the first active plot panel anywhere inside this tab
-  var activePanel = document.querySelector('#tab-' + tabId + ' .plot-panel.active');
-  if (activePanel) renderPanel(activePanel.id);
-}
+// Sidebar navigation
+function sidebarNav(sectionId) {
+  document.querySelectorAll('.content-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.sidebar-item').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('.content-toolbar').forEach(function(t){ t.style.display='none'; });
 
-// Diagnostic sub-tab switching within a tier (multi-tier layout)
-function showDiagTab(tierId, diagId) {
-  var tierEl = document.getElementById('tier-inner-' + tierId);
-  if (!tierEl) return;
-  tierEl.querySelectorAll('.diag-panel').forEach(function(p) { p.classList.remove('active'); });
-  tierEl.querySelectorAll('.sub-nav button').forEach(function(b) { b.classList.remove('active'); });
-  var diagEl = document.getElementById('tier-' + tierId + '-' + diagId);
-  if (diagEl) diagEl.classList.add('active');
-  var btn = tierEl.querySelector('.sub-nav button[data-diag="' + diagId + '"]');
+  var panel = document.getElementById('panel-' + sectionId);
+  if (panel) panel.classList.add('active');
+
+  var btn = document.querySelector('.sidebar-item[data-section="' + sectionId + '"]');
   if (btn) btn.classList.add('active');
-  var activePanel = document.querySelector('#tier-' + tierId + '-' + diagId + ' .plot-panel.active');
-  if (activePanel) renderPanel(activePanel.id);
+
+  var toolbar = document.getElementById('toolbar-' + sectionId);
+  if (toolbar) toolbar.style.display = 'flex';
+
+  // render first visible plot
+  var ap = panel && panel.querySelector('.plot-panel.active');
+  if (ap) renderPanel(ap.id);
 }
 
-// Variable panel switching within a diagnostic (both layouts)
+// Diagnostic filter within a tier
+function filterDiag(tierId, diagName) {
+  var panel = document.getElementById('panel-' + tierId);
+  if (!panel) return;
+
+  panel.querySelectorAll('.diag-section').forEach(function(s) {
+    if (diagName === 'all' || s.getAttribute('data-diag') === diagName) {
+      s.classList.remove('hidden');
+    } else {
+      s.classList.add('hidden');
+    }
+  });
+
+  var toolbar = document.getElementById('toolbar-' + tierId);
+  if (toolbar) {
+    toolbar.querySelectorAll('.diag-filter-btn').forEach(function(b){ b.classList.remove('active'); });
+    var activeBtn = toolbar.querySelector('.diag-filter-btn[data-diag="' + diagName + '"]');
+    if (activeBtn) activeBtn.classList.add('active');
+  }
+
+  // re-render visible active plots
+  panel.querySelectorAll('.diag-section:not(.hidden) .plot-panel.active').forEach(function(ap){
+    renderPanel(ap.id);
+  });
+}
+
+// Variable selector within a diagnostic
 function showVarPanel(scopeId, varId) {
-  document.querySelectorAll('#diag-' + scopeId + ' .plot-panel').forEach(function(p) { p.classList.remove('active'); });
-  document.querySelectorAll('#diag-' + scopeId + ' .var-nav button').forEach(function(b) { b.classList.remove('active'); });
+  var diag = document.getElementById('diag-' + scopeId);
+  if (!diag) return;
+  diag.querySelectorAll('.plot-panel').forEach(function(p){ p.classList.remove('active'); });
+  diag.querySelectorAll('.var-pill').forEach(function(b){ b.classList.remove('active'); });
   var panelId = 'plot-' + scopeId + '-' + varId;
-  document.getElementById(panelId).classList.add('active');
-  document.querySelector('#diag-' + scopeId + ' .var-nav button[data-var="' + varId + '"]').classList.add('active');
+  var panel = document.getElementById(panelId);
+  if (panel) panel.classList.add('active');
+  var btn = diag.querySelector('.var-pill[data-var="' + varId + '"]');
+  if (btn) btn.classList.add('active');
   renderPanel(panelId);
 }
 
-// Sortable table columns
+// Search bar
+function searchPlots(query) {
+  query = query.toLowerCase().trim();
+  // apply to each tier panel
+  document.querySelectorAll('.content-panel[data-type="tier"]').forEach(function(panel) {
+    var noResults = panel.querySelector('.search-no-results');
+    var anyVisible = false;
+    panel.querySelectorAll('.plot-panel').forEach(function(pp) {
+      var terms = (pp.getAttribute('data-search') || '').toLowerCase();
+      var match = !query || terms.indexOf(query) !== -1;
+      if (match) {
+        pp.classList.add('active');
+        pp.querySelectorAll('.var-pill').forEach(function(b){ b.classList.remove('active'); });
+        var pill = pp.closest('.diag-content') &&
+          pp.closest('.diag-content').querySelector('.var-pill[data-var="' + pp.id.split('-').pop() + '"]');
+        anyVisible = true;
+      } else {
+        pp.classList.remove('active');
+      }
+    });
+    // show/hide diag sections that have visible plots
+    panel.querySelectorAll('.diag-section').forEach(function(sec) {
+      if (sec.classList.contains('hidden')) return;
+      var hasVisible = Array.from(sec.querySelectorAll('.plot-panel')).some(function(p){
+        return p.classList.contains('active');
+      });
+      sec.style.opacity = hasVisible ? '1' : '0.3';
+    });
+    if (noResults) noResults.classList.toggle('visible', !anyVisible && query.length > 0);
+    if (!query) {
+      // restore to first var per diag
+      panel.querySelectorAll('.diag-section:not(.hidden) .diag-content').forEach(function(dc) {
+        dc.querySelectorAll('.plot-panel').forEach(function(p){ p.classList.remove('active'); });
+        dc.querySelectorAll('.var-pill').forEach(function(b){ b.classList.remove('active'); });
+        var firstPanel = dc.querySelector('.plot-panel');
+        var firstPill = dc.querySelector('.var-pill');
+        if (firstPanel) firstPanel.classList.add('active');
+        if (firstPill) firstPill.classList.add('active');
+      });
+      panel.querySelectorAll('.diag-section').forEach(function(s){ s.style.opacity='1'; });
+    }
+  });
+}
+
+// Detail box toggle
+function toggleDetail(detailId) {
+  var box = document.getElementById(detailId);
+  if (!box) return;
+  box.classList.toggle('open');
+}
+
+// Leaderboard table sort
 function sortTable(tableId, colIdx, numeric) {
   var table = document.getElementById(tableId);
   var tbody = table.querySelector('tbody');
   var rows = Array.from(tbody.querySelectorAll('tr'));
   var th = table.querySelectorAll('thead th')[colIdx];
   var asc = th.classList.contains('asc');
-  table.querySelectorAll('thead th').forEach(function(h) { h.classList.remove('asc','desc'); });
+  table.querySelectorAll('thead th').forEach(function(h){ h.classList.remove('asc','desc'); });
   th.classList.add(asc ? 'desc' : 'asc');
-  rows.sort(function(a, b) {
+  rows.sort(function(a,b){
     var va = a.cells[colIdx].innerText.trim();
     var vb = b.cells[colIdx].innerText.trim();
-    var cmp = numeric ? (parseFloat(va)||0) - (parseFloat(vb)||0) : va.localeCompare(vb);
+    var cmp = numeric ? (parseFloat(va)||0)-(parseFloat(vb)||0) : va.localeCompare(vb);
     return asc ? -cmp : cmp;
   });
-  rows.forEach(function(r) { tbody.appendChild(r); });
+  rows.forEach(function(r){ tbody.appendChild(r); });
 }
 """
 
@@ -829,19 +1473,14 @@ function sortTable(tableId, colIdx, numeric) {
 # ---------------------------------------------------------------------------
 
 def _stem_to_label(stem: str) -> str:
-    """Convert a DB filename stem to a human-readable label.
-
-    Examples: "tier1" -> "Tier 1", "tier2_atmosphere" -> "Tier 2 Atmosphere"
-    """
     s = re.sub(r"([a-zA-Z])(\d)", r"\1 \2", stem)
     return s.replace("_", " ").replace("-", " ").title()
 
 
 def _plotly_js(offline: bool) -> str:
     if offline:
-        from pathlib import Path as _Path
         import plotly as _plotly
-        js_path = _Path(_plotly.__file__).parent / "package_data" / "plotly.min.js"
+        js_path = Path(_plotly.__file__).parent / "package_data" / "plotly.min.js"
         if js_path.exists():
             return f"<script>{js_path.read_text()}</script>"
     return '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
@@ -850,9 +1489,9 @@ def _plotly_js(offline: bool) -> str:
 def _build_figures_for_tier(
     db_data: dict[str, dict[str, pd.DataFrame]],
     scope_prefix: str,
-) -> tuple[dict[str, str], dict[str, pd.DataFrame]]:
-    """Return (diag_sections, tier_metrics) for one database."""
-    diag_sections: dict[str, str] = {}
+) -> tuple[dict[str, tuple[str, pd.DataFrame]], dict[str, pd.DataFrame]]:
+    """Return (diag_sections {name: (html, variables_df)}, tier_metrics) for one database."""
+    diag_sections: dict[str, tuple[str, pd.DataFrame]] = {}
     tier_metrics: dict[str, pd.DataFrame] = {}
 
     for diag_name, tables in db_data.items():
@@ -866,165 +1505,172 @@ def _build_figures_for_tier(
         diag_type = detect_diag_type(data_df.columns.tolist())
         builder = _FIGURE_BUILDERS.get(diag_type)
         if builder is None or data_df.empty:
-            diag_sections[diag_name] = "<p>No data available for this diagnostic.</p>"
+            diag_sections[diag_name] = ("<p class='empty-note'>No data available.</p>", variables_df)
             continue
 
         figures = builder(data_df, variables_df)
         scope_id = f"{scope_prefix}-{diag_name}" if scope_prefix else diag_name
-        diag_sections[diag_name] = render_diagnostic_section(scope_id, figures)
+        html = render_diagnostic_section(scope_id, figures, variables_df, data_df)
+        diag_sections[diag_name] = (html, variables_df)
 
     return diag_sections, tier_metrics
 
 
-def _render_single_tier(
-    label: str,
+def _render_tier_panel(
+    tier_id: str,
     db_path: Path,
-    diag_sections: dict[str, str],
-    tier_metrics: dict[str, pd.DataFrame],
-) -> str:
-    """Assemble flat (single-tier) HTML body content: Leaderboard + one tab per diagnostic."""
-    # Leaderboard uses the flat diag_name as scope (no tier prefix)
-    all_metrics = {"": tier_metrics}
-    lb_html = render_leaderboard_section(all_metrics, table_suffix="-main")
+    diag_sections: dict[str, tuple[str, pd.DataFrame]],
+) -> tuple[str, str]:
+    """Return (toolbar_html, panel_html) for one tier."""
+    diag_names = list(diag_sections.keys())
 
-    nav_buttons = (
-        "<button class='active' data-tab='leaderboard' "
-        "onclick='showMainTab(\"leaderboard\")'>Leaderboard</button>"
+    # Toolbar: All + per-diagnostic filter buttons + search
+    filter_btns = (
+        f"<button class='diag-filter-btn active' data-diag='all' "
+        f"onclick='filterDiag(\"{tier_id}\",\"all\")'>All</button>"
     )
-    for diag_name in diag_sections:
-        diag_label = _DIAG_LABELS.get(diag_name, diag_name)
-        nav_buttons += (
-            f"<button data-tab='{diag_name}' "
-            f"onclick='showMainTab(\"{diag_name}\")'>{diag_label}</button>"
+    for dname in diag_names:
+        label = _DIAG_LABELS.get(dname, dname)
+        icon = _DIAG_ICONS.get(dname, "")
+        filter_btns += (
+            f"<button class='diag-filter-btn' data-diag='{dname}' "
+            f"onclick='filterDiag(\"{tier_id}\",\"{dname}\")'>"
+            f"{icon} {label}</button>"
         )
 
-    panels = (
-        f"<div class='tab-panel active' id='tab-leaderboard'>"
-        f"<h2 style='margin-top:0;color:#16213e'>Performance Leaderboard</h2>"
-        f"{lb_html}"
+    search_svg = (
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+        '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'
+        '</svg>'
+    )
+    toolbar_html = (
+        f"<div class='content-toolbar' id='toolbar-{tier_id}' style='display:none'>"
+        f"<div class='diag-filter-btns'>{filter_btns}</div>"
+        f"<div class='toolbar-sep'></div>"
+        f"<div class='search-wrap'>"
+        f"{search_svg}"
+        f"<input class='search-input' type='text' placeholder='Search plots…' "
+        f"oninput='searchPlots(this.value)'>"
+        f"</div>"
         f"</div>"
     )
-    for diag_name, content in diag_sections.items():
-        diag_label = _DIAG_LABELS.get(diag_name, diag_name)
-        panels += (
-            f"<div class='tab-panel' id='tab-{diag_name}'>"
-            f"<h2 style='margin-top:0;color:#16213e'>{diag_label} Diagnostic</h2>"
-            f"<p class='db-source'>Source: {html_module.escape(str(db_path))}</p>"
+
+    # Panel: stacked diagnostic sections
+    sections_html = ""
+    for dname, (content, _) in diag_sections.items():
+        label = _DIAG_LABELS.get(dname, dname)
+        icon = _DIAG_ICONS.get(dname, "")
+        sections_html += (
+            f"<div class='diag-section' data-diag='{dname}' id='diag-sec-{tier_id}-{dname}'>"
+            f"<div class='diag-section-header'>"
+            f"<span class='diag-section-icon'>{icon}</span>"
+            f"<span class='diag-section-title'>{label}</span>"
+            f"</div>"
             f"{content}"
             f"</div>"
         )
 
-    return nav_buttons, panels
-
-
-def _render_multi_tier(
-    tiers: list[tuple[int, str, Path, dict[str, str], dict[str, pd.DataFrame]]],
-    all_metrics: dict[str, dict[str, pd.DataFrame]],
-) -> tuple[str, str]:
-    """Assemble nested (multi-tier) nav buttons and panels."""
-    overall_lb = render_leaderboard_section(all_metrics, table_suffix="-overall")
-
-    nav_buttons = (
-        "<button class='active' data-tab='overall-lb' "
-        "onclick='showMainTab(\"overall-lb\")'>Overall Leaderboard</button>"
-    )
-    for tier_idx, label, db_path, diag_sections, tier_metrics in tiers:
-        nav_buttons += (
-            f"<button data-tab='tier-{tier_idx}' "
-            f"onclick='showMainTab(\"tier-{tier_idx}\")'>"
-            f"{html_module.escape(label)}</button>"
-        )
-
-    # Overall leaderboard panel
-    panels = (
-        f"<div class='tab-panel active' id='tab-overall-lb'>"
-        f"<h2 style='margin-top:0;color:#16213e'>Overall Performance Leaderboard</h2>"
-        f"{overall_lb}"
+    panel_html = (
+        f"<div class='content-panel' id='panel-{tier_id}' data-type='tier'>"
+        f"<p class='db-source'>{html_module.escape(str(db_path))}</p>"
+        f"{sections_html}"
+        f"<div class='search-no-results'>No plots match your search.</div>"
         f"</div>"
     )
 
-    for tier_idx, label, db_path, diag_sections, tier_metrics in tiers:
-        # Per-tier sub-nav: Leaderboard + each diagnostic
-        tier_lb = render_leaderboard_section(
-            {"": tier_metrics}, table_suffix=f"-t{tier_idx}"
-        )
-
-        sub_nav = (
-            f"<button class='active' data-diag='lb' "
-            f"onclick='showDiagTab({tier_idx}, \"lb\")'>Leaderboard</button>"
-        )
-        for diag_name in diag_sections:
-            diag_label = _DIAG_LABELS.get(diag_name, diag_name)
-            sub_nav += (
-                f"<button data-diag='{diag_name}' "
-                f"onclick='showDiagTab({tier_idx}, \"{diag_name}\")'>{diag_label}</button>"
-            )
-
-        lb_panel = (
-            f"<div class='diag-panel active' id='tier-{tier_idx}-lb'>"
-            f"<h3 style='margin-top:0;color:#16213e'>Leaderboard</h3>"
-            f"{tier_lb}"
-            f"</div>"
-        )
-
-        diag_panels = ""
-        for diag_name, content in diag_sections.items():
-            diag_panels += (
-                f"<div class='diag-panel' id='tier-{tier_idx}-{diag_name}'>"
-                f"{content}"
-                f"</div>"
-            )
-
-        panels += (
-            f"<div class='tab-panel' id='tab-tier-{tier_idx}'>"
-            f"<h2 style='margin-top:0;color:#16213e'>{html_module.escape(label)}</h2>"
-            f"<p class='db-source'>Source: {html_module.escape(str(db_path))}</p>"
-            f"<div id='tier-inner-{tier_idx}'>"
-            f"<nav class='sub-nav'>{sub_nav}</nav>"
-            f"{lb_panel}"
-            f"{diag_panels}"
-            f"</div>"
-            f"</div>"
-        )
-
-    return nav_buttons, panels
+    return toolbar_html, panel_html
 
 
 # ---------------------------------------------------------------------------
 # Main HTML generator
 # ---------------------------------------------------------------------------
 
-def generate_html(db_paths: list[Path], *, offline: bool = True) -> str:
+def generate_html(
+    db_paths: list[Path],
+    *,
+    offline: bool = True,
+    model_name: str = "",
+    user_name: str = "",
+    developer: str = "",
+) -> str:
     """Read one or more databases and produce a self-contained HTML string."""
-    multi = len(db_paths) > 1
+    print("Extracting coastlines …")
+    _coastlines()
 
-    tiers: list[tuple[int, str, Path, dict[str, str], dict[str, pd.DataFrame]]] = []
+    tiers: list[tuple[str, str, Path, dict[str, tuple[str, pd.DataFrame]], dict[str, pd.DataFrame]]] = []
     all_metrics: dict[str, dict[str, pd.DataFrame]] = {}
 
     for tier_idx, db_path in enumerate(db_paths):
         label = _stem_to_label(db_path.stem)
         db_data = read_database(db_path)
         if not db_data:
-            print(f"Warning: no diagnostic data found in {db_path}, skipping.")
+            print(f"  Warning: no diagnostic data in {db_path}, skipping.")
             continue
 
-        scope_prefix = f"t{tier_idx}" if multi else ""
-        diag_sections, tier_metrics = _build_figures_for_tier(db_data, scope_prefix)
+        tier_id = f"tier{tier_idx}"
+        diag_sections, tier_metrics = _build_figures_for_tier(db_data, tier_id)
         all_metrics[label] = tier_metrics
-        tiers.append((tier_idx, label, db_path, diag_sections, tier_metrics))
+        tiers.append((tier_id, label, db_path, diag_sections, tier_metrics))
 
     if not tiers:
         raise ValueError("No diagnostic databases found in any of the provided files.")
 
-    if multi:
-        nav_buttons, panels = _render_multi_tier(tiers, all_metrics)
-    else:
-        _, label, db_path, diag_sections, tier_metrics = tiers[0]
-        nav_buttons, panels = _render_single_tier(label, db_path, diag_sections, tier_metrics)
-
     now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    db_list = ", ".join(str(p) for p in db_paths)
-    plotly_js = _plotly_js(offline)
+
+    # ── Sidebar ──
+    sidebar_items = (
+        "<div class='sidebar-section-label'>Overview</div>"
+        "<div class='sidebar-item active' data-section='leaderboard' "
+        "onclick='sidebarNav(\"leaderboard\")'>"
+        "<span class='sidebar-icon'>🏆</span>Leaderboard"
+        "</div>"
+        "<div class='sidebar-divider'></div>"
+        "<div class='sidebar-section-label'>Tiers</div>"
+    )
+    for tier_id, label, *_ in tiers:
+        sidebar_items += (
+            f"<div class='sidebar-item' data-section='{tier_id}' "
+            f"onclick='sidebarNav(\"{tier_id}\")'>"
+            f"<span class='sidebar-icon'>📂</span>"
+            f"{html_module.escape(label)}"
+            f"</div>"
+        )
+
+    # ── Leaderboard panel ──
+    lb_panel = (
+        "<div class='content-panel active' id='panel-leaderboard'>"
+        "<h2 class='section-heading'>Performance Leaderboard</h2>"
+        + render_leaderboard_section(all_metrics, table_suffix="-main") +
+        "</div>"
+    )
+
+    # ── Tier panels + toolbars ──
+    all_toolbars = ""
+    all_panels = lb_panel
+
+    for tier_id, label, db_path, diag_sections, tier_metrics in tiers:
+        toolbar_html, panel_html = _render_tier_panel(tier_id, db_path, diag_sections)
+        all_toolbars += toolbar_html
+        all_panels += panel_html
+
+    # ── Header chips ──
+    chips = ""
+    if model_name:
+        chips += f"<span class='header-chip'><span>Model</span> <strong>{html_module.escape(model_name)}</strong></span>"
+    if user_name:
+        chips += f"<span class='header-chip'><span>User</span> <strong>{html_module.escape(user_name)}</strong></span>"
+    developer_str = developer or "diffESM Benchmarking"
+    chips += f"<span class='header-chip'><span>Tool</span> <strong>{html_module.escape(developer_str)}</strong></span>"
+    chips += f"<span class='header-chip'><span>Generated</span> <strong>{now}</strong></span>"
+
+    logo_svg = (
+        '<svg width="26" height="26" viewBox="0 0 26 26" fill="none" '
+        'xmlns="http://www.w3.org/2000/svg">'
+        '<circle cx="13" cy="13" r="11" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
+        '<path d="M2 13 Q7 7 13 13 Q19 19 24 13" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
+        '<path d="M2 13 Q7 19 13 13 Q19 7 24 13" stroke="#93c5fd" stroke-width="1" fill="none" stroke-dasharray="2 2"/>'
+        '</svg>'
+    )
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -1035,21 +1681,33 @@ def generate_html(db_paths: list[Path], *, offline: bool = True) -> str:
   <style>{_CSS}</style>
 </head>
 <body>
+<div class="app-shell">
 
-<header>
-  <h1>ESM Benchmarking Report</h1>
-  <p>Generated {now} &bull; {html_module.escape(db_list)}</p>
-</header>
+  <header class="app-header">
+    <div class="header-logo">{logo_svg}</div>
+    <div class="header-title">
+      <h1>ESM Benchmarking Report</h1>
+      <div class="header-meta">{chips}</div>
+    </div>
+  </header>
 
-<nav class="main-nav">
-  {nav_buttons}
-</nav>
+  <div class="app-body">
 
-<main>
-  {panels}
-</main>
+    <aside class="sidebar">
+      {sidebar_items}
+    </aside>
 
-{plotly_js}
+    <div class="content-wrap">
+      {all_toolbars}
+      <main class="main-content">
+        {all_panels}
+      </main>
+    </div>
+
+  </div>
+</div>
+
+{_plotly_js(offline)}
 <script>{_JS}</script>
 
 </body>
@@ -1057,48 +1715,61 @@ def generate_html(db_paths: list[Path], *, offline: bool = True) -> str:
 
 
 # ---------------------------------------------------------------------------
-# CLI entry point
+# CLI
 # ---------------------------------------------------------------------------
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate a portable HTML benchmarking report from one or more DuckDB databases. "
-            "Pass multiple files to produce a multi-tier report."
+            "Generate a portable HTML benchmarking report from one or more DuckDB "
+            "databases. Pass multiple files to produce a multi-tier report."
         ),
     )
     parser.add_argument(
-        "db",
-        type=Path,
-        nargs="+",
-        help="Path(s) to DuckDB benchmarking database (.ddb). Multiple files produce a multi-tier report.",
+        "db", type=Path, nargs="+",
+        help="Path(s) to DuckDB benchmarking database (.ddb).",
     )
     parser.add_argument(
         "-o", "--output", type=Path, default=None,
-        help="Output HTML file path (default: <first_db_stem>_report.html next to the first database).",
+        help="Output HTML path (default: <first_db>_report.html).",
     )
     parser.add_argument(
-        "--online",
-        action="store_true",
-        help="Load Plotly.js from CDN instead of embedding it (smaller file, requires internet).",
+        "--model", default="", metavar="NAME",
+        help="Model name shown in the report header (e.g. MPI-ESM1-2-LR).",
+    )
+    parser.add_argument(
+        "--user", default="", metavar="NAME",
+        help="User / analyst name shown in the report header.",
+    )
+    parser.add_argument(
+        "--developer", default="", metavar="NAME",
+        help="Benchmarking tool developer name (default: 'diffESM Benchmarking').",
+    )
+    parser.add_argument(
+        "--online", action="store_true",
+        help="Load Plotly.js from CDN instead of embedding (requires internet).",
     )
     args = parser.parse_args()
 
     db_paths = [p.resolve() for p in args.db]
     for p in db_paths:
         if not p.exists():
-            parser.error(f"Database file not found: {p}")
+            parser.error(f"Not found: {p}")
 
-    output: Path = args.output or db_paths[0].with_name(db_paths[0].stem + "_report.html")
+    output = args.output or db_paths[0].with_name(db_paths[0].stem + "_report.html")
 
     for p in db_paths:
-        print(f"Reading database: {p}")
+        print(f"Reading: {p}")
 
-    html_content = generate_html(db_paths, offline=not args.online)
-
+    html_content = generate_html(
+        db_paths,
+        offline=not args.online,
+        model_name=args.model,
+        user_name=args.user,
+        developer=args.developer,
+    )
     output.write_text(html_content, encoding="utf-8")
-    size_kb = output.stat().st_size / 1024
-    print(f"Report written to: {output} ({size_kb:.0f} KB)")
+    print(f"Report → {output}  ({output.stat().st_size // 1024} KB)")
 
 
 if __name__ == "__main__":
