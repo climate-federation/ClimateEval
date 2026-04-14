@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from benchmarking import LEVEL_200HPA, LEVEL_800HPA, Variable
 from benchmarking.data import CERESEBAF, ERA5, GPCP, DiagnosticData, HadCRUT5
-from benchmarking.diags import Map, TimeSeries, ZonalLine, ZonalProfile
+from benchmarking.diags import Map, TimeSeries
 from benchmarking.suites._base import Suite
 
 if TYPE_CHECKING:
@@ -60,11 +60,6 @@ class Tier2Atmosphere(Suite):
                 "ta800",
                 "ta",
                 vertical_level=LEVEL_800HPA,
-                **variable_kwargs,
-            ): DiagnosticData(reference=ERA5),
-            Variable(
-                "ta",
-                "ta",
                 **variable_kwargs,
             ): DiagnosticData(reference=ERA5),
         }
