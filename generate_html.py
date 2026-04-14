@@ -169,6 +169,14 @@ def _sort_datasets(data_df: pd.DataFrame, datasets: list[str]) -> list[str]:
     return sorted(datasets, key=key)
 
 
+def _get_ref_dataset(data_df: pd.DataFrame) -> str | None:
+    """Return the name of the reference dataset, if exactly one exists."""
+    ref_datasets = (
+        data_df[data_df["Data Type"] == "reference"]["Dataset"].unique().tolist()
+    )
+    return ref_datasets[0] if len(ref_datasets) == 1 else None
+
+
 def _base_layout(**kwargs: object) -> dict:
     base = dict(
         font=_PLOT_FONT,
@@ -192,11 +200,12 @@ def _base_layout(**kwargs: object) -> dict:
 def build_map_figures(
     data_df: pd.DataFrame, variables_df: pd.DataFrame
 ) -> dict[str, go.Figure]:
-    """Filled heatmap maps with cartopy coastlines; one subplot per dataset."""
+    """Heatmap maps with coastlines; reference + bias (model − reference) layout when possible."""
     coast_lons, coast_lats = _coastlines()
     figures: dict[str, go.Figure] = {}
     var_cols = get_var_cols(data_df)
     all_datasets = _sort_datasets(data_df, data_df["Dataset"].unique().tolist())
+    ref_dataset = _get_ref_dataset(data_df)
 
     for var_id in var_cols:
         long_name, units = _var_label(var_id, variables_df)
@@ -210,66 +219,89 @@ def build_map_figures(
         if not valid_datasets:
             continue
 
-        ncols = min(len(valid_datasets), 3)
-        nrows = max(1, (len(valid_datasets) + ncols - 1) // ncols)
-
-        fig = make_subplots(
-            rows=nrows,
-            cols=ncols,
-            subplot_titles=[str(ds) for ds in valid_datasets],
-            horizontal_spacing=0.06,
-            vertical_spacing=0.14,
-        )
-
-        show_colorbar = True
-        for i, dataset in enumerate(valid_datasets):
-            row = i // ncols + 1
-            col = i % ncols + 1
+        def _pivot_for(dataset: str) -> pd.DataFrame | None:
             sub = data_df[data_df["Dataset"] == dataset]
-            sub_var = sub[["latitude", "longitude", var_id]].dropna(subset=[var_id]).copy()
-            if sub_var.empty:
-                continue
-
-            sub_var["lon"] = sub_var["longitude"].apply(lambda x: x - 360 if x > 180 else x)
-            pivot = (
-                sub_var.groupby(["latitude", "lon"], as_index=False)[var_id]
+            sv = sub[["latitude", "longitude", var_id]].dropna(subset=[var_id]).copy()
+            if sv.empty:
+                return None
+            sv["lon"] = sv["longitude"].apply(lambda x: x - 360 if x > 180 else x)
+            p = (
+                sv.groupby(["latitude", "lon"], as_index=False)[var_id]
                 .mean()
                 .pivot(index="latitude", columns="lon", values=var_id)
                 .sort_index(axis=1)
             )
-            if pivot.empty:
-                continue
+            return p if not p.empty else None
 
+        ref_pivot = (
+            _pivot_for(ref_dataset)
+            if ref_dataset and ref_dataset in valid_datasets
+            else None
+        )
+        non_ref = [ds for ds in valid_datasets if ds != ref_dataset]
+        has_bias = ref_pivot is not None and bool(non_ref)
+
+        if has_bias:
+            nrows, ncols = len(non_ref), 2
+            titles: list[str] = []
+            for ds in non_ref:
+                titles += [f"<b>{ref_dataset}</b>", f"<b>{ds}</b> \u2212 {ref_dataset}"]
+            # Compute shared symmetric bias range across all non-ref datasets
+            bias_vals: list[float] = []
+            for ds in non_ref:
+                mp = _pivot_for(ds)
+                if mp is not None:
+                    bv = mp.subtract(ref_pivot).values
+                    bias_vals.extend(bv[np.isfinite(bv)].tolist())
+            arr = np.array(bias_vals) if bias_vals else np.array([0.0, 1.0])
+            bias_abs = float(max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98)))))
+            if bias_abs == 0:
+                bias_abs = 1.0
+        else:
+            ncols = min(len(valid_datasets), 3)
+            nrows = max(1, (len(valid_datasets) + ncols - 1) // ncols)
+            titles = [str(ds) for ds in valid_datasets]
+
+        fig = make_subplots(
+            rows=nrows,
+            cols=ncols,
+            subplot_titles=titles,
+            horizontal_spacing=0.06,
+            vertical_spacing=0.14,
+        )
+
+        lon_ticks = dict(
+            tickvals=[-120, -60, 0, 60, 120],
+            ticktext=["120°W", "60°W", "0°", "60°E", "120°E"],
+        )
+        lat_ticks = dict(
+            tickvals=[-60, -30, 0, 30, 60],
+            ticktext=["60°S", "30°S", "0°", "30°N", "60°N"],
+        )
+
+        def _add_panel(
+            pivot: pd.DataFrame, row: int, col: int,
+            colorscale: str, zmin: float, zmax: float,
+            cb_dict: dict | None, name: str,
+        ) -> None:
             fig.add_trace(
                 go.Heatmap(
                     z=pivot.values,
                     x=pivot.columns.tolist(),
                     y=pivot.index.tolist(),
-                    colorscale=cs,
-                    zmin=vmin,
-                    zmax=vmax,
-                    colorbar=dict(
-                        title=dict(text=units, side="right"),
-                        thickness=14,
-                        len=0.85,
-                        x=1.01,
-                        tickfont=dict(size=10),
-                        outlinewidth=0,
-                    )
-                    if show_colorbar
-                    else None,
-                    showscale=show_colorbar,
-                    name=dataset,
+                    colorscale=colorscale,
+                    zmin=zmin, zmax=zmax,
+                    colorbar=cb_dict,
+                    showscale=cb_dict is not None,
+                    name=name,
                     hovertemplate=(
                         "lon %{x:.1f}°  lat %{y:.1f}°"
                         f"<br><b>{var_id}</b>: %{{z:.4g}} {units}"
-                        "<extra>" + dataset + "</extra>"
+                        "<extra>" + str(name) + "</extra>"
                     ),
                 ),
                 row=row, col=col,
             )
-            show_colorbar = False
-
             if coast_lons:
                 fig.add_trace(
                     go.Scatter(
@@ -280,15 +312,6 @@ def build_map_figures(
                     ),
                     row=row, col=col,
                 )
-
-            lon_ticks = dict(
-                tickvals=[-120, -60, 0, 60, 120],
-                ticktext=["120°W", "60°W", "0°", "60°E", "120°E"],
-            )
-            lat_ticks = dict(
-                tickvals=[-60, -30, 0, 30, 60],
-                ticktext=["60°S", "30°S", "0°", "30°N", "60°N"],
-            )
             fig.update_xaxes(
                 range=[-180, 180],
                 showgrid=True, gridcolor="rgba(180,180,180,0.25)",
@@ -308,17 +331,72 @@ def build_map_figures(
                 **lat_ticks, row=row, col=col,
             )
 
+        if has_bias:
+            ref_cb_shown = False
+            bias_cb_shown = False
+            for i, ds in enumerate(non_ref):
+                row = i + 1
+                ref_cb = dict(
+                    title=dict(text=units, side="right"),
+                    thickness=14, len=0.85, x=1.01,
+                    tickfont=dict(size=10), outlinewidth=0,
+                ) if not ref_cb_shown else None
+                _add_panel(ref_pivot, row, 1, cs, vmin, vmax, ref_cb, ref_dataset)
+                ref_cb_shown = True
+
+                mp = _pivot_for(ds)
+                if mp is None:
+                    continue
+                bp = mp.subtract(ref_pivot).dropna(how="all").dropna(axis=1, how="all")
+                if bp.empty:
+                    continue
+                bias_cb = dict(
+                    title=dict(text=f"\u0394{units}", side="right"),
+                    thickness=14, len=0.85, x=1.09,
+                    tickfont=dict(size=10), outlinewidth=0,
+                ) if not bias_cb_shown else None
+                _add_panel(bp, row, 2, "RdBu_r", -bias_abs, bias_abs, bias_cb,
+                           f"{ds} \u2212 {ref_dataset}")
+                bias_cb_shown = True
+        else:
+            show_cb = True
+            for i, ds in enumerate(valid_datasets):
+                row = i // ncols + 1
+                col = i % ncols + 1
+                piv = _pivot_for(ds)
+                if piv is None:
+                    continue
+                cb = dict(
+                    title=dict(text=units, side="right"),
+                    thickness=14, len=0.85, x=1.01,
+                    tickfont=dict(size=10), outlinewidth=0,
+                ) if show_cb else None
+                _add_panel(piv, row, col, cs, vmin, vmax, cb, ds)
+                show_cb = False
+
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
                 title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
                 plot_bgcolor="#dce9f5",
                 height=300 * nrows + 100,
-                margin=dict(t=80, b=50, l=60, r=90),
+                margin=dict(t=80, b=50, l=60, r=150 if has_bias else 90),
             )
         )
         for ann in fig.layout.annotations:
-            ann.font = dict(size=11, color="#333")
+            if (
+                has_bias
+                and ann.text
+                and ref_dataset in ann.text
+                and "\u2212" not in ann.text
+            ):
+                ann.font = dict(size=11, color="#a07000")
+                ann.bgcolor = "rgba(192,134,10,0.08)"
+                ann.bordercolor = "#c0860a"
+                ann.borderwidth = 1
+                ann.borderpad = 3
+            else:
+                ann.font = dict(size=11, color="#333")
 
         figures[var_id] = fig
 
@@ -441,13 +519,15 @@ def build_zonal_line_figures(
 def build_zonal_profile_figures(
     data_df: pd.DataFrame, variables_df: pd.DataFrame
 ) -> dict[str, go.Figure]:
-    """Zonal mean profile heatmaps (pressure × latitude); one figure per variable."""
+    """Zonal mean profile heatmaps (pressure × latitude); reference + bias layout when possible."""
     figures: dict[str, go.Figure] = {}
     all_datasets = _sort_datasets(data_df, data_df["Dataset"].unique().tolist())
+    ref_dataset = _get_ref_dataset(data_df)
 
     for var_id in get_var_cols(data_df):
         long_name, units = _var_label(var_id, variables_df)
         vmin, vmax = _vrange(data_df[var_id])
+        cs = _VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE)
 
         valid_datasets = [
             ds for ds in all_datasets
@@ -456,54 +536,84 @@ def build_zonal_profile_figures(
         if not valid_datasets:
             continue
 
-        ncols = min(len(valid_datasets), 3)
-        nrows = max(1, (len(valid_datasets) + ncols - 1) // ncols)
+        plev_ticks = [1000, 700, 500, 300, 200, 100, 50, 20, 10]
+        lat_ticks = dict(
+            tickvals=[-60, -30, 0, 30, 60],
+            ticktext=["60°S", "30°S", "0°", "30°N", "60°N"],
+        )
+
+        def _pivot_for(dataset: str) -> pd.DataFrame | None:
+            sub = data_df[data_df["Dataset"] == dataset]
+            try:
+                p = sub.pivot_table(
+                    index="air_pressure", columns="latitude",
+                    values=var_id, aggfunc="mean",
+                )
+                p = p.dropna(how="all").dropna(axis=1, how="all")
+            except Exception:
+                return None
+            if p.empty:
+                return None
+            p.index = p.index / 100
+            return p
+
+        ref_pivot = (
+            _pivot_for(ref_dataset)
+            if ref_dataset and ref_dataset in valid_datasets
+            else None
+        )
+        non_ref = [ds for ds in valid_datasets if ds != ref_dataset]
+        has_bias = ref_pivot is not None and bool(non_ref)
+
+        if has_bias:
+            nrows, ncols = len(non_ref), 2
+            titles: list[str] = []
+            for ds in non_ref:
+                titles += [f"<b>{ref_dataset}</b>", f"<b>{ds}</b> \u2212 {ref_dataset}"]
+            bias_vals: list[float] = []
+            for ds in non_ref:
+                mp = _pivot_for(ds)
+                if mp is not None:
+                    bv = mp.subtract(ref_pivot).values
+                    bias_vals.extend(bv[np.isfinite(bv)].tolist())
+            arr = np.array(bias_vals) if bias_vals else np.array([0.0, 1.0])
+            bias_abs = float(max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98)))))
+            if bias_abs == 0:
+                bias_abs = 1.0
+        else:
+            ncols = min(len(valid_datasets), 3)
+            nrows = max(1, (len(valid_datasets) + ncols - 1) // ncols)
+            titles = [str(ds) for ds in valid_datasets]
 
         fig = make_subplots(
             rows=nrows, cols=ncols,
-            subplot_titles=[str(ds) for ds in valid_datasets],
+            subplot_titles=titles,
             vertical_spacing=0.12, horizontal_spacing=0.07,
         )
-        first_trace = True
-        for i, dataset in enumerate(valid_datasets):
-            row = i // ncols + 1
-            col = i % ncols + 1
-            sub = data_df[data_df["Dataset"] == dataset]
-            try:
-                pivot = sub.pivot_table(
-                    index="air_pressure", columns="latitude", values=var_id, aggfunc="mean"
-                )
-                pivot = pivot.dropna(how="all").dropna(axis=1, how="all")
-            except Exception:
-                continue
-            if pivot.empty:
-                continue
 
-            pivot.index = pivot.index / 100
-
+        def _add_panel(
+            pivot: pd.DataFrame, row: int, col: int,
+            colorscale: str, zmin: float, zmax: float,
+            cb_dict: dict | None, name: str,
+        ) -> None:
             fig.add_trace(
                 go.Heatmap(
                     z=pivot.values,
                     x=pivot.columns.tolist(),
                     y=pivot.index.tolist(),
-                    colorscale=_VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE),
-                    zmin=vmin, zmax=vmax,
-                    colorbar=dict(
-                        title=dict(text=units, side="right"),
-                        thickness=14, len=0.85, x=1.01,
-                        tickfont=dict(size=10), outlinewidth=0,
-                    ) if first_trace else None,
-                    showscale=first_trace,
-                    name=dataset,
+                    colorscale=colorscale,
+                    zmin=zmin, zmax=zmax,
+                    colorbar=cb_dict,
+                    showscale=cb_dict is not None,
+                    name=name,
                     hovertemplate=(
                         "lat: %{x:.1f}°<br>pressure: %{y:.0f} hPa"
                         f"<br><b>{var_id}</b>: %{{z:.4g}} {units}"
-                        "<extra>" + dataset + "</extra>"
+                        "<extra>" + str(name) + "</extra>"
                     ),
                 ),
                 row=row, col=col,
             )
-            plev_ticks = [1000, 700, 500, 300, 200, 100, 50, 20, 10]
             fig.update_yaxes(
                 type="log", autorange="reversed",
                 tickvals=plev_ticks, ticktext=[str(p) for p in plev_ticks],
@@ -512,22 +622,74 @@ def build_zonal_profile_figures(
             )
             fig.update_xaxes(
                 title_text="Latitude" if row == nrows else "",
-                tickvals=[-60, -30, 0, 30, 60],
-                ticktext=["60°S", "30°S", "0°", "30°N", "60°N"],
-                **_AXIS_STYLE, row=row, col=col,
+                **lat_ticks, **_AXIS_STYLE, row=row, col=col,
             )
-            first_trace = False
+
+        if has_bias:
+            ref_cb_shown = False
+            bias_cb_shown = False
+            for i, ds in enumerate(non_ref):
+                row = i + 1
+                ref_cb = dict(
+                    title=dict(text=units, side="right"),
+                    thickness=14, len=0.85, x=1.01,
+                    tickfont=dict(size=10), outlinewidth=0,
+                ) if not ref_cb_shown else None
+                _add_panel(ref_pivot, row, 1, cs, vmin, vmax, ref_cb, ref_dataset)
+                ref_cb_shown = True
+
+                mp = _pivot_for(ds)
+                if mp is None:
+                    continue
+                bp = mp.subtract(ref_pivot).dropna(how="all").dropna(axis=1, how="all")
+                if bp.empty:
+                    continue
+                bias_cb = dict(
+                    title=dict(text=f"\u0394{units}", side="right"),
+                    thickness=14, len=0.85, x=1.09,
+                    tickfont=dict(size=10), outlinewidth=0,
+                ) if not bias_cb_shown else None
+                _add_panel(bp, row, 2, "RdBu_r", -bias_abs, bias_abs, bias_cb,
+                           f"{ds} \u2212 {ref_dataset}")
+                bias_cb_shown = True
+        else:
+            show_cb = True
+            for i, ds in enumerate(valid_datasets):
+                row = i // ncols + 1
+                col = i % ncols + 1
+                piv = _pivot_for(ds)
+                if piv is None:
+                    continue
+                cb = dict(
+                    title=dict(text=units, side="right"),
+                    thickness=14, len=0.85, x=1.01,
+                    tickfont=dict(size=10), outlinewidth=0,
+                ) if show_cb else None
+                _add_panel(piv, row, col, cs, vmin, vmax, cb, ds)
+                show_cb = False
 
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
                 title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
                 height=360 * nrows + 100,
-                margin=dict(t=80, b=60, l=80, r=90),
+                margin=dict(t=80, b=60, l=80, r=150 if has_bias else 90),
             )
         )
         for ann in fig.layout.annotations:
-            ann.font = dict(size=11, color="#333")
+            if (
+                has_bias
+                and ann.text
+                and ref_dataset in ann.text
+                and "\u2212" not in ann.text
+            ):
+                ann.font = dict(size=11, color="#a07000")
+                ann.bgcolor = "rgba(192,134,10,0.08)"
+                ann.bordercolor = "#c0860a"
+                ann.borderwidth = 1
+                ann.borderpad = 3
+            else:
+                ann.font = dict(size=11, color="#333")
         figures[var_id] = fig
 
     return figures
@@ -856,13 +1018,26 @@ def render_diagnostic_section(
         for v in var_cols
     )
 
-    legend_note = (
-        "<div class='legend-note'>"
-        "<span><span class='ln-solid'></span>Model</span>"
-        "<span><span class='ln-dash'></span>Reference</span>"
-        "<span><span class='ln-dot'></span>Other</span>"
-        "</div>"
+    _diag_type = (
+        detect_diag_type(data_df.columns.tolist())
+        if data_df is not None and not data_df.empty
+        else "Unknown"
     )
+    if _diag_type in ("Map", "ZonalProfile"):
+        legend_note = (
+            "<div class='legend-note'>"
+            "<span><span class='ln-ref-swatch'></span>Reference (left column)</span>"
+            "<span><span class='ln-bias-swatch'></span>Bias = model \u2212 reference (right column, RdBu\u2009r)</span>"
+            "</div>"
+        )
+    else:
+        legend_note = (
+            "<div class='legend-note'>"
+            "<span><span class='ln-solid'></span>Model</span>"
+            "<span><span class='ln-dash'></span>Reference</span>"
+            "<span><span class='ln-dot'></span>Other</span>"
+            "</div>"
+        )
 
     plot_panels = ""
     for var_id, fig in figures.items():
@@ -1285,6 +1460,14 @@ details > summary:hover { opacity: 0.75; }
 .ln-dot {
   display: inline-block; width: 26px; height: 2.5px; border-radius: 2px;
   background: repeating-linear-gradient(to right,#555 0 2px,transparent 2px 6px);
+}
+.ln-ref-swatch {
+  display: inline-block; width: 14px; height: 14px; border-radius: 3px;
+  background: rgba(192,134,10,0.15); border: 1.5px solid #c0860a; flex-shrink: 0;
+}
+.ln-bias-swatch {
+  display: inline-block; width: 26px; height: 10px; border-radius: 3px; flex-shrink: 0;
+  background: linear-gradient(to right, #2166ac, #f7f7f7, #d6604d);
 }
 
 /* ── Search no-results ── */
