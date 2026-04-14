@@ -1,11 +1,95 @@
 # Atmosphere
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_atmos.json
+cl:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Percentage Cloud Cover
+  realm: atmosphere
+  standard_name: cloud_area_fraction_in_atmosphere_layer
+  units: "%"
+cli:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Mass Fraction of Cloud Ice
+  realm: atmosphere
+  standard_name: mass_fraction_of_cloud_ice_in_air
+  units: kg kg-1
+clivi:
+  coordinates: [time, lat, lon]
+  long_name: Ice Water Path
+  realm: atmosphere
+  standard_name: atmosphere_mass_content_of_cloud_ice
+  units: kg m-2
+clt:
+  coordinates: [time, lat, lon]
+  long_name: Total Cloud Cover Percentage
+  realm: atmosphere
+  standard_name: cloud_area_fraction
+  units: "%"
+clw:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Mass Fraction of Cloud Liquid Water
+  realm: atmosphere
+  standard_name: mass_fraction_of_cloud_liquid_water_in_air
+  units: kg kg-1
+evspsbl:
+  coordinates: [time, lat, lon]
+  long_name: Evaporation Including Sublimation and Transpiration
+  realm: atmosphere
+  standard_name: water_evapotranspiration_flux
+  units: kg m-2 s-1
+hfls:
+  coordinates: [time, lat, lon]
+  long_name: Surface Upward Latent Heat Flux
+  realm: atmosphere
+  standard_name: surface_upward_latent_heat_flux
+  units: W m-2
+hfss:
+  coordinates: [time, lat, lon]
+  long_name: Surface Upward Sensible Heat Flux
+  realm: atmosphere
+  standard_name: surface_upward_sensible_heat_flux
+  units: W m-2
+hus:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Specific Humidity
+  realm: atmosphere
+  standard_name: specific_humidity
+  units: "1"
+pfull:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Pressure at Model Full-Levels
+  realm: atmosphere
+  standard_name: air_pressure
+  units: Pa
+phalf:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Pressure on Model Half-Levels
+  realm: atmosphere
+  standard_name: air_pressure
+  units: Pa
 pr:
   coordinates: [time, lat, lon]
   long_name: Precipitation
   realm: atmosphere
   standard_name: precipitation_flux
   units: kg m-2 s-1
+prw:
+  coordinates: [time, lat, lon]
+  long_name: Water Vapor Path
+  realm: atmosphere
+  standard_name: atmosphere_mass_content_of_water_vapor
+  units: kg m-2
+ps:
+  coordinates: [time, lat, lon]
+  long_name: Surface Air Pressure
+  realm: atmosphere
+  standard_name: surface_air_pressure
+  units: Pa
+psl:
+  coordinates: [time, lat, lon]
+  long_name: Sea Level Pressure
+  realm: atmosphere
+  standard_name: air_pressure_at_mean_sea_level
+  units: Pa
 rlut:
   coordinates: [time, lat, lon]
   long_name: TOA Outgoing Longwave Radiation
@@ -17,6 +101,12 @@ rlutcs:
   long_name: TOA Outgoing Clear-Sky Longwave Radiation
   realm: atmosphere
   standard_name: toa_outgoing_longwave_flux_assuming_clear_sky
+  units: W m-2
+rsdt:
+  coordinates: [time, lat, lon]
+  long_name: TOA Incident Shortwave Radiation
+  realm: atmosphere
+  standard_name: toa_incoming_shortwave_flux
   units: W m-2
 rsut:
   coordinates: [time, lat, lon]
@@ -31,7 +121,7 @@ rsutcs:
   standard_name: toa_outgoing_shortwave_flux_assuming_clear_sky
   units: W m-2
 ta:
-  coordinates: [time, plev, lat, lon]
+  coordinates: [time, alevel, lat, lon]
   long_name: Air Temperature
   realm: atmosphere
   standard_name: air_temperature
@@ -42,13 +132,119 @@ tas:
   realm: atmosphere
   standard_name: air_temperature
   units: K
+tauu:
+  coordinates: [time, lat, lon]
+  long_name: Surface Downward Eastward Wind Stress
+  realm: atmosphere
+  standard_name: surface_downward_eastward_stress
+  units: Pa
+tauv:
+  coordinates: [time, lat, lon]
+  long_name: Surface Downward Northward Wind Stress
+  realm: atmosphere
+  standard_name: surface_downward_northward_stress
+  units: Pa
+ts:
+  coordinates: [time, lat, lon]
+  long_name: Surface Temperature
+  realm: atmosphere
+  standard_name: surface_temperature
+  units: K
+ua:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Eastward Wind
+  realm: atmosphere
+  standard_name: eastward_wind
+  units: m s-1
+va:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Northward Wind
+  realm: atmosphere
+  standard_name: northward_wind
+  units: m s-1
+wap:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Omega (=dp/dt)
+  realm: atmosphere
+  standard_name: lagrangian_tendency_of_air_pressure
+  units: Pa s-1
+zg:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Geopotential Height
+  realm: atmosphere
+  standard_name: geopotential_height
+  units: m
+
+# Ocean
+# Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_ocean.json
+so:
+  coordinates: [time, olevel, lon, lat]
+  long_name: Sea Water Salinity
+  realm: ocean
+  standard_name: sea_water_salinity
+  units: "1E-03"
+phcint:
+  coordinates: [time, olevel, lon, lat]
+  long_name: Integrated Ocean Heat Content from Potential Temperature
+  realm: ocean
+  standard_name: integral_wrt_depth_of_sea_water_potential_temperature_expressed_as_heat_content
+  units: J m-2
+thetao:
+  coordinates: [time, olevel, lon, lat]
+  long_name: Sea Water Potential Temperature
+  realm: ocean
+  standard_name: sea_water_potential_temperature
+  units: degC
+tos:
+  coordinates: [time, lon, lat]
+  long_name: Sea Surface Temperature
+  realm: ocean
+  standard_name: sea_surface_temperature
+  units: degC
+
+# Sea Ice
+# Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_sea_ice.json
+siconc:
+  coordinates: [time, lat, lon]
+  long_name: Sea-Ice Area Percentage (Ocean Grid)
+  realm: sea_ice
+  standard_name: sea_ice_area_fraction
+  units: "%"
 
 # ESMValTool derived variables
 # Source: https://github.com/ESMValGroup/ESMValCore/blob/main/esmvalcore/cmor/tables/cmip6-custom/CMIP6_custom.json
+amoc:
+  coordinates: [time]
+  derived: true
+  long_name: AMOC at the Rapid array (26.5 N)
+  realm: ocean
+  standard_name: ""
+  units: kg s-1
+asr:
+  coordinates: [time, lat, lon]
+  derived: true
+  long_name: Absorbed shortwave radiation
+  realm: atmosphere
+  standard_name: ""
+  units: W m-2
 lwcre:
   coordinates: [time, lat, lon]
   derived: true
   long_name: TOA Longwave Cloud Radiative Effect
+  realm: atmosphere
+  standard_name: ""
+  units: W m-2
+lwp:
+  coordinates: [time, lat, lon]
+  derived: true
+  long_name: Liquid Water Path
+  realm: atmosphere
+  standard_name: atmosphere_mass_content_of_cloud_liquid_water
+  units: kg m-2
+netcre:
+  coordinates: [time, lat, lon]
+  derived: true
+  long_name: TOA Net Cloud Radiative Effect
   realm: atmosphere
   standard_name: ""
   units: W m-2
