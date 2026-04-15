@@ -22,9 +22,8 @@ class CERESEBAF(DataSource):
 
     def _download(self, variable: Variable) -> list[Path]:
         """Download data."""
-        return self._intake_esgf_download(
+        return self._esmvaltool_intake_download(
             variable,
-            "obs4MIPs",
             supported_var_names=[
                 "rlut",
                 "rlutcs",
@@ -34,7 +33,9 @@ class CERESEBAF(DataSource):
                 "rtmt",
                 "rtnt",
             ],
-            variable_id=variable.var_name,
-            source_id="CERES-EBAF-4-2-1",
+            project="obs4MIPs",
+            dataset="CERES-EBAF-4-2-1",
+            mip="Amon",
+            short_name=variable.var_name,
             frequency=variable.frequency,
         )

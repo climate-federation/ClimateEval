@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 from typing import TYPE_CHECKING
 
 import iris
@@ -127,12 +128,21 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     return cube
 
 
+def str_to_class(class_str: str) -> type:
+    """Convert string to Python class."""
+    module_name, class_name = class_str.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    return getattr(module, class_name)
+
+
 def _check_data(cube: Cube, variable: Variable) -> None:
     """Check data."""
     check_coordinates(cube, variable.coordinates)
 
     # Time
     if not cube.coords("time"):
+        return
+    if variable.timerange == "*":
         return
     time_coord = cube.coord("time")
     datetimes = time_coord.units.num2date(time_coord.points)

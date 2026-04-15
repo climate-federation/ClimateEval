@@ -9,9 +9,6 @@ import iris
 from benchmarking._config import reset_esmvaltool_config
 from benchmarking._variable import (
     COORDINATES,
-    LEVEL_200HPA,
-    LEVEL_400HPA,
-    LEVEL_800HPA,
     NO_LEVEL,
     VARIABLES,
     Coordinate,
@@ -21,9 +18,6 @@ from benchmarking._variable import (
 
 __all__ = [
     "COORDINATES",
-    "LEVEL_200HPA",
-    "LEVEL_400HPA",
-    "LEVEL_800HPA",
     "NO_LEVEL",
     "VARIABLES",
     "Coordinate",
