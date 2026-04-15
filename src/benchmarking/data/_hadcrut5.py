@@ -17,7 +17,7 @@ class HadCRUT5(DataSource):
 
     def _download(self, variable: Variable) -> list[Path]:
         """Download data."""
-        return self._esmvaltool_cmorizer_download(
+        return self._esmvaltool_cmorizer_prepare(
             variable,
             "HadCRUT5",
             supported_var_names=["tas", "tasa"],

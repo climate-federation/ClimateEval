@@ -100,40 +100,31 @@ class DataSource(ABC):
     def _download(self, variable: Variable) -> list[Path]:
         """Download data."""
 
-    def _esmvaltool_cmorizer_download(
+    def _esmvaltool_cmorizer_format(
         self,
         variable: Variable,
         dataset_name: str,
         *,
-        supported_var_names: Iterable[str] | None = None,
+        download_dir: Path,
         file_prefix_pattern: str = "*_",
         tier: int = 2,
     ) -> list[Path]:
-        """Use ESMValTool CMORizer to download data.
+        """Use ESMValTool CMORizer to format data.
 
         See
         https://docs.esmvaltool.org/en/latest/input.html#using-a-cmorizer-script.
 
         """
-        self._check_supported_variables(variable, supported_var_names)
-
-        # Raw downloaded data by ESMValTool will be stored in temporary
-        # directory. Our "raw" data will be the formatted data by ESMValTool.
         # Store all ESMValTool output in temporary directory and only save the
         # relevant files.
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
-        download_dir = tmp_dir / "download"
-        esmvaltool_dir = tmp_dir / "esmvaltool"
-        download_dir.mkdir(parents=True, exist_ok=True)
-        esmvaltool_dir.mkdir(parents=True, exist_ok=True)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
 
-        # Download and format data
-        with CFG.context(output_dir=esmvaltool_dir):
-            DataCommand().prepare(dataset_name, original_data_dir=download_dir)
+        with CFG.context(output_dir=tmp_dir):
+            DataCommand().format(dataset_name, original_data_dir=download_dir)
 
-        # Move formatted data into raw directory
         latest_esmvaltool_output_dir = (
-            sorted(esmvaltool_dir.glob("data_preparation_*"))[-1]
+            sorted(tmp_dir.glob("data_formatting_*"))[-1]
             / f"Tier{tier}"
             / dataset_name
         )
@@ -145,6 +136,39 @@ class DataSource(ABC):
         for file in raw_files:
             shutil.move(file, data_dir / file.name)
         return list(data_dir.glob("*.nc"))
+
+    def _esmvaltool_cmorizer_prepare(
+        self,
+        variable: Variable,
+        dataset_name: str,
+        *,
+        supported_var_names: Iterable[str] | None = None,
+        file_prefix_pattern: str = "*_",
+        tier: int = 2,
+    ) -> list[Path]:
+        """Use ESMValTool CMORizer to prepare (download and format) data.
+
+        See
+        https://docs.esmvaltool.org/en/latest/input.html#using-a-cmorizer-script.
+
+        """
+        self._check_supported_variables(variable, supported_var_names)
+
+        # Raw downloaded data by ESMValTool will be stored in temporary
+        # directory. Our "raw" data will be the formatted data by ESMValTool.
+        tmp_dir = Path(tempfile.TemporaryDirectory().name)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+
+        # Download and format data
+        with CFG.context(output_dir=tmp_dir):
+            DataCommand().download(dataset_name, original_data_dir=tmp_dir)
+        return self._esmvaltool_cmorizer_format(
+            variable,
+            dataset_name,
+            download_dir=tmp_dir,
+            file_prefix_pattern=file_prefix_pattern,
+            tier=tier,
+        )
 
     def _esmvaltool_intake_download(
         self,

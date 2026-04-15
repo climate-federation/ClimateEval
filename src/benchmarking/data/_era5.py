@@ -87,7 +87,15 @@ class ERA5(DataSource):
     """Manage ERA5 data."""
 
     def _download(self, variable: Variable) -> list[Path]:
-        """Download data."""
+        """Download data.
+
+        Note
+        ----
+        This requires a valid API key in ``~/.cdsapirc``. See section "Setup
+        the CDS Api key" at https://cds.climate.copernicus.eu/how-to-api for
+        details.
+
+        """
         if variable.var_name not in REQUEST_MAP:
             msg = f"Variable '{variable.var_name}' not supported for ERA5"
             raise NotImplementedError(msg)
@@ -101,9 +109,8 @@ class ERA5(DataSource):
         # Raw downloaded data will be stored in temporary directory. Our "raw"
         # data will be the formatted data by ESMValTool.
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
-        download_dir = tmp_dir / "download"
-        download_dir.mkdir(parents=True, exist_ok=True)
-        tmp_target = download_dir / f"raw_{self.name}_{variable.var_name}.nc"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        tmp_target = tmp_dir / f"raw_{self.name}_{variable.var_name}.nc"
 
         # Download data
         cdsapi.Client().retrieve(dataset, request).download(tmp_target)
