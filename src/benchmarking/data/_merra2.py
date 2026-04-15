@@ -16,8 +16,26 @@ class MERRA2(DataSource):
     """Manage MERRA2 data."""
 
     def _download(self, variable: Variable) -> list[Path]:
-        """Download data."""
-        return self._esmvaltool_cmorizer_download(
+        """Download data.
+
+        Note
+        ----
+        This requires valid credentials in ``~/.netrc`` of the form:
+
+        ```netrc
+        machine urs.earthdata.nasa.gov login <LOGIN> password <PASSWORD>
+        ```
+
+        Make sure that ~/.netrc is only readable by yourself, i.e., run
+
+        ```bash
+        chmod 600 ~/.netrc`
+        ```
+
+        An account can be registered at https://urs.earthdata.nasa.gov/.
+
+        """
+        return self._esmvaltool_cmorizer_prepare(
             variable,
             "MERRA2",
             supported_var_names=[
