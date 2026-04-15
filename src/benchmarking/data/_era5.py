@@ -109,28 +109,21 @@ class ERA5(DataSource):
         cdsapi.Client().retrieve(dataset, request).download(tmp_target)
 
         # Reformat data with ESMValTool and save
+        era5_facets = {
+            "short_name": variable.var_name,
+            "project": "native6",
+            "dataset": self.name,
+            "mip": cmip6_table_id,
+            "frequency": variable.frequency,
+        }
         cubes = iris.load(tmp_target)
-        cube = fix_metadata(
-            cubes,
-            short_name=variable.var_name,
-            project="native6",
-            dataset=self.name,
-            mip=cmip6_table_id,
-            frequency=variable.frequency,
-        )[0]
-        cube = fix_data(
-            cube,
-            short_name=variable.var_name,
-            project="native6",
-            dataset=self.name,
-            mip=cmip6_table_id,
-            frequency=variable.frequency,
-        )
+        cube = fix_metadata(cubes, **era5_facets)[0]
+        cube = fix_data(cube, **era5_facets)
         if cube.coords("expver"):
             cube.remove_coord("expver")
         data_dir = self._get_data_dir(variable)
         data_dir.mkdir(parents=True, exist_ok=True)
-        target = data_dir / f"{self.name}_{variable.var_name}.nc"
+        target = data_dir / self._get_output_filename(cube, **era5_facets)
         iris.save(cube, target)
 
         return [target]
