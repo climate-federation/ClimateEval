@@ -120,6 +120,18 @@ rsutcs:
   realm: atmosphere
   standard_name: toa_outgoing_shortwave_flux_assuming_clear_sky
   units: W m-2
+rtmt:
+  coordinates: [time, lat, lon]
+  long_name: Net Downward Radiative Flux at Top of Model
+  realm: atmosphere
+  standard_name: net_downward_radiative_flux_at_top_of_atmosphere_model
+  units: W m-2
+rtnt:
+  coordinates: [time, lat, lon]
+  long_name: TOA Net downward Total Radiation
+  realm: atmosphere
+  standard_name: ""
+  units: W m-2
 ta:
   coordinates: [time, alevel, lat, lon]
   long_name: Air Temperature
