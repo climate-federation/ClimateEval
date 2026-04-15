@@ -124,9 +124,7 @@ class DataSource(ABC):
             DataCommand().format(dataset_name, original_data_dir=download_dir)
 
         latest_esmvaltool_output_dir = (
-            sorted(tmp_dir.glob("data_formatting_*"))[-1]
-            / f"Tier{tier}"
-            / dataset_name
+            sorted(tmp_dir.glob("data_formatting_*"))[-1] / f"Tier{tier}" / dataset_name
         )
         raw_files = latest_esmvaltool_output_dir.glob(
             f"{file_prefix_pattern}{variable.var_name}_*.nc",
