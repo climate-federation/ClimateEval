@@ -63,12 +63,14 @@ def test_tas() -> None:
     assert var.max_lat == 90.0
     assert var.min_lon == 0.0
     assert var.max_lon == 360.0
+    assert var.landsea_mask == "*"
+    assert var.ar6_regions_mask == ()
     assert var.timerange == "*"
-    assert var.coordinates == [
+    assert var.coordinates == (
         Coordinate("time"),
         Coordinate("lat"),
         Coordinate("lon"),
-    ]
+    )
     assert var.derived is False
     assert var.long_name == "Near-Surface Air Temperature"
     assert var.realm == "atmosphere"
@@ -87,12 +89,14 @@ def test_lwcre() -> None:
     assert var.max_lat == 90.0
     assert var.min_lon == 0.0
     assert var.max_lon == 180.0
+    assert var.landsea_mask == "*"
+    assert var.ar6_regions_mask == ()
     assert var.timerange == "*"
-    assert var.coordinates == [
+    assert var.coordinates == (
         Coordinate("time"),
         Coordinate("lat"),
         Coordinate("lon"),
-    ]
+    )
     assert var.derived is True
     assert var.long_name == "TOA Longwave Cloud Radiative Effect"
     assert var.realm == "atmosphere"
@@ -111,18 +115,26 @@ def test_lwcre() -> None:
                 "max_lat": 90.0,
                 "min_lon": 0.0,
                 "max_lon": 180.0,
+                "landsea_mask": "*",
+                "ar6_regions_mask": (),
                 "timerange": "*",
                 "units": "W m-2",
             },
         ),
         (
-            {"units": "kW w-2"},
+            {
+                "units": "kW w-2",
+                "landsea_mask": "land-only",
+                "ar6_regions_mask": ("Caribbean", "E.Europe"),
+            },
             {
                 "vertical_level": NO_LEVEL,
                 "min_lat": -90.0,
                 "max_lat": 90.0,
                 "min_lon": 0.0,
                 "max_lon": 360.0,
+                "landsea_mask": "land-only",
+                "ar6_regions_mask": ("Caribbean", "E.Europe"),
                 "timerange": "*",
                 "units": "kW w-2",
             },

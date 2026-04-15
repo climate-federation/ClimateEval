@@ -11,6 +11,8 @@ from esmvalcore.preprocessor import (
     convert_units,
     derive,
     extract_levels,
+    extract_shape,
+    mask_landsea,
 )
 from iris import Constraint, NameConstraint
 from iris.coords import CoordExtent
@@ -105,6 +107,9 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     if cube.coords("longitude"):
         cube = _set_lon_to_0_360(cube)
 
+    # Apply masks
+    cube = _apply_masks(cube, variable)
+
     # Extract desired time range and bounding box
     if cube.coords("time") and variable.timerange != "*":
         cube = clip_timerange(cube, variable.timerange)
@@ -133,6 +138,30 @@ def str_to_class(class_str: str) -> type:
     module_name, class_name = class_str.rsplit(".", 1)
     module = importlib.import_module(module_name)
     return getattr(module, class_name)
+
+
+def _apply_masks(cube: Cube, variable: Variable) -> Cube:
+    """Apply masks to cube."""
+    if variable.landsea_mask != "*":
+        mask_out_options = {"land_only": "sea", "sea-only": "land"}
+        if variable.landsea_mask not in mask_out_options:
+            msg = (
+                f"Got invalid value '{variable.landsea_mask}' for option "
+                f"'landsea_mask' of variable {variable}, expected one of "
+                f"{list(mask_out_options)}"
+            )
+            raise ValueError(msg)
+        cube = mask_landsea(cube, mask_out_options[variable.landsea_mask])
+    if variable.ar6_regions_mask:
+        cube = extract_shape(
+            cube,
+            "ar6",
+            method="contains",
+            crop=False,
+            decomposed=False,
+            ids={"Name": variable.ar6_regions_mask},
+        )
+    return cube
 
 
 def _check_data(cube: Cube, variable: Variable) -> None:

@@ -520,6 +520,7 @@ class Diagnostic(ABC):
         df["coordinates"] = df["coordinates"].map(
             lambda r: " ".join(c["var_name"] for c in r),
         )
+        df["ar6_regions_mask"] = df["ar6_regions_mask"].map(" ".join)
 
         def vertical_level_dict_to_str(
             vertical_level_dict: dict[str, str | float],

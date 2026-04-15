@@ -107,11 +107,17 @@ class Variable:
     max_lat: float = field(default=90.0, repr=False, kw_only=True)
     min_lon: float = field(default=0.0, repr=False, kw_only=True)
     max_lon: float = field(default=360.0, repr=False, kw_only=True)
+    landsea_mask: str = field(default="*", repr=False, kw_only=True)
+    ar6_regions_mask: tuple[str, ...] = field(
+        default_factory=tuple,
+        repr=False,
+        kw_only=True,
+    )
     timerange: str = field(default="*", repr=False, kw_only=True)
     units: str = field(default="", repr=False, kw_only=True)
 
     # Automatically filled fields
-    coordinates: list[Coordinate] = field(init=False, repr=False, compare=False)
+    coordinates: tuple[Coordinate] = field(init=False, repr=False, compare=False)
     derived: bool = field(default=False, init=False, repr=False, compare=False)
     long_name: str = field(init=False, repr=False, compare=False)
     realm: str = field(init=False, repr=False, compare=False)
@@ -128,7 +134,7 @@ class Variable:
         object.__setattr__(
             self,
             "coordinates",
-            [Coordinate(c) for c in var_info["coordinates"]],
+            tuple(Coordinate(c) for c in var_info["coordinates"]),
         )
         for key, val in var_info.items():
             if key == "coordinates":
