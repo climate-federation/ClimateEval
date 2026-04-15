@@ -135,9 +135,14 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
 
 def str_to_class(class_str: str) -> type:
     """Convert string to Python class."""
-    module_name, class_name = class_str.rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    return getattr(module, class_name)
+    try:
+        module_name, class_name = class_str.rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        class_ = getattr(module, class_name)
+    except Exception as exc:
+        msg = f"Failed to load class '{class_str}': {exc}"
+        raise ValueError(msg) from exc
+    return class_
 
 
 def _apply_masks(cube: Cube, variable: Variable) -> Cube:
