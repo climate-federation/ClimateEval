@@ -24,15 +24,6 @@ class CERESEBAF(DataSource):
         """Download data."""
         return self._esmvaltool_intake_download(
             variable,
-            supported_var_names=[
-                "rlut",
-                "rlutcs",
-                "rsdt",
-                "rsut",
-                "rsutcs",
-                "rtmt",
-                "rtnt",
-            ],
             project="obs4MIPs",
             dataset="CERES-EBAF-4-2-1",
             mip="Amon",

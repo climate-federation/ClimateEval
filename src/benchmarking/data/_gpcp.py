@@ -19,7 +19,6 @@ class GPCP(DataSource):
         """Download data."""
         return self._esmvaltool_intake_download(
             variable,
-            supported_var_names=["pr"],
             project="obs4MIPs",
             dataset="GPCP-3-3",
             mip="Amon",

@@ -149,8 +149,6 @@ class DataSource(ABC):
     def _esmvaltool_intake_download(
         self,
         variable: Variable,
-        *,
-        supported_var_names: Iterable[str] | None = None,
         **facets: Any,
     ) -> list[Path]:
         """Use ESMValTool's intake-esgf data source to download data.
@@ -159,8 +157,6 @@ class DataSource(ABC):
         https://docs.esmvaltool.org/projects/ESMValCore/en/latest/quickstart/configure.html#data-sources
 
         """
-        self._check_supported_variables(variable, supported_var_names)
-
         # Store downloaded data in temporary directory
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
         tmp_dir.mkdir(parents=True, exist_ok=True)
