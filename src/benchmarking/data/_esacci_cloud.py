@@ -24,7 +24,6 @@ class ESACCICloud(DataSource):
         """Download data."""
         return self._esmvaltool_cmorizer_prepare(
             variable,
-            "ESACCI-CLOUD",
             supported_var_names=[
                 "clivi",
                 "clt",

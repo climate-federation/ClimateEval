@@ -128,7 +128,7 @@ class ERA5(DataSource):
         cube = fix_data(cube, **era5_facets)
         if cube.coords("expver"):
             cube.remove_coord("expver")
-        data_dir = self._get_data_dir(variable)
+        data_dir = self._get_data_dir(variable.var_name)
         data_dir.mkdir(parents=True, exist_ok=True)
         target = data_dir / self._get_output_filename(cube, **era5_facets)
         iris.save(cube, target)

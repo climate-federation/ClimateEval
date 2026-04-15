@@ -62,21 +62,21 @@ class DataSource(ABC):
     def get_cube(self, variable: Variable) -> CubeList:
         """Get data cube."""
         logger.debug(f"Loading {variable} of {self.name}")
-        paths: list[Path] = list(self._get_data_dir(variable).glob("*.nc"))
+        paths: list[Path] = list(self._get_data_dir(variable.var_name).glob("*.nc"))
         if not paths:
             logger.debug(f"No data found for {variable}, trying required variables")
             for required_variable in variable.get_required_variables():
                 paths_for_required_variable = list(
-                    self._get_data_dir(required_variable).glob("*.nc"),
+                    self._get_data_dir(required_variable.var_name).glob("*.nc"),
                 )
                 if not paths_for_required_variable:
                     logger.debug(f"No data found for {required_variable}")
                     logger.debug(
-                        f"Trying downloading {required_variable} for {self.name}",
+                        f"Trying downloading {self.name}",
                     )
                     paths_for_required_variable = self._download(required_variable)
                     logger.info(
-                        f"Downloaded {required_variable} for {self.name}:\n"
+                        f"Downloaded {self.name}:\n"
                         f"{pformat(paths_for_required_variable)}",
                     )
                 paths.extend(paths_for_required_variable)
@@ -102,11 +102,9 @@ class DataSource(ABC):
 
     def _esmvaltool_cmorizer_format(
         self,
-        variable: Variable,
-        dataset_name: str,
         *,
         download_dir: Path,
-        file_prefix_pattern: str = "*_",
+        file_prefix_pattern: str = "*",
         tier: int = 2,
     ) -> list[Path]:
         """Use ESMValTool CMORizer to format data.
@@ -115,30 +113,35 @@ class DataSource(ABC):
         https://docs.esmvaltool.org/en/latest/input.html#using-a-cmorizer-script.
 
         """
+        logger.debug(f"Formatting {self.name} data")
+
         # Store all ESMValTool output in temporary directory and only save the
         # relevant files.
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
         tmp_dir.mkdir(parents=True, exist_ok=True)
 
         with CFG.context(output_dir=tmp_dir):
-            DataCommand().format(dataset_name, original_data_dir=download_dir)
+            DataCommand().format(self.name, original_data_dir=download_dir)
 
         latest_esmvaltool_output_dir = (
-            sorted(tmp_dir.glob("data_formatting_*"))[-1] / f"Tier{tier}" / dataset_name
+            sorted(tmp_dir.glob("data_formatting_*"))[-1] / f"Tier{tier}" / self.name
         )
         raw_files = latest_esmvaltool_output_dir.glob(
-            f"{file_prefix_pattern}{variable.var_name}_*.nc",
+            f"{file_prefix_pattern}.nc",
         )
-        data_dir = self._get_data_dir(variable)
-        data_dir.mkdir(parents=True, exist_ok=True)
-        for file in raw_files:
-            shutil.move(file, data_dir / file.name)
-        return list(data_dir.glob("*.nc"))
+
+        # Save all downloaded variables (there might be more than the one
+        # requested; this will potentially save lots of time)
+        for raw_file in raw_files:
+            var_name = raw_file.stem.split("_")[-2]
+            data_dir = self._get_data_dir(var_name)
+            data_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(raw_file, data_dir / raw_file.name)
+        return list((self.data_dir / self.name).rglob("*.nc"))
 
     def _esmvaltool_cmorizer_prepare(
         self,
         variable: Variable,
-        dataset_name: str,
         *,
         supported_var_names: Iterable[str] | None = None,
         file_prefix_pattern: str = "*_",
@@ -159,10 +162,8 @@ class DataSource(ABC):
 
         # Download and format data
         with CFG.context(output_dir=tmp_dir):
-            DataCommand().download(dataset_name, original_data_dir=tmp_dir)
+            DataCommand().download(self.name, original_data_dir=tmp_dir)
         return self._esmvaltool_cmorizer_format(
-            variable,
-            dataset_name,
             download_dir=tmp_dir,
             file_prefix_pattern=file_prefix_pattern,
             tier=tier,
@@ -186,16 +187,16 @@ class DataSource(ABC):
             cube = Dataset(**facets).load()
 
         # Save file into data directory
-        data_dir = self._get_data_dir(variable)
+        data_dir = self._get_data_dir(variable.var_name)
         data_dir.mkdir(parents=True, exist_ok=True)
         output_path = data_dir / self._get_output_filename(cube, **facets)
         iris.save(cube, output_path)
         logger.debug(f"Saved {output_path}")
         return [output_path]
 
-    def _get_data_dir(self, variable: Variable) -> Path:
+    def _get_data_dir(self, var_name: str) -> Path:
         """Get data directory."""
-        return self.data_dir / self.name / variable.var_name
+        return self.data_dir / self.name / var_name
 
     def _get_output_filename(self, cube: Cube, **facets: Any) -> str:
         """Get output file name."""

@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import tempfile
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+from esmvaltool.cmorizers.data.downloaders.wget import NASADownloader
 
 from benchmarking.data._base import DataSource
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from benchmarking import Variable
 
 
@@ -35,54 +38,41 @@ class MERRA2(DataSource):
         An account can be registered at https://urs.earthdata.nasa.gov/.
 
         """
-        return self._esmvaltool_cmorizer_prepare(
-            variable,
-            "MERRA2",
-            supported_var_names=[
-                "sm",
-                "clt",
-                "pr",
-                "evspsbl",
-                "hfss",
-                "hfls",
-                "huss",
-                "prc",
-                "prsn",
-                "prw",
-                "ps",
-                "psl",
-                "rlds",
-                "rldscs",
-                "rlus",
-                "rlut",
-                "rlutcs",
-                "rsds",
-                "rsdscs",
-                "rsdt",
-                "tas",
-                "tasmin",
-                "tasmax",
-                "tauu",
-                "tauv",
-                "ts",
-                "uas",
-                "vas",
-                "rsus",
-                "rsuscs",
-                "rsut",
-                "rsutcs",
-                "ta",
-                "ua",
-                "va",
-                "tro3",
-                "zg",
-                "hus",
-                "wap",
-                "hur",
-                "cl",
-                "clw",
-                "cli",
-                "clwvi",
-                "clivi",
-            ],
+        supported_var_names = [
+            "evspsbl",
+            "hfls",
+            "hfss",
+            "pr",
+            "prc",
+            "prsn",
+            "tauu",
+            "tauv",
+        ]
+        self._check_supported_variables(variable, supported_var_names)
+
+        # Raw downloaded data by ESMValTool will be stored in temporary
+        # directory. Our "raw" data will be the formatted data by ESMValTool.
+        tmp_dir = Path(tempfile.TemporaryDirectory().name)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+
+        # Manually download required files because regular ESMValTool
+        # downloader downloads all variables at once (takes lots of time)
+        tier = 3
+        source = "https://goldsmr4.gesdisc.eosdis.nasa.gov/data/MERRA2_MONTHLY/"
+        dataset_info = {
+            "tier": tier,
+            "source": source,
+            "last_access": datetime.now(UTC),
+            "info": "",
+        }
+        downloader = NASADownloader(
+            original_data_dir=tmp_dir,
+            dataset=self.name,
+            dataset_info=dataset_info,
+            overwrite=False,
         )
+
+        for year in range(1980, 2022):
+            downloader.download_folder(f"{source}/M2TMNXFLX.5.12.4/{year}/")
+
+        return self._esmvaltool_cmorizer_format(download_dir=tmp_dir, tier=tier)
