@@ -20,11 +20,18 @@ format_str = (
 logger.add(sys.stdout, level="DEBUG", format=format_str, colorize=True)
 
 variables = (
+    "hfls",
+    "hfss",
+    "hus",
     "pr",
     "rlut",
     "rlutcs",
+    "rsdt",
+    "rsut",
+    "rsutcs",
     "ta",
     "tas",
+    "ua",
 )
 paths = [
     f"/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/{var}/gn/v20190710/{var}_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc"
@@ -43,8 +50,13 @@ if db_path.is_file():
 
 suite = Suite(
     "Tier2",
-    diagnostic_kwargs={"data_dir": data_dir},
-    variable_kwargs={"timerange": "20000101/20011231"},
+    diagnostic_kwargs={
+        "data_dir": data_dir,
+        "fail_on_missing_data": True,
+    },
+    variable_kwargs={
+        "timerange": "20000101/20011231",
+    },
 )
 con = suite.get_database(cubes, "MPI-ESM1-2-LR", database_resource=f"duckdb://{db_path}")
 print(con)
