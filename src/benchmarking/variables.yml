@@ -126,12 +126,6 @@ rtmt:
   realm: atmosphere
   standard_name: net_downward_radiative_flux_at_top_of_atmosphere_model
   units: W m-2
-rtnt:
-  coordinates: [time, lat, lon]
-  long_name: TOA Net downward Total Radiation
-  realm: atmosphere
-  standard_name: ""
-  units: W m-2
 ta:
   coordinates: [time, alevel, lat, lon]
   long_name: Air Temperature
@@ -257,6 +251,13 @@ netcre:
   coordinates: [time, lat, lon]
   derived: true
   long_name: TOA Net Cloud Radiative Effect
+  realm: atmosphere
+  standard_name: ""
+  units: W m-2
+rtnt:
+  coordinates: [time, lat, lon]
+  derived: true
+  long_name: TOA Net downward Total Radiation
   realm: atmosphere
   standard_name: ""
   units: W m-2
