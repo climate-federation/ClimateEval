@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from benchmarking import Variable
 
 MONTHS = [f"{m:02d}" for m in range(1, 13)]
-YEARS = [str(y) for y in range(1979, 2025)]
+YEARS = [str(y) for y in range(1979, 2027)]
 PRESSURE_LEVELS = [
     "1",
     "2",
@@ -57,35 +57,29 @@ PRESSURE_LEVELS = [
     "1000",
 ]
 
+REQUEST_BASE: dict[str, Any] = {
+    "product_type": ["monthly_averaged_reanalysis"],
+    "month": MONTHS,
+    "time": ["00:00"],
+    "year": YEARS,
+    "cmip6_table_id": "Amon",  # for ESMValTool
+}
+REQUEST_SINGLE_LEVELS: dict[str, Any] = {
+    **dict(REQUEST_BASE),
+    "dataset": "reanalysis-era5-single-levels-monthly-means",
+}
+REQUEST_PRESSURE_LEVELS: dict[str, Any] = {
+    **dict(REQUEST_BASE),
+    "dataset": "reanalysis-era5-pressure-levels-monthly-means",
+    "pressure_level": PRESSURE_LEVELS,
+}
 REQUEST_MAP: dict[str, Any] = {
-    "pr": {
-        "dataset": "reanalysis-era5-single-levels-monthly-means",
-        "product_type": ["monthly_averaged_reanalysis"],
-        "variable": ["total_precipitation"],
-        "month": MONTHS,
-        "time": ["00:00"],
-        "year": YEARS,
-        "cmip6_table_id": "Amon",  # for ESMValTool
-    },
-    "ta": {
-        "dataset": "reanalysis-era5-pressure-levels-monthly-means",
-        "product_type": ["monthly_averaged_reanalysis"],
-        "variable": ["temperature"],
-        "month": MONTHS,
-        "time": ["00:00"],
-        "year": YEARS,
-        "pressure_level": PRESSURE_LEVELS,
-        "cmip6_table_id": "Amon",  # for ESMValTool
-    },
-    "tas": {
-        "dataset": "reanalysis-era5-single-levels-monthly-means",
-        "product_type": ["monthly_averaged_reanalysis"],
-        "variable": ["2m_temperature"],
-        "month": MONTHS,
-        "time": ["00:00"],
-        "year": YEARS,
-        "cmip6_table_id": "Amon",  # for ESMValTool
-    },
+    "hus": {**dict(REQUEST_PRESSURE_LEVELS), "variable": ["specific_humidity"]},
+    "pr": {**dict(REQUEST_SINGLE_LEVELS), "variable": ["total_precipitation"]},
+    "ta": {**dict(REQUEST_PRESSURE_LEVELS), "variable": ["temperature"]},
+    "tas": {**dict(REQUEST_SINGLE_LEVELS), "variable": ["2m_temperature"]},
+    "ua": {**dict(REQUEST_PRESSURE_LEVELS), "variable": ["u_component_of_wind"]},
+    "va": {**dict(REQUEST_PRESSURE_LEVELS), "variable": ["v_component_of_wind"]},
 }
 
 
@@ -132,6 +126,8 @@ class ERA5(DataSource):
             mip=cmip6_table_id,
             frequency=variable.frequency,
         )
+        if cube.coords("expver"):
+            cube.remove_coord("expver")
         data_dir = self._get_data_dir(variable)
         data_dir.mkdir(parents=True, exist_ok=True)
         target = data_dir / f"{self.name}_{variable.var_name}.nc"
