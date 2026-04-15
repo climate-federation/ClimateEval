@@ -42,14 +42,17 @@ Whenever inspecting databases, use `ibis`.
 ### Diagnostics (`diags/`)
 
 - `_base.py` - Abstract `Diagnostic` class with `DiagnosticOutput` dataclass: manages reference/other data, computes metrics (weighted_rmse, weighted_pearsonr, weighted_emd), generates Ibis tables
-- Examples:
-  - `_map.py` - `Map` diagnostic: regrid to 10x10, compute spatial mean, output coordinates: latitude, longitude
-  - `_timeseries.py` - `TimeSeries` diagnostic: regrid to 2x2, area mean, annual mean, output coordinates: time
+- `_annual_cycle.py` - `AnnualCycle` diagnostic: evaluates seasonal cycle by comparing monthly means
+- `_diurnal_cycle.py` - `DiurnalCycle` diagnostic: evaluates diurnal temperature range
+- `_map.py` - `Map` diagnostic: regrid to 10x10, compute spatial mean, output coordinates: latitude, longitude
+- `_timeseries.py` - `TimeSeries` diagnostic: regrid to 2x2, area mean, annual mean, output coordinates: time
+- `_zonal_line.py` - `ZonalLine` diagnostic: zonal mean fields, output coordinates: latitude
+- `_zonal_profile.py` - `ZonalProfileAirPressure` diagnostic: vertical profiles of humidity/temperature/wind
 
 ### Suites (`suites/`)
 
-- `_base.py` - `Suite` abstract base class: orchestrates diagnostics execution, manages database output (DuckDB via Ibis), handles data loading
-- `_atmosphere.py` - `AtmosphereMonthly` suite: pre-configured set of variables (lwcre, pr, rsut, tas, ta200, ta800) with reference/other data sources
+- `_base.py` - `Suite` class: orchestrates diagnostics execution, manages database output (DuckDB via Ibis), handles data loading
+- `Tier2.yml` - YAML-defined suite: pre-configured set of 14 variables (hfls, hfss, hus400, lwcre, pr, rlut, rsut, rtnt, ta200, ta800, tas, ua200, ua800) across four 2D diagnostics (AnnualCycle, Map, TimeSeries, ZonalLine) plus ZonalProfileAirPressure for 3D variables (hus, ta, ua)
 
 ### Data Sources (`data/`)
 
@@ -60,7 +63,7 @@ Whenever inspecting databases, use `ibis`.
 
 #### Option 1: Use a Suite (recommended)
 
-1. Create a Suite subclass instance (e.g., `AtmosphereMonthly`)
+1. Create a Suite subclass instance (e.g., instantiate `Suite` with a YAML config like `Tier2.yml`)
 2. Call `suite.run(cubes, "dataset_name", database_path=...)`
 3. Output: Ibis connection with `data`, `metrics`, and `variables` tables per diagnostic
 
