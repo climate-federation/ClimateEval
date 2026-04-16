@@ -9,10 +9,14 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import yaml
 from esmvalcore.preprocessor._derive import get_required  # not part of public API yet
+from loguru import logger
 
 if TYPE_CHECKING:
     from importlib.resources.abc import Traversable
     from pathlib import Path
+
+
+logger = logger.opt(colors=True)
 
 
 @dataclass(frozen=True, order=True)
@@ -122,6 +126,7 @@ class Variable:
     long_name: str = field(init=False, repr=False, compare=False)
     realm: str = field(init=False, repr=False, compare=False)
     standard_name: str = field(init=False, repr=False, compare=False)
+    cmip6_table_id: str = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         """Initialize class instance."""
@@ -143,6 +148,33 @@ class Variable:
                 continue
             object.__setattr__(self, key, val)
         object.__setattr__(self, "settings", self._get_settings())
+        object.__setattr__(self, "cmip6_table_id", self._get_cmip6_table_id())
+
+    def _get_cmip6_table_id(self) -> str:
+        """Get CMIP6 table ID.
+
+        Note
+        ----
+        Note all Table IDs are supported at the moment. See
+        https://github.com/WCRP-CMIP/CMIP6_CVs/blob/main/CMIP6_table_id.json
+        for a list of all available table IDs.
+
+        """
+        if self.realm == "atmos":
+            if self.frequency in ("3hr", "day"):
+                return self.frequency
+            if self.frequency == "mon":
+                return "Amon"
+        if self.realm == "ocean" and self.frequency in ("day", "mon", "yr"):
+            return f"O{self.frequency}"
+        if self.realm == "land" and self.frequency == "mon":
+            return "Lmon"
+        msg = (
+            f"Cannot determine CMIP6 table ID of {self}, this might be a problem "
+            f"for some data sources"
+        )
+        logger.warning(msg)
+        return ""
 
     def _get_settings(self) -> dict[str, Any]:
         """Get settings."""

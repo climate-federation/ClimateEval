@@ -3,181 +3,181 @@
 cl:
   coordinates: [time, alevel, lat, lon]
   long_name: Percentage Cloud Cover
-  realm: atmosphere
+  realm: atmos
   standard_name: cloud_area_fraction_in_atmosphere_layer
   units: "%"
 cli:
   coordinates: [time, alevel, lat, lon]
   long_name: Mass Fraction of Cloud Ice
-  realm: atmosphere
+  realm: atmos
   standard_name: mass_fraction_of_cloud_ice_in_air
   units: kg kg-1
 clivi:
   coordinates: [time, lat, lon]
   long_name: Ice Water Path
-  realm: atmosphere
+  realm: atmos
   standard_name: atmosphere_mass_content_of_cloud_ice
   units: kg m-2
 clt:
   coordinates: [time, lat, lon]
   long_name: Total Cloud Cover Percentage
-  realm: atmosphere
+  realm: atmos
   standard_name: cloud_area_fraction
   units: "%"
 clw:
   coordinates: [time, alevel, lat, lon]
   long_name: Mass Fraction of Cloud Liquid Water
-  realm: atmosphere
+  realm: atmos
   standard_name: mass_fraction_of_cloud_liquid_water_in_air
   units: kg kg-1
 evspsbl:
   coordinates: [time, lat, lon]
   long_name: Evaporation Including Sublimation and Transpiration
-  realm: atmosphere
+  realm: atmos
   standard_name: water_evapotranspiration_flux
   units: kg m-2 s-1
 hfls:
   coordinates: [time, lat, lon]
   long_name: Surface Upward Latent Heat Flux
-  realm: atmosphere
+  realm: atmos
   standard_name: surface_upward_latent_heat_flux
   units: W m-2
 hfss:
   coordinates: [time, lat, lon]
   long_name: Surface Upward Sensible Heat Flux
-  realm: atmosphere
+  realm: atmos
   standard_name: surface_upward_sensible_heat_flux
   units: W m-2
 hus:
   coordinates: [time, alevel, lat, lon]
   long_name: Specific Humidity
-  realm: atmosphere
+  realm: atmos
   standard_name: specific_humidity
   units: "1"
 pfull:
   coordinates: [time, alevel, lat, lon]
   long_name: Pressure at Model Full-Levels
-  realm: atmosphere
+  realm: atmos
   standard_name: air_pressure
   units: Pa
 phalf:
   coordinates: [time, alevel, lat, lon]
   long_name: Pressure on Model Half-Levels
-  realm: atmosphere
+  realm: atmos
   standard_name: air_pressure
   units: Pa
 pr:
   coordinates: [time, lat, lon]
   long_name: Precipitation
-  realm: atmosphere
+  realm: atmos
   standard_name: precipitation_flux
   units: kg m-2 s-1
 prw:
   coordinates: [time, lat, lon]
   long_name: Water Vapor Path
-  realm: atmosphere
+  realm: atmos
   standard_name: atmosphere_mass_content_of_water_vapor
   units: kg m-2
 ps:
   coordinates: [time, lat, lon]
   long_name: Surface Air Pressure
-  realm: atmosphere
+  realm: atmos
   standard_name: surface_air_pressure
   units: Pa
 psl:
   coordinates: [time, lat, lon]
   long_name: Sea Level Pressure
-  realm: atmosphere
+  realm: atmos
   standard_name: air_pressure_at_mean_sea_level
   units: Pa
 rlut:
   coordinates: [time, lat, lon]
   long_name: TOA Outgoing Longwave Radiation
-  realm: atmosphere
+  realm: atmos
   standard_name: toa_outgoing_longwave_flux
   units: W m-2
 rlutcs:
   coordinates: [time, lat, lon]
   long_name: TOA Outgoing Clear-Sky Longwave Radiation
-  realm: atmosphere
+  realm: atmos
   standard_name: toa_outgoing_longwave_flux_assuming_clear_sky
   units: W m-2
 rsdt:
   coordinates: [time, lat, lon]
   long_name: TOA Incident Shortwave Radiation
-  realm: atmosphere
+  realm: atmos
   standard_name: toa_incoming_shortwave_flux
   units: W m-2
 rsut:
   coordinates: [time, lat, lon]
   long_name: TOA Outgoing Shortwave Radiation
-  realm: atmosphere
+  realm: atmos
   standard_name: toa_outgoing_shortwave_flux
   units: W m-2
 rsutcs:
   coordinates: [time, lat, lon]
   long_name: TOA Outgoing Clear-Sky Shortwave Radiation
-  realm: atmosphere
+  realm: atmos
   standard_name: toa_outgoing_shortwave_flux_assuming_clear_sky
   units: W m-2
 rtmt:
   coordinates: [time, lat, lon]
   long_name: Net Downward Radiative Flux at Top of Model
-  realm: atmosphere
+  realm: atmos
   standard_name: net_downward_radiative_flux_at_top_of_atmosphere_model
   units: W m-2
 ta:
   coordinates: [time, alevel, lat, lon]
   long_name: Air Temperature
-  realm: atmosphere
+  realm: atmos
   standard_name: air_temperature
   units: K
 tas:
   coordinates: [time, lat, lon]
   long_name: Near-Surface Air Temperature
-  realm: atmosphere
+  realm: atmos
   standard_name: air_temperature
   units: K
 tauu:
   coordinates: [time, lat, lon]
   long_name: Surface Downward Eastward Wind Stress
-  realm: atmosphere
+  realm: atmos
   standard_name: surface_downward_eastward_stress
   units: Pa
 tauv:
   coordinates: [time, lat, lon]
   long_name: Surface Downward Northward Wind Stress
-  realm: atmosphere
+  realm: atmos
   standard_name: surface_downward_northward_stress
   units: Pa
 ts:
   coordinates: [time, lat, lon]
   long_name: Surface Temperature
-  realm: atmosphere
+  realm: atmos
   standard_name: surface_temperature
   units: K
 ua:
   coordinates: [time, alevel, lat, lon]
   long_name: Eastward Wind
-  realm: atmosphere
+  realm: atmos
   standard_name: eastward_wind
   units: m s-1
 va:
   coordinates: [time, alevel, lat, lon]
   long_name: Northward Wind
-  realm: atmosphere
+  realm: atmos
   standard_name: northward_wind
   units: m s-1
 wap:
   coordinates: [time, alevel, lat, lon]
   long_name: Omega (=dp/dt)
-  realm: atmosphere
+  realm: atmos
   standard_name: lagrangian_tendency_of_air_pressure
   units: Pa s-1
 zg:
   coordinates: [time, alevel, lat, lon]
   long_name: Geopotential Height
-  realm: atmosphere
+  realm: atmos
   standard_name: geopotential_height
   units: m
 
@@ -230,41 +230,41 @@ asr:
   coordinates: [time, lat, lon]
   derived: true
   long_name: Absorbed shortwave radiation
-  realm: atmosphere
+  realm: atmos
   standard_name: ""
   units: W m-2
 lwcre:
   coordinates: [time, lat, lon]
   derived: true
   long_name: TOA Longwave Cloud Radiative Effect
-  realm: atmosphere
+  realm: atmos
   standard_name: ""
   units: W m-2
 lwp:
   coordinates: [time, lat, lon]
   derived: true
   long_name: Liquid Water Path
-  realm: atmosphere
+  realm: atmos
   standard_name: atmosphere_mass_content_of_cloud_liquid_water
   units: kg m-2
 netcre:
   coordinates: [time, lat, lon]
   derived: true
   long_name: TOA Net Cloud Radiative Effect
-  realm: atmosphere
+  realm: atmos
   standard_name: ""
   units: W m-2
 rtnt:
   coordinates: [time, lat, lon]
   derived: true
   long_name: TOA Net downward Total Radiation
-  realm: atmosphere
+  realm: atmos
   standard_name: ""
   units: W m-2
 swcre:
   coordinates: [time, lat, lon]
   derived: true
   long_name: TOA Shortwave Cloud Radiative Effect
-  realm: atmosphere
+  realm: atmos
   standard_name: ""
   units: W m-2
