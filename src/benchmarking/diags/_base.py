@@ -87,25 +87,23 @@ class Diagnostic(ABC):
         self,
         variables_and_data: dict[Variable, DiagnosticData],
         *,
-        data_dir: Path | None = None,
+        data_root_dir: Path | None = None,
         fail_on_missing_data: bool = False,
     ) -> None:
         """Initialize class instance."""
         logger.debug(f"Initializing diagnostic {self.name}")
 
-        if data_dir is None:
-            data_dir = Path.home() / ".benchmarking" / "data"
-        data_dir.mkdir(parents=True, exist_ok=True)
-        self._data_dir = data_dir
+        if data_root_dir is None:
+            data_root_dir = Path.home() / ".benchmarking" / "data"
+        data_root_dir.mkdir(parents=True, exist_ok=True)
+        self._data_root_dir = data_root_dir
 
         if not variables_and_data:
             msg = "At least a single variable must be given."
             raise ValueError(msg)
 
         self._variables = sorted(variables_and_data.keys())
-        self._reference_data = {
-            v: d.reference(self.data_dir) for v, d in variables_and_data.items()
-        }
+        self._reference_data = {v: d.reference() for v, d in variables_and_data.items()}
         variable_ids = [v.id for v in self.variables]
         if len(set(variable_ids)) != len(variable_ids):
             msg = (
@@ -116,19 +114,15 @@ class Diagnostic(ABC):
 
         _other_data: dict[Variable, tuple[DataSource, ...]] = {}
         for variable, data_item in variables_and_data.items():
-            if data_item.other:
-                val = tuple(o(self.data_dir) for o in data_item.other)
-            else:
-                val = ()
-            _other_data[variable] = val
+            _other_data[variable] = tuple(o() for o in data_item.other)
         self._other_data = _other_data
 
         self._fail_on_missing_data = fail_on_missing_data
 
     @property
-    def data_dir(self) -> Path:
+    def data_root_dir(self) -> Path:
         """Get path to data directory."""
-        return self._data_dir
+        return self._data_root_dir
 
     @property
     def final_coordinate_names(self) -> tuple[str, ...]:
@@ -180,7 +174,7 @@ class Diagnostic(ABC):
         for variable, reference_data in self.reference_data.items():
             try:
                 reference_cube = self._safely_preprocess(
-                    reference_data.get_cube(variable),
+                    reference_data.get_cube(self.data_root_dir, variable),
                 )
             except Exception as exc:
                 msg = (
@@ -345,7 +339,9 @@ class Diagnostic(ABC):
         for variable, other_datas in self.other_data.items():
             for other_data in other_datas:
                 try:
-                    other_cube = self._safely_preprocess(other_data.get_cube(variable))
+                    other_cube = self._safely_preprocess(
+                        other_data.get_cube(self.data_root_dir, variable),
+                    )
                 except Exception as exc:
                     msg = (
                         f"Failed to get other data {other_data.name} for variable "

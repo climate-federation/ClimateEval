@@ -37,7 +37,7 @@ class Suite:
         """Initialize class instance."""
         self._suite_definition_file = self._get_suite_defintion_file(suite_definition)
         self._suite_definition = self._get_suite_defintion()
-        logger.debug(f"Initializing evaluation suite {self.name}")
+        logger.info(f"Initializing evaluation suite {self.name}")
         if diagnostic_kwargs is None:
             diagnostic_kwargs = {}
         if variable_kwargs is None:
@@ -64,6 +64,9 @@ class Suite:
         connection = ibis.connect(database_resource, **database_kwargs)
 
         for diagnostic in self._get_diagnostics():
+            logger.info(
+                f"Processing diagnostic {diagnostic.name} within suite {self.name}",
+            )
             output = diagnostic.get_output(data, data_name)
             connection.create_database(diagnostic.name)
             for output_field in fields(output):
@@ -73,7 +76,10 @@ class Suite:
                     getattr(output, table_name),
                     database=diagnostic.name,
                 )
-            logger.debug(f"Created database for diagnostic {diagnostic.name}")
+            logger.info(
+                f"Created database for diagnostic {diagnostic.name} within suite "
+                f"{self.name} at {database_resource}",
+            )
 
         return connection
 

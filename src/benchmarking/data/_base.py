@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
@@ -39,15 +40,9 @@ class DiagnosticData:
 class DataSource(ABC):
     """Manage data source."""
 
-    def __init__(self, data_dir: Path) -> None:
+    def __init__(self) -> None:
         """Initialize class instance."""
-        self._data_dir = data_dir
         self._name = self.__class__.__name__
-
-    @property
-    def data_dir(self) -> Path:
-        """Get path to data directory."""
-        return self._data_dir
 
     @property
     def name(self) -> str:
@@ -60,25 +55,32 @@ class DataSource(ABC):
         self._name = value
 
     @abstractmethod
-    def download(self, variable: Variable) -> list[Path]:
+    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
         """Download data."""
 
-    def get_cube(self, variable: Variable) -> CubeList:
+    def get_cube(self, data_root_dir: Path, variable: Variable) -> CubeList:
         """Get data cube."""
         logger.debug(f"Loading {variable} of {self.name}")
-        paths: list[Path] = list(self._get_data_dir(variable.var_name).glob("*.nc"))
+        paths: list[Path] = list(
+            self._get_data_dir(data_root_dir, variable.var_name).glob("*.nc"),
+        )
         if not paths:
             logger.debug(f"No data found for {variable}, trying required variables")
             for required_variable in variable.get_required_variables():
                 paths_for_required_variable = list(
-                    self._get_data_dir(required_variable.var_name).glob("*.nc"),
+                    self._get_data_dir(data_root_dir, required_variable.var_name).glob(
+                        "*.nc",
+                    ),
                 )
                 if not paths_for_required_variable:
                     logger.debug(f"No data found for {required_variable}")
                     logger.debug(
-                        f"Trying downloading {self.name}",
+                        f"Trying downloading {required_variable} of {self.name}",
                     )
-                    paths_for_required_variable = self.download(required_variable)
+                    paths_for_required_variable = self.download(
+                        data_root_dir,
+                        required_variable,
+                    )
                     logger.info(
                         f"Downloaded {self.name}:\n"
                         f"{pformat(paths_for_required_variable)}",
@@ -102,6 +104,7 @@ class DataSource(ABC):
 
     def _esmvaltool_cmorizer_format(
         self,
+        data_root_dir: Path,
         variable: Variable,
         *,
         download_dir: Path,
@@ -132,19 +135,31 @@ class DataSource(ABC):
         )
 
         # Save all downloaded variables (there might be more than the one
-        # requested; this will potentially save lots of time), but do not
-        # overwrite existing other variables
+        # requested; this will potentially save lots of time)
+        grouped_files = defaultdict(list)
+        formatted_files: list[Path] = []
         for raw_file in raw_files:
             var_name = raw_file.stem.split("_")[-2]
-            data_dir = self._get_data_dir(var_name)
-            if var_name != variable.var_name and data_dir.is_dir():
+            grouped_files[var_name].append(raw_file)
+        for var_name, var_files in grouped_files.items():
+            data_dir = self._get_data_dir(data_root_dir, var_name)
+
+            # Do not overwrite existing other variables
+            if var_name != variable.var_name and list(data_dir.glob("*.nc")):
                 continue
+            logger.debug(f"Downloaded and formatted '{var_name}' of {self.name}")
             data_dir.mkdir(parents=True, exist_ok=True)
-            shutil.move(raw_file, data_dir / raw_file.name)
-        return list((self.data_dir / self.name).rglob("*.nc"))
+
+            for var_file in var_files:
+                formatted_file = data_dir / var_file.name
+                shutil.move(var_file, formatted_file)
+                formatted_files.append(formatted_file)
+
+        return formatted_files
 
     def _esmvaltool_cmorizer_prepare(
         self,
+        data_root_dir: Path,
         variable: Variable,
         *,
         supported_var_names: Iterable[str] | None = None,
@@ -170,6 +185,7 @@ class DataSource(ABC):
 
         # Format data
         return self._esmvaltool_cmorizer_format(
+            data_root_dir,
             variable,
             download_dir=tmp_dir,
             file_prefix_pattern=file_prefix_pattern,
@@ -178,6 +194,7 @@ class DataSource(ABC):
 
     def _esmvaltool_intake_download(
         self,
+        data_root_dir: Path,
         variable: Variable,
         **facets: Any,
     ) -> list[Path]:
@@ -194,16 +211,16 @@ class DataSource(ABC):
             cube = Dataset(**facets).load()
 
         # Save file into data directory
-        data_dir = self._get_data_dir(variable.var_name)
+        data_dir = self._get_data_dir(data_root_dir, variable.var_name)
         data_dir.mkdir(parents=True, exist_ok=True)
         output_path = data_dir / self._get_output_filename(cube, **facets)
         iris.save(cube, output_path)
         logger.debug(f"Saved {output_path}")
         return [output_path]
 
-    def _get_data_dir(self, var_name: str) -> Path:
-        """Get data directory."""
-        return self.data_dir / self.name / var_name
+    def _get_data_dir(self, data_root_dir: Path, var_name: str) -> Path:
+        """Get data- and variable-specific subdirectory."""
+        return data_root_dir / self.name / var_name
 
     def _get_output_filename(self, cube: Cube, **facets: Any) -> str:
         """Get output file name."""

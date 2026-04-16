@@ -43,7 +43,7 @@ with warnings.catch_warnings():
     cubes = iris.load(paths)
 
 
-data_dir = Path("/work/bd0854/b309141/benchmarking_input/data")
+data_root_dir = Path("/work/bd0854/b309141/benchmarking_input/data")
 db_path = Path("benchmarking.ddb")
 if db_path.is_file():
     db_path.unlink()
@@ -51,7 +51,7 @@ if db_path.is_file():
 suite = Suite(
     "Tier2",
     diagnostic_kwargs={
-        "data_dir": data_dir,
+        "data_root_dir": data_root_dir,
         "fail_on_missing_data": True,
     },
     variable_kwargs={
