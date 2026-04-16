@@ -37,13 +37,14 @@ Whenever inspecting databases, use `ibis`.
 
 - `_variable.py` - `Variable`, `Coordinate`, `VerticalLevel`, `NO_LEVEL` dataclasses. Loads metadata from `variables.yml` and `coordinates.yml`. Frozen dataclasses with auto-filled fields (units, standard_name, coordinates, derived flag, etc.)
 - `_config.py` - ESMValTool config reset
-- `_utils.py` - `get_prepared_cube()` performs preprocessing (unit conversion, longitude normalization, time range extraction, level extraction). Also provides `check_coordinates()` to validate cube dimensions.
+- `_utils.py` - `get_prepared_cube()` performs preprocessing (unit conversion, longitude normalization, time range extraction, level extraction, spatial masking via landsea/AR6 region masks). Also provides `str_to_class()` for dynamic class loading and `check_coordinates()` to validate cube dimensions.
 
 ### Diagnostics (`diags/`)
 
 - `_base.py` - Abstract `Diagnostic` class with `DiagnosticOutput` dataclass: manages reference/other data, computes metrics (weighted_rmse, weighted_pearsonr, weighted_emd), generates Ibis tables
 - `_annual_cycle.py` - `AnnualCycle` diagnostic: evaluates seasonal cycle by comparing monthly means
-- `_diurnal_cycle.py` - `DiurnalCycle` diagnostic: evaluates diurnal temperature range
+- `_annual_cycle_spatial_distribution.py` - `AnnualCycleSpatialDistribution` diagnostic: evaluates monthly spatial fields; outputs only metrics (no data table)
+- `_diurnal_cycle.py` - `DiurnalCycle` diagnostic: evaluates diurnal cycle via hourly climatology in local solar time
 - `_map.py` - `Map` diagnostic: regrid to 2x2, compute spatial mean, output coordinates: latitude, longitude
 - `_timeseries.py` - `TimeSeries` diagnostic: regrid to 2x2, area mean, annual mean, output coordinates: time
 - `_zonal_line.py` - `ZonalLine` diagnostic: zonal mean fields, output coordinates: latitude
@@ -52,19 +53,19 @@ Whenever inspecting databases, use `ibis`.
 ### Suites (`suites/`)
 
 - `_base.py` - `Suite` class: orchestrates diagnostics execution, manages database output (DuckDB via Ibis), handles data loading
-- `Tier2.yml` - YAML-defined suite: pre-configured set of 14 variables (hfls, hfss, hus400, lwcre, pr, rlut, rsut, rtnt, ta200, ta800, tas, ua200, ua800) across four 2D diagnostics (AnnualCycle, Map, TimeSeries, ZonalLine) plus ZonalProfileAirPressure for 3D variables (hus, ta, ua)
+- `Tier2.yml` - YAML-defined suite: pre-configured set of 12 variables (hfls, hfss, hus400, lwcre, pr, rlut, rsut, rtnt, ta200, ta800, tas, and two others) across five 2D diagnostics (AnnualCycle, AnnualCycleSpatialDistribution, Map, TimeSeries, ZonalLine) plus ZonalProfileAirPressure for 3D variables (hus, ta; ua is commented out)
 
 ### Data Sources (`data/`)
 
 - `_base.py` - `DataSource` abstract class handles data loading/downloading via ESMValTool or intake-esgf. `DiagnosticData` dataclass pairs a variable with its reference and optional "other" data sources
-- Example implementations: `HadCRUT5`, `ERA5`, `GPCP`, `CERESEBAF`
+- Example implementations: `ERA5`, `CERESEBAF`, `GPCP`, `HadCRUT5`, `MERRA2`, `ESACCICloud`
 
 ### Data Flow
 
 #### Option 1: Use a Suite (recommended)
 
 1. Create a Suite subclass instance (e.g., instantiate `Suite` with a YAML config like `Tier2.yml`)
-2. Call `suite.run(cubes, "dataset_name", database_path=...)`
+2. Call `suite.get_database(cubes, "dataset_name", database_resource=...)`
 3. Output: Ibis connection with `data`, `metrics`, and `variables` tables per diagnostic
 
 #### Option 2: Direct Diagnostic usage
@@ -102,7 +103,7 @@ import ibis
 conn = ibis.duckdb.connect('benchmarking.ddb')
 
 # List diagnostic databases (attached to the main database)
-dbs = conn.list_databases()  # e.g., ['AnnualCycle', 'Map', 'TimeSeries', 'ZonalLine', 'ZonalProfileAirPressure']
+dbs = conn.list_databases()  # e.g., ['AnnualCycle', 'AnnualCycleSpatialDistribution', 'Map', 'TimeSeries', 'ZonalLine', 'ZonalProfileAirPressure']
 
 # Access tables within a diagnostic
 data = conn.table('data', database='Map')
@@ -120,6 +121,9 @@ For example:
 benchmarking.ddb
 ├── AnnualCycle/       # Annual cycle diagnostic (monthly climatology)
 │   ├── data           # Monthly climatology with month_number coordinate
+│   ├── metrics        # Comparison metrics
+│   └── variables      # Variable metadata
+├── AnnualCycleSpatialDistribution/  # Spatial monthly fields (metrics only, no data table)
 │   ├── metrics        # Comparison metrics
 │   └── variables      # Variable metadata
 ├── Map/               # Spatial map diagnostic
@@ -146,13 +150,15 @@ The set of diagnostics depends on the suite configuration. Variable columns in d
 
 Each diagnostic has its own coordinate columns. Variable columns are named after the variable ID (e.g., `hfls`, `tas`).
 
-| Diagnostic              | Coordinate columns           |
-| ----------------------- | ---------------------------- |
-| AnnualCycle             | `month_number` (float, 1–12) |
-| Map                     | `latitude`, `longitude`      |
-| TimeSeries              | `time` (timestamp)           |
-| ZonalLine               | `latitude`                   |
-| ZonalProfileAirPressure | `air_pressure`, `latitude`   |
+| Diagnostic                     | Coordinate columns           |
+| ------------------------------ | ---------------------------- |
+| AnnualCycle                    | `month_number` (float, 1–12) |
+| AnnualCycleSpatialDistribution | `month_number`, `lat`, `lon` |
+| DiurnalCycle                   | `hour` (float)               |
+| Map                            | `latitude`, `longitude`      |
+| TimeSeries                     | `time` (timestamp)           |
+| ZonalLine                      | `latitude`                   |
+| ZonalProfileAirPressure        | `air_pressure`, `latitude`   |
 
 Common columns present in all data tables:
 
@@ -205,6 +211,6 @@ temperature, CERES-EBAF for radiative fluxes, GPCP for precipitation).
 
 The hierarchy supports expansion with:
 
-1. **Additional diagnostics**: New attached database entries (e.g., `DiurnalCycle`, `TaylorDiagram`)
+1. **Additional diagnostics**: New attached database entries (e.g., `TaylorDiagram`)
 2. **Additional variables**: New columns added to data tables dynamically
 3. **Additional suites**: Different suite configurations produce their own diagnostic hierarchy
