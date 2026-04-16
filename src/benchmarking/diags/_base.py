@@ -60,12 +60,14 @@ class DiagnosticOutput:
     data: ibis.Table | None
     metrics: ibis.Table | None
     variables: ibis.Table
+    data_sources: ibis.Table
 
     @classmethod
     def union(
         cls,
         *diagnostic_output: DiagnosticOutput,
         perform_variables_union: bool = False,
+        perform_data_sources_union: bool = False,
     ) -> DiagnosticOutput:
         """Create union of output."""
         # data
@@ -88,16 +90,29 @@ class DiagnosticOutput:
         else:
             variables_union = diagnostic_output[0].variables
 
-        return cls(data=data_union, metrics=metrics_union, variables=variables_union)
+        # data_sources
+        if perform_data_sources_union:
+            data_sources_union = ibis.union(
+                *(o.data_sources for o in diagnostic_output),
+            )
+        else:
+            data_sources_union = diagnostic_output[0].data_sources
+
+        return cls(
+            data=data_union,
+            metrics=metrics_union,
+            variables=variables_union,
+            data_sources=data_sources_union,
+        )
 
 
 class Diagnostic(ABC):
     """Manage diagnostics."""
 
-    DATA_NAME_COLUMN: ClassVar[str] = "Dataset"
+    DATA_NAME_COLUMN: ClassVar[str] = "data name"
     """Name of table column containing data name."""
 
-    DATA_TYPE_COLUMN: ClassVar[str] = "Data Type"
+    DATA_TYPE_COLUMN: ClassVar[str] = "data type"
     """Name of table column containing data type."""
 
     DTYPE: ClassVar[ibis.DataType] = "float32"
@@ -278,7 +293,7 @@ class Diagnostic(ABC):
                         self._get_metric_names(),
                         pd.Series(dtype=self.DTYPE),
                     ),
-                    self.DATA_NAME_COLUMN: pd.Series(dtype="str"),
+                    "to_benchmark": pd.Series(dtype="str"),
                     "reference": pd.Series(dtype="str"),
                 },
             ),
@@ -298,7 +313,7 @@ class Diagnostic(ABC):
                 {
                     "var_id": variable.id,
                     **self._get_metrics(cube, reference_cube),
-                    self.DATA_NAME_COLUMN: data_name,
+                    "to_benchmark": data_name,
                     "reference": self.reference_data[variable].name,
                 },
                 index=[0],
@@ -382,6 +397,7 @@ class Diagnostic(ABC):
         data_table = self._get_empty_data_table()
         metrics_table = self._get_empty_metrics_table()
         variables_table = self._get_variables_table()
+        data_sources_table = self._get_data_sources_table()
 
         for variable, other_datas in self.other_data.items():
             for other_data in other_datas:
@@ -427,6 +443,7 @@ class Diagnostic(ABC):
             data=data_table,
             metrics=metrics_table,
             variables=variables_table,
+            data_sources=data_sources_table,
         )
 
     def _get_output_of_reference_data(
@@ -437,12 +454,14 @@ class Diagnostic(ABC):
         data_table = self._get_empty_data_table()
         metrics_table = self._get_empty_metrics_table()  # will stay empty
         variables_table = self._get_variables_table()
+        data_sources_table = self._get_data_sources_table()
 
         if data_table is None:
             return DiagnosticOutput(
                 data=data_table,
                 metrics=metrics_table,
                 variables=variables_table,
+                data_sources=data_sources_table,
             )
 
         for variable, reference_cube in reference_cubes.items():
@@ -461,6 +480,7 @@ class Diagnostic(ABC):
             data=data_table,
             metrics=metrics_table,
             variables=variables_table,
+            data_sources=data_sources_table,
         )
 
     def _get_output_of_to_benchmark_data(
@@ -473,6 +493,7 @@ class Diagnostic(ABC):
         data_table = self._get_empty_data_table()
         metrics_table = self._get_empty_metrics_table()
         variables_table = self._get_variables_table()
+        data_sources_table = self._get_data_sources_table()
 
         for variable in self.variables:
             logger.debug(f"Loading {variable} of {data_name}")
@@ -513,6 +534,7 @@ class Diagnostic(ABC):
             data=data_table,
             metrics=metrics_table,
             variables=variables_table,
+            data_sources=data_sources_table,
         )
 
     @abstractmethod
@@ -545,6 +567,15 @@ class Diagnostic(ABC):
         cube = self._preprocess(cube)
         check_coordinates(cube, self.FINAL_COORDINATES)
         return cube
+
+    def _get_data_sources_table(self) -> ibis.Table:
+        """Get data sources table."""
+        unique_data_sources_info = {
+            d.information for d in self.reference_data.values()
+        } | {d.information for o in self.other_data.values() for d in o}
+        df = pd.DataFrame(unique_data_sources_info)
+        df["references"] = df["references"].map(" ".join)
+        return ibis.memtable(df)
 
     def _get_variables_table(self) -> ibis.Table:
         """Get variables table."""

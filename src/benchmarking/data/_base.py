@@ -35,9 +35,9 @@ logger = logger.opt(colors=True)
 class DataSourceInformation:
     """Manage data source information."""
 
+    name: str
     type: str
     institute: str
-    name: str
     exp: str
     variant: str
     references: tuple[str, ...]
