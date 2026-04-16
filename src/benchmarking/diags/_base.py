@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Literal
 
 import ibis
-import ibis.selectors
 import pandas as pd
 from esmvalcore.preprocessor import distance_metric
 from ibis import _
@@ -56,6 +55,8 @@ PLEV19_LEVELS: list[float] = [
 
 @dataclass(frozen=True, kw_only=True)
 class DiagnosticOutput:
+    """Manage diagnostic output."""
+
     data: ibis.Table | None
     metrics: ibis.Table | None
     variables: ibis.Table

@@ -6,7 +6,7 @@ from benchmarking.diags._annual_cycle import AnnualCycle
 from benchmarking.diags._annual_cycle_spatial_distribution import (
     AnnualCycleSpatialDistribution,
 )
-from benchmarking.diags._base import Diagnostic
+from benchmarking.diags._base import Diagnostic, DiagnosticOutput
 from benchmarking.diags._diurnal_cycle import DiurnalCycle
 from benchmarking.diags._map import Map
 from benchmarking.diags._timeseries import TimeSeries
@@ -17,6 +17,7 @@ __all__ = [
     "AnnualCycle",
     "AnnualCycleSpatialDistribution",
     "Diagnostic",
+    "DiagnosticOutput",
     "DiurnalCycle",
     "Map",
     "TimeSeries",
