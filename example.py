@@ -20,10 +20,14 @@ format_str = (
 logger.add(sys.stdout, level="DEBUG", format=format_str, colorize=True)
 
 variables = (
+    "clivi",
+    "clt",
+    "clwvi",
     "hfls",
     "hfss",
     "hus",
     "pr",
+    "prw",
     "rlut",
     "rlutcs",
     "rsdt",
