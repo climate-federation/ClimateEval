@@ -3,12 +3,12 @@ benchmarking.diags.AnnualCycle: &2d_variables
     var_name: clivi
     frequency: mon
     reference_data: benchmarking.data.ESACCICloud
-    # other_data: [benchmarking.data.ERA5]
+    other_data: [benchmarking.data.ERA5]
   clt:
     var_name: clt
     frequency: mon
     reference_data: benchmarking.data.ESACCICloud
-    # other_data: [benchmarking.data.ERA5]
+    other_data: [benchmarking.data.ERA5]
   clwvi:
     var_name: clt
     frequency: mon
@@ -33,13 +33,12 @@ benchmarking.diags.AnnualCycle: &2d_variables
     var_name: lwcre
     frequency: mon
     reference_data: benchmarking.data.CERESEBAF
-    # other_data: [benchmarking.data.ESACCICloud, benchmarking.data.ERA5]
-    other_data: [benchmarking.data.ESACCICloud]
+    other_data: [benchmarking.data.ESACCICloud, benchmarking.data.ERA5]
   lwp:
     var_name: lwp
     frequency: mon
     reference_data: benchmarking.data.ESACCICloud
-    # other_data: [benchmarking.data.ERA5]
+    other_data: [benchmarking.data.ERA5]
   pr:
     var_name: pr
     frequency: mon
@@ -54,8 +53,7 @@ benchmarking.diags.AnnualCycle: &2d_variables
     var_name: rlut
     frequency: mon
     reference_data: benchmarking.data.CERESEBAF
-    # other_data: [benchmarking.data.ESACCICloud, benchmarking.data.ERA5]
-    other_data: [benchmarking.data.ESACCICloud]
+    other_data: [benchmarking.data.ESACCICloud, benchmarking.data.ERA5]
   rsut:
     var_name: rsut
     frequency: mon
@@ -91,22 +89,22 @@ benchmarking.diags.AnnualCycle: &2d_variables
     frequency: mon
     reference_data: benchmarking.data.HadCRUT5
     other_data: [benchmarking.data.ERA5]
-  # ua200:
-  #   var_name: ua
-  #   frequency: mon
-  #   vertical_level:
-  #     coordinate_name: air_pressure
-  #     units: hPa
-  #     value: 200.0
-  #   reference_data: benchmarking.data.ERA5
-  # ua800:
-  #   var_name: ua
-  #   frequency: mon
-  #   vertical_level:
-  #     coordinate_name: air_pressure
-  #     units: hPa
-  #     value: 800.0
-  #   reference_data: benchmarking.data.ERA5
+  ua200:
+    var_name: ua
+    frequency: mon
+    vertical_level:
+      coordinate_name: air_pressure
+      units: hPa
+      value: 200.0
+    reference_data: benchmarking.data.ERA5
+  ua800:
+    var_name: ua
+    frequency: mon
+    vertical_level:
+      coordinate_name: air_pressure
+      units: hPa
+      value: 800.0
+    reference_data: benchmarking.data.ERA5
 
 benchmarking.diags.AnnualCycleSpatialDistribution: *2d_variables
 
@@ -117,10 +115,10 @@ benchmarking.diags.TimeSeries: *2d_variables
 benchmarking.diags.ZonalLine: *2d_variables
 
 benchmarking.diags.ZonalProfileAirPressure:
-  # cl:
-  #   var_name: cl
-  #   frequency: mon
-  #   reference_data: benchmarking.data.ERA5
+  cl:
+    var_name: cl
+    frequency: mon
+    reference_data: benchmarking.data.ERA5
   hus:
     var_name: hus
     frequency: mon
@@ -129,7 +127,7 @@ benchmarking.diags.ZonalProfileAirPressure:
     var_name: ta
     frequency: mon
     reference_data: benchmarking.data.ERA5
-  # ua:
-  #   var_name: ua
-  #   frequency: mon
-  #   reference_data: benchmarking.data.ERA5
+  ua:
+    var_name: ua
+    frequency: mon
+    reference_data: benchmarking.data.ERA5
