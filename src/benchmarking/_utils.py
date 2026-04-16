@@ -212,7 +212,7 @@ def _extract_level(cube: Cube, vertical_level: VerticalLevel) -> Cube:
 
 def _get_derived_cube(cubes: CubeList, variable: Variable) -> Cube:
     """Derive variable."""
-    logger.debug(f"Data for {variable} not found, trying derivation")
+    logger.debug(f"Deriving {variable}")
     cubes_for_derivation: CubeList = CubeList([])
     for required_variable in variable.get_required_variables():
         cubes_for_derivation.append(
