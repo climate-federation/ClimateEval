@@ -1,21 +1,12 @@
 from __future__ import annotations
 
 from importlib import resources
-import re
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 import yaml
 
-from benchmarking import Variable
-from benchmarking.data import DiagnosticData, HadCRUT5
-from benchmarking.diags import TimeSeries
 from benchmarking.suites import Suite
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from iris.cube import Cube
 
 
 @pytest.fixture
