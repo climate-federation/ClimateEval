@@ -1,4 +1,4 @@
-"""Provide timeseries diagnostics."""
+"""Provide annual cycle diagnostics."""
 
 from __future__ import annotations
 
