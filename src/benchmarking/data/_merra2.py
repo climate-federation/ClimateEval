@@ -15,6 +15,26 @@ if TYPE_CHECKING:
     from benchmarking import Variable
 
 
+VAR_TO_FILE: dict[str, str] = {
+    "evspsbl": "M2TMNXFLX.5.12.4",
+    "hfls": "M2TMNXFLX.5.12.4",
+    "hfss": "M2TMNXFLX.5.12.4",
+    "huss": "M2TMNXSLV.5.12.4",
+    "pr": "M2TMNXFLX.5.12.4",
+    "prc": "M2TMNXFLX.5.12.4",
+    "prsn": "M2TMNXFLX.5.12.4",
+    "prw": "M2TMNXSLV.5.12.4",
+    "ps": "M2TMNXSLV.5.12.4",
+    "psl": "M2TMNXSLV.5.12.4",
+    "tas": "M2TMNXSLV.5.12.4",
+    "tauu": "M2TMNXFLX.5.12.4",
+    "tauv": "M2TMNXFLX.5.12.4",
+    "ts": "M2TMNXSLV.5.12.4",
+    "uas": "M2TMNXSLV.5.12.4",
+    "vas": "M2TMNXSLV.5.12.4",
+}
+
+
 class MERRA2(DataSource):
     """Manage MERRA2 data."""
 
@@ -38,16 +58,7 @@ class MERRA2(DataSource):
         An account can be registered at https://urs.earthdata.nasa.gov/.
 
         """
-        supported_var_names = [
-            "evspsbl",
-            "hfls",
-            "hfss",
-            "pr",
-            "prc",
-            "prsn",
-            "tauu",
-            "tauv",
-        ]
+        supported_var_names = list(VAR_TO_FILE)
         self._check_supported_variables(variable, supported_var_names)
 
         # Raw downloaded data by ESMValTool will be stored in temporary
@@ -73,7 +84,9 @@ class MERRA2(DataSource):
         )
 
         for year in range(1980, 2022):
-            downloader.download_folder(f"{source}/M2TMNXFLX.5.12.4/{year}/")
+            downloader.download_folder(
+                f"{source}/{VAR_TO_FILE[variable.var_name]}/{year}/",
+            )
 
         return self._esmvaltool_cmorizer_format(
             data_root_dir,
