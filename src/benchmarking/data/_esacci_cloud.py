@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from benchmarking.data._base import DataSource
+from benchmarking.data._base import DataSource, DataSourceInformation
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,10 +15,14 @@ if TYPE_CHECKING:
 class ESACCICloud(DataSource):
     """Manage ESACCI-CLOUD data."""
 
-    def __init__(self) -> None:
-        """Initialize class instance."""
-        super().__init__()
-        self._name = "ESACCI-CLOUD"
+    _INFORMATION = DataSourceInformation(
+        type="observation",
+        institute="DWD",
+        name="ESACCI-CLOUD",
+        exp="",
+        variant="",
+        references=("https://doi.org/10.5676/DWD/ESA_Cloud_cci/AVHRR-PM/V003",),
+    )
 
     def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
         """Download data."""
@@ -40,4 +44,5 @@ class ESACCICloud(DataSource):
                 "rsus",
                 "rsuscs",
             ],
+            file_prefix_pattern="*_v3.0-AVHRR-AMPM_*",
         )

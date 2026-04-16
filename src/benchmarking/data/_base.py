@@ -9,7 +9,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import iris
 from esmvalcore.config import CFG
@@ -32,7 +32,21 @@ logger = logger.opt(colors=True)
 
 
 @dataclass(frozen=True, kw_only=True)
+class DataSourceInformation:
+    """Manage data source information."""
+
+    type: str
+    institute: str
+    name: str
+    exp: str
+    variant: str
+    references: tuple[str, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
 class DiagnosticData:
+    """Manage diagnostic data."""
+
     reference: type[DataSource]
     other: tuple[type[DataSource], ...] = ()
 
@@ -40,19 +54,17 @@ class DiagnosticData:
 class DataSource(ABC):
     """Manage data source."""
 
-    def __init__(self) -> None:
-        """Initialize class instance."""
-        self._name = self.__class__.__name__
+    _INFORMATION: ClassVar[DataSourceInformation]
+
+    @property
+    def information(self) -> DataSourceInformation:
+        """Get data source information."""
+        return self._INFORMATION
 
     @property
     def name(self) -> str:
-        """Get dataset name."""
-        return self._name
-
-    @name.setter
-    def name(self, value: str) -> None:
-        """Set dataset name."""
-        self._name = value
+        """Get data source name."""
+        return self.information.name
 
     @abstractmethod
     def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
@@ -117,7 +129,7 @@ class DataSource(ABC):
         https://docs.esmvaltool.org/en/latest/input.html#using-a-cmorizer-script.
 
         """
-        logger.debug(f"Formatting {self.name} data")
+        logger.debug(f"Formatting {self.name} data (this may take while...)")
 
         # Store all ESMValTool output in temporary directory and only save the
         # relevant files.
@@ -215,7 +227,6 @@ class DataSource(ABC):
         data_dir.mkdir(parents=True, exist_ok=True)
         output_path = data_dir / self._get_output_filename(cube, **facets)
         iris.save(cube, output_path)
-        logger.debug(f"Saved {output_path}")
         return [output_path]
 
     def _get_data_dir(self, data_root_dir: Path, var_name: str) -> Path:

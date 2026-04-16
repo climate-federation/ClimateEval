@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from esmvaltool.cmorizers.data.downloaders.wget import NASADownloader
 
-from benchmarking.data._base import DataSource
+from benchmarking.data._base import DataSource, DataSourceInformation
 
 if TYPE_CHECKING:
     from benchmarking import Variable
@@ -37,6 +37,18 @@ VAR_TO_FILE: dict[str, str] = {
 
 class MERRA2(DataSource):
     """Manage MERRA2 data."""
+
+    _INFORMATION = DataSourceInformation(
+        type="reanalysis",
+        institute="NASA GMAO",
+        name="MERRA2",
+        exp="",
+        variant="",
+        references=(
+            "https://doi.org/10.5067/0JRLVL8YV2Y4",
+            "https://doi.org/10.5067/AP1B0BA5PD2K",
+        ),
+    )
 
     def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
         """Download data.

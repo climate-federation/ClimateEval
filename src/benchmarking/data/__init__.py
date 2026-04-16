@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from benchmarking.data._base import DataSource, DiagnosticData
+from benchmarking.data._base import DataSource, DataSourceInformation, DiagnosticData
 from benchmarking.data._ceres_ebaf import CERESEBAF
 from benchmarking.data._era5 import ERA5
 from benchmarking.data._esacci_cloud import ESACCICloud
@@ -16,6 +16,7 @@ __all__ = [
     "GPCP",
     "MERRA2",
     "DataSource",
+    "DataSourceInformation",
     "DiagnosticData",
     "ESACCICloud",
     "HadCRUT5",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from benchmarking.data._base import DataSource
+from benchmarking.data._base import DataSource, DataSourceInformation
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,10 +15,14 @@ if TYPE_CHECKING:
 class CERESEBAF(DataSource):
     """Manage CERES-EBAF data."""
 
-    def __init__(self) -> None:
-        """Initialize class instance."""
-        super().__init__()
-        self._name = "CERES-EBAF"
+    _INFORMATION = DataSourceInformation(
+        type="observation",
+        institute="NASA-LaRC",
+        name="CERES-EBAF",
+        exp="",
+        variant="",
+        references=("https://doi.org/10.5067/TERRA-AQUA-NOAA20/CERES/EBAF_L3B004.2.1",),
+    )
 
     def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
         """Download data."""
@@ -27,7 +31,7 @@ class CERESEBAF(DataSource):
             variable,
             project="obs4MIPs",
             dataset="CERES-EBAF-4-2-1",
-            mip="Amon",
+            mip=variable.cmip6_table_id,
             short_name=variable.var_name,
             frequency=variable.frequency,
         )

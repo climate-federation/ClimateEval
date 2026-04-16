@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from benchmarking.data._base import DataSource
+from benchmarking.data._base import DataSource, DataSourceInformation
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,6 +15,18 @@ if TYPE_CHECKING:
 class GPCP(DataSource):
     """Manage GPCP data."""
 
+    _INFORMATION = DataSourceInformation(
+        type="observation",
+        institute="NASA-GSFC",
+        name="GPCP",
+        exp="",
+        variant="",
+        references=(
+            "https://doi.org/10.5067/MEASURES/GPCP/DATA306",
+            "https://doi.org/10.5067/MEASURES/GPCP/DATA307",
+        ),
+    )
+
     def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
         """Download data."""
         return self._esmvaltool_intake_download(
@@ -22,7 +34,7 @@ class GPCP(DataSource):
             variable,
             project="obs4MIPs",
             dataset="GPCP-3-3",
-            mip="Amon",
+            mip=variable.cmip6_table_id,
             short_name=variable.var_name,
             frequency=variable.frequency,
         )

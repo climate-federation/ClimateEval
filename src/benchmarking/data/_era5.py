@@ -10,7 +10,7 @@ import cdsapi
 import iris
 from esmvalcore.cmor.fix import fix_data, fix_metadata
 
-from benchmarking.data._base import DataSource
+from benchmarking.data._base import DataSource, DataSourceInformation
 
 if TYPE_CHECKING:
     from benchmarking import Variable
@@ -62,7 +62,6 @@ BASE: dict[str, Any] = {
     "month": MONTHS,
     "time": ["00:00"],
     "year": YEARS,
-    "cmip6_table_id": "Amon",  # for ESMValTool
 }
 REQUEST_SL: dict[str, Any] = {
     **BASE,
@@ -92,6 +91,18 @@ REQUEST_MAP: dict[str, Any] = {
 class ERA5(DataSource):
     """Manage ERA5 data."""
 
+    _INFORMATION = DataSourceInformation(
+        type="reanalysis",
+        institute="ECMWF",
+        name="ERA5",
+        exp="",
+        variant="",
+        references=(
+            "https://doi.org/10.24381/cds.f17050d7",
+            "https://doi.org/10.24381/cds.6860a573",
+        ),
+    )
+
     def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
         """Download data.
 
@@ -110,7 +121,6 @@ class ERA5(DataSource):
         request["data_format"] = "netcdf"
         request["download_format"] = "unarchived"
         dataset = request.pop("dataset")
-        cmip6_table_id = request.pop("cmip6_table_id")
 
         # Raw downloaded data will be stored in temporary directory. Our "raw"
         # data will be the formatted data by ESMValTool.
@@ -126,7 +136,6 @@ class ERA5(DataSource):
             tmp_target,
             variable,
             data_root_dir=data_root_dir,
-            cmip6_table_id=cmip6_table_id,
         )
 
         return [target]
@@ -137,13 +146,12 @@ class ERA5(DataSource):
         variable: Variable,
         *,
         data_root_dir: Path,
-        cmip6_table_id: str,
     ) -> Path:
         era5_facets = {
             "short_name": variable.var_name,
             "project": "native6",
             "dataset": self.name,
-            "mip": cmip6_table_id,
+            "mip": variable.cmip6_table_id,
             "frequency": variable.frequency,
         }
         cubes = iris.load(input_file)
