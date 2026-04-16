@@ -57,29 +57,35 @@ PRESSURE_LEVELS = [
     "1000",
 ]
 
-REQUEST_BASE: dict[str, Any] = {
+BASE: dict[str, Any] = {
     "product_type": ["monthly_averaged_reanalysis"],
     "month": MONTHS,
     "time": ["00:00"],
     "year": YEARS,
     "cmip6_table_id": "Amon",  # for ESMValTool
 }
-REQUEST_SINGLE_LEVELS: dict[str, Any] = {
-    **dict(REQUEST_BASE),
+REQUEST_SL: dict[str, Any] = {
+    **BASE,
     "dataset": "reanalysis-era5-single-levels-monthly-means",
 }
-REQUEST_PRESSURE_LEVELS: dict[str, Any] = {
-    **dict(REQUEST_BASE),
+REQUEST_PL: dict[str, Any] = {
+    **BASE,
     "dataset": "reanalysis-era5-pressure-levels-monthly-means",
     "pressure_level": PRESSURE_LEVELS,
 }
 REQUEST_MAP: dict[str, Any] = {
-    "hus": {**dict(REQUEST_PRESSURE_LEVELS), "variable": ["specific_humidity"]},
-    "pr": {**dict(REQUEST_SINGLE_LEVELS), "variable": ["total_precipitation"]},
-    "ta": {**dict(REQUEST_PRESSURE_LEVELS), "variable": ["temperature"]},
-    "tas": {**dict(REQUEST_SINGLE_LEVELS), "variable": ["2m_temperature"]},
-    "ua": {**dict(REQUEST_PRESSURE_LEVELS), "variable": ["u_component_of_wind"]},
-    "va": {**dict(REQUEST_PRESSURE_LEVELS), "variable": ["v_component_of_wind"]},
+    "clivi": {**REQUEST_SL, "variable": ["total_column_cloud_ice_water"]},
+    "clt": {**REQUEST_SL, "variable": ["total_cloud_cover"]},
+    "cl": {**REQUEST_PL, "variable": ["fraction_of_cloud_cover"]},
+    "hus": {**REQUEST_PL, "variable": ["specific_humidity"]},
+    "lwp": {**REQUEST_SL, "variable": ["total_column_cloud_liquid_water"]},
+    "pr": {**REQUEST_SL, "variable": ["total_precipitation"]},
+    "rlut": {**REQUEST_SL, "variable": ["top_net_thermal_radiation"]},
+    "rlutcs": {**REQUEST_SL, "variable": ["top_net_thermal_radiation_clear_sky"]},
+    "ta": {**REQUEST_PL, "variable": ["temperature"]},
+    "tas": {**REQUEST_SL, "variable": ["2m_temperature"]},
+    "ua": {**REQUEST_PL, "variable": ["u_component_of_wind"]},
+    "va": {**REQUEST_PL, "variable": ["v_component_of_wind"]},
 }
 
 
