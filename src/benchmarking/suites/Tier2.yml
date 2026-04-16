@@ -58,22 +58,24 @@ benchmarking.diags.AnnualCycle: &2d_variables
     frequency: mon
     reference_data: benchmarking.data.HadCRUT5
     other_data: [benchmarking.data.ERA5]
-  ua200:
-    var_name: ua
-    frequency: mon
-    vertical_level:
-      coordinate_name: air_pressure
-      units: hPa
-      value: 200.0
-    reference_data: benchmarking.data.ERA5
-  ua800:
-    var_name: ua
-    frequency: mon
-    vertical_level:
-      coordinate_name: air_pressure
-      units: hPa
-      value: 800.0
-    reference_data: benchmarking.data.ERA5
+  # ua200:
+  #   var_name: ua
+  #   frequency: mon
+  #   vertical_level:
+  #     coordinate_name: air_pressure
+  #     units: hPa
+  #     value: 200.0
+  #   reference_data: benchmarking.data.ERA5
+  # ua800:
+  #   var_name: ua
+  #   frequency: mon
+  #   vertical_level:
+  #     coordinate_name: air_pressure
+  #     units: hPa
+  #     value: 800.0
+  #   reference_data: benchmarking.data.ERA5
+
+benchmarking.diags.AnnualCycleSpatialDistribution: *2d_variables
 
 benchmarking.diags.Map: *2d_variables
 
@@ -90,7 +92,7 @@ benchmarking.diags.ZonalProfileAirPressure:
     var_name: ta
     frequency: mon
     reference_data: benchmarking.data.ERA5
-  ua:
-    var_name: ua
-    frequency: mon
-    reference_data: benchmarking.data.ERA5
+  # ua:
+  #   var_name: ua
+  #   frequency: mon
+  #   reference_data: benchmarking.data.ERA5
