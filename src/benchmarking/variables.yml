@@ -30,6 +30,12 @@ clw:
   realm: atmos
   standard_name: mass_fraction_of_cloud_liquid_water_in_air
   units: kg kg-1
+clwvi:
+  coordinates: [time, lat, lon]
+  long_name: Condensed Water Path
+  realm: atmos
+  standard_name: atmosphere_mass_content_of_cloud_condensed_water
+  units: kg m-2
 evspsbl:
   coordinates: [time, lat, lon]
   long_name: Evaporation Including Sublimation and Transpiration
