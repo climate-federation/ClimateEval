@@ -16,9 +16,9 @@ class HadCRUT5(DataSource):
     """Manage HadCRUT5 data."""
 
     _INFORMATION = DataSourceInformation(
+        name="HadCRUT5",
         type="observation",
         institute="Met Office Hadley Centre",
-        name="HadCRUT5",
         exp="",
         variant="",
         references=("https://doi.org/10.1029/2019JD032361",),

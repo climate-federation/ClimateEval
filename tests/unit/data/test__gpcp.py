@@ -13,9 +13,9 @@ def data_source() -> GPCP:
 def test_data_source(data_source: GPCP) -> None:
     assert data_source.name == "GPCP"
     assert data_source.information == DataSourceInformation(
+        name="GPCP",
         type="observation",
         institute="NASA-GSFC",
-        name="GPCP",
         exp="",
         variant="",
         references=(

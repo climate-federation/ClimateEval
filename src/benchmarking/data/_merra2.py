@@ -39,9 +39,9 @@ class MERRA2(DataSource):
     """Manage MERRA2 data."""
 
     _INFORMATION = DataSourceInformation(
+        name="MERRA2",
         type="reanalysis",
         institute="NASA GMAO",
-        name="MERRA2",
         exp="",
         variant="",
         references=(

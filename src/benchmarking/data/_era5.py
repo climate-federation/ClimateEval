@@ -92,9 +92,9 @@ class ERA5(DataSource):
     """Manage ERA5 data."""
 
     _INFORMATION = DataSourceInformation(
+        name="ERA5",
         type="reanalysis",
         institute="ECMWF",
-        name="ERA5",
         exp="",
         variant="",
         references=(

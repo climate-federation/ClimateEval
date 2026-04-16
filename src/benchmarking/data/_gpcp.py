@@ -16,9 +16,9 @@ class GPCP(DataSource):
     """Manage GPCP data."""
 
     _INFORMATION = DataSourceInformation(
+        name="GPCP",
         type="observation",
         institute="NASA-GSFC",
-        name="GPCP",
         exp="",
         variant="",
         references=(

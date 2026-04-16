@@ -16,9 +16,9 @@ class CERESEBAF(DataSource):
     """Manage CERES-EBAF data."""
 
     _INFORMATION = DataSourceInformation(
+        name="CERES-EBAF",
         type="observation",
         institute="NASA-LaRC",
-        name="CERES-EBAF",
         exp="",
         variant="",
         references=("https://doi.org/10.5067/TERRA-AQUA-NOAA20/CERES/EBAF_L3B004.2.1",),

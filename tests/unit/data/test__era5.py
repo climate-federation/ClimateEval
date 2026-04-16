@@ -13,9 +13,9 @@ def data_source() -> ERA5:
 def test_data_source(data_source: ERA5) -> None:
     assert data_source.name == "ERA5"
     assert data_source.information == DataSourceInformation(
+        name="ERA5",
         type="reanalysis",
         institute="ECMWF",
-        name="ERA5",
         exp="",
         variant="",
         references=(
