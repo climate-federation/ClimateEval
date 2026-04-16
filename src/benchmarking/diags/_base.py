@@ -293,7 +293,7 @@ class Diagnostic(ABC):
                         self._get_metric_names(),
                         pd.Series(dtype=self.DTYPE),
                     ),
-                    "to_benchmark": pd.Series(dtype="str"),
+                    self.DATA_NAME_COLUMN: pd.Series(dtype="str"),
                     "reference": pd.Series(dtype="str"),
                 },
             ),
@@ -313,7 +313,7 @@ class Diagnostic(ABC):
                 {
                     "var_id": variable.id,
                     **self._get_metrics(cube, reference_cube),
-                    "to_benchmark": data_name,
+                    self.DATA_NAME_COLUMN: data_name,
                     "reference": self.reference_data[variable].name,
                 },
                 index=[0],
