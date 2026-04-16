@@ -123,8 +123,6 @@ class Diagnostic(ABC):
             _other_data[variable] = val
         self._other_data = _other_data
 
-        self._tags = self._get_tags()
-
         self._fail_on_missing_data = fail_on_missing_data
 
     @property
@@ -151,11 +149,6 @@ class Diagnostic(ABC):
     def other_data(self) -> dict[Variable, tuple[DataSource, ...]]:
         """Get other data."""
         return self._other_data
-
-    @property
-    def tags(self) -> tuple[str, ...]:
-        """Get tags."""
-        return self._tags
 
     @property
     def variables(self) -> list[Variable]:
@@ -474,14 +467,6 @@ class Diagnostic(ABC):
             variables=variables_table,
         )
 
-    def _get_tags(self) -> tuple[str, ...]:
-        """Get diagnostic tags."""
-        tags: list[str] = []
-        tags.append(self.name.lower())
-        tags.extend(v.var_name for v in self.variables)
-        tags.extend(v.realm for v in self.variables)
-        return tuple(sorted(set(tags)))
-
     @abstractmethod
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess cube."""
@@ -491,10 +476,10 @@ class Diagnostic(ABC):
 
         Note
         ----
-        Currently, we first add NaNs and then remove it again. The reason is
-        that the logic is simply and the code robust. There are certainly
-        smarter and more efficient ways to do this, but since our tables are
-        usually quite small, it's probably not necessary.
+        Currently, we first add NaNs and then remove it again. The reason for
+        this is that the logic is simple and the code robust. There are
+        certainly smarter and more efficient ways to do this, but since our
+        tables are usually quite small, it's probably not necessary.
 
         """
         unique_columns = (

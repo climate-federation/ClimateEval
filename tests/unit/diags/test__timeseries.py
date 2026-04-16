@@ -27,10 +27,6 @@ def test__safely_preprocess(diagnostic: TimeSeries, cube_2d: Cube) -> None:
     diagnostic._safely_preprocess(cube_2d)
 
 
-def test_tags(diagnostic: TimeSeries) -> None:
-    assert diagnostic.tags == ("atmosphere", "pr", "tas", "timeseries")
-
-
 def test_non_unique_variables_fail(data_dir: Path) -> None:
     var_1 = Variable("tas", "tas", "mon")
     var_2 = Variable("tas", "tas", "day")
