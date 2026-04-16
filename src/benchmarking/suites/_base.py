@@ -71,11 +71,14 @@ class Suite:
             connection.create_database(diagnostic.name)
             for output_field in fields(output):
                 table_name = output_field.name
-                connection.create_table(
-                    table_name,
-                    getattr(output, table_name),
-                    database=diagnostic.name,
-                )
+                table = getattr(output, table_name)
+                if table is None:
+                    logger.debug(
+                        f"Table '{table_name}' of diagnostic {diagnostic.name} "
+                        f"within suite {self.name} contains no data",
+                    )
+                    continue
+                connection.create_table(table_name, table, database=diagnostic.name)
             logger.info(
                 f"Created database for diagnostic {diagnostic.name} within suite "
                 f"{self.name} at {database_resource}",

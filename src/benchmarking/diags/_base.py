@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -13,6 +14,7 @@ import pandas as pd
 from esmvalcore.preprocessor import distance_metric
 from ibis import _
 from iris.pandas import as_data_frame
+from iris.warnings import IrisVagueMetadataWarning
 from loguru import logger
 
 from benchmarking import NO_LEVEL
@@ -54,8 +56,8 @@ PLEV19_LEVELS: list[float] = [
 
 @dataclass(frozen=True, kw_only=True)
 class DiagnosticOutput:
-    data: ibis.Table
-    metrics: ibis.Table
+    data: ibis.Table | None
+    metrics: ibis.Table | None
     variables: ibis.Table
 
     @classmethod
@@ -65,23 +67,49 @@ class DiagnosticOutput:
         perform_variables_union: bool = False,
     ) -> DiagnosticOutput:
         """Create union of output."""
-        data_union = ibis.union(*(o.data for o in diagnostic_output))
-        metrics_union = ibis.union(*(o.metrics for o in diagnostic_output))
+        # data
+        all_data = [o.data for o in diagnostic_output]
+        if None in all_data and not all(d is None for d in all_data):
+            msg = "Table 'data' must be None for either all or no diagnostics"
+            raise ValueError(msg)
+        data_union = None if None in all_data else ibis.union(*all_data)
+
+        # metrics
+        all_metrics = [o.metrics for o in diagnostic_output]
+        if None in all_metrics and not all(d is None for d in all_metrics):
+            msg = "Table 'metrics' must be None for either all or no diagnostics"
+            raise ValueError(msg)
+        metrics_union = None if None in all_metrics else ibis.union(*all_metrics)
+
+        # variables
         if perform_variables_union:
             variables_union = ibis.union(*(o.variables for o in diagnostic_output))
         else:
             variables_union = diagnostic_output[0].variables
+
         return cls(data=data_union, metrics=metrics_union, variables=variables_union)
 
 
 class Diagnostic(ABC):
     """Manage diagnostics."""
 
-    DATASET_COLUMN: ClassVar[str] = "Dataset"
+    DATA_NAME_COLUMN: ClassVar[str] = "Dataset"
+    """Name of table column containing data name."""
+
     DATA_TYPE_COLUMN: ClassVar[str] = "Data Type"
+    """Name of table column containing data type."""
+
     DTYPE: ClassVar[ibis.DataType] = "float32"
+    """Data type of variables."""
+
     FINAL_COORDINATES: ClassVar[tuple[Coordinate, ...]] = ()
     """Coordinates of preprocessed output."""
+
+    OUTPUT_DATA_TABLE: ClassVar[bool] = True
+    """Output diagnostic data when creating database."""
+
+    OUTPUT_METRICS_TABLE: ClassVar[bool] = True
+    """Output metrics data when creating database."""
 
     def __init__(
         self,
@@ -170,6 +198,7 @@ class Diagnostic(ABC):
 
         """
         # Load reference cubes
+        logger.debug("Loading reference data")
         reference_cubes: dict[Variable, Cube] = {}
         for variable, reference_data in self.reference_data.items():
             try:
@@ -187,12 +216,12 @@ class Diagnostic(ABC):
                 continue
             reference_cubes[variable] = reference_cube
 
-        # Load cube data ahead to avoid potential bug in ESMValCore (see
-        # https://github.com/ESMValGroup/ESMValCore/pull/3038)
-        for cube in reference_cubes.values():
-            cube.data  # noqa: B018
+            # Load cube data ahead to avoid potential bug in ESMValCore (see
+            # https://github.com/ESMValGroup/ESMValCore/pull/3038)
+            reference_cube.data  # noqa: B018
 
         # Process data to benchmark
+        logger.debug("Loading to_benchmark data")
         diagnostic_output = self._get_output_of_to_benchmark_data(
             data,
             data_name,
@@ -200,6 +229,7 @@ class Diagnostic(ABC):
         )
 
         # Process other data
+        logger.debug("Loading other data")
         other_output = self._get_output_of_other_data(reference_cubes)
         diagnostic_output = DiagnosticOutput.union(diagnostic_output, other_output)
 
@@ -209,12 +239,15 @@ class Diagnostic(ABC):
 
         return diagnostic_output  # noqa: RET504
 
-    def _get_empty_data_table(self) -> ibis.Table:
+    def _get_empty_data_table(self) -> ibis.Table | None:
         """Get empty data table with correct schema."""
+        if not self.OUTPUT_DATA_TABLE:
+            return None
+
         data_table = ibis.memtable(
             pd.DataFrame(
                 {
-                    self.DATASET_COLUMN: pd.Series(dtype="str"),
+                    self.DATA_NAME_COLUMN: pd.Series(dtype="str"),
                     self.DATA_TYPE_COLUMN: pd.Series(dtype="str"),
                     **dict.fromkeys(
                         self.final_coordinate_names,
@@ -231,8 +264,11 @@ class Diagnostic(ABC):
             data_table = data_table.cast(time="timestamp")
         return data_table
 
-    def _get_empty_metrics_table(self) -> ibis.Table:
+    def _get_empty_metrics_table(self) -> ibis.Table | None:
         """Get empty metrics table with correct schema."""
+        if not self.OUTPUT_METRICS_TABLE:
+            return None
+
         return ibis.memtable(
             pd.DataFrame(
                 {
@@ -241,7 +277,7 @@ class Diagnostic(ABC):
                         self._get_metric_names(),
                         pd.Series(dtype=self.DTYPE),
                     ),
-                    self.DATASET_COLUMN: pd.Series(dtype="str"),
+                    self.DATA_NAME_COLUMN: pd.Series(dtype="str"),
                     "reference": pd.Series(dtype="str"),
                 },
             ),
@@ -261,7 +297,7 @@ class Diagnostic(ABC):
                 {
                     "var_id": variable.id,
                     **self._get_metrics(cube, reference_cube),
-                    self.DATASET_COLUMN: data_name,
+                    self.DATA_NAME_COLUMN: data_name,
                     "reference": self.reference_data[variable].name,
                 },
                 index=[0],
@@ -279,7 +315,7 @@ class Diagnostic(ABC):
             )
             data_table = data_table.cast(**dict.fromkeys(missing_columns, self.DTYPE))
         new_col_order = (
-            self.DATASET_COLUMN,
+            self.DATA_NAME_COLUMN,
             self.DATA_TYPE_COLUMN,
             *self.final_coordinate_names,
             *sorted(v.id for v in self.variables),
@@ -309,7 +345,9 @@ class Diagnostic(ABC):
         }
         data_table = data_table.cast(**cast_operations)
         data_table = data_table.rename(**{variable.id: cube.name()})
-        data_table = data_table.mutate(**{self.DATASET_COLUMN: ibis.literal(data_name)})
+        data_table = data_table.mutate(
+            **{self.DATA_NAME_COLUMN: ibis.literal(data_name)},
+        )
         data_table = data_table.mutate(
             **{self.DATA_TYPE_COLUMN: ibis.literal(data_type)},
         )
@@ -323,9 +361,16 @@ class Diagnostic(ABC):
         """Get metrics."""
         metrics: dict[str, float] = {}
         for metric in self._get_metric_names():
-            metrics[metric] = float(
-                distance_metric([cube], metric, reference=reference_cube)[0].data,
-            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r"Cannot check if coordinate is contiguous: .*",
+                    category=IrisVagueMetadataWarning,
+                    module="iris",
+                )
+                metrics[metric] = float(
+                    distance_metric([cube], metric, reference=reference_cube)[0].data,
+                )
         return metrics
 
     def _get_output_of_other_data(
@@ -335,6 +380,7 @@ class Diagnostic(ABC):
         """Get output of other data."""
         data_table = self._get_empty_data_table()
         metrics_table = self._get_empty_metrics_table()
+        variables_table = self._get_variables_table()
 
         for variable, other_datas in self.other_data.items():
             for other_data in other_datas:
@@ -353,29 +399,28 @@ class Diagnostic(ABC):
                     continue
 
                 # Expand table
-                new_data_table = self._get_data_table_of_cube(
-                    other_cube,
-                    variable=variable,
-                    data_name=other_data.name,
-                    data_type="other",
-                )
-                data_table = ibis.union(data_table, new_data_table)
+                if self.OUTPUT_DATA_TABLE:
+                    new_data_table = self._get_data_table_of_cube(
+                        other_cube,
+                        variable=variable,
+                        data_name=other_data.name,
+                        data_type="other",
+                    )
+                    data_table = ibis.union(data_table, new_data_table)
 
                 # Expand metrics
-                if variable not in reference_cubes:
-                    continue
-                new_metrics_table = self._get_metrics_table(
-                    other_cube,
-                    reference_cubes[variable],
-                    variable=variable,
-                    data_name=other_data.name,
-                )
-                metrics_table = ibis.union(metrics_table, new_metrics_table)
+                if self.OUTPUT_METRICS_TABLE and variable in reference_cubes:
+                    new_metrics_table = self._get_metrics_table(
+                        other_cube,
+                        reference_cubes[variable],
+                        variable=variable,
+                        data_name=other_data.name,
+                    )
+                    metrics_table = ibis.union(metrics_table, new_metrics_table)
 
         # Drop superfluous rows by removing NaN entries
-        data_table = self._remove_superfluous_rows(data_table)
-
-        variables_table = self._get_variables_table()
+        if data_table is not None:
+            data_table = self._remove_superfluous_rows(data_table)
 
         return DiagnosticOutput(
             data=data_table,
@@ -390,6 +435,14 @@ class Diagnostic(ABC):
         """Get output of other data."""
         data_table = self._get_empty_data_table()
         metrics_table = self._get_empty_metrics_table()  # will stay empty
+        variables_table = self._get_variables_table()
+
+        if data_table is None:
+            return DiagnosticOutput(
+                data=data_table,
+                metrics=metrics_table,
+                variables=variables_table,
+            )
 
         for variable, reference_cube in reference_cubes.items():
             new_data_table = self._get_data_table_of_cube(
@@ -402,8 +455,6 @@ class Diagnostic(ABC):
 
         # Drop superfluous rows by removing NaN entries
         data_table = self._remove_superfluous_rows(data_table)
-
-        variables_table = self._get_variables_table()
 
         return DiagnosticOutput(
             data=data_table,
@@ -420,6 +471,7 @@ class Diagnostic(ABC):
         """Get output of data to benchmark."""
         data_table = self._get_empty_data_table()
         metrics_table = self._get_empty_metrics_table()
+        variables_table = self._get_variables_table()
 
         for variable in self.variables:
             logger.debug(f"Loading {variable} of {data_name}")
@@ -433,29 +485,28 @@ class Diagnostic(ABC):
                 continue
 
             # Expand table
-            new_data_table = self._get_data_table_of_cube(
-                cube,
-                variable=variable,
-                data_name=data_name,
-                data_type="to_benchmark",
-            )
-            data_table = ibis.union(data_table, new_data_table)
+            if self.OUTPUT_DATA_TABLE:
+                new_data_table = self._get_data_table_of_cube(
+                    cube,
+                    variable=variable,
+                    data_name=data_name,
+                    data_type="to_benchmark",
+                )
+                data_table = ibis.union(data_table, new_data_table)
 
             # Expand metrics
-            if variable not in reference_cubes:
-                continue
-            new_metrics_table = self._get_metrics_table(
-                cube,
-                reference_cubes[variable],
-                variable=variable,
-                data_name=data_name,
-            )
-            metrics_table = ibis.union(metrics_table, new_metrics_table)
+            if self.OUTPUT_METRICS_TABLE and variable in reference_cubes:
+                new_metrics_table = self._get_metrics_table(
+                    cube,
+                    reference_cubes[variable],
+                    variable=variable,
+                    data_name=data_name,
+                )
+                metrics_table = ibis.union(metrics_table, new_metrics_table)
 
         # Drop superfluous rows by removing NaN entries
-        data_table = self._remove_superfluous_rows(data_table)
-
-        variables_table = self._get_variables_table()
+        if data_table is not None:
+            data_table = self._remove_superfluous_rows(data_table)
 
         return DiagnosticOutput(
             data=data_table,
@@ -479,7 +530,7 @@ class Diagnostic(ABC):
 
         """
         unique_columns = (
-            self.DATASET_COLUMN,
+            self.DATA_NAME_COLUMN,
             self.DATA_TYPE_COLUMN,
             *self.final_coordinate_names,
         )
