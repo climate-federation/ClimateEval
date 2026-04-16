@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 class GPCP(DataSource):
     """Manage GPCP data."""
 
-    def _download(self, variable: Variable) -> list[Path]:
+    def download(self, variable: Variable) -> list[Path]:
         """Download data."""
         return self._esmvaltool_intake_download(
             variable,

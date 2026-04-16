@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 class HadCRUT5(DataSource):
     """Manage HadCRUT5 data."""
 
-    def _download(self, variable: Variable) -> list[Path]:
+    def download(self, variable: Variable) -> list[Path]:
         """Download data."""
         return self._esmvaltool_cmorizer_prepare(
             variable,

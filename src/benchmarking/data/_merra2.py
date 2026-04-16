@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class MERRA2(DataSource):
     """Manage MERRA2 data."""
 
-    def _download(self, variable: Variable) -> list[Path]:
+    def download(self, variable: Variable) -> list[Path]:
         """Download data.
 
         Note
@@ -75,4 +75,8 @@ class MERRA2(DataSource):
         for year in range(1980, 2022):
             downloader.download_folder(f"{source}/M2TMNXFLX.5.12.4/{year}/")
 
-        return self._esmvaltool_cmorizer_format(download_dir=tmp_dir, tier=tier)
+        return self._esmvaltool_cmorizer_format(
+            variable,
+            download_dir=tmp_dir,
+            tier=tier,
+        )

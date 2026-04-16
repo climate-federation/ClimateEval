@@ -20,7 +20,7 @@ class CERESEBAF(DataSource):
         super().__init__(data_dir)
         self._name = "CERES-EBAF"
 
-    def _download(self, variable: Variable) -> list[Path]:
+    def download(self, variable: Variable) -> list[Path]:
         """Download data."""
         return self._esmvaltool_intake_download(
             variable,

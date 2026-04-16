@@ -59,6 +59,10 @@ class DataSource(ABC):
         """Set dataset name."""
         self._name = value
 
+    @abstractmethod
+    def download(self, variable: Variable) -> list[Path]:
+        """Download data."""
+
     def get_cube(self, variable: Variable) -> CubeList:
         """Get data cube."""
         logger.debug(f"Loading {variable} of {self.name}")
@@ -74,7 +78,7 @@ class DataSource(ABC):
                     logger.debug(
                         f"Trying downloading {self.name}",
                     )
-                    paths_for_required_variable = self._download(required_variable)
+                    paths_for_required_variable = self.download(required_variable)
                     logger.info(
                         f"Downloaded {self.name}:\n"
                         f"{pformat(paths_for_required_variable)}",
@@ -96,12 +100,9 @@ class DataSource(ABC):
             msg = f"{self.name} does not provide variable '{variable.var_name}'"
             raise ValueError(msg)
 
-    @abstractmethod
-    def _download(self, variable: Variable) -> list[Path]:
-        """Download data."""
-
     def _esmvaltool_cmorizer_format(
         self,
+        variable: Variable,
         *,
         download_dir: Path,
         file_prefix_pattern: str = "*",
@@ -131,10 +132,13 @@ class DataSource(ABC):
         )
 
         # Save all downloaded variables (there might be more than the one
-        # requested; this will potentially save lots of time)
+        # requested; this will potentially save lots of time), but do not
+        # overwrite existing other variables
         for raw_file in raw_files:
             var_name = raw_file.stem.split("_")[-2]
             data_dir = self._get_data_dir(var_name)
+            if var_name != variable.var_name and data_dir.is_dir():
+                continue
             data_dir.mkdir(parents=True, exist_ok=True)
             shutil.move(raw_file, data_dir / raw_file.name)
         return list((self.data_dir / self.name).rglob("*.nc"))
@@ -160,10 +164,13 @@ class DataSource(ABC):
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
         tmp_dir.mkdir(parents=True, exist_ok=True)
 
-        # Download and format data
+        # Download data
         with CFG.context(output_dir=tmp_dir):
             DataCommand().download(self.name, original_data_dir=tmp_dir)
+
+        # Format data
         return self._esmvaltool_cmorizer_format(
+            variable,
             download_dir=tmp_dir,
             file_prefix_pattern=file_prefix_pattern,
             tier=tier,

@@ -86,7 +86,7 @@ REQUEST_MAP: dict[str, Any] = {
 class ERA5(DataSource):
     """Manage ERA5 data."""
 
-    def _download(self, variable: Variable) -> list[Path]:
+    def download(self, variable: Variable) -> list[Path]:
         """Download data.
 
         Note
