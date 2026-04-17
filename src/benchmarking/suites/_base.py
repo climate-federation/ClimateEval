@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from iris.cube import CubeList
     from xarray import Dataset
 
+    from benchmarking.data import DataSourceInformation
     from benchmarking.diags import Diagnostic
 
 logger = logger.opt(colors=True)
@@ -53,7 +54,7 @@ class Suite:
     def get_database(
         self,
         data: CubeList | Dataset,
-        data_name: str,
+        data_information: DataSourceInformation,
         *,
         database_resource: str = "duckdb://",
         **database_kwargs: Any,
@@ -67,7 +68,7 @@ class Suite:
             logger.info(
                 f"Processing diagnostic {diagnostic.name} within suite {self.name}",
             )
-            output = diagnostic.get_output(data, data_name)
+            output = diagnostic.get_output(data, data_information)
             connection.create_database(diagnostic.name)
             for output_field in fields(output):
                 table_name = output_field.name

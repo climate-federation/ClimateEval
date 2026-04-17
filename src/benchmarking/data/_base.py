@@ -46,7 +46,7 @@ class DataSourceInformation:
 
     def __post_init__(self) -> None:
         """Initialize class instance."""
-        id_fields = ("category", "institute", "name", "exp", "variant")
+        id_fields = ("category", "name", "exp", "variant")
 
         id_fields_vals = [
             getattr(self, f).replace(" ", "-")
@@ -55,7 +55,7 @@ class DataSourceInformation:
         ]
 
         # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
-        object.__setattr__(self, "id", ".".join(id_fields_vals))
+        object.__setattr__(self, "id", "_".join(id_fields_vals))
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -92,32 +92,50 @@ class DataSource(ABC):
 
     def get_cube(self, data_root_dir: Path, variable: Variable) -> CubeList:
         """Get data cube."""
-        logger.debug(f"Loading {variable} of {self.name}")
+        logger.debug(f"Loading {variable} of {self.id}")
         paths: list[Path] = list(
             self._get_data_dir(data_root_dir, variable.var_name).glob("*.nc"),
         )
-        if not paths:
-            logger.debug(f"No data found for {variable}, trying required variables")
-            for required_variable in variable.get_required_variables():
-                paths_for_required_variable = list(
-                    self._get_data_dir(data_root_dir, required_variable.var_name).glob(
-                        "*.nc",
-                    ),
+        if paths:
+            return get_prepared_cube(iris.load(paths), variable)
+
+        logger.debug(f"No data found for {variable} of {self.id}")
+
+        # Check if variable can be derived from existing data
+        if variable.derived:
+            paths = self._get_paths_of_required_variables(data_root_dir, variable)
+            if paths:
+                logger.debug(
+                    f"Found required variables to derive {variable} of {self.id}",
                 )
-                if not paths_for_required_variable:
-                    logger.debug(f"No data found for {required_variable}")
-                    logger.debug(
-                        f"Trying downloading {required_variable} of {self.name}",
-                    )
-                    paths_for_required_variable = self.download(
-                        data_root_dir,
-                        required_variable,
-                    )
-                    logger.info(
-                        f"Downloaded {self.name}:\n"
-                        f"{pformat(paths_for_required_variable)}",
-                    )
-                paths.extend(paths_for_required_variable)
+                return get_prepared_cube(iris.load(paths), variable)
+
+        # Try downloading the variable
+        logger.debug(f"Trying downloading {variable} of {self.id}")
+        error_msg = ""
+        try:
+            paths = self.download(data_root_dir, variable)
+        except Exception as exc:
+            if not variable.derived:
+                msg = f"Downloading {variable} of {self.id} failed: {exc}"
+                raise ValueError(msg) from exc
+            error_msg = f": {exc}"
+        if paths:
+            logger.info(f"Downloaded {self.id}:\n{pformat(paths)}")
+            return get_prepared_cube(iris.load(paths), variable)
+
+        logger.debug(
+            f"Failed to download derived variable {variable} of {self.id}{error_msg}",
+        )
+
+        # Try downloading required variables
+        get_required_variables = variable.get_required_variables()
+        logger.debug(f"Trying required variables {get_required_variables}")
+        paths = self._get_paths_of_required_variables(
+            data_root_dir,
+            variable,
+            download=True,
+        )
         cubes = iris.load(paths)
         return get_prepared_cube(cubes, variable)
 
@@ -131,7 +149,7 @@ class DataSource(ABC):
             supported_var_names is not None
             and variable.var_name not in supported_var_names
         ):
-            msg = f"{self.name} does not provide variable '{variable.var_name}'"
+            msg = f"{self.id} does not provide variable '{variable.var_name}'"
             raise ValueError(msg)
 
     def _esmvaltool_cmorizer_format(
@@ -149,7 +167,7 @@ class DataSource(ABC):
         https://docs.esmvaltool.org/en/latest/input.html#using-a-cmorizer-script.
 
         """
-        logger.debug(f"Formatting {self.name} data (this may take while...)")
+        logger.debug(f"Formatting {self.id} data (this may take while...)")
 
         # Store all ESMValTool output in temporary directory and only save the
         # relevant files.
@@ -179,7 +197,7 @@ class DataSource(ABC):
             # Do not overwrite existing other variables
             if var_name != variable.var_name and list(data_dir.glob("*.nc")):
                 continue
-            logger.debug(f"Downloaded and formatted '{var_name}' of {self.name}")
+            logger.debug(f"Downloaded and formatted '{var_name}' of {self.id}")
             data_dir.mkdir(parents=True, exist_ok=True)
 
             for var_file in var_files:
@@ -251,7 +269,7 @@ class DataSource(ABC):
 
     def _get_data_dir(self, data_root_dir: Path, var_name: str) -> Path:
         """Get data- and variable-specific subdirectory."""
-        return data_root_dir / self.name / var_name
+        return data_root_dir / self.id / var_name
 
     def _get_output_filename(self, cube: Cube, **facets: Any) -> str:
         """Get output file name."""
@@ -267,3 +285,36 @@ class DataSource(ABC):
             suffix = f"_{start_date}-{end_date}{suffix}"
         prefix = "_".join(str(facet_value) for facet_value in facets.values())
         return f"{prefix}{suffix}"
+
+    def _get_paths_of_required_variables(
+        self,
+        data_root_dir: Path,
+        variable: Variable,
+        *,
+        download: bool = False,
+    ) -> list[Path]:
+        """Get paths of required variables."""
+        paths: list[Path] = []
+        for required_variable in variable.get_required_variables():
+            paths_for_required_variable = list(
+                self._get_data_dir(data_root_dir, required_variable.var_name).glob(
+                    "*.nc",
+                ),
+            )
+            if not paths_for_required_variable:
+                # Do not return any paths if not all required variables are
+                # available
+                if not download:
+                    return []
+
+                # Download
+                paths_for_required_variable = self.download(
+                    data_root_dir,
+                    required_variable,
+                )
+                logger.info(
+                    f"Downloaded {self.id}:\n{pformat(paths_for_required_variable)}",
+                )
+
+            paths.extend(paths_for_required_variable)
+        return paths

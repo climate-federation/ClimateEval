@@ -19,8 +19,8 @@ def test_data_source_information_defaults() -> None:
 @pytest.mark.parametrize(
     ("data_source_information", "id_"),
     [
-        (DataSourceInformation(name="N A M E", category="C"), "C.N-A-M-E"),
-        (DataSourceInformation(name="N", category="C", institute="I N"), "C.I-N.N"),
+        (DataSourceInformation(name="N A M E", category="C"), "C_N-A-M-E"),
+        (DataSourceInformation(name="N", category="C", exp="E X P"), "C_N_E-X-P"),
         (
             DataSourceInformation(
                 name="N",
@@ -28,8 +28,9 @@ def test_data_source_information_defaults() -> None:
                 institute="I",
                 exp="E",
                 variant="V",
+                references=("REFERENCE1", "REFERENCE2"),
             ),
-            "C.I.N.E.V",
+            "C_N_E_V",
         ),
     ],
 )
