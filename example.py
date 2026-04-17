@@ -9,6 +9,7 @@ from pathlib import Path
 import iris
 from loguru import logger
 
+from benchmarking.data import DataSourceInformation
 from benchmarking.suites import Suite
 
 logger = logger.opt(colors=True)
@@ -47,10 +48,21 @@ with warnings.catch_warnings():
     cubes = iris.load(paths)
 
 
-data_root_dir = Path("/work/bd0854/b309141/benchmarking_input/data")
+data_root_dir = Path("/work/bd1179/b309141/benchmarking_input")
 db_path = Path("benchmarking.ddb")
 if db_path.is_file():
     db_path.unlink()
+
+data_info = DataSourceInformation(
+    name="MPI-ESM1-2-LR",
+    category="CMIP6 model",
+    institute="MPI-M",
+    exp="historical",
+    variant="r1i1p1f1",
+    references=(
+        "https://www.wdc-climate.de/ui/cmip6?input=CMIP6.CMIP.MPI-M.MPI-ESM1-2-LR",
+    ),
+)
 
 suite = Suite(
     "Tier2",
@@ -62,5 +74,5 @@ suite = Suite(
         "timerange": "20000101/20011231",
     },
 )
-con = suite.get_database(cubes, "MPI-ESM1-2-LR", database_resource=f"duckdb://{db_path}")
+con = suite.get_database(cubes, data_info, database_resource=f"duckdb://{db_path}")
 print(con)
