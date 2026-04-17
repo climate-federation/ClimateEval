@@ -33,7 +33,7 @@ benchmarking.diags.AnnualCycle: &2d_variables
     var_name: lwcre
     frequency: mon
     reference_data: benchmarking.data.CERESEBAF
-    other_data: [benchmarking.data.ESACCICloud, benchmarking.data.ERA5]
+    other_data: [benchmarking.data.ESACCICloud]
   lwp:
     var_name: lwp
     frequency: mon
@@ -53,7 +53,7 @@ benchmarking.diags.AnnualCycle: &2d_variables
     var_name: rlut
     frequency: mon
     reference_data: benchmarking.data.CERESEBAF
-    other_data: [benchmarking.data.ESACCICloud, benchmarking.data.ERA5]
+    other_data: [benchmarking.data.ESACCICloud]
   rsut:
     var_name: rsut
     frequency: mon
@@ -115,10 +115,10 @@ benchmarking.diags.TimeSeries: *2d_variables
 benchmarking.diags.ZonalLine: *2d_variables
 
 benchmarking.diags.ZonalProfileAirPressure:
-  cl:
-    var_name: cl
-    frequency: mon
-    reference_data: benchmarking.data.ERA5
+  # cl:
+  #   var_name: cl
+  #   frequency: mon
+  #   reference_data: benchmarking.data.ERA5
   hus:
     var_name: hus
     frequency: mon
