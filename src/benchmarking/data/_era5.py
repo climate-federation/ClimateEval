@@ -124,7 +124,7 @@ class ERA5(DataSource):
         # data will be the formatted data by ESMValTool.
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
         tmp_dir.mkdir(parents=True, exist_ok=True)
-        tmp_target = tmp_dir / f"raw_{self.name}_{variable.var_name}.nc"
+        tmp_target = tmp_dir / f"raw_{self.id}_{variable.var_name}.nc"
 
         # Download data
         cdsapi.Client().retrieve(dataset, request).download(tmp_target)
