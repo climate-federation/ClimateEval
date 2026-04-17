@@ -50,38 +50,6 @@ def _coastlines() -> tuple[list, list]:
 
 
 # ---------------------------------------------------------------------------
-# Dataset reference catalogue
-# ---------------------------------------------------------------------------
-
-_DATASET_REFS: dict[str, dict[str, str]] = {
-    "ERA5": {
-        "full_name": "ECMWF Reanalysis v5",
-        "provider": "ECMWF / Copernicus Climate Change Service",
-        "reference": "Hersbach et al. (2020), Q. J. R. Meteorol. Soc., doi:10.1002/qj.3803",
-        "url": "https://cds.climate.copernicus.eu/datasets/reanalysis-era5-pressure-levels",
-    },
-    "GPCP": {
-        "full_name": "Global Precipitation Climatology Project v2.3",
-        "provider": "NOAA / NASA",
-        "reference": "Adler et al. (2003), J. Hydrometeorol., doi:10.1175/1525-7541(2003)004",
-        "url": "https://www.ncei.noaa.gov/products/global-precipitation-climatology-project",
-    },
-    "HadCRUT5": {
-        "full_name": "HadCRUT5 Near-Surface Temperature Dataset",
-        "provider": "UK Met Office Hadley Centre / CRU",
-        "reference": "Morice et al. (2021), J. Geophys. Res. Atmos., doi:10.1029/2019JD032361",
-        "url": "https://www.metoffice.gov.uk/hadobs/hadcrut5/",
-    },
-    "CERES-EBAF": {
-        "full_name": "CERES Energy Balanced and Filled Ed4.2",
-        "provider": "NASA CERES Science Team",
-        "reference": "Loeb et al. (2018), J. Climate, doi:10.1175/JCLI-D-17-0208.1",
-        "url": "https://ceres.larc.nasa.gov/data/#ebaf-surface-ed4-2",
-    },
-}
-
-
-# ---------------------------------------------------------------------------
 # Database reading
 # ---------------------------------------------------------------------------
 
@@ -108,7 +76,7 @@ def read_database(db_path: Path) -> dict[str, dict[str, pd.DataFrame]]:
 
 def get_var_cols(data_df: pd.DataFrame) -> list[str]:
     """Return variable (non-coordinate, non-metadata) column names."""
-    skip = {"Dataset", "Data Type", "latitude", "longitude", "time", "air_pressure"}
+    skip = {"data_id", "data_type", "latitude", "longitude", "time", "air_pressure"}
     return [c for c in data_df.columns if c not in skip]
 
 
@@ -159,20 +127,24 @@ def _var_label(var_id: str, variables_df: pd.DataFrame) -> tuple[str, str]:
 
 
 def _sort_datasets(data_df: pd.DataFrame, datasets: list[str]) -> list[str]:
-    """Sort: reference first, other second, model last."""
+    """Sort: reference first, other second, to_benchmark last."""
     priority = {"reference": 0, "other": 1, "to_benchmark": 2}
 
     def key(ds: str) -> int:
-        dtype = data_df[data_df["Dataset"] == ds]["Data Type"].iloc[0]
+        dtype = data_df[data_df["data_id"] == ds]["data_type"].iloc[0]
         return priority.get(dtype, 3)
 
     return sorted(datasets, key=key)
 
 
-def _get_ref_dataset(data_df: pd.DataFrame) -> str | None:
-    """Return the name of the reference dataset, if exactly one exists."""
+def _get_ref_dataset(data_df: pd.DataFrame, metrics_df: pd.DataFrame) -> str | None:
+    """Return the data_id of the reference dataset, if exactly one exists."""
+    # Fall back to the old method for backwards compat / test fixtures.
+    if metrics_df is not None and not metrics_df.empty and "reference_data_id" in metrics_df.columns:
+        refs = metrics_df["reference_data_id"].dropna().unique().tolist()
+        return refs[0] if len(refs) == 1 else None
     ref_datasets = (
-        data_df[data_df["Data Type"] == "reference"]["Dataset"].unique().tolist()
+        data_df[data_df["data_type"] == "reference"]["data_id"].unique().tolist()
     )
     return ref_datasets[0] if len(ref_datasets) == 1 else None
 
@@ -198,14 +170,15 @@ def _base_layout(**kwargs: object) -> dict:
 # ---------------------------------------------------------------------------
 
 def build_map_figures(
-    data_df: pd.DataFrame, variables_df: pd.DataFrame
+    data_df: pd.DataFrame, variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
     """Heatmap maps with coastlines; reference + bias (model − reference) layout when possible."""
     coast_lons, coast_lats = _coastlines()
     figures: dict[str, go.Figure] = {}
     var_cols = get_var_cols(data_df)
-    all_datasets = _sort_datasets(data_df, data_df["Dataset"].unique().tolist())
-    ref_dataset = _get_ref_dataset(data_df)
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_dataset = _get_ref_dataset(data_df, metrics_df)
 
     for var_id in var_cols:
         long_name, units = _var_label(var_id, variables_df)
@@ -214,13 +187,13 @@ def build_map_figures(
 
         valid_datasets = [
             ds for ds in all_datasets
-            if not data_df[data_df["Dataset"] == ds][var_id].isna().all()
+            if not data_df[data_df["data_id"] == ds][var_id].isna().all()
         ]
         if not valid_datasets:
             continue
 
         def _pivot_for(dataset: str) -> pd.DataFrame | None:
-            sub = data_df[data_df["Dataset"] == dataset]
+            sub = data_df[data_df["data_id"] == dataset]
             sv = sub[["latitude", "longitude", var_id]].dropna(subset=[var_id]).copy()
             if sv.empty:
                 return None
@@ -404,11 +377,12 @@ def build_map_figures(
 
 
 def build_timeseries_figures(
-    data_df: pd.DataFrame, variables_df: pd.DataFrame
+    data_df: pd.DataFrame, variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
     """Annual time series, one figure per variable, all datasets overlaid."""
     figures: dict[str, go.Figure] = {}
-    all_datasets = _sort_datasets(data_df, data_df["Dataset"].unique().tolist())
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
 
     for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
@@ -417,11 +391,11 @@ def build_timeseries_figures(
         fig = go.Figure()
 
         for dataset in all_datasets:
-            grp = data_df[data_df["Dataset"] == dataset]
+            grp = data_df[data_df["data_id"] == dataset]
             sub = grp[["time", var_id]].dropna(subset=[var_id]).sort_values("time")
             if sub.empty:
                 continue
-            dtype = grp["Data Type"].iloc[0]
+            dtype = grp["data_type"].iloc[0]
             dash = _LINE_STYLES.get(dtype, "solid")
             width = 2.5 if dtype == "to_benchmark" else 1.8
             fig.add_trace(
@@ -455,11 +429,12 @@ def build_timeseries_figures(
 
 
 def build_zonal_line_figures(
-    data_df: pd.DataFrame, variables_df: pd.DataFrame
+    data_df: pd.DataFrame, variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
     """Zonal mean line plots, one figure per variable, all datasets overlaid."""
     figures: dict[str, go.Figure] = {}
-    all_datasets = _sort_datasets(data_df, data_df["Dataset"].unique().tolist())
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
 
     for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
@@ -468,11 +443,11 @@ def build_zonal_line_figures(
         fig = go.Figure()
 
         for dataset in all_datasets:
-            grp = data_df[data_df["Dataset"] == dataset]
+            grp = data_df[data_df["data_id"] == dataset]
             sub = grp[["latitude", var_id]].dropna(subset=[var_id]).sort_values("latitude")
             if sub.empty:
                 continue
-            dtype = grp["Data Type"].iloc[0]
+            dtype = grp["data_type"].iloc[0]
             dash = _LINE_STYLES.get(dtype, "solid")
             width = 2.5 if dtype == "to_benchmark" else 1.8
             fig.add_trace(
@@ -517,12 +492,13 @@ def build_zonal_line_figures(
 
 
 def build_zonal_profile_figures(
-    data_df: pd.DataFrame, variables_df: pd.DataFrame
+    data_df: pd.DataFrame, variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
     """Zonal mean profile heatmaps (pressure × latitude); reference + bias layout when possible."""
     figures: dict[str, go.Figure] = {}
-    all_datasets = _sort_datasets(data_df, data_df["Dataset"].unique().tolist())
-    ref_dataset = _get_ref_dataset(data_df)
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_dataset = _get_ref_dataset(data_df, metrics_df)
 
     for var_id in get_var_cols(data_df):
         long_name, units = _var_label(var_id, variables_df)
@@ -531,7 +507,7 @@ def build_zonal_profile_figures(
 
         valid_datasets = [
             ds for ds in all_datasets
-            if not data_df[data_df["Dataset"] == ds][var_id].isna().all()
+            if not data_df[data_df["data_id"] == ds][var_id].isna().all()
         ]
         if not valid_datasets:
             continue
@@ -543,7 +519,7 @@ def build_zonal_profile_figures(
         )
 
         def _pivot_for(dataset: str) -> pd.DataFrame | None:
-            sub = data_df[data_df["Dataset"] == dataset]
+            sub = data_df[data_df["data_id"] == dataset]
             try:
                 p = sub.pivot_table(
                     index="air_pressure", columns="latitude",
@@ -763,14 +739,14 @@ def build_leaderboard_data(
         detail["_overall_score"] = np.nan
 
     summary = (
-        detail.groupby("Dataset")["_overall_score"]
+        detail.groupby("data_id")["_overall_score"]
         .mean()
         .reset_index()
         .rename(columns={"_overall_score": "Overall Score"})
         .sort_values("Overall Score", ascending=False)
     )
     summary["Rank"] = range(1, len(summary) + 1)
-    return summary[["Rank", "Dataset", "Overall Score"]].reset_index(drop=True), detail
+    return summary[["Rank", "data_id", "Overall Score"]].reset_index(drop=True), detail
 
 
 def _score_color(score: float) -> str:
@@ -783,7 +759,7 @@ def _render_summary_table(summary_df: pd.DataFrame, table_id: str) -> str:
     rows_html = []
     for _, row in summary_df.iterrows():
         rank = int(row["Rank"])
-        dataset = html_module.escape(str(row["Dataset"]))
+        dataset = html_module.escape(str(row["data_id"]))
         score = row["Overall Score"]
         pct = f"{score * 100:.1f}"
         color = _score_color(score)
@@ -804,7 +780,7 @@ def _render_summary_table(summary_df: pd.DataFrame, table_id: str) -> str:
         f"<table class='lb' id='{table_id}'>"
         f"<thead><tr>"
         f"<th class='sortable' onclick='sortTable(\"{table_id}\",0,true)'>Rank</th>"
-        f"<th class='sortable' onclick='sortTable(\"{table_id}\",1,false)'>Dataset</th>"
+        f"<th class='sortable' onclick='sortTable(\"{table_id}\",1,false)'>Data Source</th>"
         f"<th class='sortable' onclick='sortTable(\"{table_id}\",2,true)'>Overall Score</th>"
         f"</tr></thead>"
         f"<tbody>{''.join(rows_html)}</tbody>"
@@ -819,8 +795,8 @@ def _render_detail_table(detail_df: pd.DataFrame, table_id: str) -> str:
         c for c in ["weighted_rmse", "weighted_pearsonr", "weighted_emd"]
         if c in detail_df.columns
     ]
-    str_cols = {"Dataset", "tier", "diagnostic", "var_id"}
-    cols_show = ["Dataset", "tier", "diagnostic", "var_id"] + metric_cols
+    str_cols = {"data_id", "tier", "diagnostic", "var_id"}
+    cols_show = ["data_id", "tier", "diagnostic", "var_id"] + metric_cols
     if "tier" in detail_df.columns and detail_df["tier"].nunique() <= 1:
         cols_show = [c for c in cols_show if c != "tier"]
     cols_show = [c for c in cols_show if c in detail_df.columns]
@@ -887,6 +863,7 @@ def _build_detail_html(
     var_id: str,
     variables_df: pd.DataFrame,
     data_df: pd.DataFrame,
+    data_sources_df: pd.DataFrame | None = None,
 ) -> str:
     """Build the expandable dataset-info box shown below each plot."""
     rows: list[str] = []
@@ -920,20 +897,32 @@ def _build_detail_html(
 
     # Datasets used for this variable
     if data_df is not None and var_id in data_df.columns:
-        sub = data_df[data_df[var_id].notna()][["Dataset", "Data Type"]].drop_duplicates()
+        sub = data_df[data_df[var_id].notna()][["data_id", "data_type"]].drop_duplicates()
         type_order = {"reference": 0, "other": 1, "to_benchmark": 2}
-        sub = sub.sort_values("Data Type", key=lambda s: s.map(type_order).fillna(3))
+        sub = sub.sort_values("data_type", key=lambda s: s.map(type_order).fillna(3))
 
         ds_items: list[str] = []
         for _, ds_row in sub.iterrows():
-            ds_name = str(ds_row["Dataset"])
-            dtype = str(ds_row["Data Type"])
+            ds_name = str(ds_row["data_id"])
+            dtype = str(ds_row["data_type"])
             type_badge = {"reference": "ref", "other": "other", "to_benchmark": "model"}.get(dtype, dtype)
-            ref_info = _DATASET_REFS.get(ds_name, {})
-            full_name = ref_info.get("full_name", "")
-            provider = ref_info.get("provider", "")
-            reference = ref_info.get("reference", "")
-            url = ref_info.get("url", "")
+
+            # Look up metadata from data_sources table
+            full_name = ""
+            provider = ""
+            reference = ""
+            url = ""
+            if data_sources_df is not None and not data_sources_df.empty:
+                src_row = data_sources_df[data_sources_df["id"] == ds_name]
+                if not src_row.empty:
+                    r = src_row.iloc[0]
+                    full_name = r.get("name", "")
+                    provider = r.get("institute", "")
+                    refs_str = r.get("references", "")
+                    if refs_str and str(refs_str).strip():
+                        ref_parts = str(refs_str).split()
+                        reference = ref_parts[0]
+                        url = ref_parts[0]  # treat the first reference as a URL
 
             detail_lines = []
             if full_name:
@@ -980,6 +969,7 @@ def render_diagnostic_section(
     figures: dict[str, go.Figure],
     variables_df: pd.DataFrame | None = None,
     data_df: pd.DataFrame | None = None,
+    data_sources_df: pd.DataFrame | None = None,
 ) -> str:
     """Render plots for one diagnostic.
 
@@ -1053,6 +1043,7 @@ def render_diagnostic_section(
             var_id,
             variables_df if variables_df is not None else pd.DataFrame(),
             data_df if data_df is not None else pd.DataFrame(),
+            data_sources_df if data_sources_df is not None else None,
         )
 
         detail_block = ""
@@ -1678,9 +1669,10 @@ def _build_figures_for_tier(
     tier_metrics: dict[str, pd.DataFrame] = {}
 
     for diag_name, tables in db_data.items():
-        data_df = tables.get("data", pd.DataFrame())
+        data_df = tables.get("raw_output", pd.DataFrame())
         metrics_df = tables.get("metrics", pd.DataFrame())
         variables_df = tables.get("variables", pd.DataFrame())
+        data_sources_df = tables.get("data_sources", pd.DataFrame())
 
         if not data_df.empty:
             tier_metrics[diag_name] = metrics_df
@@ -1691,9 +1683,9 @@ def _build_figures_for_tier(
             diag_sections[diag_name] = ("<p class='empty-note'>No data available.</p>", variables_df)
             continue
 
-        figures = builder(data_df, variables_df)
+        figures = builder(data_df, variables_df, metrics_df)
         scope_id = f"{scope_prefix}-{diag_name}" if scope_prefix else diag_name
-        html = render_diagnostic_section(scope_id, figures, variables_df, data_df)
+        html = render_diagnostic_section(scope_id, figures, variables_df, data_df, data_sources_df)
         diag_sections[diag_name] = (html, variables_df)
 
     return diag_sections, tier_metrics
