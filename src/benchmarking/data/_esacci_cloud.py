@@ -17,10 +17,8 @@ class ESACCICloud(DataSource):
 
     _INFORMATION = DataSourceInformation(
         name="ESACCI-CLOUD",
-        type="observation",
+        category="observation",
         institute="DWD",
-        exp="",
-        variant="",
         references=("https://doi.org/10.5676/DWD/ESA_Cloud_cci/AVHRR-PM/V003",),
     )
 

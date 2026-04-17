@@ -17,10 +17,8 @@ class GPCP(DataSource):
 
     _INFORMATION = DataSourceInformation(
         name="GPCP",
-        type="observation",
+        category="observation",
         institute="NASA-GSFC",
-        exp="",
-        variant="",
         references=(
             "https://doi.org/10.5067/MEASURES/GPCP/DATA306",
             "https://doi.org/10.5067/MEASURES/GPCP/DATA307",

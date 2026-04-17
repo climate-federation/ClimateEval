@@ -6,7 +6,7 @@ import shutil
 import tempfile
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from pprint import pformat
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -35,12 +35,27 @@ logger = logger.opt(colors=True)
 class DataSourceInformation:
     """Manage data source information."""
 
-    name: str
-    type: str
-    institute: str
-    exp: str
-    variant: str
-    references: tuple[str, ...]
+    id: str = field(init=False)
+
+    name: str = field(repr=False)
+    category: str = field(repr=False)  # e.g., observation, CMIP6 model, etc.
+    institute: str = field(default="", repr=False)
+    exp: str = field(default="", repr=False)
+    variant: str = field(default="", repr=False)  # e.g., r1i1p1f1, etc.
+    references: tuple[str, ...] = field(default_factory=tuple, repr=False)
+
+    def __post_init__(self) -> None:
+        """Initialize class instance."""
+        id_fields = ("category", "institute", "name", "exp", "variant")
+
+        id_fields_vals = [
+            getattr(self, f).replace(" ", "-")
+            for f in id_fields
+            if getattr(self, f) != ""
+        ]
+
+        # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
+        object.__setattr__(self, "id", ".".join(id_fields_vals))
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -55,6 +70,11 @@ class DataSource(ABC):
     """Manage data source."""
 
     _INFORMATION: ClassVar[DataSourceInformation]
+
+    @property
+    def id(self) -> str:
+        """Get data source ID."""
+        return self.information.id
 
     @property
     def information(self) -> DataSourceInformation:

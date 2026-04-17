@@ -93,10 +93,8 @@ class ERA5(DataSource):
 
     _INFORMATION = DataSourceInformation(
         name="ERA5",
-        type="reanalysis",
+        category="reanalysis",
         institute="ECMWF",
-        exp="",
-        variant="",
         references=(
             "https://doi.org/10.24381/cds.f17050d7",
             "https://doi.org/10.24381/cds.6860a573",

@@ -17,10 +17,8 @@ class HadCRUT5(DataSource):
 
     _INFORMATION = DataSourceInformation(
         name="HadCRUT5",
-        type="observation",
+        category="observation",
         institute="Met Office Hadley Centre",
-        exp="",
-        variant="",
         references=("https://doi.org/10.1029/2019JD032361",),
     )
 
