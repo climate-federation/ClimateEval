@@ -57,7 +57,7 @@ PLEV19_LEVELS: list[float] = [
 class DiagnosticOutput:
     """Manage diagnostic output."""
 
-    data: ibis.Table | None
+    raw_output: ibis.Table | None
     metrics: ibis.Table | None
     variables: ibis.Table
     data_sources: ibis.Table
@@ -66,11 +66,13 @@ class DiagnosticOutput:
     def union(cls, *diagnostic_output: DiagnosticOutput) -> DiagnosticOutput:
         """Create union of output."""
         # data
-        all_data = [o.data for o in diagnostic_output]
-        if None in all_data and not all(d is None for d in all_data):
+        all_raw_output = [o.raw_output for o in diagnostic_output]
+        if None in all_raw_output and not all(d is None for d in all_raw_output):
             msg = "Table 'data' must be None for either all or no diagnostics"
             raise ValueError(msg)
-        data_union = None if None in all_data else ibis.union(*all_data)
+        raw_output_union = (
+            None if None in all_raw_output else ibis.union(*all_raw_output)
+        )
 
         # metrics
         all_metrics = [o.metrics for o in diagnostic_output]
@@ -86,7 +88,7 @@ class DiagnosticOutput:
         data_sources_union = ibis.union(*(o.data_sources for o in diagnostic_output))
 
         return cls(
-            data=data_union,
+            raw_output=raw_output_union,
             metrics=metrics_union,
             variables=variables_union,
             data_sources=data_sources_union,
@@ -98,6 +100,9 @@ class Diagnostic(ABC):
 
     DATA_ID_COLUMN: ClassVar[str] = "data_id"
     """Name of table column containing data ID."""
+
+    REFERENCE_DATA_ID_COLUMN: ClassVar[str] = "reference_data_id"
+    """Name of table column containing reference data ID."""
 
     DATA_TYPE_COLUMN: ClassVar[str] = "data_type"
     """Name of table column containing data type."""
@@ -255,12 +260,12 @@ class Diagnostic(ABC):
             ),
         )
 
-    def _get_empty_data_table(self) -> ibis.Table | None:
-        """Get empty data table with correct schema."""
+    def _get_empty_raw_output_table(self) -> ibis.Table | None:
+        """Get empty raw_output table with correct schema."""
         if not self.OUTPUT_DATA_TABLE:
             return None
 
-        data_table = ibis.memtable(
+        raw_output_table = ibis.memtable(
             pd.DataFrame(
                 {
                     self.DATA_ID_COLUMN: pd.Series(dtype="str"),
@@ -277,8 +282,8 @@ class Diagnostic(ABC):
             ),
         )
         if "time" in self.final_coordinate_names:
-            data_table = data_table.cast(time="timestamp")
-        return data_table
+            raw_output_table = raw_output_table.cast(time="timestamp")
+        return raw_output_table
 
     def _get_empty_metrics_table(self) -> ibis.Table | None:
         """Get empty metrics table with correct schema."""
@@ -294,7 +299,7 @@ class Diagnostic(ABC):
                         pd.Series(dtype=self.DTYPE),
                     ),
                     self.DATA_ID_COLUMN: pd.Series(dtype="str"),
-                    "reference": pd.Series(dtype="str"),
+                    self.REFERENCE_DATA_ID_COLUMN: pd.Series(dtype="str"),
                 },
             ),
         )
@@ -329,7 +334,7 @@ class Diagnostic(ABC):
                     "var_id": variable.id,
                     **self._get_metrics(cube, reference_cube),
                     self.DATA_ID_COLUMN: data_id,
-                    "reference": self.reference_data[variable].id,
+                    self.REFERENCE_DATA_ID_COLUMN: self.reference_data[variable].id,
                 },
                 index=[0],
             ),
@@ -337,28 +342,30 @@ class Diagnostic(ABC):
         cast_operations = dict.fromkeys(self._get_metric_names(), self.DTYPE)
         return metrics.cast(**cast_operations)
 
-    def _add_missing_columns(self, data_table: ibis.Table) -> ibis.Table:
+    def _add_missing_columns(self, raw_output_table: ibis.Table) -> ibis.Table:
         """Add missing columns to data table (one column per variable)."""
-        missing_columns = {v.id for v in self.variables} - set(data_table.columns)
+        missing_columns = {v.id for v in self.variables} - set(raw_output_table.columns)
         if missing_columns:
-            data_table = data_table.mutate(
+            raw_output_table = raw_output_table.mutate(
                 **{col: ibis.literal(None) for col in missing_columns},
             )
-            data_table = data_table.cast(**dict.fromkeys(missing_columns, self.DTYPE))
+            raw_output_table = raw_output_table.cast(
+                **dict.fromkeys(missing_columns, self.DTYPE),
+            )
         new_col_order = (
             self.DATA_ID_COLUMN,
             self.DATA_TYPE_COLUMN,
             *self.final_coordinate_names,
             *sorted(v.id for v in self.variables),
         )
-        return data_table.select(new_col_order)
+        return raw_output_table.select(new_col_order)
 
     def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
         """Get data cube."""
         cube = get_prepared_cube(data, variable)
         return self._safely_preprocess(cube)
 
-    def _get_data_table_of_cube(
+    def _get_raw_output_table_of_cube(
         self,
         cube: Cube,
         *,
@@ -370,19 +377,20 @@ class Diagnostic(ABC):
         df = as_data_frame(cube).reset_index()
         if "time" in df.columns:
             df["time"] = df["time"].astype(str)
-        data_table = ibis.memtable(df)
+        raw_output_table = ibis.memtable(df)
         cast_operations = {
-            c: {"time": "timestamp"}.get(c, self.DTYPE) for c in data_table.columns
+            c: {"time": "timestamp"}.get(c, self.DTYPE)
+            for c in raw_output_table.columns
         }
-        data_table = data_table.cast(**cast_operations)
-        data_table = data_table.rename(**{variable.id: cube.name()})
-        data_table = data_table.mutate(
+        raw_output_table = raw_output_table.cast(**cast_operations)
+        raw_output_table = raw_output_table.rename(**{variable.id: cube.name()})
+        raw_output_table = raw_output_table.mutate(
             **{self.DATA_ID_COLUMN: ibis.literal(data_id)},
         )
-        data_table = data_table.mutate(
+        raw_output_table = raw_output_table.mutate(
             **{self.DATA_TYPE_COLUMN: ibis.literal(data_type)},
         )
-        return self._add_missing_columns(data_table)
+        return self._add_missing_columns(raw_output_table)
 
     def _get_metric_names(self) -> tuple[str, ...]:
         """Get metric names."""
@@ -409,7 +417,7 @@ class Diagnostic(ABC):
         reference_cubes: dict[Variable, Cube],
     ) -> DiagnosticOutput:
         """Get output of other data."""
-        data_table = self._get_empty_data_table()
+        raw_output_table = self._get_empty_raw_output_table()
         metrics_table = self._get_empty_metrics_table()
         variables_table = self._get_empty_variables_table()
         data_sources_table = self._get_empty_data_sources_table()
@@ -432,13 +440,16 @@ class Diagnostic(ABC):
 
                 # Expand table
                 if self.OUTPUT_DATA_TABLE:
-                    new_data_table = self._get_data_table_of_cube(
+                    new_raw_output_table = self._get_raw_output_table_of_cube(
                         other_cube,
                         variable=variable,
                         data_id=other_data.id,
                         data_type="other",
                     )
-                    data_table = ibis.union(data_table, new_data_table)
+                    raw_output_table = ibis.union(
+                        raw_output_table,
+                        new_raw_output_table,
+                    )
 
                 # Expand metrics
                 if self.OUTPUT_METRICS_TABLE and variable in reference_cubes:
@@ -451,11 +462,11 @@ class Diagnostic(ABC):
                     metrics_table = ibis.union(metrics_table, new_metrics_table)
 
         # Drop superfluous rows by removing NaN entries
-        if data_table is not None:
-            data_table = self._remove_superfluous_rows(data_table)
+        if raw_output_table is not None:
+            raw_output_table = self._remove_superfluous_rows(raw_output_table)
 
         return DiagnosticOutput(
-            data=data_table,
+            raw_output=raw_output_table,
             metrics=metrics_table,
             variables=variables_table,
             data_sources=data_sources_table,
@@ -466,33 +477,33 @@ class Diagnostic(ABC):
         reference_cubes: dict[Variable, Cube],
     ) -> DiagnosticOutput:
         """Get output of other data."""
-        data_table = self._get_empty_data_table()
+        raw_output_table = self._get_empty_raw_output_table()
         metrics_table = self._get_empty_metrics_table()  # will stay empty
         variables_table = self._get_empty_variables_table()
         data_sources_table = self._get_empty_data_sources_table()
 
-        if data_table is None:
+        if raw_output_table is None:
             return DiagnosticOutput(
-                data=data_table,
+                raw_output=raw_output_table,
                 metrics=metrics_table,
                 variables=variables_table,
                 data_sources=data_sources_table,
             )
 
         for variable, reference_cube in reference_cubes.items():
-            new_data_table = self._get_data_table_of_cube(
+            new_raw_output_table = self._get_raw_output_table_of_cube(
                 reference_cube,
                 variable=variable,
                 data_id=self.reference_data[variable].id,
                 data_type="reference",
             )
-            data_table = ibis.union(data_table, new_data_table)
+            raw_output_table = ibis.union(raw_output_table, new_raw_output_table)
 
         # Drop superfluous rows by removing NaN entries
-        data_table = self._remove_superfluous_rows(data_table)
+        raw_output_table = self._remove_superfluous_rows(raw_output_table)
 
         return DiagnosticOutput(
-            data=data_table,
+            raw_output=raw_output_table,
             metrics=metrics_table,
             variables=variables_table,
             data_sources=data_sources_table,
@@ -507,7 +518,7 @@ class Diagnostic(ABC):
         """Get output of data to benchmark."""
         data_id = data_information.id
 
-        data_table = self._get_empty_data_table()
+        raw_output_table = self._get_empty_raw_output_table()
         metrics_table = self._get_empty_metrics_table()
         variables_table = self._get_variables_table()
         data_sources_table = self._get_data_sources_table(data_information)
@@ -525,13 +536,13 @@ class Diagnostic(ABC):
 
             # Expand table
             if self.OUTPUT_DATA_TABLE:
-                new_data_table = self._get_data_table_of_cube(
+                new_raw_output_table = self._get_raw_output_table_of_cube(
                     cube,
                     variable=variable,
                     data_id=data_id,
                     data_type="to_benchmark",
                 )
-                data_table = ibis.union(data_table, new_data_table)
+                raw_output_table = ibis.union(raw_output_table, new_raw_output_table)
 
             # Expand metrics
             if self.OUTPUT_METRICS_TABLE and variable in reference_cubes:
@@ -544,11 +555,11 @@ class Diagnostic(ABC):
                 metrics_table = ibis.union(metrics_table, new_metrics_table)
 
         # Drop superfluous rows by removing NaN entries
-        if data_table is not None:
-            data_table = self._remove_superfluous_rows(data_table)
+        if raw_output_table is not None:
+            raw_output_table = self._remove_superfluous_rows(raw_output_table)
 
         return DiagnosticOutput(
-            data=data_table,
+            raw_output=raw_output_table,
             metrics=metrics_table,
             variables=variables_table,
             data_sources=data_sources_table,
