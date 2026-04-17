@@ -214,6 +214,7 @@ precipitation).
 | ar6_regions_mask | string  | AR6 regions mask used (space-joined list)                                      |
 | timerange        | string  | Time range of the data                                                         |
 | units            | string  | Units of the variable                                                          |
+| anomaly          | string  | Anomaly type (e.g., "full"); empty if not computed                             |
 | coordinates      | string  | Required coordinates (space-joined CMIP var names)                             |
 | derived          | boolean | Whether the variable is derived via ESMValTool                                 |
 | long_name        | string  | Long descriptive name                                                          |
