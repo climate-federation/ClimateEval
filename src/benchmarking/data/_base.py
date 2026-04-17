@@ -5,10 +5,11 @@ from __future__ import annotations
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
 from pprint import pformat
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import iris
 from esmvalcore.config import CFG
@@ -31,7 +32,36 @@ logger = logger.opt(colors=True)
 
 
 @dataclass(frozen=True, kw_only=True)
+class DataSourceInformation:
+    """Manage data source information."""
+
+    id: str = field(init=False)
+
+    name: str = field(repr=False)
+    category: str = field(repr=False)  # e.g., observation, CMIP6 model, etc.
+    institute: str = field(default="", repr=False)
+    exp: str = field(default="", repr=False)
+    variant: str = field(default="", repr=False)  # e.g., r1i1p1f1, etc.
+    references: tuple[str, ...] = field(default_factory=tuple, repr=False)
+
+    def __post_init__(self) -> None:
+        """Initialize class instance."""
+        id_fields = ("category", "name", "exp", "variant")
+
+        id_fields_vals = [
+            getattr(self, f).replace(" ", "-")
+            for f in id_fields
+            if getattr(self, f) != ""
+        ]
+
+        # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
+        object.__setattr__(self, "id", "_".join(id_fields_vals))
+
+
+@dataclass(frozen=True, kw_only=True)
 class DiagnosticData:
+    """Manage diagnostic data."""
+
     reference: type[DataSource]
     other: tuple[type[DataSource], ...] = ()
 
@@ -39,47 +69,73 @@ class DiagnosticData:
 class DataSource(ABC):
     """Manage data source."""
 
-    def __init__(self, data_dir: Path) -> None:
-        """Initialize class instance."""
-        self._data_dir = data_dir
-        self._name = self.__class__.__name__
+    _INFORMATION: ClassVar[DataSourceInformation]
 
     @property
-    def data_dir(self) -> Path:
-        """Get path to data directory."""
-        return self._data_dir
+    def id(self) -> str:
+        """Get data source ID."""
+        return self.information.id
+
+    @property
+    def information(self) -> DataSourceInformation:
+        """Get data source information."""
+        return self._INFORMATION
 
     @property
     def name(self) -> str:
-        """Get dataset name."""
-        return self._name
+        """Get data source name."""
+        return self.information.name
 
-    @name.setter
-    def name(self, value: str) -> None:
-        """Set dataset name."""
-        self._name = value
+    @abstractmethod
+    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
+        """Download data."""
 
-    def get_cube(self, variable: Variable) -> CubeList:
+    def get_cube(self, data_root_dir: Path, variable: Variable) -> CubeList:
         """Get data cube."""
-        logger.debug(f"Loading {variable} of {self.name}")
-        paths: list[Path] = list(self._get_data_dir(variable).glob("*.nc"))
-        if not paths:
-            logger.debug(f"No data found for {variable}, trying required variables")
-            for required_variable in variable.get_required_variables():
-                paths_for_required_variable = list(
-                    self._get_data_dir(required_variable).glob("*.nc"),
+        logger.debug(f"Loading {variable} of {self.id}")
+        paths: list[Path] = list(
+            self._get_data_dir(data_root_dir, variable.var_name).glob("*.nc"),
+        )
+        if paths:
+            return get_prepared_cube(iris.load(paths), variable)
+
+        logger.debug(f"No data found for {variable} of {self.id}")
+
+        # Check if variable can be derived from existing data
+        if variable.derived:
+            paths = self._get_paths_of_required_variables(data_root_dir, variable)
+            if paths:
+                logger.debug(
+                    f"Found required variables to derive {variable} of {self.id}",
                 )
-                if not paths_for_required_variable:
-                    logger.debug(f"No data found for {required_variable}")
-                    logger.debug(
-                        f"Trying downloading {required_variable} for {self.name}",
-                    )
-                    paths_for_required_variable = self._download(required_variable)
-                    logger.info(
-                        f"Downloaded {required_variable} for {self.name}:\n"
-                        f"{pformat(paths_for_required_variable)}",
-                    )
-                paths.extend(paths_for_required_variable)
+                return get_prepared_cube(iris.load(paths), variable)
+
+        # Try downloading the variable
+        logger.debug(f"Trying downloading {variable} of {self.id}")
+        error_msg = ""
+        try:
+            paths = self.download(data_root_dir, variable)
+        except Exception as exc:
+            if not variable.derived:
+                msg = f"Downloading {variable} of {self.id} failed: {exc}"
+                raise ValueError(msg) from exc
+            error_msg = f": {exc}"
+        if paths:
+            logger.info(f"Downloaded {self.id}:\n{pformat(paths)}")
+            return get_prepared_cube(iris.load(paths), variable)
+
+        logger.debug(
+            f"Failed to download derived variable {variable} of {self.id}{error_msg}",
+        )
+
+        # Try downloading required variables
+        get_required_variables = variable.get_required_variables()
+        logger.debug(f"Trying required variables {get_required_variables}")
+        paths = self._get_paths_of_required_variables(
+            data_root_dir,
+            variable,
+            download=True,
+        )
         cubes = iris.load(paths)
         return get_prepared_cube(cubes, variable)
 
@@ -93,23 +149,74 @@ class DataSource(ABC):
             supported_var_names is not None
             and variable.var_name not in supported_var_names
         ):
-            msg = f"{self.name} does not provide variable '{variable.var_name}'"
+            msg = f"{self.id} does not provide variable '{variable.var_name}'"
             raise ValueError(msg)
 
-    @abstractmethod
-    def _download(self, variable: Variable) -> list[Path]:
-        """Download data."""
-
-    def _esmvaltool_cmorizer_download(
+    def _esmvaltool_cmorizer_format(
         self,
+        data_root_dir: Path,
         variable: Variable,
-        dataset_name: str,
+        *,
+        download_dir: Path,
+        file_prefix_pattern: str = "*",
+        tier: int = 2,
+    ) -> list[Path]:
+        """Use ESMValTool CMORizer to format data.
+
+        See
+        https://docs.esmvaltool.org/en/latest/input.html#using-a-cmorizer-script.
+
+        """
+        logger.debug(f"Formatting {self.id} data (this may take while...)")
+
+        # Store all ESMValTool output in temporary directory and only save the
+        # relevant files.
+        tmp_dir = Path(tempfile.TemporaryDirectory().name)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+
+        with CFG.context(output_dir=tmp_dir):
+            DataCommand().format(self.name, original_data_dir=download_dir)
+
+        latest_esmvaltool_output_dir = (
+            sorted(tmp_dir.glob("data_formatting_*"))[-1] / f"Tier{tier}" / self.name
+        )
+        raw_files = latest_esmvaltool_output_dir.glob(
+            f"{file_prefix_pattern}.nc",
+        )
+
+        # Save all downloaded variables (there might be more than the one
+        # requested; this will potentially save lots of time)
+        grouped_files = defaultdict(list)
+        formatted_files: list[Path] = []
+        for raw_file in raw_files:
+            var_name = raw_file.stem.split("_")[-2]
+            grouped_files[var_name].append(raw_file)
+        for var_name, var_files in grouped_files.items():
+            data_dir = self._get_data_dir(data_root_dir, var_name)
+
+            # Do not overwrite existing other variables
+            if var_name != variable.var_name and list(data_dir.glob("*.nc")):
+                continue
+            logger.debug(f"Downloaded and formatted '{var_name}' of {self.id}")
+            data_dir.mkdir(parents=True, exist_ok=True)
+
+            for var_file in var_files:
+                formatted_file = data_dir / var_file.name
+                shutil.move(var_file, formatted_file)
+                formatted_files.append(formatted_file)
+
+        return formatted_files
+
+    def _esmvaltool_cmorizer_prepare(
+        self,
+        data_root_dir: Path,
+        variable: Variable,
         *,
         supported_var_names: Iterable[str] | None = None,
         file_prefix_pattern: str = "*_",
         tier: int = 2,
     ) -> list[Path]:
-        """Use ESMValTool CMORizer to download data.
+        """Use ESMValTool CMORizer to prepare (download and format) data.
 
         See
         https://docs.esmvaltool.org/en/latest/input.html#using-a-cmorizer-script.
@@ -119,38 +226,26 @@ class DataSource(ABC):
 
         # Raw downloaded data by ESMValTool will be stored in temporary
         # directory. Our "raw" data will be the formatted data by ESMValTool.
-        # Store all ESMValTool output in temporary directory and only save the
-        # relevant files.
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
-        download_dir = tmp_dir / "download"
-        esmvaltool_dir = tmp_dir / "esmvaltool"
-        download_dir.mkdir(parents=True, exist_ok=True)
-        esmvaltool_dir.mkdir(parents=True, exist_ok=True)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
 
-        # Download and format data
-        with CFG.context(output_dir=esmvaltool_dir):
-            DataCommand().prepare(dataset_name, original_data_dir=download_dir)
+        # Download data
+        with CFG.context(output_dir=tmp_dir):
+            DataCommand().download(self.name, original_data_dir=tmp_dir)
 
-        # Move formatted data into raw directory
-        latest_esmvaltool_output_dir = (
-            sorted(esmvaltool_dir.glob("data_preparation_*"))[-1]
-            / f"Tier{tier}"
-            / dataset_name
+        # Format data
+        return self._esmvaltool_cmorizer_format(
+            data_root_dir,
+            variable,
+            download_dir=tmp_dir,
+            file_prefix_pattern=file_prefix_pattern,
+            tier=tier,
         )
-        raw_files = latest_esmvaltool_output_dir.glob(
-            f"{file_prefix_pattern}{variable.var_name}_*.nc",
-        )
-        data_dir = self._get_data_dir(variable)
-        data_dir.mkdir(parents=True, exist_ok=True)
-        for file in raw_files:
-            shutil.move(file, data_dir / file.name)
-        return list(data_dir.glob("*.nc"))
 
     def _esmvaltool_intake_download(
         self,
+        data_root_dir: Path,
         variable: Variable,
-        *,
-        supported_var_names: Iterable[str] | None = None,
         **facets: Any,
     ) -> list[Path]:
         """Use ESMValTool's intake-esgf data source to download data.
@@ -159,8 +254,6 @@ class DataSource(ABC):
         https://docs.esmvaltool.org/projects/ESMValCore/en/latest/quickstart/configure.html#data-sources
 
         """
-        self._check_supported_variables(variable, supported_var_names)
-
         # Store downloaded data in temporary directory
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
         tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -168,16 +261,15 @@ class DataSource(ABC):
             cube = Dataset(**facets).load()
 
         # Save file into data directory
-        data_dir = self._get_data_dir(variable)
+        data_dir = self._get_data_dir(data_root_dir, variable.var_name)
         data_dir.mkdir(parents=True, exist_ok=True)
         output_path = data_dir / self._get_output_filename(cube, **facets)
         iris.save(cube, output_path)
-        logger.debug(f"Saved {output_path}")
         return [output_path]
 
-    def _get_data_dir(self, variable: Variable) -> Path:
-        """Get data directory."""
-        return self.data_dir / self.name / variable.var_name
+    def _get_data_dir(self, data_root_dir: Path, var_name: str) -> Path:
+        """Get data- and variable-specific subdirectory."""
+        return data_root_dir / self.id / var_name
 
     def _get_output_filename(self, cube: Cube, **facets: Any) -> str:
         """Get output file name."""
@@ -193,3 +285,36 @@ class DataSource(ABC):
             suffix = f"_{start_date}-{end_date}{suffix}"
         prefix = "_".join(str(facet_value) for facet_value in facets.values())
         return f"{prefix}{suffix}"
+
+    def _get_paths_of_required_variables(
+        self,
+        data_root_dir: Path,
+        variable: Variable,
+        *,
+        download: bool = False,
+    ) -> list[Path]:
+        """Get paths of required variables."""
+        paths: list[Path] = []
+        for required_variable in variable.get_required_variables():
+            paths_for_required_variable = list(
+                self._get_data_dir(data_root_dir, required_variable.var_name).glob(
+                    "*.nc",
+                ),
+            )
+            if not paths_for_required_variable:
+                # Do not return any paths if not all required variables are
+                # available
+                if not download:
+                    return []
+
+                # Download
+                paths_for_required_variable = self.download(
+                    data_root_dir,
+                    required_variable,
+                )
+                logger.info(
+                    f"Downloaded {self.id}:\n{pformat(paths_for_required_variable)}",
+                )
+
+            paths.extend(paths_for_required_variable)
+        return paths

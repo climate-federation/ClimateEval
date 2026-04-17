@@ -18,7 +18,7 @@ pytest.register_assert_rewrite("tests.unit")
 
 
 @pytest.fixture
-def data_dir(tmp_path: Path) -> Path:
+def data_root_dir(tmp_path: Path) -> Path:
     return tmp_path / "data"
 
 

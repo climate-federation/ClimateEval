@@ -18,9 +18,9 @@ if TYPE_CHECKING:
 @pytest.fixture
 def diagnostic(
     variables_and_data_3d: dict[Variable, DiagnosticData],
-    data_dir: Path,
+    data_root_dir: Path,
 ) -> ZonalProfileAirPressure:
-    return ZonalProfileAirPressure(variables_and_data_3d, data_dir=data_dir)
+    return ZonalProfileAirPressure(variables_and_data_3d, data_root_dir=data_root_dir)
 
 
 def test__safely_preprocess(diagnostic: ZonalProfileAirPressure, cube_3d: Cube) -> None:

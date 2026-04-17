@@ -7,10 +7,13 @@ from typing import TYPE_CHECKING
 
 import iris
 from esmvalcore.preprocessor import (
+    anomalies,
     clip_timerange,
     convert_units,
     derive,
     extract_levels,
+    extract_shape,
+    mask_landsea,
 )
 from iris import Constraint, NameConstraint
 from iris.coords import CoordExtent
@@ -105,6 +108,9 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     if cube.coords("longitude"):
         cube = _set_lon_to_0_360(cube)
 
+    # Apply masks
+    cube = _apply_masks(cube, variable)
+
     # Extract desired time range and bounding box
     if cube.coords("time") and variable.timerange != "*":
         cube = clip_timerange(cube, variable.timerange)
@@ -125,14 +131,47 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     if variable.vertical_level is not NO_LEVEL:
         cube = _extract_level(cube, variable.vertical_level)
 
+    # Calculate anomalies
+    if variable.anomaly:
+        cube = anomalies(cube, variable.anomaly)
+
     return cube
 
 
 def str_to_class(class_str: str) -> type:
     """Convert string to Python class."""
-    module_name, class_name = class_str.rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    return getattr(module, class_name)
+    try:
+        module_name, class_name = class_str.rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        class_ = getattr(module, class_name)
+    except Exception as exc:
+        msg = f"Failed to load class '{class_str}': {exc}"
+        raise ValueError(msg) from exc
+    return class_
+
+
+def _apply_masks(cube: Cube, variable: Variable) -> Cube:
+    """Apply masks to cube."""
+    if variable.landsea_mask != "*":
+        mask_out_options = {"land_only": "sea", "sea-only": "land"}
+        if variable.landsea_mask not in mask_out_options:
+            msg = (
+                f"Got invalid value '{variable.landsea_mask}' for option "
+                f"'landsea_mask' of variable {variable}, expected one of "
+                f"{list(mask_out_options)}"
+            )
+            raise ValueError(msg)
+        cube = mask_landsea(cube, mask_out_options[variable.landsea_mask])
+    if variable.ar6_regions_mask:
+        cube = extract_shape(
+            cube,
+            "ar6",
+            method="contains",
+            crop=False,
+            decomposed=False,
+            ids={"Name": variable.ar6_regions_mask},
+        )
+    return cube
 
 
 def _check_data(cube: Cube, variable: Variable) -> None:
@@ -178,7 +217,7 @@ def _extract_level(cube: Cube, vertical_level: VerticalLevel) -> Cube:
 
 def _get_derived_cube(cubes: CubeList, variable: Variable) -> Cube:
     """Derive variable."""
-    logger.debug(f"Data for {variable} not found, trying derivation")
+    logger.debug(f"Deriving {variable}")
     cubes_for_derivation: CubeList = CubeList([])
     for required_variable in variable.get_required_variables():
         cubes_for_derivation.append(

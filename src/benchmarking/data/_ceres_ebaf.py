@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from benchmarking.data._base import DataSource
+from benchmarking.data._base import DataSource, DataSourceInformation
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,27 +15,21 @@ if TYPE_CHECKING:
 class CERESEBAF(DataSource):
     """Manage CERES-EBAF data."""
 
-    def __init__(self, data_dir: Path) -> None:
-        """Initialize class instance."""
-        super().__init__(data_dir)
-        self._name = "CERES-EBAF"
+    _INFORMATION = DataSourceInformation(
+        name="CERES-EBAF",
+        category="observation",
+        institute="NASA-LaRC",
+        references=("https://doi.org/10.5067/TERRA-AQUA-NOAA20/CERES/EBAF_L3B004.2.1",),
+    )
 
-    def _download(self, variable: Variable) -> list[Path]:
+    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
         """Download data."""
         return self._esmvaltool_intake_download(
+            data_root_dir,
             variable,
-            supported_var_names=[
-                "rlut",
-                "rlutcs",
-                "rsdt",
-                "rsut",
-                "rsutcs",
-                "rtmt",
-                "rtnt",
-            ],
             project="obs4MIPs",
             dataset="CERES-EBAF-4-2-1",
-            mip="Amon",
+            mip=variable.cmip6_table_id,
             short_name=variable.var_name,
             frequency=variable.frequency,
         )

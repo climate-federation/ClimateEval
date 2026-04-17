@@ -18,9 +18,9 @@ if TYPE_CHECKING:
 @pytest.fixture
 def diagnostic(
     variables_and_data_2d: dict[Variable, DiagnosticData],
-    data_dir: Path,
+    data_root_dir: Path,
 ) -> AnnualCycle:
-    return AnnualCycle(variables_and_data_2d, data_dir=data_dir)
+    return AnnualCycle(variables_and_data_2d, data_root_dir=data_root_dir)
 
 
 def test__safely_preprocess(diagnostic: AnnualCycle, cube_2d: Cube) -> None:

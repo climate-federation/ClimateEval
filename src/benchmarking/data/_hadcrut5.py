@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from benchmarking.data._base import DataSource
+from benchmarking.data._base import DataSource, DataSourceInformation
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,11 +15,18 @@ if TYPE_CHECKING:
 class HadCRUT5(DataSource):
     """Manage HadCRUT5 data."""
 
-    def _download(self, variable: Variable) -> list[Path]:
+    _INFORMATION = DataSourceInformation(
+        name="HadCRUT5",
+        category="observation",
+        institute="Met Office Hadley Centre",
+        references=("https://doi.org/10.1029/2019JD032361",),
+    )
+
+    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
         """Download data."""
-        return self._esmvaltool_cmorizer_download(
+        return self._esmvaltool_cmorizer_prepare(
+            data_root_dir,
             variable,
-            "HadCRUT5",
             supported_var_names=["tas", "tasa"],
-            file_prefix_pattern="*_5.0.1.0-analysis_*_",
+            file_prefix_pattern="*_5.0.1.0-analysis_*",
         )

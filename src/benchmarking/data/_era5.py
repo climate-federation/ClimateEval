@@ -10,13 +10,13 @@ import cdsapi
 import iris
 from esmvalcore.cmor.fix import fix_data, fix_metadata
 
-from benchmarking.data._base import DataSource
+from benchmarking.data._base import DataSource, DataSourceInformation
 
 if TYPE_CHECKING:
     from benchmarking import Variable
 
 MONTHS = [f"{m:02d}" for m in range(1, 13)]
-YEARS = [str(y) for y in range(1979, 2025)]
+YEARS = [str(y) for y in range(1979, 2027)]
 PRESSURE_LEVELS = [
     "1",
     "2",
@@ -57,43 +57,60 @@ PRESSURE_LEVELS = [
     "1000",
 ]
 
+BASE: dict[str, Any] = {
+    "product_type": ["monthly_averaged_reanalysis"],
+    "month": MONTHS,
+    "time": ["00:00"],
+    "year": YEARS,
+}
+REQUEST_SL: dict[str, Any] = {
+    **BASE,
+    "dataset": "reanalysis-era5-single-levels-monthly-means",
+}
+REQUEST_PL: dict[str, Any] = {
+    **BASE,
+    "dataset": "reanalysis-era5-pressure-levels-monthly-means",
+    "pressure_level": PRESSURE_LEVELS,
+}
 REQUEST_MAP: dict[str, Any] = {
-    "pr": {
-        "dataset": "reanalysis-era5-single-levels-monthly-means",
-        "product_type": ["monthly_averaged_reanalysis"],
-        "variable": ["total_precipitation"],
-        "month": MONTHS,
-        "time": ["00:00"],
-        "year": YEARS,
-        "cmip6_table_id": "Amon",  # for ESMValTool
-    },
-    "ta": {
-        "dataset": "reanalysis-era5-pressure-levels-monthly-means",
-        "product_type": ["monthly_averaged_reanalysis"],
-        "variable": ["temperature"],
-        "month": MONTHS,
-        "time": ["00:00"],
-        "year": YEARS,
-        "pressure_level": PRESSURE_LEVELS,
-        "cmip6_table_id": "Amon",  # for ESMValTool
-    },
-    "tas": {
-        "dataset": "reanalysis-era5-single-levels-monthly-means",
-        "product_type": ["monthly_averaged_reanalysis"],
-        "variable": ["2m_temperature"],
-        "month": MONTHS,
-        "time": ["00:00"],
-        "year": YEARS,
-        "cmip6_table_id": "Amon",  # for ESMValTool
-    },
+    "clivi": {**REQUEST_SL, "variable": ["total_column_cloud_ice_water"]},
+    "clt": {**REQUEST_SL, "variable": ["total_cloud_cover"]},
+    "cl": {**REQUEST_PL, "variable": ["fraction_of_cloud_cover"]},
+    "hus": {**REQUEST_PL, "variable": ["specific_humidity"]},
+    "lwp": {**REQUEST_SL, "variable": ["total_column_cloud_liquid_water"]},
+    "pr": {**REQUEST_SL, "variable": ["total_precipitation"]},
+    "rlut": {**REQUEST_SL, "variable": ["top_net_thermal_radiation"]},
+    "rlutcs": {**REQUEST_SL, "variable": ["top_net_thermal_radiation_clear_sky"]},
+    "ta": {**REQUEST_PL, "variable": ["temperature"]},
+    "tas": {**REQUEST_SL, "variable": ["2m_temperature"]},
+    "ua": {**REQUEST_PL, "variable": ["u_component_of_wind"]},
+    "va": {**REQUEST_PL, "variable": ["v_component_of_wind"]},
 }
 
 
 class ERA5(DataSource):
     """Manage ERA5 data."""
 
-    def _download(self, variable: Variable) -> list[Path]:
-        """Download data."""
+    _INFORMATION = DataSourceInformation(
+        name="ERA5",
+        category="reanalysis",
+        institute="ECMWF",
+        references=(
+            "https://doi.org/10.24381/cds.f17050d7",
+            "https://doi.org/10.24381/cds.6860a573",
+        ),
+    )
+
+    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
+        """Download data.
+
+        Note
+        ----
+        This requires a valid API key in ``~/.cdsapirc``. See section "Setup
+        the CDS Api key" at https://cds.climate.copernicus.eu/how-to-api for
+        details.
+
+        """
         if variable.var_name not in REQUEST_MAP:
             msg = f"Variable '{variable.var_name}' not supported for ERA5"
             raise NotImplementedError(msg)
@@ -102,39 +119,46 @@ class ERA5(DataSource):
         request["data_format"] = "netcdf"
         request["download_format"] = "unarchived"
         dataset = request.pop("dataset")
-        cmip6_table_id = request.pop("cmip6_table_id")
 
         # Raw downloaded data will be stored in temporary directory. Our "raw"
         # data will be the formatted data by ESMValTool.
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
-        download_dir = tmp_dir / "download"
-        download_dir.mkdir(parents=True, exist_ok=True)
-        tmp_target = download_dir / f"raw_{self.name}_{variable.var_name}.nc"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        tmp_target = tmp_dir / f"raw_{self.id}_{variable.var_name}.nc"
 
         # Download data
         cdsapi.Client().retrieve(dataset, request).download(tmp_target)
 
         # Reformat data with ESMValTool and save
-        cubes = iris.load(tmp_target)
-        cube = fix_metadata(
-            cubes,
-            short_name=variable.var_name,
-            project="native6",
-            dataset=self.name,
-            mip=cmip6_table_id,
-            frequency=variable.frequency,
-        )[0]
-        cube = fix_data(
-            cube,
-            short_name=variable.var_name,
-            project="native6",
-            dataset=self.name,
-            mip=cmip6_table_id,
-            frequency=variable.frequency,
+        target = self.format(
+            tmp_target,
+            variable,
+            data_root_dir=data_root_dir,
         )
-        data_dir = self._get_data_dir(variable)
-        data_dir.mkdir(parents=True, exist_ok=True)
-        target = data_dir / f"{self.name}_{variable.var_name}.nc"
-        iris.save(cube, target)
 
         return [target]
+
+    def format(
+        self,
+        input_file: Path,
+        variable: Variable,
+        *,
+        data_root_dir: Path,
+    ) -> Path:
+        era5_facets = {
+            "short_name": variable.var_name,
+            "project": "native6",
+            "dataset": self.name,
+            "mip": variable.cmip6_table_id,
+            "frequency": variable.frequency,
+        }
+        cubes = iris.load(input_file)
+        cube = fix_metadata(cubes, **era5_facets)[0]
+        cube = fix_data(cube, **era5_facets)
+        if cube.coords("expver"):
+            cube.remove_coord("expver")
+        data_dir = self._get_data_dir(data_root_dir, variable.var_name)
+        data_dir.mkdir(parents=True, exist_ok=True)
+        target = data_dir / self._get_output_filename(cube, **era5_facets)
+        iris.save(cube, target)
+        return target

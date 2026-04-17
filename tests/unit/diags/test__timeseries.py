@@ -18,24 +18,20 @@ if TYPE_CHECKING:
 @pytest.fixture
 def diagnostic(
     variables_and_data_2d: dict[Variable, DiagnosticData],
-    data_dir: Path,
+    data_root_dir: Path,
 ) -> TimeSeries:
-    return TimeSeries(variables_and_data_2d, data_dir=data_dir)
+    return TimeSeries(variables_and_data_2d, data_root_dir=data_root_dir)
 
 
 def test__safely_preprocess(diagnostic: TimeSeries, cube_2d: Cube) -> None:
     diagnostic._safely_preprocess(cube_2d)
 
 
-def test_tags(diagnostic: TimeSeries) -> None:
-    assert diagnostic.tags == ("atmosphere", "pr", "tas", "timeseries")
-
-
-def test_non_unique_variables_fail(data_dir: Path) -> None:
+def test_non_unique_variables_fail(data_root_dir: Path) -> None:
     var_1 = Variable("tas", "tas", "mon")
     var_2 = Variable("tas", "tas", "day")
     data = DiagnosticData(reference=HadCRUT5)
     variables_and_data = {var_1: data, var_2: data}
     msg = r"Variable IDs must be unique for diagnostic TimeSeries, got ['tas', 'tas']"
     with pytest.raises(ValueError, match=re.escape(msg)):
-        TimeSeries(variables_and_data, data_dir=data_dir)
+        TimeSeries(variables_and_data, data_root_dir=data_root_dir)

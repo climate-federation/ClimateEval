@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from iris.cube import CubeList
     from xarray import Dataset
 
+    from benchmarking.data import DataSourceInformation
     from benchmarking.diags import Diagnostic
 
 logger = logger.opt(colors=True)
@@ -37,7 +38,7 @@ class Suite:
         """Initialize class instance."""
         self._suite_definition_file = self._get_suite_defintion_file(suite_definition)
         self._suite_definition = self._get_suite_defintion()
-        logger.debug(f"Initializing evaluation suite {self.name}")
+        logger.info(f"Initializing evaluation suite {self.name}")
         if diagnostic_kwargs is None:
             diagnostic_kwargs = {}
         if variable_kwargs is None:
@@ -53,7 +54,7 @@ class Suite:
     def get_database(
         self,
         data: CubeList | Dataset,
-        data_name: str,
+        data_information: DataSourceInformation,
         *,
         database_resource: str = "duckdb://",
         **database_kwargs: Any,
@@ -64,16 +65,25 @@ class Suite:
         connection = ibis.connect(database_resource, **database_kwargs)
 
         for diagnostic in self._get_diagnostics():
-            output = diagnostic.get_output(data, data_name)
+            logger.info(
+                f"Processing diagnostic {diagnostic.name} within suite {self.name}",
+            )
+            output = diagnostic.get_output(data, data_information)
             connection.create_database(diagnostic.name)
             for output_field in fields(output):
                 table_name = output_field.name
-                connection.create_table(
-                    table_name,
-                    getattr(output, table_name),
-                    database=diagnostic.name,
-                )
-            logger.debug(f"Created database for diagnostic {diagnostic.name}")
+                table = getattr(output, table_name)
+                if table is None:
+                    logger.debug(
+                        f"Table '{table_name}' of diagnostic {diagnostic.name} "
+                        f"within suite {self.name} contains no data",
+                    )
+                    continue
+                connection.create_table(table_name, table, database=diagnostic.name)
+            logger.info(
+                f"Created database for diagnostic {diagnostic.name} within suite "
+                f"{self.name} at {database_resource}",
+            )
 
         return connection
 
