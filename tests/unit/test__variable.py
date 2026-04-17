@@ -69,6 +69,7 @@ def test_tas() -> None:
         "ar6_regions_mask": (),
         "timerange": "*",
         "units": "K",
+        "anomaly": "",
     }
     assert var.settings == settings
     for key, val in settings.items():
@@ -103,6 +104,7 @@ def test_lwcre() -> None:
         "ar6_regions_mask": (),
         "timerange": "*",
         "units": "W m-2",
+        "anomaly": "",
     }
     assert var.settings == settings
     for key, val in settings.items():
@@ -135,6 +137,7 @@ def test_lwcre() -> None:
                 "ar6_regions_mask": (),
                 "timerange": "*",
                 "units": "W m-2",
+                "anomaly": "",
             },
         ),
         (
@@ -153,6 +156,7 @@ def test_lwcre() -> None:
                 "ar6_regions_mask": ("Caribbean", "E.Europe"),
                 "timerange": "*",
                 "units": "kW w-2",
+                "anomaly": "",
             },
         ),
     ],

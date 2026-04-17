@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import iris
 from esmvalcore.preprocessor import (
+    anomalies,
     clip_timerange,
     convert_units,
     derive,
@@ -129,6 +130,10 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     # Extract level
     if variable.vertical_level is not NO_LEVEL:
         cube = _extract_level(cube, variable.vertical_level)
+
+    # Calculate anomalies
+    if variable.anomaly:
+        cube = anomalies(cube, variable.anomaly)
 
     return cube
 
