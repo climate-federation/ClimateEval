@@ -88,17 +88,18 @@ class MERRA2(ESMValToolCMORizerDataSource):
             "last_access": datetime.now(UTC),
             "info": "",
         }
-        downloader = NASADownloader(
-            original_data_dir=tmp_dir,
-            dataset=self.name,
-            dataset_info=dataset_info,
-            overwrite=False,
-        )
 
-        for year in range(1980, 2022):
-            downloader.download_folder(
-                f"{source}/{VAR_TO_FILE[variable.var_name]}/{year}/",
+        with self._set_esmvaltool_output_dir(tmp_dir):
+            downloader = NASADownloader(
+                original_data_dir=tmp_dir,
+                dataset=self.name,
+                dataset_info=dataset_info,
+                overwrite=False,
             )
+            for year in range(1980, 2022):
+                downloader.download_folder(
+                    f"{source}/{VAR_TO_FILE[variable.var_name]}/{year}/",
+                )
 
         return self._esmvaltool_cmorizer_format(
             data_root_dir,

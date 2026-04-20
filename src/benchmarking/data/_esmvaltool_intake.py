@@ -35,31 +35,6 @@ ESMVALTOOL_INTAKE_DATA_SOURCES = (
 )
 
 
-def _get_esmvaltool_intake_data_sources() -> dict[str, Any]:
-    """Get ESMValTool intake-esgf data sources."""
-    with ESMVALTOOL_INTAKE_DATA_SOURCES.open("r", encoding="utf-8") as file:
-        return yaml.safe_load(file)
-
-
-@contextlib.contextmanager
-def _setup_esmvaltool_intake_data_source(cache_dir: Path) -> Generator[None]:
-    """Set up ESMValTool intake-esgf data sources."""
-    intake_esgf_options = {
-        "all_indices": True,
-        "esg_dataroot": [],
-        "local_cache": cache_dir,
-    }
-
-    with contextlib.ExitStack() as stack:
-        stack.enter_context(intake_esgf.conf.set(**intake_esgf_options))
-        stack.enter_context(setup_esmvaltool_config_and_logging())
-        esmvaltool_config = deepcopy(CFG)
-        for project, data_config in _get_esmvaltool_intake_data_sources().items():
-            esmvaltool_config["projects"][project]["data"] = data_config["data"]
-        stack.enter_context(CFG.context(esmvaltool_config))
-        yield
-
-
 class ESMValToolIntakeDataSource(DataSource):
     """Manage ESMValTool Intake-ESGF data source."""
 
@@ -84,7 +59,7 @@ class ESMValToolIntakeDataSource(DataSource):
         # Store downloaded data in temporary directory
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
         tmp_dir.mkdir(parents=True, exist_ok=True)
-        with _setup_esmvaltool_intake_data_source(tmp_dir):
+        with self._setup_esmvaltool_intake_data_source(tmp_dir):
             cube = Dataset(**facets).load()
 
         # Save file into data directory
@@ -94,3 +69,29 @@ class ESMValToolIntakeDataSource(DataSource):
         iris.save(cube, output_path)
 
         return [output_path]
+
+    def _get_esmvaltool_intake_data_sources(self) -> dict[str, Any]:
+        """Get ESMValTool intake-esgf data sources."""
+        with ESMVALTOOL_INTAKE_DATA_SOURCES.open("r", encoding="utf-8") as file:
+            return yaml.safe_load(file)
+
+    @contextlib.contextmanager
+    def _setup_esmvaltool_intake_data_source(self, cache_dir: Path) -> Generator[None]:
+        """Set up ESMValTool intake-esgf data sources."""
+        intake_esgf_options = {
+            "all_indices": True,
+            "esg_dataroot": [],
+            "local_cache": cache_dir,
+        }
+
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(intake_esgf.conf.set(**intake_esgf_options))
+            stack.enter_context(setup_esmvaltool_config_and_logging())
+            esmvaltool_config = deepcopy(CFG)
+            for (
+                project,
+                data_config,
+            ) in self._get_esmvaltool_intake_data_sources().items():
+                esmvaltool_config["projects"][project]["data"] = data_config["data"]
+            stack.enter_context(CFG.context(esmvaltool_config))
+            yield

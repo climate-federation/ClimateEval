@@ -25,15 +25,6 @@ if TYPE_CHECKING:
 logger = logger.opt(colors=True)
 
 
-@contextlib.contextmanager
-def _setup_esmvaltool_output_dir(output_dir: Path) -> Generator[None]:
-    """Set up ESMValTool output directory."""
-    with contextlib.ExitStack() as stack:
-        stack.enter_context(setup_esmvaltool_config_and_logging())
-        stack.enter_context(CFG.context(output_dir=output_dir))
-        yield
-
-
 class ESMValToolCMORizerDataSource(DataSource):
     """Manage ESMValTool CMORizer data source."""
 
@@ -61,7 +52,7 @@ class ESMValToolCMORizerDataSource(DataSource):
         tmp_dir.mkdir(parents=True, exist_ok=True)
 
         # Download data
-        with _setup_esmvaltool_output_dir(tmp_dir):
+        with self._set_esmvaltool_output_dir(tmp_dir):
             DataCommand().download(self.name, original_data_dir=tmp_dir)
 
         # Format data
@@ -100,7 +91,7 @@ class ESMValToolCMORizerDataSource(DataSource):
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
         tmp_dir.mkdir(parents=True, exist_ok=True)
 
-        with _setup_esmvaltool_output_dir(tmp_dir):
+        with self._set_esmvaltool_output_dir(tmp_dir):
             DataCommand().format(self.name, original_data_dir=download_dir)
 
         latest_esmvaltool_output_dir = (
@@ -134,3 +125,11 @@ class ESMValToolCMORizerDataSource(DataSource):
                 formatted_files.append(formatted_file)
 
         return formatted_files
+
+    @contextlib.contextmanager
+    def _set_esmvaltool_output_dir(self, output_dir: Path) -> Generator[None]:
+        """Set up ESMValTool output directory."""
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(setup_esmvaltool_config_and_logging())
+            stack.enter_context(CFG.context(output_dir=output_dir))
+            yield
