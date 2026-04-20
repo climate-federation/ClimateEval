@@ -2,18 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any, ClassVar
 
-from benchmarking.data._base import DataSource
+from benchmarking.data._esmvaltool_intake import ESMValToolIntakeDataSource
 from benchmarking.data._utils import DataSourceInformation
 
-if TYPE_CHECKING:
-    from pathlib import Path
 
-    from benchmarking import Variable
-
-
-class GPCP(DataSource):
+class GPCP(ESMValToolIntakeDataSource):
     """Manage GPCP data."""
 
     _INFORMATION = DataSourceInformation(
@@ -26,14 +21,7 @@ class GPCP(DataSource):
         ),
     )
 
-    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
-        """Download data."""
-        return self._esmvaltool_intake_download(
-            data_root_dir,
-            variable,
-            project="obs4MIPs",
-            dataset="GPCP-3-3",
-            mip=variable.cmip6_table_id,
-            short_name=variable.var_name,
-            frequency=variable.frequency,
-        )
+    _ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {
+        "project": "obs4MIPs",
+        "dataset": "GPCP-3-3",
+    }

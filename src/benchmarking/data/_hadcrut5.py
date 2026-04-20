@@ -2,18 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from benchmarking.data._base import DataSource
+from benchmarking.data._esmvaltool_cmorizer import ESMValToolCMORizerDataSource
 from benchmarking.data._utils import DataSourceInformation
 
-if TYPE_CHECKING:
-    from pathlib import Path
 
-    from benchmarking import Variable
-
-
-class HadCRUT5(DataSource):
+class HadCRUT5(ESMValToolCMORizerDataSource):
     """Manage HadCRUT5 data."""
 
     _INFORMATION = DataSourceInformation(
@@ -23,11 +16,5 @@ class HadCRUT5(DataSource):
         references=("https://doi.org/10.1029/2019JD032361",),
     )
 
-    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
-        """Download data."""
-        return self._esmvaltool_cmorizer_prepare(
-            data_root_dir,
-            variable,
-            supported_var_names=["tas", "tasa"],
-            file_prefix_pattern="*_5.0.1.0-analysis_*",
-        )
+    SUPPORTED_VAR_NAMES = ("tas", "tasa")
+    _FILE_PREFIX_PATTERN = "*_5.0.1.0-analysis_*"
