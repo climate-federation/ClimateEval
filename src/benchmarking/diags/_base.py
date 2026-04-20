@@ -16,7 +16,7 @@ from iris.pandas import as_data_frame
 from iris.warnings import IrisVagueMetadataWarning
 from loguru import logger
 
-from benchmarking import NO_LEVEL
+from benchmarking import NO_LEVEL, setup_esmvaltool_config_and_logging
 from benchmarking._utils import check_coordinates, get_prepared_cube
 from benchmarking.diags._utils import DiagnosticOutput
 
@@ -344,9 +344,12 @@ class Diagnostic(ABC):
                     category=IrisVagueMetadataWarning,
                     module="iris",
                 )
-                metrics[metric] = float(
-                    distance_metric([cube], metric, reference=reference_cube)[0].data,
-                )
+                with setup_esmvaltool_config_and_logging():
+                    metrics[metric] = float(
+                        distance_metric([cube], metric, reference=reference_cube)[
+                            0
+                        ].data,
+                    )
         return metrics
 
     def _get_output_of_other_data(

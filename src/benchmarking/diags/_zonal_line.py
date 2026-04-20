@@ -10,7 +10,7 @@ from esmvalcore.preprocessor import (
     zonal_statistics,
 )
 
-from benchmarking import Coordinate
+from benchmarking import Coordinate, setup_esmvaltool_config_and_logging
 from benchmarking.diags._base import Diagnostic
 from benchmarking.diags._utils import DEFAULT_GRID
 
@@ -25,7 +25,8 @@ class ZonalLine(Diagnostic):
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
-        cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
-        cube = zonal_statistics(cube, "mean")
-        cube = climate_statistics(cube, operator="mean", period="full")
+        with setup_esmvaltool_config_and_logging():
+            cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
+            cube = zonal_statistics(cube, "mean")
+            cube = climate_statistics(cube, operator="mean", period="full")
         return cube  # noqa: RET504

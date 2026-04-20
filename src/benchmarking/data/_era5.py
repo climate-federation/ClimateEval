@@ -10,6 +10,8 @@ import cdsapi
 import iris
 from esmvalcore.cmor.fix import fix_data, fix_metadata
 
+from benchmarking import setup_esmvaltool_config_and_logging
+from benchmarking._utils import load_cubes
 from benchmarking.data._base import DataSource
 from benchmarking.data._utils import DataSourceInformation
 
@@ -153,9 +155,10 @@ class ERA5(DataSource):
             "mip": variable.cmip6_table_id,
             "frequency": variable.frequency,
         }
-        cubes = iris.load(input_file)
-        cube = fix_metadata(cubes, **era5_facets)[0]
-        cube = fix_data(cube, **era5_facets)
+        cubes = load_cubes(input_file)
+        with setup_esmvaltool_config_and_logging():
+            cube = fix_metadata(cubes, **era5_facets)[0]
+            cube = fix_data(cube, **era5_facets)
         if cube.coords("expver"):
             cube.remove_coord("expver")
         data_dir = self._get_data_dir(data_root_dir, variable.var_name)

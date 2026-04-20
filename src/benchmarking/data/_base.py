@@ -6,10 +6,9 @@ from abc import ABC, abstractmethod
 from pprint import pformat
 from typing import TYPE_CHECKING, Any, ClassVar
 
-import iris
 from loguru import logger
 
-from benchmarking._utils import get_prepared_cube
+from benchmarking._utils import get_prepared_cube, load_cubes
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -54,7 +53,7 @@ class DataSource(ABC):
             self._get_data_dir(data_root_dir, variable.var_name).glob("*.nc"),
         )
         if paths:
-            return get_prepared_cube(iris.load(paths), variable)
+            return get_prepared_cube(load_cubes(paths), variable)
 
         logger.debug(f"No data found for {variable} of {self.id}")
 
@@ -65,7 +64,7 @@ class DataSource(ABC):
                 logger.debug(
                     f"Found required variables to derive {variable} of {self.id}",
                 )
-                return get_prepared_cube(iris.load(paths), variable)
+                return get_prepared_cube(load_cubes(paths), variable)
 
         # Try downloading the variable
         logger.debug(f"Trying downloading {variable} of {self.id}")
@@ -79,7 +78,7 @@ class DataSource(ABC):
             error_msg = f": {exc}"
         if paths:
             logger.info(f"Downloaded {self.id}:\n{pformat(paths)}")
-            return get_prepared_cube(iris.load(paths), variable)
+            return get_prepared_cube(load_cubes(paths), variable)
 
         logger.debug(
             f"Failed to download derived variable {variable} of {self.id}{error_msg}",
@@ -93,7 +92,7 @@ class DataSource(ABC):
             variable,
             download=True,
         )
-        cubes = iris.load(paths)
+        cubes = load_cubes(paths)
         return get_prepared_cube(cubes, variable)
 
     def _get_data_dir(self, data_root_dir: Path, var_name: str) -> Path:

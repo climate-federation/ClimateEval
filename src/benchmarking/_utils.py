@@ -18,14 +18,20 @@ from esmvalcore.preprocessor import (
 from iris import Constraint, NameConstraint
 from iris.coords import CoordExtent
 from iris.cube import CubeList
+from iris.exceptions import ConstraintMismatchError
 from loguru import logger
 from ncdata.iris_xarray import cubes_from_xarray
 from xarray import Dataset
 
-from benchmarking import NO_LEVEL
+from benchmarking import (
+    NO_LEVEL,
+    setup_esmvaltool_config_and_logging,
+    setup_iris_combine_policy,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from pathlib import Path
 
     from iris.cube import Cube
 
@@ -87,55 +93,63 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
 
     """
     if isinstance(data, Dataset):
-        data = cubes_from_xarray(data)
+        with setup_iris_combine_policy():
+            data = cubes_from_xarray(data)
 
-    try:
-        cube = data.extract_cube(NameConstraint(var_name=variable.var_name))
-    except iris.exceptions.ConstraintMismatchError:
-        if not variable.derived:
-            raise
-        cube = _get_derived_cube(data, variable)
+    with setup_esmvaltool_config_and_logging():
+        try:
+            cube = data.extract_cube(NameConstraint(var_name=variable.var_name))
+        except ConstraintMismatchError:
+            if not variable.derived:
+                raise
+            cube = _get_derived_cube(data, variable)
 
-    _check_data(cube, variable)
+        _check_data(cube, variable)
 
-    # Add bounds if necessary
-    cube = _set_coordinate_bounds(cube)
+        # Add bounds if necessary
+        cube = _set_coordinate_bounds(cube)
 
-    # Make sure units are correct
-    cube = convert_units(cube, variable.units)
+        # Make sure units are correct
+        cube = convert_units(cube, variable.units)
 
-    # Make sure longitude is in [0, 360]
-    if cube.coords("longitude"):
-        cube = _set_lon_to_0_360(cube)
+        # Make sure longitude is in [0, 360]
+        if cube.coords("longitude"):
+            cube = _set_lon_to_0_360(cube)
 
-    # Apply masks
-    cube = _apply_masks(cube, variable)
+        # Apply masks
+        cube = _apply_masks(cube, variable)
 
-    # Extract desired time range and bounding box
-    if cube.coords("time") and variable.timerange != "*":
-        cube = clip_timerange(cube, variable.timerange)
-    if cube.coords("latitude"):
-        cube = cube.extract(
-            Constraint(
-                latitude=lambda cell: variable.min_lat <= cell <= variable.max_lat,
-            ),
-        )
-    if cube.coords("longitude"):
-        cube = cube.extract(
-            Constraint(
-                longitude=lambda cell: variable.min_lon <= cell <= variable.max_lon,
-            ),
-        )
+        # Extract desired time range and bounding box
+        if cube.coords("time") and variable.timerange != "*":
+            cube = clip_timerange(cube, variable.timerange)
+        if cube.coords("latitude"):
+            cube = cube.extract(
+                Constraint(
+                    latitude=lambda cell: variable.min_lat <= cell <= variable.max_lat,
+                ),
+            )
+        if cube.coords("longitude"):
+            cube = cube.extract(
+                Constraint(
+                    longitude=lambda cell: variable.min_lon <= cell <= variable.max_lon,
+                ),
+            )
 
-    # Extract level
-    if variable.vertical_level is not NO_LEVEL:
-        cube = _extract_level(cube, variable.vertical_level)
+        # Extract level
+        if variable.vertical_level is not NO_LEVEL:
+            cube = _extract_level(cube, variable.vertical_level)
 
-    # Calculate anomalies
-    if variable.anomaly:
-        cube = anomalies(cube, variable.anomaly)
+        # Calculate anomalies
+        if variable.anomaly:
+            cube = anomalies(cube, variable.anomaly)
 
     return cube
+
+
+def load_cubes(uris: str | Path | Iterable[str] | Iterable[Path]) -> CubeList:
+    """Load Iris cubes."""
+    with setup_iris_combine_policy():
+        return iris.load(uris)
 
 
 def str_to_class(class_str: str) -> type:

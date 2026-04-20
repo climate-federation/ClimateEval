@@ -11,7 +11,7 @@ from esmvalcore.preprocessor import (
     regrid_time,
 )
 
-from benchmarking import COORDINATES, Coordinate
+from benchmarking import COORDINATES, Coordinate, setup_esmvaltool_config_and_logging
 from benchmarking.diags._base import Diagnostic
 from benchmarking.diags._utils import DEFAULT_GRID
 
@@ -26,18 +26,19 @@ class TimeSeries(Diagnostic):
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
-        cube = regrid(
-            cube,
-            DEFAULT_GRID,
-            "linear",
-            cache_weights=True,
-        )  # to ensure we are on a regular grid
-        cube = area_statistics(cube, "mean")
-        cube = annual_statistics(cube, "mean")
-        cube = regrid_time(
-            cube,
-            frequency="yr",
-            calendar="standard",
-            units=COORDINATES["time"]["units"],
-        )
+        with setup_esmvaltool_config_and_logging():
+            cube = regrid(
+                cube,
+                DEFAULT_GRID,
+                "linear",
+                cache_weights=True,
+            )  # to ensure we are on a regular grid
+            cube = area_statistics(cube, "mean")
+            cube = annual_statistics(cube, "mean")
+            cube = regrid_time(
+                cube,
+                frequency="yr",
+                calendar="standard",
+                units=COORDINATES["time"]["units"],
+            )
         return cube  # noqa: RET504

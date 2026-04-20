@@ -31,22 +31,6 @@ def esmvaltool_only_log_errors() -> Generator[None]:
 
 
 @contextlib.contextmanager
-def use_default_esmvaltool_config() -> Generator[None]:
-    """Use default ESMValTool configuration."""
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message="Do not instantiate `Config` objects directly",
-            category=UserWarning,
-        )
-        cfg = Config()
-    cfg.load_from_dirs([])
-    with contextlib.ExitStack() as stack:
-        stack.enter_context(CFG.context(cfg))
-        yield
-
-
-@contextlib.contextmanager
 def setup_esmvaltool_config_and_logging() -> Generator[None]:
     """Set up ESMValTool for usage within this project."""
     with contextlib.ExitStack() as stack:
@@ -68,4 +52,20 @@ def setup_iris_combine_policy() -> Generator[None]:
     }
     with contextlib.ExitStack() as stack:
         stack.enter_context(iris.COMBINE_POLICY.context(**combine_policy))
+        yield
+
+
+@contextlib.contextmanager
+def use_default_esmvaltool_config() -> Generator[None]:
+    """Use default ESMValTool configuration."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Do not instantiate `Config` objects directly",
+            category=UserWarning,
+        )
+        cfg = Config()
+    cfg.load_from_dirs([])
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(CFG.context(cfg))
         yield

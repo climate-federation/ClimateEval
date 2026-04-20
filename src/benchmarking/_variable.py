@@ -11,6 +11,8 @@ import yaml
 from esmvalcore.preprocessor._derive import get_required  # not part of public API yet
 from loguru import logger
 
+from benchmarking import setup_esmvaltool_config_and_logging
+
 if TYPE_CHECKING:
     from importlib.resources.abc import Traversable
     from pathlib import Path
@@ -189,7 +191,8 @@ class Variable:
         """Get variables necessary for derivation."""
         if not self.derived:
             return (self,)
-        required_facets = get_required(self.var_name, "CMIP6")
+        with setup_esmvaltool_config_and_logging():
+            required_facets = get_required(self.var_name, "CMIP6")
         return tuple(
             Variable(
                 v["short_name"],
