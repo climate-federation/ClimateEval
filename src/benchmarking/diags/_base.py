@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Literal
 
 import ibis
+import iris
 import pandas as pd
 from esmvalcore.preprocessor import distance_metric
 from ibis import _
@@ -311,7 +312,8 @@ class Diagnostic(ABC):
         data_type: Literal["to_benchmark", "reference", "other"],
     ) -> ibis.Table:
         """Get data table of a single cube."""
-        df = as_data_frame(cube).reset_index()
+        with iris.FUTURE.context(pandas_ndim=True):
+            df = as_data_frame(cube).reset_index()
         if "time" in df.columns:
             df["time"] = df["time"].astype(str)
         raw_output_table = ibis.memtable(df)
