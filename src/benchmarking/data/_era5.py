@@ -10,7 +10,8 @@ import cdsapi
 import iris
 from esmvalcore.cmor.fix import fix_data, fix_metadata
 
-from benchmarking.data._base import DataSource, DataSourceInformation
+from benchmarking.data._base import DataSource
+from benchmarking.data._utils import DataSourceInformation
 
 if TYPE_CHECKING:
     from benchmarking import Variable

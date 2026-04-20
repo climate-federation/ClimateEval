@@ -10,7 +10,8 @@ from esmvalcore.preprocessor import (
 )
 
 from benchmarking import Coordinate
-from benchmarking.diags._base import DEFAULT_GRID, Diagnostic
+from benchmarking.diags._base import Diagnostic
+from benchmarking.diags._utils import DEFAULT_GRID
 
 if TYPE_CHECKING:
     from iris.cube import Cube

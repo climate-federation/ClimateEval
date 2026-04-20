@@ -1,4 +1,4 @@
-"""Provide basic features of data sources."""
+"""Provide base class for data sources."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import shutil
 import tempfile
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass, field
 from pathlib import Path
 from pprint import pformat
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -26,44 +25,10 @@ if TYPE_CHECKING:
     from iris.cube import Cube, CubeList
 
     from benchmarking import Variable
+    from benchmarking.data._utils import DataSourceInformation
 
 
 logger = logger.opt(colors=True)
-
-
-@dataclass(frozen=True, kw_only=True)
-class DataSourceInformation:
-    """Manage data source information."""
-
-    id: str = field(init=False)
-
-    name: str = field(repr=False)
-    category: str = field(repr=False)  # e.g., observation, CMIP6 model, etc.
-    institute: str = field(default="", repr=False)
-    exp: str = field(default="", repr=False)
-    variant: str = field(default="", repr=False)  # e.g., r1i1p1f1, etc.
-    references: tuple[str, ...] = field(default_factory=tuple, repr=False)
-
-    def __post_init__(self) -> None:
-        """Initialize class instance."""
-        id_fields = ("category", "name", "exp", "variant")
-
-        id_fields_vals = [
-            getattr(self, f).replace(" ", "-")
-            for f in id_fields
-            if getattr(self, f) != ""
-        ]
-
-        # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
-        object.__setattr__(self, "id", "_".join(id_fields_vals))
-
-
-@dataclass(frozen=True, kw_only=True)
-class DiagnosticData:
-    """Manage diagnostic data."""
-
-    reference: type[DataSource]
-    other: tuple[type[DataSource], ...] = ()
 
 
 class DataSource(ABC):

@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING
 
 from esmvaltool.cmorizers.data.downloaders.wget import NASADownloader
 
-from benchmarking.data._base import DataSource, DataSourceInformation
+from benchmarking.data._base import DataSource
+from benchmarking.data._utils import DataSourceInformation
 
 if TYPE_CHECKING:
     from benchmarking import Variable
