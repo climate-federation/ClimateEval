@@ -1,4 +1,4 @@
-"""Provide base class for diagnostics."""
+"""Provide basic features of diagnostics."""
 
 from __future__ import annotations
 
