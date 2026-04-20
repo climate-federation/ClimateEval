@@ -11,6 +11,7 @@ from loguru import logger
 from benchmarking._utils import get_prepared_cube, load_cubes
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from pathlib import Path
 
     from iris.cube import Cube, CubeList
@@ -146,3 +147,11 @@ class DataSource(ABC):
 
             paths.extend(paths_for_required_variable)
         return paths
+
+
+class DataSourceGenerator(ABC):
+    """Generate data sources."""
+
+    @abstractmethod
+    def generate(self, variable: Variable) -> Generator[type[DataSource]]:
+        """Generate data sources."""

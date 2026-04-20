@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 if TYPE_CHECKING:
-    from benchmarking.data._base import DataSource
+    from benchmarking.data._base import DataSource, DataSourceGenerator
 
 logger = logger.opt(colors=True)
 
@@ -45,4 +45,9 @@ class DiagnosticData:
     """Manage diagnostic data."""
 
     reference: type[DataSource]
-    other: tuple[type[DataSource], ...] = ()
+    other: tuple[type[DataSource | DataSourceGenerator], ...] = ()
+
+
+def get_cmip6_reference(*, mip: str, institute: str, model: str) -> str:
+    """Get reference for CMIP model."""
+    return f"https://www.wdc-climate.de/ui/cmip6?input=CMIP6.{mip}.{institute}.{model}"

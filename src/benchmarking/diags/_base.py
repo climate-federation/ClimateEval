@@ -19,6 +19,7 @@ from loguru import logger
 
 from benchmarking import NO_LEVEL, setup_esmvaltool_config_and_logging
 from benchmarking._utils import check_coordinates, get_prepared_cube
+from benchmarking.data._base import DataSource
 from benchmarking.diags._utils import DiagnosticOutput
 
 if TYPE_CHECKING:
@@ -26,7 +27,6 @@ if TYPE_CHECKING:
     from xarray import Dataset
 
     from benchmarking import Coordinate, Variable
-    from benchmarking.data._base import DataSource
     from benchmarking.data._utils import DataSourceInformation, DiagnosticData
 
 
@@ -88,8 +88,16 @@ class Diagnostic(ABC):
             raise ValueError(msg)
 
         _other_data: dict[Variable, tuple[DataSource, ...]] = {}
-        for variable, data_item in variables_and_data.items():
-            _other_data[variable] = tuple(o() for o in data_item.other)
+        for variable, diag_datas in variables_and_data.items():
+            other_data_sources: list[DataSource] = []
+            for data_source_cls in diag_datas.other:
+                if issubclass(data_source_cls, DataSource):
+                    other_data_sources.append(data_source_cls())
+                else:
+                    other_data_sources.extend(
+                        cls() for cls in data_source_cls().generate(variable)
+                    )
+            _other_data[variable] = tuple(other_data_sources)
         self._other_data = _other_data
 
         self._fail_on_missing_data = fail_on_missing_data

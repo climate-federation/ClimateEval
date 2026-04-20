@@ -55,7 +55,7 @@ if db_path.is_file():
 
 data_info = DataSourceInformation(
     name="MPI-ESM1-2-LR",
-    category="CMIP6 model",
+    category="CMIP6",
     institute="MPI-M",
     exp="historical",
     variant="r1i1p1f1",
@@ -68,7 +68,7 @@ suite = Suite(
     "Tier2",
     diagnostic_kwargs={
         "data_root_dir": data_root_dir,
-        "fail_on_missing_data": True,
+        "fail_on_missing_data": False,
     },
     variable_kwargs={
         "timerange": "20000101/20011231",

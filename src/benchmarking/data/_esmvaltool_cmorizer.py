@@ -1,4 +1,4 @@
-"""Provide base class for data sources."""
+"""Provide ESMValTool CMORizer data sources."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Provide basic features of data sources."""
+"""Provide ESMValTool Intake-ESGF data sources."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import tempfile
 from copy import deepcopy
 from importlib import resources
 from pathlib import Path
+from pprint import pformat
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import intake_esgf
@@ -17,7 +18,8 @@ from esmvalcore.dataset import Dataset
 from loguru import logger
 
 from benchmarking import setup_esmvaltool_config_and_logging
-from benchmarking.data._base import DataSource
+from benchmarking.data._base import DataSource, DataSourceGenerator
+from benchmarking.data._utils import DataSourceInformation, get_cmip6_reference
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -33,6 +35,34 @@ ESMVALTOOL_INTAKE_DATA_SOURCES = (
     / "config"
     / "esmvaltool_intake_data_sources.yml"
 )
+
+
+def _get_esmvaltool_intake_data_sources() -> dict[str, Any]:
+    """Get ESMValTool intake-esgf data sources."""
+    with ESMVALTOOL_INTAKE_DATA_SOURCES.open("r", encoding="utf-8") as file:
+        return yaml.safe_load(file)
+
+
+@contextlib.contextmanager
+def _setup_esmvaltool_intake_data_source(cache_dir: Path) -> Generator[None]:
+    """Set up ESMValTool intake-esgf data sources."""
+    intake_esgf_options = {
+        "all_indices": True,
+        "esg_dataroot": [],
+        "local_cache": cache_dir,
+    }
+
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(intake_esgf.conf.set(**intake_esgf_options))
+        stack.enter_context(setup_esmvaltool_config_and_logging())
+        esmvaltool_config = deepcopy(CFG)
+        for (
+            project,
+            data_config,
+        ) in _get_esmvaltool_intake_data_sources().items():
+            esmvaltool_config["projects"][project]["data"] = data_config["data"]
+        stack.enter_context(CFG.context(esmvaltool_config))
+        yield
 
 
 class ESMValToolIntakeDataSource(DataSource):
@@ -59,7 +89,7 @@ class ESMValToolIntakeDataSource(DataSource):
         # Store downloaded data in temporary directory
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
         tmp_dir.mkdir(parents=True, exist_ok=True)
-        with self._setup_esmvaltool_intake_data_source(tmp_dir):
+        with _setup_esmvaltool_intake_data_source(tmp_dir):
             cube = Dataset(**facets).load()
 
         # Save file into data directory
@@ -70,28 +100,54 @@ class ESMValToolIntakeDataSource(DataSource):
 
         return [output_path]
 
-    def _get_esmvaltool_intake_data_sources(self) -> dict[str, Any]:
-        """Get ESMValTool intake-esgf data sources."""
-        with ESMVALTOOL_INTAKE_DATA_SOURCES.open("r", encoding="utf-8") as file:
-            return yaml.safe_load(file)
 
-    @contextlib.contextmanager
-    def _setup_esmvaltool_intake_data_source(self, cache_dir: Path) -> Generator[None]:
-        """Set up ESMValTool intake-esgf data sources."""
-        intake_esgf_options = {
-            "all_indices": True,
-            "esg_dataroot": [],
-            "local_cache": cache_dir,
+class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
+    """Generate ESMValTool Intake-ESGF data sources."""
+
+    _ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {}
+    """Facets used to generate data sources."""
+
+    def generate(
+        self,
+        variable: Variable,
+    ) -> Generator[type[ESMValToolIntakeDataSource]]:
+        """Generate data sources."""
+        facets = {
+            "mip": variable.cmip6_table_id,
+            "short_name": variable.var_name,
+            "frequency": variable.frequency,
         }
+        facets.update(self._ESMVALTOOL_DATASET_FACETS)
 
-        with contextlib.ExitStack() as stack:
-            stack.enter_context(intake_esgf.conf.set(**intake_esgf_options))
-            stack.enter_context(setup_esmvaltool_config_and_logging())
-            esmvaltool_config = deepcopy(CFG)
-            for (
-                project,
-                data_config,
-            ) in self._get_esmvaltool_intake_data_sources().items():
-                esmvaltool_config["projects"][project]["data"] = data_config["data"]
-            stack.enter_context(CFG.context(esmvaltool_config))
-            yield
+        logger.debug(
+            f"Generating data sources for {variable} using ESMValTool "
+            f"Intake-ESGF facets\n{pformat(facets)}",
+        )
+
+        for idx, dataset in enumerate(Dataset(**facets).from_files()):
+            new_esmvaltool_dataset_facets = dict(dataset.facets)
+            reference = get_cmip6_reference(
+                mip="CMIP",
+                institute=new_esmvaltool_dataset_facets["institute"],
+                model=new_esmvaltool_dataset_facets["dataset"],
+            )
+            new_data_source_information = DataSourceInformation(
+                name=new_esmvaltool_dataset_facets["dataset"],
+                category=new_esmvaltool_dataset_facets["project"],
+                institute=new_esmvaltool_dataset_facets["institute"],
+                exp=new_esmvaltool_dataset_facets["exp"],
+                variant=new_esmvaltool_dataset_facets["ensemble"],
+                references=(reference,),
+            )
+            class_name = f"{self.__class__.__name__}DataSource{idx}"
+
+            # Dynamically create subclass for each dataset that has been found
+            new_data_source_cls = type(
+                class_name,
+                (ESMValToolIntakeDataSource,),
+                {
+                    "_INFORMATION": new_data_source_information,
+                    "_ESMVALTOOL_DATASET_FACETS": new_esmvaltool_dataset_facets,
+                },
+            )
+            yield new_data_source_cls
