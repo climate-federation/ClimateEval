@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import html as html_module
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import ibis
@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
 
 # ---------------------------------------------------------------------------
 # Coastline extraction (cartopy, cached)
@@ -66,7 +65,10 @@ def read_database(db_path: Path) -> dict[str, dict[str, pd.DataFrame]]:
         tables: dict[str, pd.DataFrame] = {}
         try:
             for table_name in conn.list_tables(database=db_name):
-                tables[table_name] = conn.table(table_name, database=db_name).to_pandas()
+                tables[table_name] = conn.table(
+                    table_name,
+                    database=db_name,
+                ).to_pandas()
         except Exception:
             continue
         if tables:
@@ -97,18 +99,68 @@ def detect_diag_type(columns: list[str]) -> str:
 # Shared plot helpers
 # ---------------------------------------------------------------------------
 
-_LINE_STYLES: dict[str, str] = {
-    "to_benchmark": "solid",
-    "reference": "dash",
-    "other": "dot",
-}
-
 _VAR_COLORSCALE: dict[str, str] = {"pr": "YlGnBu"}
 _DEFAULT_COLORSCALE = "RdBu_r"
 
-_PLOT_FONT = dict(family="'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif", size=12)
-_AXIS_STYLE = dict(showgrid=True, gridcolor="rgba(180,180,180,0.25)", zeroline=False,
-                   linecolor="#ccc", linewidth=1, mirror=True)
+_PLOT_FONT = dict(
+    family="'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
+    size=12,
+)
+_AXIS_STYLE = dict(
+    showgrid=True,
+    gridcolor="rgba(180,180,180,0.25)",
+    zeroline=False,
+    linecolor="#ccc",
+    linewidth=1,
+    mirror=True,
+)
+
+# Seaborn color palette for to_benchmark data
+_SEABORN_COLORS = [
+    "#4C72B0",
+    "#C44E52",
+    "#55A868",
+    "#DD8452",
+    "#8172B3",
+    "#CF4458",
+    "#4B4B83",
+    "#D65F5F",
+    "#6B6B6B",
+]
+
+
+def _get_line_properties(dtype: str, color_idx: int) -> dict:
+    """Return line styling for 1D plots based on data type.
+
+    Args:
+        dtype: One of "reference", "to_benchmark", or "other"
+        color_idx: Index into seaborn color palette (for to_benchmark only)
+
+    Returns
+    -------
+        dict with color, dash, show_legend, width
+    """
+    if dtype == "reference":
+        return {
+            "color": "black",
+            "dash": "solid",
+            "show_legend": True,
+            "width": 2,
+        }
+    if dtype == "to_benchmark":
+        return {
+            "color": _SEABORN_COLORS[color_idx % len(_SEABORN_COLORS)],
+            "dash": "solid",
+            "show_legend": True,
+            "width": 2,
+        }
+    # "other"
+    return {
+        "color": "#888",
+        "dash": "dash",
+        "show_legend": False,
+        "width": 1.5,
+    }
 
 
 def _vrange(series: pd.Series) -> tuple[float, float]:
@@ -140,7 +192,11 @@ def _sort_datasets(data_df: pd.DataFrame, datasets: list[str]) -> list[str]:
 def _get_ref_dataset(data_df: pd.DataFrame, metrics_df: pd.DataFrame) -> str | None:
     """Return the data_id of the reference dataset, if exactly one exists."""
     # Fall back to the old method for backwards compat / test fixtures.
-    if metrics_df is not None and not metrics_df.empty and "reference_data_id" in metrics_df.columns:
+    if (
+        metrics_df is not None
+        and not metrics_df.empty
+        and "reference_data_id" in metrics_df.columns
+    ):
         refs = metrics_df["reference_data_id"].dropna().unique().tolist()
         return refs[0] if len(refs) == 1 else None
     ref_datasets = (
@@ -169,8 +225,10 @@ def _base_layout(**kwargs: object) -> dict:
 # Figure builders
 # ---------------------------------------------------------------------------
 
+
 def build_map_figures(
-    data_df: pd.DataFrame, variables_df: pd.DataFrame,
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
     metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
     """Heatmap maps with coastlines; reference + bias (model − reference) layout when possible."""
@@ -186,7 +244,8 @@ def build_map_figures(
         cs = _VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE)
 
         valid_datasets = [
-            ds for ds in all_datasets
+            ds
+            for ds in all_datasets
             if not data_df[data_df["data_id"] == ds][var_id].isna().all()
         ]
         if not valid_datasets:
@@ -227,7 +286,12 @@ def build_map_figures(
                     bv = mp.subtract(ref_pivot).values
                     bias_vals.extend(bv[np.isfinite(bv)].tolist())
             arr = np.array(bias_vals) if bias_vals else np.array([0.0, 1.0])
-            bias_abs = float(max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98)))))
+            bias_abs = float(
+                max(
+                    abs(float(np.percentile(arr, 2))),
+                    abs(float(np.percentile(arr, 98))),
+                ),
+            )
             if bias_abs == 0:
                 bias_abs = 1.0
         else:
@@ -253,9 +317,14 @@ def build_map_figures(
         )
 
         def _add_panel(
-            pivot: pd.DataFrame, row: int, col: int,
-            colorscale: str, zmin: float, zmax: float,
-            cb_dict: dict | None, name: str,
+            pivot: pd.DataFrame,
+            row: int,
+            col: int,
+            colorscale: str,
+            zmin: float,
+            zmax: float,
+            cb_dict: dict | None,
+            name: str,
         ) -> None:
             fig.add_trace(
                 go.Heatmap(
@@ -263,7 +332,8 @@ def build_map_figures(
                     x=pivot.columns.tolist(),
                     y=pivot.index.tolist(),
                     colorscale=colorscale,
-                    zmin=zmin, zmax=zmax,
+                    zmin=zmin,
+                    zmax=zmax,
                     colorbar=cb_dict,
                     showscale=cb_dict is not None,
                     name=name,
@@ -273,35 +343,53 @@ def build_map_figures(
                         "<extra>" + str(name) + "</extra>"
                     ),
                 ),
-                row=row, col=col,
+                row=row,
+                col=col,
             )
             if coast_lons:
                 fig.add_trace(
                     go.Scatter(
-                        x=coast_lons, y=coast_lats,
+                        x=coast_lons,
+                        y=coast_lats,
                         mode="lines",
                         line=dict(color="rgba(20,20,20,0.80)", width=0.6),
-                        showlegend=False, hoverinfo="skip",
+                        showlegend=False,
+                        hoverinfo="skip",
                     ),
-                    row=row, col=col,
+                    row=row,
+                    col=col,
                 )
             fig.update_xaxes(
                 range=[-180, 180],
-                showgrid=True, gridcolor="rgba(180,180,180,0.25)",
-                zeroline=True, zerolinecolor="rgba(150,150,150,0.4)", zerolinewidth=1,
-                linecolor="#bbb", linewidth=1, mirror=True,
+                showgrid=True,
+                gridcolor="rgba(180,180,180,0.25)",
+                zeroline=True,
+                zerolinecolor="rgba(150,150,150,0.4)",
+                zerolinewidth=1,
+                linecolor="#bbb",
+                linewidth=1,
+                mirror=True,
                 tickfont=dict(size=9),
                 title_text="Longitude" if row == nrows else "",
-                **lon_ticks, row=row, col=col,
+                **lon_ticks,
+                row=row,
+                col=col,
             )
             fig.update_yaxes(
                 range=[-90, 90],
-                showgrid=True, gridcolor="rgba(180,180,180,0.25)",
-                zeroline=True, zerolinecolor="rgba(150,150,150,0.4)", zerolinewidth=1,
-                linecolor="#bbb", linewidth=1, mirror=True,
+                showgrid=True,
+                gridcolor="rgba(180,180,180,0.25)",
+                zeroline=True,
+                zerolinecolor="rgba(150,150,150,0.4)",
+                zerolinewidth=1,
+                linecolor="#bbb",
+                linewidth=1,
+                mirror=True,
                 tickfont=dict(size=9),
                 title_text="Latitude" if col == 1 else "",
-                **lat_ticks, row=row, col=col,
+                **lat_ticks,
+                row=row,
+                col=col,
             )
 
         if has_bias:
@@ -309,11 +397,18 @@ def build_map_figures(
             bias_cb_shown = False
             for i, ds in enumerate(non_ref):
                 row = i + 1
-                ref_cb = dict(
-                    title=dict(text=units, side="right"),
-                    thickness=14, len=0.85, x=1.01,
-                    tickfont=dict(size=10), outlinewidth=0,
-                ) if not ref_cb_shown else None
+                ref_cb = (
+                    dict(
+                        title=dict(text=units, side="right"),
+                        thickness=14,
+                        len=0.85,
+                        x=1.01,
+                        tickfont=dict(size=10),
+                        outlinewidth=0,
+                    )
+                    if not ref_cb_shown
+                    else None
+                )
                 _add_panel(ref_pivot, row, 1, cs, vmin, vmax, ref_cb, ref_dataset)
                 ref_cb_shown = True
 
@@ -323,13 +418,28 @@ def build_map_figures(
                 bp = mp.subtract(ref_pivot).dropna(how="all").dropna(axis=1, how="all")
                 if bp.empty:
                     continue
-                bias_cb = dict(
-                    title=dict(text=f"\u0394{units}", side="right"),
-                    thickness=14, len=0.85, x=1.09,
-                    tickfont=dict(size=10), outlinewidth=0,
-                ) if not bias_cb_shown else None
-                _add_panel(bp, row, 2, "RdBu_r", -bias_abs, bias_abs, bias_cb,
-                           f"{ds} \u2212 {ref_dataset}")
+                bias_cb = (
+                    dict(
+                        title=dict(text=f"\u0394{units}", side="right"),
+                        thickness=14,
+                        len=0.85,
+                        x=1.09,
+                        tickfont=dict(size=10),
+                        outlinewidth=0,
+                    )
+                    if not bias_cb_shown
+                    else None
+                )
+                _add_panel(
+                    bp,
+                    row,
+                    2,
+                    "RdBu_r",
+                    -bias_abs,
+                    bias_abs,
+                    bias_cb,
+                    f"{ds} \u2212 {ref_dataset}",
+                )
                 bias_cb_shown = True
         else:
             show_cb = True
@@ -339,11 +449,18 @@ def build_map_figures(
                 piv = _pivot_for(ds)
                 if piv is None:
                     continue
-                cb = dict(
-                    title=dict(text=units, side="right"),
-                    thickness=14, len=0.85, x=1.01,
-                    tickfont=dict(size=10), outlinewidth=0,
-                ) if show_cb else None
+                cb = (
+                    dict(
+                        title=dict(text=units, side="right"),
+                        thickness=14,
+                        len=0.85,
+                        x=1.01,
+                        tickfont=dict(size=10),
+                        outlinewidth=0,
+                    )
+                    if show_cb
+                    else None
+                )
                 _add_panel(piv, row, col, cs, vmin, vmax, cb, ds)
                 show_cb = False
 
@@ -354,7 +471,7 @@ def build_map_figures(
                 plot_bgcolor="#dce9f5",
                 height=300 * nrows + 100,
                 margin=dict(t=80, b=50, l=60, r=150 if has_bias else 90),
-            )
+            ),
         )
         for ann in fig.layout.annotations:
             if (
@@ -377,7 +494,8 @@ def build_map_figures(
 
 
 def build_timeseries_figures(
-    data_df: pd.DataFrame, variables_df: pd.DataFrame,
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
     metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
     """Annual time series, one figure per variable, all datasets overlaid."""
@@ -390,22 +508,29 @@ def build_timeseries_figures(
         long_name, units = _var_label(var_id, variables_df)
         fig = go.Figure()
 
+        color_idx = 0
+
         for dataset in all_datasets:
             grp = data_df[data_df["data_id"] == dataset]
             sub = grp[["time", var_id]].dropna(subset=[var_id]).sort_values("time")
             if sub.empty:
                 continue
             dtype = grp["data_type"].iloc[0]
-            dash = _LINE_STYLES.get(dtype, "solid")
-            width = 2.5 if dtype == "to_benchmark" else 1.8
+            props = _get_line_properties(dtype, color_idx)
+            if dtype == "to_benchmark":
+                color_idx += 1
+
+            show_legend = props.pop("show_legend")
             fig.add_trace(
                 go.Scatter(
-                    x=sub["time"], y=sub[var_id],
-                    mode="lines+markers", name=str(dataset),
-                    line=dict(dash=dash, width=width),
-                    marker=dict(size=5, symbol="circle"),
-                    hovertemplate=f"<b>{dataset}</b><br>%{{x|%Y-%m}}<br>{var_id}: %{{y:.4g}} {units}<extra></extra>",
-                )
+                    x=sub["time"],
+                    y=sub[var_id],
+                    mode="lines",
+                    name=str(dataset),
+                    line=props,
+                    showlegend=show_legend,
+                    # hovertemplate=f"<b>{dataset}</b><br>%{{x|%Y-%m}}<br>{var_id}: %{{y:.4g}} {units}<extra></extra>",
+                ),
             )
 
         yax = dict(title_text=units, **_AXIS_STYLE)
@@ -414,14 +539,22 @@ def build_timeseries_figures(
         fig.update_layout(
             **_base_layout(
                 title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
-                xaxis=xax, yaxis=yax, height=440,
+                xaxis=xax,
+                yaxis=yax,
+                height=440,
                 legend=dict(
-                    orientation="h", yanchor="bottom", y=1.02,
-                    xanchor="right", x=1, bgcolor="rgba(255,255,255,0.85)",
-                    bordercolor="#ddd", borderwidth=1, font=dict(size=11),
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1,
+                    bgcolor="rgba(255,255,255,0.85)",
+                    bordercolor="#ddd",
+                    borderwidth=1,
+                    font=dict(size=11),
                 ),
                 margin=dict(t=80, b=60, l=70, r=30),
-            )
+            ),
         )
         figures[var_id] = fig
 
@@ -429,7 +562,8 @@ def build_timeseries_figures(
 
 
 def build_zonal_line_figures(
-    data_df: pd.DataFrame, variables_df: pd.DataFrame,
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
     metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
     """Zonal mean line plots, one figure per variable, all datasets overlaid."""
@@ -442,21 +576,37 @@ def build_zonal_line_figures(
         long_name, units = _var_label(var_id, variables_df)
         fig = go.Figure()
 
+        color_idx = 0
+
         for dataset in all_datasets:
             grp = data_df[data_df["data_id"] == dataset]
-            sub = grp[["latitude", var_id]].dropna(subset=[var_id]).sort_values("latitude")
+            sub = (
+                grp[["latitude", var_id]]
+                .dropna(subset=[var_id])
+                .sort_values("latitude")
+            )
             if sub.empty:
                 continue
             dtype = grp["data_type"].iloc[0]
-            dash = _LINE_STYLES.get(dtype, "solid")
-            width = 2.5 if dtype == "to_benchmark" else 1.8
+            props = _get_line_properties(dtype, color_idx)
+            if dtype == "to_benchmark":
+                color_idx += 1
+
+            show_legend = props.pop("show_legend")
+            if var_id == "clt":
+                print(dataset)
+                print(props)
+                print()
             fig.add_trace(
                 go.Scatter(
-                    x=sub["latitude"], y=sub[var_id],
-                    mode="lines", name=str(dataset),
-                    line=dict(dash=dash, width=width),
+                    x=sub["latitude"],
+                    y=sub[var_id],
+                    mode="lines",
+                    name=str(dataset),
+                    line=props,
+                    showlegend=show_legend,
                     hovertemplate=f"<b>{dataset}</b><br>lat: %{{x:.1f}}°<br>{var_id}: %{{y:.4g}} {units}<extra></extra>",
-                )
+                ),
             )
 
         for lat_ref, label in [(0, "Equator"), (23.5, "N Tropic"), (-23.5, "S Tropic")]:
@@ -477,14 +627,22 @@ def build_zonal_line_figures(
         fig.update_layout(
             **_base_layout(
                 title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
-                xaxis=xax, yaxis=yax, height=420,
+                xaxis=xax,
+                yaxis=yax,
+                height=420,
                 legend=dict(
-                    orientation="h", yanchor="bottom", y=1.02,
-                    xanchor="right", x=1, bgcolor="rgba(255,255,255,0.85)",
-                    bordercolor="#ddd", borderwidth=1, font=dict(size=11),
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1,
+                    bgcolor="rgba(255,255,255,0.85)",
+                    bordercolor="#ddd",
+                    borderwidth=1,
+                    font=dict(size=11),
                 ),
                 margin=dict(t=80, b=60, l=70, r=30),
-            )
+            ),
         )
         figures[var_id] = fig
 
@@ -492,7 +650,8 @@ def build_zonal_line_figures(
 
 
 def build_zonal_profile_figures(
-    data_df: pd.DataFrame, variables_df: pd.DataFrame,
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
     metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
     """Zonal mean profile heatmaps (pressure × latitude); reference + bias layout when possible."""
@@ -506,7 +665,8 @@ def build_zonal_profile_figures(
         cs = _VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE)
 
         valid_datasets = [
-            ds for ds in all_datasets
+            ds
+            for ds in all_datasets
             if not data_df[data_df["data_id"] == ds][var_id].isna().all()
         ]
         if not valid_datasets:
@@ -522,8 +682,10 @@ def build_zonal_profile_figures(
             sub = data_df[data_df["data_id"] == dataset]
             try:
                 p = sub.pivot_table(
-                    index="air_pressure", columns="latitude",
-                    values=var_id, aggfunc="mean",
+                    index="air_pressure",
+                    columns="latitude",
+                    values=var_id,
+                    aggfunc="mean",
                 )
                 p = p.dropna(how="all").dropna(axis=1, how="all")
             except Exception:
@@ -553,7 +715,12 @@ def build_zonal_profile_figures(
                     bv = mp.subtract(ref_pivot).values
                     bias_vals.extend(bv[np.isfinite(bv)].tolist())
             arr = np.array(bias_vals) if bias_vals else np.array([0.0, 1.0])
-            bias_abs = float(max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98)))))
+            bias_abs = float(
+                max(
+                    abs(float(np.percentile(arr, 2))),
+                    abs(float(np.percentile(arr, 98))),
+                ),
+            )
             if bias_abs == 0:
                 bias_abs = 1.0
         else:
@@ -562,15 +729,22 @@ def build_zonal_profile_figures(
             titles = [str(ds) for ds in valid_datasets]
 
         fig = make_subplots(
-            rows=nrows, cols=ncols,
+            rows=nrows,
+            cols=ncols,
             subplot_titles=titles,
-            vertical_spacing=0.12, horizontal_spacing=0.07,
+            vertical_spacing=0.12,
+            horizontal_spacing=0.07,
         )
 
         def _add_panel(
-            pivot: pd.DataFrame, row: int, col: int,
-            colorscale: str, zmin: float, zmax: float,
-            cb_dict: dict | None, name: str,
+            pivot: pd.DataFrame,
+            row: int,
+            col: int,
+            colorscale: str,
+            zmin: float,
+            zmax: float,
+            cb_dict: dict | None,
+            name: str,
         ) -> None:
             fig.add_trace(
                 go.Heatmap(
@@ -578,7 +752,8 @@ def build_zonal_profile_figures(
                     x=pivot.columns.tolist(),
                     y=pivot.index.tolist(),
                     colorscale=colorscale,
-                    zmin=zmin, zmax=zmax,
+                    zmin=zmin,
+                    zmax=zmax,
                     colorbar=cb_dict,
                     showscale=cb_dict is not None,
                     name=name,
@@ -588,17 +763,25 @@ def build_zonal_profile_figures(
                         "<extra>" + str(name) + "</extra>"
                     ),
                 ),
-                row=row, col=col,
+                row=row,
+                col=col,
             )
             fig.update_yaxes(
-                type="log", autorange="reversed",
-                tickvals=plev_ticks, ticktext=[str(p) for p in plev_ticks],
+                type="log",
+                autorange="reversed",
+                tickvals=plev_ticks,
+                ticktext=[str(p) for p in plev_ticks],
                 title_text="Pressure (hPa)" if col == 1 else "",
-                **_AXIS_STYLE, row=row, col=col,
+                **_AXIS_STYLE,
+                row=row,
+                col=col,
             )
             fig.update_xaxes(
                 title_text="Latitude" if row == nrows else "",
-                **lat_ticks, **_AXIS_STYLE, row=row, col=col,
+                **lat_ticks,
+                **_AXIS_STYLE,
+                row=row,
+                col=col,
             )
 
         if has_bias:
@@ -606,11 +789,18 @@ def build_zonal_profile_figures(
             bias_cb_shown = False
             for i, ds in enumerate(non_ref):
                 row = i + 1
-                ref_cb = dict(
-                    title=dict(text=units, side="right"),
-                    thickness=14, len=0.85, x=1.01,
-                    tickfont=dict(size=10), outlinewidth=0,
-                ) if not ref_cb_shown else None
+                ref_cb = (
+                    dict(
+                        title=dict(text=units, side="right"),
+                        thickness=14,
+                        len=0.85,
+                        x=1.01,
+                        tickfont=dict(size=10),
+                        outlinewidth=0,
+                    )
+                    if not ref_cb_shown
+                    else None
+                )
                 _add_panel(ref_pivot, row, 1, cs, vmin, vmax, ref_cb, ref_dataset)
                 ref_cb_shown = True
 
@@ -620,13 +810,28 @@ def build_zonal_profile_figures(
                 bp = mp.subtract(ref_pivot).dropna(how="all").dropna(axis=1, how="all")
                 if bp.empty:
                     continue
-                bias_cb = dict(
-                    title=dict(text=f"\u0394{units}", side="right"),
-                    thickness=14, len=0.85, x=1.09,
-                    tickfont=dict(size=10), outlinewidth=0,
-                ) if not bias_cb_shown else None
-                _add_panel(bp, row, 2, "RdBu_r", -bias_abs, bias_abs, bias_cb,
-                           f"{ds} \u2212 {ref_dataset}")
+                bias_cb = (
+                    dict(
+                        title=dict(text=f"\u0394{units}", side="right"),
+                        thickness=14,
+                        len=0.85,
+                        x=1.09,
+                        tickfont=dict(size=10),
+                        outlinewidth=0,
+                    )
+                    if not bias_cb_shown
+                    else None
+                )
+                _add_panel(
+                    bp,
+                    row,
+                    2,
+                    "RdBu_r",
+                    -bias_abs,
+                    bias_abs,
+                    bias_cb,
+                    f"{ds} \u2212 {ref_dataset}",
+                )
                 bias_cb_shown = True
         else:
             show_cb = True
@@ -636,11 +841,18 @@ def build_zonal_profile_figures(
                 piv = _pivot_for(ds)
                 if piv is None:
                     continue
-                cb = dict(
-                    title=dict(text=units, side="right"),
-                    thickness=14, len=0.85, x=1.01,
-                    tickfont=dict(size=10), outlinewidth=0,
-                ) if show_cb else None
+                cb = (
+                    dict(
+                        title=dict(text=units, side="right"),
+                        thickness=14,
+                        len=0.85,
+                        x=1.01,
+                        tickfont=dict(size=10),
+                        outlinewidth=0,
+                    )
+                    if show_cb
+                    else None
+                )
                 _add_panel(piv, row, col, cs, vmin, vmax, cb, ds)
                 show_cb = False
 
@@ -650,7 +862,7 @@ def build_zonal_profile_figures(
                 title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
                 height=360 * nrows + 100,
                 margin=dict(t=80, b=60, l=80, r=150 if has_bias else 90),
-            )
+            ),
         )
         for ann in fig.layout.annotations:
             if (
@@ -697,6 +909,7 @@ _DIAG_ICONS = {
 # Leaderboard
 # ---------------------------------------------------------------------------
 
+
 def build_leaderboard_data(
     all_metrics: dict[str, dict[str, pd.DataFrame]],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -731,7 +944,9 @@ def build_leaderboard_data(
             n = (grp - lo) / rng if rng > 1e-12 else pd.Series(0.5, index=grp.index)
             return 1 - n if lb else n
 
-        detail[col] = detail.groupby(["tier", "diagnostic", "var_id"])[metric].transform(_norm)
+        detail[col] = detail.groupby(["tier", "diagnostic", "var_id"])[
+            metric
+        ].transform(_norm)
 
     if score_cols:
         detail["_overall_score"] = detail[score_cols].mean(axis=1)
@@ -773,7 +988,7 @@ def _render_summary_table(summary_df: pd.DataFrame, table_id: str) -> str:
             f"  <div class='bar-bg' style='width:{bar_w};background:{color};'></div>"
             f"  <span class='bar-val' style='color:{color}'>{pct}%</span>"
             f"</td>"
-            f"</tr>"
+            f"</tr>",
         )
     return (
         f"<div class='lb-table-wrap'>"
@@ -792,7 +1007,8 @@ def _render_detail_table(detail_df: pd.DataFrame, table_id: str) -> str:
     if detail_df.empty:
         return ""
     metric_cols = [
-        c for c in ["weighted_rmse", "weighted_pearsonr", "weighted_emd"]
+        c
+        for c in ["weighted_rmse", "weighted_pearsonr", "weighted_emd"]
         if c in detail_df.columns
     ]
     str_cols = {"data_id", "tier", "diagnostic", "var_id"}
@@ -859,6 +1075,7 @@ def render_leaderboard_section(
 # Detail box (per-plot dataset info)
 # ---------------------------------------------------------------------------
 
+
 def _build_detail_html(
     var_id: str,
     variables_df: pd.DataFrame,
@@ -869,15 +1086,24 @@ def _build_detail_html(
     rows: list[str] = []
 
     # Variable metadata
-    var_row = variables_df[variables_df["id"] == var_id] if variables_df is not None else pd.DataFrame()
+    var_row = (
+        variables_df[variables_df["id"] == var_id]
+        if variables_df is not None
+        else pd.DataFrame()
+    )
     if not var_row.empty:
         r = var_row.iloc[0]
         meta_items = []
         for col, label in [
-            ("long_name", "Name"), ("standard_name", "CF Standard Name"),
-            ("units", "Units"), ("realm", "Realm"), ("frequency", "Frequency"),
-            ("timerange", "Time Range"), ("coordinates", "Coordinates"),
-            ("vertical_level", "Vertical Level"), ("derived", "Derived"),
+            ("long_name", "Name"),
+            ("standard_name", "CF Standard Name"),
+            ("units", "Units"),
+            ("realm", "Realm"),
+            ("frequency", "Frequency"),
+            ("timerange", "Time Range"),
+            ("coordinates", "Coordinates"),
+            ("vertical_level", "Vertical Level"),
+            ("derived", "Derived"),
         ]:
             val = r.get(col, "")
             if val is not None and str(val).strip() and str(val) != "nan":
@@ -885,19 +1111,21 @@ def _build_detail_html(
                     f"<div class='detail-meta-row'>"
                     f"<span class='detail-meta-key'>{label}</span>"
                     f"<span class='detail-meta-val'>{html_module.escape(str(val))}</span>"
-                    f"</div>"
+                    f"</div>",
                 )
         if meta_items:
             rows.append(
                 f"<div class='detail-block'>"
                 f"<div class='detail-block-title'>Variable Metadata</div>"
                 f"{''.join(meta_items)}"
-                f"</div>"
+                f"</div>",
             )
 
     # Datasets used for this variable
     if data_df is not None and var_id in data_df.columns:
-        sub = data_df[data_df[var_id].notna()][["data_id", "data_type"]].drop_duplicates()
+        sub = data_df[data_df[var_id].notna()][
+            ["data_id", "data_type"]
+        ].drop_duplicates()
         type_order = {"reference": 0, "other": 1, "to_benchmark": 2}
         sub = sub.sort_values("data_type", key=lambda s: s.map(type_order).fillna(3))
 
@@ -905,7 +1133,11 @@ def _build_detail_html(
         for _, ds_row in sub.iterrows():
             ds_name = str(ds_row["data_id"])
             dtype = str(ds_row["data_type"])
-            type_badge = {"reference": "ref", "other": "other", "to_benchmark": "model"}.get(dtype, dtype)
+            type_badge = {
+                "reference": "ref",
+                "other": "other",
+                "to_benchmark": "model",
+            }.get(dtype, dtype)
 
             # Look up metadata from data_sources table
             full_name = ""
@@ -934,7 +1166,7 @@ def _build_detail_html(
             if url:
                 detail_lines.append(
                     f'URL: <a href="{html_module.escape(url)}" target="_blank" '
-                    f'rel="noopener">{html_module.escape(url)}</a>'
+                    f'rel="noopener">{html_module.escape(url)}</a>',
                 )
 
             ds_items.append(
@@ -943,8 +1175,12 @@ def _build_detail_html(
                 f"<strong>{html_module.escape(ds_name)}</strong>"
                 f"<span class='detail-badge detail-badge-{type_badge}'>{type_badge}</span>"
                 f"</div>"
-                + (f"<div class='detail-ds-body'>{'<br>'.join(detail_lines)}</div>" if detail_lines else "")
-                + "</div>"
+                + (
+                    f"<div class='detail-ds-body'>{'<br>'.join(detail_lines)}</div>"
+                    if detail_lines
+                    else ""
+                )
+                + "</div>",
             )
 
         if ds_items:
@@ -952,7 +1188,7 @@ def _build_detail_html(
                 f"<div class='detail-block'>"
                 f"<div class='detail-block-title'>Datasets</div>"
                 f"{''.join(ds_items)}"
-                f"</div>"
+                f"</div>",
             )
 
     if not rows:
@@ -963,6 +1199,7 @@ def _build_detail_html(
 # ---------------------------------------------------------------------------
 # Diagnostic section rendering
 # ---------------------------------------------------------------------------
+
 
 def render_diagnostic_section(
     scope_id: str,
@@ -1003,7 +1240,7 @@ def render_diagnostic_section(
     var_buttons = "".join(
         f"<button class='var-pill {'active' if v == first_var else ''}' "
         f"data-var='{html_module.escape(v)}' title='{html_module.escape(v)}' "
-        f"onclick='showVarPanel(\"{scope_id}\", \"{v}\")'>"
+        f'onclick=\'showVarPanel("{scope_id}", "{v}")\'>'
         f"{html_module.escape(_btn_label(v))}</button>"
         for v in var_cols
     )
@@ -1646,6 +1883,7 @@ function sortTable(tableId, colIdx, numeric) {
 # HTML assembly helpers
 # ---------------------------------------------------------------------------
 
+
 def _stem_to_label(stem: str) -> str:
     s = re.sub(r"([a-zA-Z])(\d)", r"\1 \2", stem)
     return s.replace("_", " ").replace("-", " ").title()
@@ -1654,6 +1892,7 @@ def _stem_to_label(stem: str) -> str:
 def _plotly_js(offline: bool) -> str:
     if offline:
         import plotly as _plotly
+
         js_path = Path(_plotly.__file__).parent / "package_data" / "plotly.min.js"
         if js_path.exists():
             return f"<script>{js_path.read_text()}</script>"
@@ -1685,12 +1924,21 @@ def _build_figures_for_tier(
         diag_type = detect_diag_type(data_df.columns.tolist())
         builder = _FIGURE_BUILDERS.get(diag_type)
         if builder is None or data_df.empty:
-            diag_sections[diag_name] = ("<p class='empty-note'>No data available.</p>", variables_df)
+            diag_sections[diag_name] = (
+                "<p class='empty-note'>No data available.</p>",
+                variables_df,
+            )
             continue
 
         figures = builder(data_df, variables_df, metrics_df)
         scope_id = f"{scope_prefix}-{diag_name}" if scope_prefix else diag_name
-        html = render_diagnostic_section(scope_id, figures, variables_df, data_df, data_sources_df)
+        html = render_diagnostic_section(
+            scope_id,
+            figures,
+            variables_df,
+            data_df,
+            data_sources_df,
+        )
         diag_sections[diag_name] = (html, variables_df)
 
     return diag_sections, tier_metrics
@@ -1707,21 +1955,21 @@ def _render_tier_panel(
     # Toolbar: All + per-diagnostic filter buttons + search
     filter_btns = (
         f"<button class='diag-filter-btn active' data-diag='all' "
-        f"onclick='filterDiag(\"{tier_id}\",\"all\")'>All</button>"
+        f'onclick=\'filterDiag("{tier_id}","all")\'>All</button>'
     )
     for dname in diag_names:
         label = _DIAG_LABELS.get(dname, dname)
         icon = _DIAG_ICONS.get(dname, "")
         filter_btns += (
             f"<button class='diag-filter-btn' data-diag='{dname}' "
-            f"onclick='filterDiag(\"{tier_id}\",\"{dname}\")'>"
+            f'onclick=\'filterDiag("{tier_id}","{dname}")\'>'
             f"{icon} {label}</button>"
         )
 
     search_svg = (
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
         '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'
-        '</svg>'
+        "</svg>"
     )
     toolbar_html = (
         f"<div class='content-toolbar' id='toolbar-{tier_id}' style='display:none'>"
@@ -1765,6 +2013,7 @@ def _render_tier_panel(
 # Main HTML generator
 # ---------------------------------------------------------------------------
 
+
 def generate_html(
     db_paths: list[Path],
     *,
@@ -1777,7 +2026,15 @@ def generate_html(
     print("Extracting coastlines …")
     _coastlines()
 
-    tiers: list[tuple[str, str, Path, dict[str, tuple[str, pd.DataFrame]], dict[str, pd.DataFrame]]] = []
+    tiers: list[
+        tuple[
+            str,
+            str,
+            Path,
+            dict[str, tuple[str, pd.DataFrame]],
+            dict[str, pd.DataFrame],
+        ]
+    ] = []
     all_metrics: dict[str, dict[str, pd.DataFrame]] = {}
 
     for tier_idx, db_path in enumerate(db_paths):
@@ -1795,7 +2052,7 @@ def generate_html(
     if not tiers:
         raise ValueError("No diagnostic databases found in any of the provided files.")
 
-    now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     # ── Sidebar ──
     sidebar_items = (
@@ -1820,8 +2077,8 @@ def generate_html(
     lb_panel = (
         "<div class='content-panel active' id='panel-leaderboard'>"
         "<h2 class='section-heading'>Performance Leaderboard</h2>"
-        + render_leaderboard_section(all_metrics, table_suffix="-main") +
-        "</div>"
+        + render_leaderboard_section(all_metrics, table_suffix="-main")
+        + "</div>"
     )
 
     # ── Tier panels + toolbars ──
@@ -1849,7 +2106,7 @@ def generate_html(
         '<circle cx="13" cy="13" r="11" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
         '<path d="M2 13 Q7 7 13 13 Q19 19 24 13" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
         '<path d="M2 13 Q7 19 13 13 Q19 7 24 13" stroke="#93c5fd" stroke-width="1" fill="none" stroke-dasharray="2 2"/>'
-        '</svg>'
+        "</svg>"
     )
 
     return f"""<!DOCTYPE html>
@@ -1898,6 +2155,7 @@ def generate_html(
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
@@ -1906,27 +2164,39 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "db", type=Path, nargs="+",
+        "db",
+        type=Path,
+        nargs="+",
         help="Path(s) to DuckDB benchmarking database (.ddb).",
     )
     parser.add_argument(
-        "-o", "--output", type=Path, default=None,
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
         help="Output HTML path (default: <first_db>_report.html).",
     )
     parser.add_argument(
-        "--model", default="", metavar="NAME",
+        "--model",
+        default="",
+        metavar="NAME",
         help="Model name shown in the report header (e.g. MPI-ESM1-2-LR).",
     )
     parser.add_argument(
-        "--user", default="", metavar="NAME",
+        "--user",
+        default="",
+        metavar="NAME",
         help="User / analyst name shown in the report header.",
     )
     parser.add_argument(
-        "--developer", default="", metavar="NAME",
+        "--developer",
+        default="",
+        metavar="NAME",
         help="Benchmarking tool developer name (default: 'diffESM Benchmarking').",
     )
     parser.add_argument(
-        "--online", action="store_true",
+        "--online",
+        action="store_true",
         help="Load Plotly.js from CDN instead of embedding (requires internet).",
     )
     args = parser.parse_args()
