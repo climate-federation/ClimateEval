@@ -17,4 +17,5 @@ class CMIP6HistoricalR1I1P1F1(ESMValToolIntakeDataSourceGenerator):
         "institute": "*",
         "ensemble": "r1i1p1f1",
         "grid": "*",
+        "timerange": "19790101/20141231",
     }
