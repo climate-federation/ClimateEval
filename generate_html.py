@@ -79,7 +79,15 @@ def read_database(db_path: Path) -> dict[str, dict[str, pd.DataFrame]]:
 
 def get_var_cols(data_df: pd.DataFrame) -> list[str]:
     """Return variable (non-coordinate, non-metadata) column names."""
-    skip = {"data_id", "data_type", "latitude", "longitude", "time", "air_pressure", "month_number"}
+    skip = {
+        "data_id",
+        "data_type",
+        "latitude",
+        "longitude",
+        "time",
+        "air_pressure",
+        "month_number",
+    }
     return [c for c in data_df.columns if c not in skip]
 
 
@@ -133,7 +141,11 @@ _VAR_COLORSCALE: dict[str, str] = {
 # Variables whose fields should be displayed with a symmetric range around zero
 # (diverging colormaps rely on this to keep the "zero" colour in the middle).
 _DIVERGING_VARS: set[str] = {
-    "lwcre", "swcre", "ua", "ua200", "ua800",
+    "lwcre",
+    "swcre",
+    "ua",
+    "ua200",
+    "ua800",
 }
 
 # Per-variable override for the bias (model − reference) colormap. Falls back
@@ -163,6 +175,7 @@ def _data_range(series: pd.Series, var_id: str) -> tuple[float, float]:
             vabs = 1.0
         return -vabs, vabs
     return vmin, vmax
+
 
 _PLOT_FONT = {
     "family": "'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
@@ -268,7 +281,8 @@ def _get_ref_dataset(data_df: pd.DataFrame, metrics_df: pd.DataFrame) -> str | N
 
 
 def _get_ref_datasets(
-    data_df: pd.DataFrame, metrics_df: pd.DataFrame | None = None,
+    data_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
 ) -> list[str]:
     """Return every reference data_id, in stable order (may be empty)."""
     if (
@@ -276,9 +290,7 @@ def _get_ref_datasets(
         and not metrics_df.empty
         and "reference_data_id" in metrics_df.columns
     ):
-        refs = [
-            r for r in metrics_df["reference_data_id"].dropna().unique().tolist()
-        ]
+        refs = [r for r in metrics_df["reference_data_id"].dropna().unique().tolist()]
         if refs:
             return refs
     return data_df[data_df["data_type"] == "reference"]["data_id"].unique().tolist()
@@ -370,16 +382,12 @@ def build_map_figures(
             return p if not p.empty else None
 
         valid_refs = [r for r in ref_datasets_all if r in valid_datasets]
-        ref_pivots_list = [
-            (r, _pivot_for(r)) for r in valid_refs
-        ]
+        ref_pivots_list = [(r, _pivot_for(r)) for r in valid_refs]
         ref_pivots_list = [(r, p) for r, p in ref_pivots_list if p is not None]
         if ref_pivots_list:
             ref_pivot = _combine_pivots([p for _, p in ref_pivots_list])
             ref_label = (
-                ref_pivots_list[0][0]
-                if len(ref_pivots_list) == 1
-                else "Multi-obs mean"
+                ref_pivots_list[0][0] if len(ref_pivots_list) == 1 else "Multi-obs mean"
             )
         else:
             ref_pivot = None
@@ -392,9 +400,7 @@ def build_map_figures(
             n_model_rows = len(non_ref)
             show_ref_section = len(valid_refs) > 1
             n_ref_rows = (
-                (len(valid_refs) + ncols - 1) // ncols
-                if show_ref_section
-                else 0
+                (len(valid_refs) + ncols - 1) // ncols if show_ref_section else 0
             )
             nrows = n_ref_rows + n_model_rows
             titles: list[str] = []
@@ -448,9 +454,7 @@ def build_map_figures(
             subplot_titles=titles,
             specs=specs,
             horizontal_spacing=0.05,
-            vertical_spacing=(
-                min(0.08, 0.5 / (nrows - 1)) if nrows > 1 else 0
-            ),
+            vertical_spacing=(min(0.08, 0.5 / (nrows - 1)) if nrows > 1 else 0),
         )
 
         lon_ticks = {
@@ -836,8 +840,18 @@ def build_annual_cycle_figures(
     ref_dataset = _get_ref_dataset(data_df, metrics_df)
 
     month_names = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
     ]
 
     def _series_for(dataset: str, var_id: str) -> pd.Series | None:
@@ -845,11 +859,7 @@ def build_annual_cycle_figures(
         sub = grp[["month_number", var_id]].dropna(subset=[var_id])
         if sub.empty:
             return None
-        return (
-            sub.groupby("month_number")[var_id]
-            .mean()
-            .sort_index()
-        )
+        return sub.groupby("month_number")[var_id].mean().sort_index()
 
     for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
@@ -981,7 +991,11 @@ def build_annual_cycle_figures(
             margin={"t": 80, "b": 60, "l": 70, "r": 30},
         )
         if has_bias:
-            fig.update_xaxes(**{k: v for k, v in x_kwargs.items() if k != "title_text"}, row=1, col=1)
+            fig.update_xaxes(
+                **{k: v for k, v in x_kwargs.items() if k != "title_text"},
+                row=1,
+                col=1,
+            )
             fig.update_xaxes(**x_kwargs, row=2, col=1)
             fig.update_yaxes(title_text=units, **_AXIS_STYLE, row=1, col=1)
             fig.update_yaxes(title_text=f"Δ{units}", **_AXIS_STYLE, row=2, col=1)
@@ -1083,13 +1097,21 @@ def build_zonal_line_figures(
                 fig.add_vline(
                     row=1,
                     col=1,
-                    annotation={"text": label, "font": {"size": 8, "color": "#aaa"}, "y": 0.02},
+                    annotation={
+                        "text": label,
+                        "font": {"size": 8, "color": "#aaa"},
+                        "y": 0.02,
+                    },
                     **line_kwargs,
                 )
                 fig.add_vline(row=2, col=1, **line_kwargs)
             else:
                 fig.add_vline(
-                    annotation={"text": label, "font": {"size": 8, "color": "#aaa"}, "y": 0.02},
+                    annotation={
+                        "text": label,
+                        "font": {"size": 8, "color": "#aaa"},
+                        "y": 0.02,
+                    },
                     **line_kwargs,
                 )
 
@@ -1169,8 +1191,11 @@ def build_zonal_line_figures(
         )
         if has_bias:
             fig.update_xaxes(
-                tickvals=lat_tickvals, ticktext=lat_ticktext, **_AXIS_STYLE,
-                row=1, col=1,
+                tickvals=lat_tickvals,
+                ticktext=lat_ticktext,
+                **_AXIS_STYLE,
+                row=1,
+                col=1,
             )
             fig.update_xaxes(**x_kwargs_full, row=2, col=1)
             fig.update_yaxes(title_text=units, **_AXIS_STYLE, row=1, col=1)
@@ -1239,9 +1264,7 @@ def build_zonal_profile_figures(
         if ref_pivots_list:
             ref_pivot = _combine_pivots([p for _, p in ref_pivots_list])
             ref_label = (
-                ref_pivots_list[0][0]
-                if len(ref_pivots_list) == 1
-                else "Multi-obs mean"
+                ref_pivots_list[0][0] if len(ref_pivots_list) == 1 else "Multi-obs mean"
             )
         else:
             ref_pivot = None
@@ -2839,6 +2862,7 @@ def main() -> None:
     )
     output.write_text(html_content, encoding="utf-8")
     print(f"HTML output is saved to {output}")
+
 
 if __name__ == "__main__":
     main()
