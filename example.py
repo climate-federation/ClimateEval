@@ -9,9 +9,6 @@ from pathlib import Path
 import iris
 from loguru import logger
 
-from benchmarking.data import DataSourceInformation
-from benchmarking.suites import Suite
-
 logger = logger.opt(colors=True)
 logger.remove()
 format_str = (
@@ -19,6 +16,9 @@ format_str = (
     "<level>{level: <8}</level> |  <level>{message}</level>"
 )
 logger.add(sys.stdout, level="DEBUG", format=format_str, colorize=True)
+
+from benchmarking.data import DataSourceInformation  # noqa: E402
+from benchmarking.suites import Suite  # noqa: E402
 
 variables = (
     "clivi",
