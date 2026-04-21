@@ -242,7 +242,7 @@ def _var_label(var_id: str, variables_df: pd.DataFrame) -> tuple[str, str]:
 
 def _sort_datasets(data_df: pd.DataFrame, datasets: list[str]) -> list[str]:
     """Sort: reference first, other second, to_benchmark last."""
-    priority = {"reference": 0, "other": 1, "to_benchmark": 2}
+    priority = {"to_benchmark": 0, "reference": 1, "other": 2}
 
     def key(ds: str) -> int:
         dtype = data_df[data_df["data_id"] == ds]["data_type"].iloc[0]
