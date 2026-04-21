@@ -79,7 +79,7 @@ def read_database(db_path: Path) -> dict[str, dict[str, pd.DataFrame]]:
 
 def get_var_cols(data_df: pd.DataFrame) -> list[str]:
     """Return variable (non-coordinate, non-metadata) column names."""
-    skip = {"data_id", "data_type", "latitude", "longitude", "time", "air_pressure"}
+    skip = {"data_id", "data_type", "latitude", "longitude", "time", "air_pressure", "month_number"}
     return [c for c in data_df.columns if c not in skip]
 
 
@@ -93,6 +93,8 @@ def detect_diag_type(columns: list[str]) -> str:
         return "ZonalLine"
     if "time" in cols:
         return "TimeSeries"
+    if "month_number" in cols:
+        return "AnnualCycle"
     return "Unknown"
 
 
@@ -573,6 +575,103 @@ def build_timeseries_figures(
     return figures
 
 
+def build_annual_cycle_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, go.Figure]:
+    """Monthly climatology (annual cycle), one figure per variable, all datasets overlaid."""
+    figures: dict[str, go.Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+
+    # Month names for x-axis
+    month_names = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ]
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+        fig = go.Figure()
+
+        color_idx = 0
+
+        for dataset in all_datasets:
+            grp = data_df[data_df["data_id"] == dataset]
+            sub = (
+                grp[["month_number", var_id]]
+                .dropna(subset=[var_id])
+                .sort_values("month_number")
+            )
+            if sub.empty:
+                continue
+            dtype = grp["data_type"].iloc[0]
+            props = _get_line_properties(dtype, color_idx)
+            if dtype == "to_benchmark":
+                color_idx += 1
+
+            show_legend = props.pop("show_legend")
+            # Interpolate to full 1-12 range for a continuous-looking cycle
+            x = sub["month_number"].values
+            y = sub[var_id].values
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="lines+markers",
+                    name=str(dataset),
+                    line=props,
+                    marker={"size": 6},
+                    showlegend=show_legend,
+                    hovertemplate=(
+                        f"<b>{dataset}</b><br>"
+                        f"Month: %{{x:.0f}}<br>"
+                        f"{var_id}: %{{y:.4g}} {units}"
+                        "<extra></extra>"
+                    ),
+                ),
+            )
+
+        xax = dict(
+            title_text="Month",
+            tickvals=list(range(1, 13)),
+            ticktext=month_names,
+            **_AXIS_STYLE,
+        )
+        yax = dict(title_text=units, **_AXIS_STYLE)
+        title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
+        fig.update_layout(
+            **_base_layout(
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
+                xaxis=xax,
+                yaxis=yax,
+                height=420,
+                legend={
+                    "orientation": "h",
+                    "yanchor": "bottom",
+                    "y": 1.02,
+                    "xanchor": "right",
+                    "x": 1,
+                    "bgcolor": "rgba(255,255,255,0.85)",
+                    "bordercolor": "#ddd",
+                    "borderwidth": 1,
+                    "font": {"size": 11},
+                },
+                margin={"t": 80, "b": 60, "l": 70, "r": 30},
+            ),
+        )
+        figures[var_id] = fig
+
+    return figures
+
+
 def build_zonal_line_figures(
     data_df: pd.DataFrame,
     variables_df: pd.DataFrame,
@@ -911,6 +1010,7 @@ def build_zonal_profile_figures(
 _FIGURE_BUILDERS = {
     "Map": build_map_figures,
     "TimeSeries": build_timeseries_figures,
+    "AnnualCycle": build_annual_cycle_figures,
     "ZonalLine": build_zonal_line_figures,
     "ZonalProfile": build_zonal_profile_figures,
 }
@@ -918,6 +1018,7 @@ _FIGURE_BUILDERS = {
 _DIAG_LABELS = {
     "Map": "Map",
     "TimeSeries": "Time Series",
+    "AnnualCycle": "Annual Cycle",
     "ZonalLine": "Zonal Mean",
     "ZonalProfile": "Zonal Profile",
 }
@@ -925,6 +1026,7 @@ _DIAG_LABELS = {
 _DIAG_ICONS = {
     "Map": "🗺",
     "TimeSeries": "📈",
+    "AnnualCycle": "📅",
     "ZonalLine": "〰",
     "ZonalProfile": "🌡",
 }
