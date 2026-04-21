@@ -1669,13 +1669,18 @@ def _build_figures_for_tier(
     tier_metrics: dict[str, pd.DataFrame] = {}
 
     for diag_name, tables in db_data.items():
+        has_raw_output = "raw_output" in tables
         data_df = tables.get("raw_output", pd.DataFrame())
         metrics_df = tables.get("metrics", pd.DataFrame())
         variables_df = tables.get("variables", pd.DataFrame())
         data_sources_df = tables.get("data_sources", pd.DataFrame())
 
-        if not data_df.empty:
+        if has_raw_output and not data_df.empty:
             tier_metrics[diag_name] = metrics_df
+
+        # Skip diagnostics without raw_output table (e.g., AnnualCycleSpatialDistribution)
+        if not has_raw_output:
+            continue
 
         diag_type = detect_diag_type(data_df.columns.tolist())
         builder = _FIGURE_BUILDERS.get(diag_type)
