@@ -55,7 +55,7 @@ if db_path.is_file():
     db_path.unlink()
 
 data_info = DataSourceInformation(
-    name="MPI-ESM1-2-LR",
+    name="EXAMPLE(MPI-ESM1-2-LR)",
     category="CMIP6",
     institute="MPI-M",
     exp="historical",
