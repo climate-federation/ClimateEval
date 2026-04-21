@@ -388,8 +388,21 @@ def build_map_figures(
         has_bias = ref_pivot is not None and bool(non_ref)
 
         if has_bias:
-            nrows, ncols = len(non_ref), 3
+            ncols = 3
+            n_model_rows = len(non_ref)
+            show_ref_section = len(valid_refs) > 1
+            n_ref_rows = (
+                (len(valid_refs) + ncols - 1) // ncols
+                if show_ref_section
+                else 0
+            )
+            nrows = n_ref_rows + n_model_rows
             titles: list[str] = []
+            for r in range(n_ref_rows):
+                for c in range(ncols):
+                    idx = r * ncols + c
+                    if idx < len(valid_refs):
+                        titles.append(f"<b>{valid_refs[idx]}</b>")
             for ds in non_ref:
                 titles += [
                     f"<b>{ref_label}</b>",
@@ -417,10 +430,23 @@ def build_map_figures(
             nrows = max(1, (len(valid_datasets) + ncols - 1) // ncols)
             titles = [str(ds) for ds in valid_datasets]
 
+        if has_bias:
+            specs: list[list[dict | None]] = []
+            for r in range(n_ref_rows):
+                row_specs: list[dict | None] = []
+                for c in range(ncols):
+                    idx = r * ncols + c
+                    row_specs.append({} if idx < len(valid_refs) else None)
+                specs.append(row_specs)
+            for _ in range(n_model_rows):
+                specs.append([{}, {}, {}])
+        else:
+            specs = None
         fig = make_subplots(
             rows=nrows,
             cols=ncols,
             subplot_titles=titles,
+            specs=specs,
             horizontal_spacing=0.05,
             vertical_spacing=(
                 min(0.08, 0.5 / (nrows - 1)) if nrows > 1 else 0
@@ -515,8 +541,29 @@ def build_map_figures(
         if has_bias:
             ref_cb_shown = False
             bias_cb_shown = False
+            if show_ref_section:
+                for idx, r_name in enumerate(valid_refs):
+                    rrow = idx // ncols + 1
+                    rcol = idx % ncols + 1
+                    piv = _pivot_for(r_name)
+                    if piv is None:
+                        continue
+                    r_cb = (
+                        {
+                            "title": {"text": units, "side": "right"},
+                            "thickness": 14,
+                            "len": 0.85,
+                            "x": 1.01,
+                            "tickfont": {"size": 10},
+                            "outlinewidth": 0,
+                        }
+                        if not ref_cb_shown
+                        else None
+                    )
+                    _add_panel(piv, rrow, rcol, cs, vmin, vmax, r_cb, r_name)
+                    ref_cb_shown = True
             for i, ds in enumerate(non_ref):
-                row = i + 1
+                row = n_ref_rows + i + 1
                 ref_cb = (
                     {
                         "title": {"text": units, "side": "right"},
@@ -601,13 +648,10 @@ def build_map_figures(
                 margin={"t": 80, "b": 50, "l": 60, "r": 150 if has_bias else 90},
             ),
         )
+        ref_title_texts = {f"<b>{r}</b>" for r in valid_refs} if has_bias else set()
+        ref_title_texts.add(f"<b>{ref_label}</b>" if has_bias else "")
         for ann in fig.layout.annotations:
-            if (
-                has_bias
-                and ann.text
-                and ref_label in ann.text
-                and "\u2212" not in ann.text
-            ):
+            if has_bias and ann.text in ref_title_texts:
                 ann.font = {"size": 11, "color": "#a07000"}
                 ann.bgcolor = "rgba(192,134,10,0.08)"
                 ann.bordercolor = "#c0860a"
