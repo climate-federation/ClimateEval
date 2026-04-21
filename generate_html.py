@@ -193,9 +193,9 @@ _AXIS_STYLE = {
 # Seaborn color palette for to_benchmark data
 _SEABORN_COLORS = [
     "#4C72B0",
+    "#DD8452",
     "#C44E52",
     "#55A868",
-    "#DD8452",
     "#8172B3",
     "#CF4458",
     "#4B4B83",
@@ -213,28 +213,37 @@ def _get_line_properties(dtype: str, color_idx: int) -> dict:
 
     Returns
     -------
-        dict with color, dash, show_legend, width
+        dict with line, showlegend, zorder
     """
     if dtype == "reference":
         return {
-            "color": "black",
-            "dash": "solid",
-            "show_legend": True,
-            "width": 2,
+            "line": {
+                "color": "black",
+                "dash": "solid",
+                "width": 2,
+            },
+            "showlegend": True,
+            "zorder": 1
         }
     if dtype == "to_benchmark":
         return {
-            "color": _SEABORN_COLORS[color_idx % len(_SEABORN_COLORS)],
-            "dash": "solid",
-            "show_legend": True,
-            "width": 2,
+            "line": {
+                "color": _SEABORN_COLORS[color_idx % len(_SEABORN_COLORS)],
+                "dash": "solid",
+                "width": 2,
+            },
+            "showlegend": True,
+            "zorder": 2
         }
     # "other"
     return {
-        "color": "#888",
-        "dash": "dash",
-        "show_legend": False,
-        "width": 1.5,
+        "line": {
+            "color": "#888",
+            "dash": "dash",
+            "width": 1.5,
+        },
+        "showlegend": False,
+        "zorder": 0,
     }
 
 
@@ -721,24 +730,22 @@ def build_timeseries_figures(
                 continue
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
             dtype = grp["data_type"].iloc[0]
-            props = _get_line_properties(dtype, color_idx)
-            if dtype == "to_benchmark":
-                color_idx += 1
-            show_legend = props.pop("show_legend")
 
             trace = go.Scatter(
                 x=series.index,
                 y=series.values,
                 mode="lines",
                 name=str(dataset),
-                line=props,
-                showlegend=show_legend,
                 legendgroup=str(dataset),
+                **_get_line_properties(dtype, color_idx),
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
+
+            if dtype == "to_benchmark":
+                color_idx += 1
 
         if has_bias:
             color_idx = 0
@@ -750,11 +757,6 @@ def build_timeseries_figures(
                     continue
                 grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
                 dtype = grp["data_type"].iloc[0]
-                props = _get_line_properties(dtype, color_idx)
-                if dtype == "to_benchmark":
-                    color_idx += 1
-                props.pop("show_legend")
-
                 common = series.index.intersection(ref_series.index)
                 if common.empty:
                     continue
@@ -768,8 +770,6 @@ def build_timeseries_figures(
                         y=bias.values,
                         mode="lines",
                         name=str(dataset),
-                        line=props,
-                        showlegend=False,
                         legendgroup=str(dataset),
                         hovertemplate=(
                             f"<b>{dataset} − {ref_dataset}</b><br>"
@@ -777,10 +777,13 @@ def build_timeseries_figures(
                             f"Δ{var_id}: %{{y:.4g}} {units}"
                             "<extra></extra>"
                         ),
+                        **_get_line_properties(dtype, color_idx),
                     ),
                     row=2,
                     col=1,
                 )
+                if dtype == "to_benchmark":
+                    color_idx += 1
             fig.add_hline(
                 y=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
@@ -891,19 +894,13 @@ def build_annual_cycle_figures(
                 continue
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
             dtype = grp["data_type"].iloc[0]
-            props = _get_line_properties(dtype, color_idx)
-            if dtype == "to_benchmark":
-                color_idx += 1
-            show_legend = props.pop("show_legend")
 
             trace = go.Scatter(
                 x=series.index.tolist(),
                 y=series.values.tolist(),
                 mode="lines+markers",
                 name=str(dataset),
-                line=props,
                 marker={"size": 6},
-                showlegend=show_legend,
                 legendgroup=str(dataset),
                 hovertemplate=(
                     f"<b>{dataset}</b><br>"
@@ -911,11 +908,15 @@ def build_annual_cycle_figures(
                     f"{var_id}: %{{y:.4g}} {units}"
                     "<extra></extra>"
                 ),
+                **_get_line_properties(dtype, color_idx),
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
+
+            if dtype == "to_benchmark":
+                color_idx += 1
 
         if has_bias:
             color_idx = 0
@@ -927,10 +928,6 @@ def build_annual_cycle_figures(
                     continue
                 grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
                 dtype = grp["data_type"].iloc[0]
-                props = _get_line_properties(dtype, color_idx)
-                if dtype == "to_benchmark":
-                    color_idx += 1
-                props.pop("show_legend")
 
                 aligned = series.reindex(ref_series.index)
                 bias = (aligned - ref_series).dropna()
@@ -942,9 +939,7 @@ def build_annual_cycle_figures(
                         y=bias.values.tolist(),
                         mode="lines+markers",
                         name=str(dataset),
-                        line=props,
                         marker={"size": 5},
-                        showlegend=False,
                         legendgroup=str(dataset),
                         hovertemplate=(
                             f"<b>{dataset} − {ref_dataset}</b><br>"
@@ -952,10 +947,13 @@ def build_annual_cycle_figures(
                             f"Δ{var_id}: %{{y:.4g}} {units}"
                             "<extra></extra>"
                         ),
+                        **_get_line_properties(dtype, color_idx),
                     ),
                     row=2,
                     col=1,
                 )
+                if dtype == "to_benchmark":
+                    color_idx += 1
             fig.add_hline(
                 y=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
@@ -1065,28 +1063,26 @@ def build_zonal_line_figures(
                 continue
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
             dtype = grp["data_type"].iloc[0]
-            props = _get_line_properties(dtype, color_idx)
-            if dtype == "to_benchmark":
-                color_idx += 1
-            show_legend = props.pop("show_legend")
 
             trace = go.Scatter(
                 x=series.index.tolist(),
                 y=series.values.tolist(),
                 mode="lines",
                 name=str(dataset),
-                line=props,
-                showlegend=show_legend,
                 legendgroup=str(dataset),
                 hovertemplate=(
                     f"<b>{dataset}</b><br>lat: %{{x:.1f}}°<br>"
                     f"{var_id}: %{{y:.4g}} {units}<extra></extra>"
                 ),
+                **_get_line_properties(dtype, color_idx),
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
+
+            if dtype == "to_benchmark":
+                color_idx += 1
 
         for lat_ref, label in [(0, "Equator"), (23.5, "N Tropic"), (-23.5, "S Tropic")]:
             line_kwargs = {
@@ -1125,10 +1121,6 @@ def build_zonal_line_figures(
                     continue
                 grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
                 dtype = grp["data_type"].iloc[0]
-                props = _get_line_properties(dtype, color_idx)
-                if dtype == "to_benchmark":
-                    color_idx += 1
-                props.pop("show_legend")
 
                 common = series.index.intersection(ref_series.index)
                 if common.empty:
@@ -1142,8 +1134,6 @@ def build_zonal_line_figures(
                         y=bias.values.tolist(),
                         mode="lines",
                         name=str(dataset),
-                        line=props,
-                        showlegend=False,
                         legendgroup=str(dataset),
                         hovertemplate=(
                             f"<b>{dataset} − {ref_dataset}</b><br>"
@@ -1151,10 +1141,13 @@ def build_zonal_line_figures(
                             f"Δ{var_id}: %{{y:.4g}} {units}"
                             "<extra></extra>"
                         ),
+                        **_get_line_properties(dtype, color_idx),
                     ),
                     row=2,
                     col=1,
                 )
+                if dtype == "to_benchmark":
+                    color_idx += 1
             fig.add_hline(
                 y=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
