@@ -102,8 +102,67 @@ def detect_diag_type(columns: list[str]) -> str:
 # Shared plot helpers
 # ---------------------------------------------------------------------------
 
-_VAR_COLORSCALE: dict[str, str] = {"pr": "YlGnBu"}
+# Per-variable colormaps for 2-D fields (Map / ZonalProfile).
+# Mirrors the ICONEval recipe_templates cmap choices so plots match the
+# ESMValTool monitor diagnostics.
+_VAR_COLORSCALE: dict[str, str] = {
+    # Temperature (sequential, "plasma" in ICONEval basics/tuning recipes)
+    "tas": "Plasma",
+    "ta": "Plasma",
+    "ta200": "Plasma",
+    "ta800": "Plasma",
+    # Precipitation (ICONEval basics_maps: Greens)
+    "pr": "Greens",
+    # Clouds / water path / humidity (ICONEval clouds_maps / basics_profiles: Blues)
+    "clivi": "Blues",
+    "clt": "Blues",
+    "clwvi": "Blues",
+    "lwp": "Blues",
+    "prw": "Blues",
+    "hus": "Blues",
+    "hus400": "Blues",
+    # Cloud radiative effects (ICONEval clouds_maps: bwr, centered)
+    "lwcre": "RdBu_r",
+    "swcre": "RdBu_r",
+    # Eastward wind (ICONEval basics_profiles: PuOr, centered)
+    "ua": "PuOr",
+    "ua200": "PuOr",
+    "ua800": "PuOr",
+}
+
+# Variables whose fields should be displayed with a symmetric range around zero
+# (diverging colormaps rely on this to keep the "zero" colour in the middle).
+_DIVERGING_VARS: set[str] = {
+    "lwcre", "swcre", "ua", "ua200", "ua800",
+}
+
+# Per-variable override for the bias (model − reference) colormap. Falls back
+# to _DEFAULT_BIAS_COLORSCALE otherwise.
+_VAR_BIAS_COLORSCALE: dict[str, str] = {
+    "pr": "BrBG",  # ICONEval basics_maps uses BrBG for precipitation bias
+}
+
 _DEFAULT_COLORSCALE = "RdBu_r"
+_DEFAULT_BIAS_COLORSCALE = "RdBu_r"
+
+
+def _colorscale_for(var_id: str) -> str:
+    return _VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE)
+
+
+def _bias_colorscale_for(var_id: str) -> str:
+    return _VAR_BIAS_COLORSCALE.get(var_id, _DEFAULT_BIAS_COLORSCALE)
+
+
+def _data_range(series: pd.Series, var_id: str) -> tuple[float, float]:
+    """Return (vmin, vmax); symmetric around zero for diverging variables."""
+    vmin, vmax = _vrange(series)
+    if var_id in _DIVERGING_VARS:
+        vabs = max(abs(vmin), abs(vmax))
+        if vabs == 0:
+            vabs = 1.0
+        return -vabs, vabs
+    return vmin, vmax
 
 _PLOT_FONT = {
     "family": "'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
@@ -208,6 +267,47 @@ def _get_ref_dataset(data_df: pd.DataFrame, metrics_df: pd.DataFrame) -> str | N
     return ref_datasets[0] if len(ref_datasets) == 1 else None
 
 
+def _get_ref_datasets(
+    data_df: pd.DataFrame, metrics_df: pd.DataFrame | None = None,
+) -> list[str]:
+    """Return every reference data_id, in stable order (may be empty)."""
+    if (
+        metrics_df is not None
+        and not metrics_df.empty
+        and "reference_data_id" in metrics_df.columns
+    ):
+        refs = [
+            r for r in metrics_df["reference_data_id"].dropna().unique().tolist()
+        ]
+        if refs:
+            return refs
+    return data_df[data_df["data_type"] == "reference"]["data_id"].unique().tolist()
+
+
+def _combine_pivots(pivots: list[pd.DataFrame]) -> pd.DataFrame | None:
+    """Return the element-wise mean of a list of 2-D pivots (NaN-aware).
+
+    Pivots are aligned on the union of their indices/columns before averaging,
+    so references on slightly different grids can still be combined.
+    """
+    pivots = [p for p in pivots if p is not None and not p.empty]
+    if not pivots:
+        return None
+    if len(pivots) == 1:
+        return pivots[0]
+    idx = pivots[0].index
+    cols = pivots[0].columns
+    for p in pivots[1:]:
+        idx = idx.union(p.index)
+        cols = cols.union(p.columns)
+    stacked = np.stack(
+        [p.reindex(index=idx, columns=cols).values for p in pivots],
+    )
+    with np.errstate(invalid="ignore"):
+        mean_vals = np.nanmean(stacked, axis=0)
+    return pd.DataFrame(mean_vals, index=idx, columns=cols)
+
+
 def _base_layout(**kwargs: Any) -> dict:
     base = {
         "font": _PLOT_FONT,
@@ -239,12 +339,13 @@ def build_map_figures(
     figures: dict[str, go.Figure] = {}
     var_cols = get_var_cols(data_df)
     all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
-    ref_dataset = _get_ref_dataset(data_df, metrics_df)
+    ref_datasets_all = _get_ref_datasets(data_df, metrics_df)
 
     for var_id in var_cols:
         long_name, units = _var_label(var_id, variables_df)
-        vmin, vmax = _vrange(data_df[var_id])
-        cs = _VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE)
+        vmin, vmax = _data_range(data_df[var_id], var_id)
+        cs = _colorscale_for(var_id)
+        bias_cs = _bias_colorscale_for(var_id)
 
         valid_datasets = [
             ds
@@ -268,19 +369,33 @@ def build_map_figures(
             )
             return p if not p.empty else None
 
-        ref_pivot = (
-            _pivot_for(ref_dataset)
-            if ref_dataset and ref_dataset in valid_datasets
-            else None
-        )
-        non_ref = [ds for ds in valid_datasets if ds != ref_dataset]
+        valid_refs = [r for r in ref_datasets_all if r in valid_datasets]
+        ref_pivots_list = [
+            (r, _pivot_for(r)) for r in valid_refs
+        ]
+        ref_pivots_list = [(r, p) for r, p in ref_pivots_list if p is not None]
+        if ref_pivots_list:
+            ref_pivot = _combine_pivots([p for _, p in ref_pivots_list])
+            ref_label = (
+                ref_pivots_list[0][0]
+                if len(ref_pivots_list) == 1
+                else "Multi-obs mean"
+            )
+        else:
+            ref_pivot = None
+            ref_label = None
+        non_ref = [ds for ds in valid_datasets if ds not in valid_refs]
         has_bias = ref_pivot is not None and bool(non_ref)
 
         if has_bias:
-            nrows, ncols = len(non_ref), 2
+            nrows, ncols = len(non_ref), 3
             titles: list[str] = []
             for ds in non_ref:
-                titles += [f"<b>{ref_dataset}</b>", f"<b>{ds}</b> \u2212 {ref_dataset}"]
+                titles += [
+                    f"<b>{ref_label}</b>",
+                    f"<b>{ds}</b>",
+                    f"<b>{ds}</b> \u2212 {ref_label}",
+                ]
             # Compute shared symmetric bias range across all non-ref datasets
             bias_vals: list[float] = []
             for ds in non_ref:
@@ -306,8 +421,10 @@ def build_map_figures(
             rows=nrows,
             cols=ncols,
             subplot_titles=titles,
-            horizontal_spacing=0.06,
-            vertical_spacing=min(0.14, 0.8 / (nrows - 1)) if nrows > 1 else 0,
+            horizontal_spacing=0.05,
+            vertical_spacing=(
+                min(0.08, 0.5 / (nrows - 1)) if nrows > 1 else 0
+            ),
         )
 
         lon_ticks = {
@@ -412,13 +529,15 @@ def build_map_figures(
                     if not ref_cb_shown
                     else None
                 )
-                ref_name = "" if ref_dataset is None else ref_dataset
+                ref_name = "" if ref_label is None else ref_label
                 _add_panel(ref_pivot, row, 1, cs, vmin, vmax, ref_cb, ref_name)
                 ref_cb_shown = True
 
                 mp = _pivot_for(ds)
                 if mp is None:
                     continue
+                _add_panel(mp, row, 2, cs, vmin, vmax, None, str(ds))
+
                 bp = mp.subtract(ref_pivot).dropna(how="all").dropna(axis=1, how="all")
                 if bp.empty:
                     continue
@@ -437,12 +556,12 @@ def build_map_figures(
                 _add_panel(
                     bp,
                     row,
-                    2,
-                    "RdBu_r",
+                    3,
+                    bias_cs,
                     -bias_abs,
                     bias_abs,
                     bias_cb,
-                    f"{ds} \u2212 {ref_dataset}",
+                    f"{ds} \u2212 {ref_label}",
                 )
                 bias_cb_shown = True
         else:
@@ -478,7 +597,7 @@ def build_map_figures(
                     "xanchor": "left",
                 },
                 plot_bgcolor="#dce9f5",
-                height=300 * nrows + 100,
+                height=max(450 * nrows + 140, 560),
                 margin={"t": 80, "b": 50, "l": 60, "r": 150 if has_bias else 90},
             ),
         )
@@ -486,7 +605,7 @@ def build_map_figures(
             if (
                 has_bias
                 and ann.text
-                and ref_dataset in ann.text
+                and ref_label in ann.text
                 and "\u2212" not in ann.text
             ):
                 ann.font = {"size": 11, "color": "#a07000"}
@@ -507,69 +626,152 @@ def build_timeseries_figures(
     variables_df: pd.DataFrame,
     metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
-    """Annual time series, one figure per variable, all datasets overlaid."""
+    """Annual time series, one figure per variable, all datasets overlaid.
+
+    When a single reference dataset is available, a second panel shows the bias
+    (dataset − reference) over the overlapping time range for every non-reference
+    dataset.
+    """
     figures: dict[str, go.Figure] = {}
     all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_dataset = _get_ref_dataset(data_df, metrics_df)
+
+    def _series_for(dataset: str, var_id: str) -> pd.Series | None:
+        grp = data_df[data_df["data_id"] == dataset]
+        sub = grp[["time", var_id]].dropna(subset=[var_id]).sort_values("time")
+        if sub.empty:
+            return None
+        return sub.set_index("time")[var_id]
 
     for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
             continue
         long_name, units = _var_label(var_id, variables_df)
-        fig = go.Figure()
+
+        ref_series = _series_for(ref_dataset, var_id) if ref_dataset else None
+        non_ref = [d for d in all_datasets if d != ref_dataset]
+        has_bias = ref_series is not None and any(
+            _series_for(d, var_id) is not None for d in non_ref
+        )
+
+        if has_bias:
+            fig = make_subplots(
+                rows=2,
+                cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.08,
+                row_heights=[0.65, 0.35],
+                subplot_titles=("", f"Bias (dataset − {ref_dataset})"),
+            )
+        else:
+            fig = go.Figure()
 
         color_idx = 0
-
         for dataset in all_datasets:
-            grp = data_df[data_df["data_id"] == dataset]
-            sub = grp[["time", var_id]].dropna(subset=[var_id]).sort_values("time")
-            if sub.empty:
+            series = _series_for(dataset, var_id)
+            if series is None:
                 continue
+            grp = data_df[data_df["data_id"] == dataset]
             dtype = grp["data_type"].iloc[0]
             props = _get_line_properties(dtype, color_idx)
             if dtype == "to_benchmark":
                 color_idx += 1
-
             show_legend = props.pop("show_legend")
-            fig.add_trace(
-                go.Scatter(
-                    x=sub["time"],
-                    y=sub[var_id],
-                    mode="lines",
-                    name=str(dataset),
-                    line=props,
-                    showlegend=show_legend,
-                    # hovertemplate=f"<b>{dataset}</b><br>%{{x|%Y-%m}}<br>{var_id}: %{{y:.4g}} {units}<extra></extra>",
-                ),
+
+            trace = go.Scatter(
+                x=series.index,
+                y=series.values,
+                mode="lines",
+                name=str(dataset),
+                line=props,
+                showlegend=show_legend,
+                legendgroup=str(dataset),
+            )
+            if has_bias:
+                fig.add_trace(trace, row=1, col=1)
+            else:
+                fig.add_trace(trace)
+
+        if has_bias:
+            color_idx = 0
+            for dataset in all_datasets:
+                if dataset == ref_dataset:
+                    continue
+                series = _series_for(dataset, var_id)
+                if series is None:
+                    continue
+                grp = data_df[data_df["data_id"] == dataset]
+                dtype = grp["data_type"].iloc[0]
+                props = _get_line_properties(dtype, color_idx)
+                if dtype == "to_benchmark":
+                    color_idx += 1
+                props.pop("show_legend")
+
+                common = series.index.intersection(ref_series.index)
+                if common.empty:
+                    continue
+                bias = series.loc[common] - ref_series.loc[common]
+                bias = bias.dropna()
+                if bias.empty:
+                    continue
+                fig.add_trace(
+                    go.Scatter(
+                        x=bias.index,
+                        y=bias.values,
+                        mode="lines",
+                        name=str(dataset),
+                        line=props,
+                        showlegend=False,
+                        legendgroup=str(dataset),
+                        hovertemplate=(
+                            f"<b>{dataset} − {ref_dataset}</b><br>"
+                            f"%{{x|%Y-%m}}<br>"
+                            f"Δ{var_id}: %{{y:.4g}} {units}"
+                            "<extra></extra>"
+                        ),
+                    ),
+                    row=2,
+                    col=1,
+                )
+            fig.add_hline(
+                y=0,
+                line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
+                row=2,
+                col=1,
             )
 
-        yax = dict(title_text=units, **_AXIS_STYLE)
-        xax = dict(title_text="Date", **_AXIS_STYLE)
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
-        fig.update_layout(
-            **_base_layout(
-                title={
-                    "text": title_str,
-                    "font": {"size": 14},
-                    "x": 0.02,
-                    "xanchor": "left",
-                },
-                xaxis=xax,
-                yaxis=yax,
-                height=440,
-                legend={
-                    "orientation": "h",
-                    "yanchor": "bottom",
-                    "y": 1.02,
-                    "xanchor": "right",
-                    "x": 1,
-                    "bgcolor": "rgba(255,255,255,0.85)",
-                    "bordercolor": "#ddd",
-                    "borderwidth": 1,
-                    "font": {"size": 11},
-                },
-                margin={"t": 80, "b": 60, "l": 70, "r": 30},
-            ),
+        layout_kwargs = dict(
+            title={
+                "text": title_str,
+                "font": {"size": 14},
+                "x": 0.02,
+                "xanchor": "left",
+            },
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": 1.02,
+                "xanchor": "right",
+                "x": 1,
+                "bgcolor": "rgba(255,255,255,0.85)",
+                "bordercolor": "#ddd",
+                "borderwidth": 1,
+                "font": {"size": 11},
+            },
+            margin={"t": 80, "b": 60, "l": 70, "r": 30},
         )
+        if has_bias:
+            fig.update_xaxes(**_AXIS_STYLE, row=1, col=1)
+            fig.update_xaxes(title_text="Date", **_AXIS_STYLE, row=2, col=1)
+            fig.update_yaxes(title_text=units, **_AXIS_STYLE, row=1, col=1)
+            fig.update_yaxes(title_text=f"Δ{units}", **_AXIS_STYLE, row=2, col=1)
+            layout_kwargs["height"] = 580
+        else:
+            layout_kwargs["xaxis"] = dict(title_text="Date", **_AXIS_STYLE)
+            layout_kwargs["yaxis"] = dict(title_text=units, **_AXIS_STYLE)
+            layout_kwargs["height"] = 440
+        fig.update_layout(**_base_layout(**layout_kwargs))
         figures[var_id] = fig
 
     return figures
@@ -580,93 +782,171 @@ def build_annual_cycle_figures(
     variables_df: pd.DataFrame,
     metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
-    """Monthly climatology (annual cycle), one figure per variable, all datasets overlaid."""
+    """Monthly climatology (annual cycle), one figure per variable, all datasets overlaid.
+
+    When a single reference dataset is available, a second panel shows the bias
+    (dataset − reference) for every non-reference dataset.
+    """
     figures: dict[str, go.Figure] = {}
     all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_dataset = _get_ref_dataset(data_df, metrics_df)
 
-    # Month names for x-axis
     month_names = [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ]
 
+    def _series_for(dataset: str, var_id: str) -> pd.Series | None:
+        grp = data_df[data_df["data_id"] == dataset]
+        sub = grp[["month_number", var_id]].dropna(subset=[var_id])
+        if sub.empty:
+            return None
+        return (
+            sub.groupby("month_number")[var_id]
+            .mean()
+            .sort_index()
+        )
+
     for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
             continue
         long_name, units = _var_label(var_id, variables_df)
-        fig = go.Figure()
+
+        ref_series = _series_for(ref_dataset, var_id) if ref_dataset else None
+        non_ref = [d for d in all_datasets if d != ref_dataset]
+        has_bias = ref_series is not None and any(
+            _series_for(d, var_id) is not None for d in non_ref
+        )
+
+        if has_bias:
+            fig = make_subplots(
+                rows=2,
+                cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.08,
+                row_heights=[0.65, 0.35],
+                subplot_titles=("", f"Bias (dataset − {ref_dataset})"),
+            )
+        else:
+            fig = go.Figure()
 
         color_idx = 0
-
         for dataset in all_datasets:
-            grp = data_df[data_df["data_id"] == dataset]
-            sub = (
-                grp[["month_number", var_id]]
-                .dropna(subset=[var_id])
-                .sort_values("month_number")
-            )
-            if sub.empty:
+            series = _series_for(dataset, var_id)
+            if series is None:
                 continue
+            grp = data_df[data_df["data_id"] == dataset]
             dtype = grp["data_type"].iloc[0]
             props = _get_line_properties(dtype, color_idx)
             if dtype == "to_benchmark":
                 color_idx += 1
-
             show_legend = props.pop("show_legend")
-            # Interpolate to full 1-12 range for a continuous-looking cycle
-            x = sub["month_number"].values
-            y = sub[var_id].values
-            fig.add_trace(
-                go.Scatter(
-                    x=x,
-                    y=y,
-                    mode="lines+markers",
-                    name=str(dataset),
-                    line=props,
-                    marker={"size": 6},
-                    showlegend=show_legend,
-                    hovertemplate=(
-                        f"<b>{dataset}</b><br>"
-                        f"Month: %{{x:.0f}}<br>"
-                        f"{var_id}: %{{y:.4g}} {units}"
-                        "<extra></extra>"
-                    ),
+
+            trace = go.Scatter(
+                x=series.index.tolist(),
+                y=series.values.tolist(),
+                mode="lines+markers",
+                name=str(dataset),
+                line=props,
+                marker={"size": 6},
+                showlegend=show_legend,
+                legendgroup=str(dataset),
+                hovertemplate=(
+                    f"<b>{dataset}</b><br>"
+                    f"Month: %{{x:.0f}}<br>"
+                    f"{var_id}: %{{y:.4g}} {units}"
+                    "<extra></extra>"
                 ),
             )
+            if has_bias:
+                fig.add_trace(trace, row=1, col=1)
+            else:
+                fig.add_trace(trace)
 
-        xax = dict(
-            title_text="Month",
-            tickvals=list(range(1, 13)),
-            ticktext=month_names,
+        if has_bias:
+            color_idx = 0
+            for dataset in all_datasets:
+                if dataset == ref_dataset:
+                    continue
+                series = _series_for(dataset, var_id)
+                if series is None:
+                    continue
+                grp = data_df[data_df["data_id"] == dataset]
+                dtype = grp["data_type"].iloc[0]
+                props = _get_line_properties(dtype, color_idx)
+                if dtype == "to_benchmark":
+                    color_idx += 1
+                props.pop("show_legend")
+
+                aligned = series.reindex(ref_series.index)
+                bias = (aligned - ref_series).dropna()
+                if bias.empty:
+                    continue
+                fig.add_trace(
+                    go.Scatter(
+                        x=bias.index.tolist(),
+                        y=bias.values.tolist(),
+                        mode="lines+markers",
+                        name=str(dataset),
+                        line=props,
+                        marker={"size": 5},
+                        showlegend=False,
+                        legendgroup=str(dataset),
+                        hovertemplate=(
+                            f"<b>{dataset} − {ref_dataset}</b><br>"
+                            f"Month: %{{x:.0f}}<br>"
+                            f"Δ{var_id}: %{{y:.4g}} {units}"
+                            "<extra></extra>"
+                        ),
+                    ),
+                    row=2,
+                    col=1,
+                )
+            fig.add_hline(
+                y=0,
+                line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
+                row=2,
+                col=1,
+            )
+
+        x_kwargs = {
+            "title_text": "Month",
+            "tickvals": list(range(1, 13)),
+            "ticktext": month_names,
             **_AXIS_STYLE,
-        )
-        yax = dict(title_text=units, **_AXIS_STYLE)
+        }
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
-        fig.update_layout(
-            **_base_layout(
-                title={
-                    "text": title_str,
-                    "font": {"size": 14},
-                    "x": 0.02,
-                    "xanchor": "left",
-                },
-                xaxis=xax,
-                yaxis=yax,
-                height=420,
-                legend={
-                    "orientation": "h",
-                    "yanchor": "bottom",
-                    "y": 1.02,
-                    "xanchor": "right",
-                    "x": 1,
-                    "bgcolor": "rgba(255,255,255,0.85)",
-                    "bordercolor": "#ddd",
-                    "borderwidth": 1,
-                    "font": {"size": 11},
-                },
-                margin={"t": 80, "b": 60, "l": 70, "r": 30},
-            ),
+        layout_kwargs = dict(
+            title={
+                "text": title_str,
+                "font": {"size": 14},
+                "x": 0.02,
+                "xanchor": "left",
+            },
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": 1.02,
+                "xanchor": "right",
+                "x": 1,
+                "bgcolor": "rgba(255,255,255,0.85)",
+                "bordercolor": "#ddd",
+                "borderwidth": 1,
+                "font": {"size": 11},
+            },
+            margin={"t": 80, "b": 60, "l": 70, "r": 30},
         )
+        if has_bias:
+            fig.update_xaxes(**{k: v for k, v in x_kwargs.items() if k != "title_text"}, row=1, col=1)
+            fig.update_xaxes(**x_kwargs, row=2, col=1)
+            fig.update_yaxes(title_text=units, **_AXIS_STYLE, row=1, col=1)
+            fig.update_yaxes(title_text=f"Δ{units}", **_AXIS_STYLE, row=2, col=1)
+            layout_kwargs["height"] = 560
+        else:
+            layout_kwargs["xaxis"] = x_kwargs
+            layout_kwargs["yaxis"] = dict(title_text=units, **_AXIS_STYLE)
+            layout_kwargs["height"] = 420
+        fig.update_layout(**_base_layout(**layout_kwargs))
         figures[var_id] = fig
 
     return figures
@@ -677,91 +957,186 @@ def build_zonal_line_figures(
     variables_df: pd.DataFrame,
     metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
-    """Zonal mean line plots, one figure per variable, all datasets overlaid."""
+    """Zonal mean line plots, one figure per variable, all datasets overlaid.
+
+    When a single reference dataset is available, a second panel shows the bias
+    (dataset − reference) as a function of latitude for every non-reference
+    dataset.
+    """
     figures: dict[str, go.Figure] = {}
     all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_dataset = _get_ref_dataset(data_df, metrics_df)
+
+    def _series_for(dataset: str, var_id: str) -> pd.Series | None:
+        grp = data_df[data_df["data_id"] == dataset]
+        sub = grp[["latitude", var_id]].dropna(subset=[var_id])
+        if sub.empty:
+            return None
+        return sub.groupby("latitude")[var_id].mean().sort_index()
+
+    lat_tickvals = [-90, -60, -30, 0, 30, 60, 90]
+    lat_ticktext = ["90°S", "60°S", "30°S", "0°", "30°N", "60°N", "90°N"]
 
     for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
             continue
         long_name, units = _var_label(var_id, variables_df)
-        fig = go.Figure()
+
+        ref_series = _series_for(ref_dataset, var_id) if ref_dataset else None
+        non_ref = [d for d in all_datasets if d != ref_dataset]
+        has_bias = ref_series is not None and any(
+            _series_for(d, var_id) is not None for d in non_ref
+        )
+
+        if has_bias:
+            fig = make_subplots(
+                rows=2,
+                cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.08,
+                row_heights=[0.65, 0.35],
+                subplot_titles=("", f"Bias (dataset − {ref_dataset})"),
+            )
+        else:
+            fig = go.Figure()
 
         color_idx = 0
-
         for dataset in all_datasets:
-            grp = data_df[data_df["data_id"] == dataset]
-            sub = (
-                grp[["latitude", var_id]]
-                .dropna(subset=[var_id])
-                .sort_values("latitude")
-            )
-            if sub.empty:
+            series = _series_for(dataset, var_id)
+            if series is None:
                 continue
+            grp = data_df[data_df["data_id"] == dataset]
             dtype = grp["data_type"].iloc[0]
             props = _get_line_properties(dtype, color_idx)
             if dtype == "to_benchmark":
                 color_idx += 1
-
             show_legend = props.pop("show_legend")
-            if var_id == "clt":
-                pass
-            fig.add_trace(
-                go.Scatter(
-                    x=sub["latitude"],
-                    y=sub[var_id],
-                    mode="lines",
-                    name=str(dataset),
-                    line=props,
-                    showlegend=show_legend,
-                    hovertemplate=f"<b>{dataset}</b><br>lat: %{{x:.1f}}°<br>{var_id}: %{{y:.4g}} {units}<extra></extra>",
+
+            trace = go.Scatter(
+                x=series.index.tolist(),
+                y=series.values.tolist(),
+                mode="lines",
+                name=str(dataset),
+                line=props,
+                showlegend=show_legend,
+                legendgroup=str(dataset),
+                hovertemplate=(
+                    f"<b>{dataset}</b><br>lat: %{{x:.1f}}°<br>"
+                    f"{var_id}: %{{y:.4g}} {units}<extra></extra>"
                 ),
             )
+            if has_bias:
+                fig.add_trace(trace, row=1, col=1)
+            else:
+                fig.add_trace(trace)
 
         for lat_ref, label in [(0, "Equator"), (23.5, "N Tropic"), (-23.5, "S Tropic")]:
-            fig.add_vline(
-                x=lat_ref,
-                line={"color": "rgba(150,150,150,0.45)", "width": 1, "dash": "dot"},
-                annotation={
-                    "text": label,
-                    "font": {"size": 8, "color": "#aaa"},
-                    "y": 0.02,
-                },
+            line_kwargs = {
+                "x": lat_ref,
+                "line": {"color": "rgba(150,150,150,0.45)", "width": 1, "dash": "dot"},
+            }
+            if has_bias:
+                fig.add_vline(
+                    row=1,
+                    col=1,
+                    annotation={"text": label, "font": {"size": 8, "color": "#aaa"}, "y": 0.02},
+                    **line_kwargs,
+                )
+                fig.add_vline(row=2, col=1, **line_kwargs)
+            else:
+                fig.add_vline(
+                    annotation={"text": label, "font": {"size": 8, "color": "#aaa"}, "y": 0.02},
+                    **line_kwargs,
+                )
+
+        if has_bias:
+            color_idx = 0
+            for dataset in all_datasets:
+                if dataset == ref_dataset:
+                    continue
+                series = _series_for(dataset, var_id)
+                if series is None:
+                    continue
+                grp = data_df[data_df["data_id"] == dataset]
+                dtype = grp["data_type"].iloc[0]
+                props = _get_line_properties(dtype, color_idx)
+                if dtype == "to_benchmark":
+                    color_idx += 1
+                props.pop("show_legend")
+
+                common = series.index.intersection(ref_series.index)
+                if common.empty:
+                    continue
+                bias = (series.loc[common] - ref_series.loc[common]).dropna()
+                if bias.empty:
+                    continue
+                fig.add_trace(
+                    go.Scatter(
+                        x=bias.index.tolist(),
+                        y=bias.values.tolist(),
+                        mode="lines",
+                        name=str(dataset),
+                        line=props,
+                        showlegend=False,
+                        legendgroup=str(dataset),
+                        hovertemplate=(
+                            f"<b>{dataset} − {ref_dataset}</b><br>"
+                            f"lat: %{{x:.1f}}°<br>"
+                            f"Δ{var_id}: %{{y:.4g}} {units}"
+                            "<extra></extra>"
+                        ),
+                    ),
+                    row=2,
+                    col=1,
+                )
+            fig.add_hline(
+                y=0,
+                line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
+                row=2,
+                col=1,
             )
 
-        xax = dict(
+        title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
+        layout_kwargs = dict(
+            title={
+                "text": title_str,
+                "font": {"size": 14},
+                "x": 0.02,
+                "xanchor": "left",
+            },
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": 1.02,
+                "xanchor": "right",
+                "x": 1,
+                "bgcolor": "rgba(255,255,255,0.85)",
+                "bordercolor": "#ddd",
+                "borderwidth": 1,
+                "font": {"size": 11},
+            },
+            margin={"t": 80, "b": 60, "l": 70, "r": 30},
+        )
+        x_kwargs_full = dict(
             title_text="Latitude (°)",
-            tickvals=[-90, -60, -30, 0, 30, 60, 90],
-            ticktext=["90°S", "60°S", "30°S", "0°", "30°N", "60°N", "90°N"],
+            tickvals=lat_tickvals,
+            ticktext=lat_ticktext,
             **_AXIS_STYLE,
         )
-        yax = dict(title_text=units, **_AXIS_STYLE)
-        title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
-        fig.update_layout(
-            **_base_layout(
-                title={
-                    "text": title_str,
-                    "font": {"size": 14},
-                    "x": 0.02,
-                    "xanchor": "left",
-                },
-                xaxis=xax,
-                yaxis=yax,
-                height=420,
-                legend={
-                    "orientation": "h",
-                    "yanchor": "bottom",
-                    "y": 1.02,
-                    "xanchor": "right",
-                    "x": 1,
-                    "bgcolor": "rgba(255,255,255,0.85)",
-                    "bordercolor": "#ddd",
-                    "borderwidth": 1,
-                    "font": {"size": 11},
-                },
-                margin={"t": 80, "b": 60, "l": 70, "r": 30},
-            ),
-        )
+        if has_bias:
+            fig.update_xaxes(
+                tickvals=lat_tickvals, ticktext=lat_ticktext, **_AXIS_STYLE,
+                row=1, col=1,
+            )
+            fig.update_xaxes(**x_kwargs_full, row=2, col=1)
+            fig.update_yaxes(title_text=units, **_AXIS_STYLE, row=1, col=1)
+            fig.update_yaxes(title_text=f"Δ{units}", **_AXIS_STYLE, row=2, col=1)
+            layout_kwargs["height"] = 560
+        else:
+            layout_kwargs["xaxis"] = x_kwargs_full
+            layout_kwargs["yaxis"] = dict(title_text=units, **_AXIS_STYLE)
+            layout_kwargs["height"] = 420
+        fig.update_layout(**_base_layout(**layout_kwargs))
         figures[var_id] = fig
 
     return figures
@@ -775,12 +1150,13 @@ def build_zonal_profile_figures(
     """Zonal mean profile heatmaps (pressure × latitude); reference + bias layout when possible."""
     figures: dict[str, go.Figure] = {}
     all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
-    ref_dataset = _get_ref_dataset(data_df, metrics_df)
+    ref_datasets_all = _get_ref_datasets(data_df, metrics_df)
 
     for var_id in get_var_cols(data_df):
         long_name, units = _var_label(var_id, variables_df)
-        vmin, vmax = _vrange(data_df[var_id])
-        cs = _VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE)
+        vmin, vmax = _data_range(data_df[var_id], var_id)
+        cs = _colorscale_for(var_id)
+        bias_cs = _bias_colorscale_for(var_id)
 
         valid_datasets = [
             ds
@@ -813,19 +1189,27 @@ def build_zonal_profile_figures(
             p.index = p.index / 100
             return p
 
-        ref_pivot = (
-            _pivot_for(ref_dataset)
-            if ref_dataset and ref_dataset in valid_datasets
-            else None
-        )
-        non_ref = [ds for ds in valid_datasets if ds != ref_dataset]
+        valid_refs = [r for r in ref_datasets_all if r in valid_datasets]
+        ref_pivots_list = [(r, _pivot_for(r)) for r in valid_refs]
+        ref_pivots_list = [(r, p) for r, p in ref_pivots_list if p is not None]
+        if ref_pivots_list:
+            ref_pivot = _combine_pivots([p for _, p in ref_pivots_list])
+            ref_label = (
+                ref_pivots_list[0][0]
+                if len(ref_pivots_list) == 1
+                else "Multi-obs mean"
+            )
+        else:
+            ref_pivot = None
+            ref_label = None
+        non_ref = [ds for ds in valid_datasets if ds not in valid_refs]
         has_bias = ref_pivot is not None and bool(non_ref)
 
         if has_bias:
             nrows, ncols = len(non_ref), 2
             titles: list[str] = []
             for ds in non_ref:
-                titles += [f"<b>{ref_dataset}</b>", f"<b>{ds}</b> \u2212 {ref_dataset}"]
+                titles += [f"<b>{ref_label}</b>", f"<b>{ds}</b> \u2212 {ref_label}"]
             bias_vals: list[float] = []
             for ds in non_ref:
                 mp = _pivot_for(ds)
@@ -919,7 +1303,7 @@ def build_zonal_profile_figures(
                     if not ref_cb_shown
                     else None
                 )
-                ref_name = "" if ref_dataset is None else ref_dataset
+                ref_name = "" if ref_label is None else ref_label
                 _add_panel(ref_pivot, row, 1, cs, vmin, vmax, ref_cb, ref_name)
                 ref_cb_shown = True
 
@@ -945,11 +1329,11 @@ def build_zonal_profile_figures(
                     bp,
                     row,
                     2,
-                    "RdBu_r",
+                    bias_cs,
                     -bias_abs,
                     bias_abs,
                     bias_cb,
-                    f"{ds} \u2212 {ref_dataset}",
+                    f"{ds} \u2212 {ref_label}",
                 )
                 bias_cb_shown = True
         else:
@@ -984,7 +1368,7 @@ def build_zonal_profile_figures(
                     "x": 0.02,
                     "xanchor": "left",
                 },
-                height=360 * nrows + 100,
+                height=max(400 * nrows + 120, 520),
                 margin={"t": 80, "b": 60, "l": 80, "r": 150 if has_bias else 90},
             ),
         )
@@ -992,7 +1376,7 @@ def build_zonal_profile_figures(
             if (
                 has_bias
                 and ann.text
-                and ref_dataset in ann.text
+                and ref_label in ann.text
                 and "\u2212" not in ann.text
             ):
                 ann.font = {"size": 11, "color": "#a07000"}
@@ -1519,7 +1903,7 @@ html, body {
 
 /* ── Body split ── */
 .app-body {
-  display: flex; flex: 1; overflow: hidden;
+  display: flex; flex: 1; overflow: hidden; position: relative;
 }
 
 /* ── Sidebar ── */
@@ -1529,7 +1913,41 @@ html, body {
   display: flex; flex-direction: column;
   overflow-y: auto; overflow-x: hidden;
   border-right: 1px solid rgba(255,255,255,0.06);
+  transition: width .2s ease;
 }
+.sidebar.collapsed { width: 0; border-right: none; }
+
+.sidebar-toggle {
+  position: absolute; top: 12px;
+  left: calc(var(--sidebar-w) - 14px);
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  border: 2px solid var(--bg);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  z-index: 150; user-select: none;
+  transition: left .2s ease, background .15s;
+  padding: 0;
+}
+.sidebar-toggle:hover { background: var(--accent-hover); }
+.app-body.sidebar-collapsed .sidebar-toggle { left: 8px; }
+
+.sidebar-toggle .bar {
+  position: absolute;
+  left: 6px;
+  width: 12px; height: 2px;
+  background: #fff;
+  border-radius: 1px;
+  transition: top .22s ease, transform .22s ease, opacity .15s ease;
+}
+/* Open state: X */
+.sidebar-toggle .bar-top { top: 11px; transform: rotate(45deg); }
+.sidebar-toggle .bar-mid { top: 11px; opacity: 0; }
+.sidebar-toggle .bar-bot { top: 11px; transform: rotate(-45deg); }
+/* Collapsed state: hamburger (three horizontal bars) */
+.app-body.sidebar-collapsed .sidebar-toggle .bar-top { top: 7px;  transform: none; }
+.app-body.sidebar-collapsed .sidebar-toggle .bar-mid { top: 11px; opacity: 1; }
+.app-body.sidebar-collapsed .sidebar-toggle .bar-bot { top: 15px; transform: none; }
 
 .sidebar-section-label {
   font-size: 0.68rem; font-weight: 700; letter-spacing: .1em;
@@ -1876,6 +2294,30 @@ function renderPanel(panelId) {
       _rendered[graphId] = true;
     });
   });
+}
+
+// Sidebar collapse/expand toggle
+function toggleSidebar() {
+  var sidebar = document.getElementById('sidebar');
+  var appBody = document.getElementById('appBody');
+  if (!sidebar || !appBody) return;
+  var collapsed = sidebar.classList.toggle('collapsed');
+  appBody.classList.toggle('sidebar-collapsed', collapsed);
+  var btn = appBody.querySelector('.sidebar-toggle');
+  if (btn) {
+    var label = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', label);
+  }
+  // Re-render the currently visible plot so Plotly resizes to the new width.
+  var ap = document.querySelector('.content-panel.active .plot-panel.active');
+  if (ap && typeof Plotly !== 'undefined') {
+    var graphId = ap.getAttribute('data-graph');
+    var div = graphId && document.getElementById(graphId);
+    if (div) {
+      setTimeout(function(){ Plotly.Plots.resize(div); }, 220);
+    }
+  }
 }
 
 // Sidebar navigation
@@ -2257,11 +2699,17 @@ def generate_html(
     </div>
   </header>
 
-  <div class="app-body">
+  <div class="app-body" id="appBody">
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       {sidebar_items}
     </aside>
+    <button class="sidebar-toggle" type="button" onclick="toggleSidebar()"
+            aria-label="Collapse sidebar" title="Collapse sidebar">
+      <span class="bar bar-top"></span>
+      <span class="bar bar-mid"></span>
+      <span class="bar bar-bot"></span>
+    </button>
 
     <div class="content-wrap">
       {all_toolbars}
@@ -2346,7 +2794,7 @@ def main() -> None:
         developer=args.developer,
     )
     output.write_text(html_content, encoding="utf-8")
-
+    print(f"HTML output is saved to {output}")
 
 if __name__ == "__main__":
     main()
