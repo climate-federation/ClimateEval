@@ -223,7 +223,7 @@ def _get_line_properties(dtype: str, color_idx: int) -> dict:
                 "width": 2,
             },
             "showlegend": True,
-            "zorder": 1
+            "zorder": 1,
         }
     if dtype == "to_benchmark":
         return {
@@ -233,7 +233,7 @@ def _get_line_properties(dtype: str, color_idx: int) -> dict:
                 "width": 2,
             },
             "showlegend": True,
-            "zorder": 2
+            "zorder": 2,
         }
     # "other"
     return {
