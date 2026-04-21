@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field, fields
 from importlib import resources
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -11,9 +13,10 @@ import yaml
 from esmvalcore.preprocessor._derive import get_required  # not part of public API yet
 from loguru import logger
 
+from benchmarking import setup_esmvaltool_config_and_logging
+
 if TYPE_CHECKING:
     from importlib.resources.abc import Traversable
-    from pathlib import Path
 
 
 logger = logger.opt(colors=True)
@@ -189,7 +192,8 @@ class Variable:
         """Get variables necessary for derivation."""
         if not self.derived:
             return (self,)
-        required_facets = get_required(self.var_name, "CMIP6")
+        with setup_esmvaltool_config_and_logging():
+            required_facets = get_required(self.var_name, "CMIP6")
         return tuple(
             Variable(
                 v["short_name"],
@@ -201,14 +205,43 @@ class Variable:
         )
 
 
+def _read_coordinates() -> dict[str, dict[str, str | list[str]]]:
+    """Read coordinates YAML file."""
+    env_variable = "BENCHMARKING_COORDINATES_FILE"
+    yml_path: Path | Traversable
+    if env_variable in os.environ:
+        yml_path = Path(os.environ[env_variable])
+        logger.debug(
+            f"Using custom coordinates file {yml_path} (defined by environment "
+            f"variable '{env_variable}')",
+        )
+    else:
+        yml_path = resources.files("benchmarking") / "coordinates.yml"
+        logger.debug(f"Using default coordinates file {yml_path}")
+    return _read_yml(yml_path)
+
+
+def _read_variables() -> dict[str, dict[str, str | list[str]]]:
+    """Read variables YAML file."""
+    env_variable = "BENCHMARKING_VARIABLES_FILE"
+    yml_path: Path | Traversable
+    if env_variable in os.environ:
+        yml_path = Path(os.environ[env_variable])
+        logger.debug(
+            f"Using custom variables file {yml_path} (defined by environment "
+            f"variable '{env_variable}')",
+        )
+    else:
+        yml_path = resources.files("benchmarking") / "variables.yml"
+        logger.debug(f"Using default variables file {yml_path}")
+    return _read_yml(yml_path)
+
+
 def _read_yml(yml_path: Path | Traversable) -> dict[str, dict[str, str | list[str]]]:
     """Read YAML files."""
     with yml_path.open("r", encoding="utf-8") as file:
         return yaml.safe_load(file)
 
 
-_VARIABLES_YML_PATH = resources.files("benchmarking") / "variables.yml"
-_COORDINATES_YML_PATH = resources.files("benchmarking") / "coordinates.yml"
-
-VARIABLES = _read_yml(_VARIABLES_YML_PATH)
-COORDINATES = _read_yml(_COORDINATES_YML_PATH)
+COORDINATES = _read_coordinates()
+VARIABLES = _read_variables()

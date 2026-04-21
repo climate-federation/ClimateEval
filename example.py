@@ -9,9 +9,6 @@ from pathlib import Path
 import iris
 from loguru import logger
 
-from benchmarking.data import DataSourceInformation
-from benchmarking.suites import Suite
-
 logger = logger.opt(colors=True)
 logger.remove()
 format_str = (
@@ -19,6 +16,9 @@ format_str = (
     "<level>{level: <8}</level> |  <level>{message}</level>"
 )
 logger.add(sys.stdout, level="DEBUG", format=format_str, colorize=True)
+
+from benchmarking.data import DataSourceInformation  # noqa: E402
+from benchmarking.suites import Suite  # noqa: E402
 
 variables = (
     "clivi",
@@ -48,14 +48,15 @@ with warnings.catch_warnings():
     cubes = iris.load(paths)
 
 
+suite = "Tier2_atmosphere"
 data_root_dir = Path("/work/bd1179/b309141/benchmarking_input")
-db_path = Path("benchmarking.ddb")
+db_path = Path(f"{suite}.ddb")
 if db_path.is_file():
     db_path.unlink()
 
 data_info = DataSourceInformation(
     name="MPI-ESM1-2-LR",
-    category="CMIP6 model",
+    category="CMIP6",
     institute="MPI-M",
     exp="historical",
     variant="r1i1p1f1",
@@ -65,10 +66,10 @@ data_info = DataSourceInformation(
 )
 
 suite = Suite(
-    "Tier2",
+    suite,
     diagnostic_kwargs={
         "data_root_dir": data_root_dir,
-        "fail_on_missing_data": True,
+        "fail_on_missing_data": False,
     },
     variable_kwargs={
         "timerange": "20000101/20011231",

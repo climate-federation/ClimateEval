@@ -3,7 +3,7 @@ benchmarking.diags.AnnualCycle: &2d_variables
     var_name: clivi
     frequency: mon
     reference_data: benchmarking.data.ESACCICloud
-    other_data: [benchmarking.data.ERA5]
+    other_data: [benchmarking.data.CMIP6HistoricalR1I1P1F1]
   clt:
     var_name: clt
     frequency: mon
@@ -115,10 +115,6 @@ benchmarking.diags.TimeSeries: *2d_variables
 benchmarking.diags.ZonalLine: *2d_variables
 
 benchmarking.diags.ZonalProfileAirPressure:
-  # cl:
-  #   var_name: cl
-  #   frequency: mon
-  #   reference_data: benchmarking.data.ERA5
   hus:
     var_name: hus
     frequency: mon

@@ -3,49 +3,69 @@
 from __future__ import annotations
 
 import contextlib
-from copy import deepcopy
-from importlib import resources
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+import logging
+import warnings
+from typing import TYPE_CHECKING
 
-import intake_esgf
-import yaml
-from esmvalcore.config import CFG
+import iris
+from esmvalcore.config import CFG, Config
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-ESMVALTOOL_INTAKE_DATA_SOURCES = (
-    Path(str(resources.files("benchmarking")))
-    / "config_files"
-    / "esmvaltool_intake_data_sources.yml"
-)
 
-
-def _get_esmvaltool_intake_data_sources() -> dict[str, Any]:
-    """Get ESMValTool intake-esgf data sources."""
-    with ESMVALTOOL_INTAKE_DATA_SOURCES.open("r", encoding="utf-8") as file:
-        return yaml.safe_load(file)
-
-
-def reset_esmvaltool_config() -> None:
-    """Rest ESMValTool configuration to default values."""
-    CFG.load_from_dirs([])
+@contextlib.contextmanager
+def esmvaltool_only_log_errors() -> Generator[None]:
+    """Set up ESMValTool to only log errors."""
+    esmvalcore_logger = logging.getLogger("esmvalcore")
+    esmvaltool_logger = logging.getLogger("esmvaltool")
+    current_esmvalcore_loglevel = esmvalcore_logger.level
+    current_esmvaltool_loglevel = esmvaltool_logger.level
+    esmvalcore_logger.setLevel(logging.ERROR)
+    esmvaltool_logger.setLevel(logging.ERROR)
+    try:
+        yield
+    finally:
+        esmvalcore_logger.setLevel(current_esmvalcore_loglevel)
+        esmvaltool_logger.setLevel(current_esmvaltool_loglevel)
 
 
 @contextlib.contextmanager
-def setup_esmvaltool_intake_data_source(cache_dir: Path) -> Generator[None]:
-    """Set up ESMValTool intake-esgf data sources."""
-    intake_esgf_options = {
-        "all_indices": True,
-        "esg_dataroot": [],
-        "local_cache": cache_dir,
-    }
-
+def setup_esmvaltool_config_and_logging() -> Generator[None]:
+    """Set up ESMValTool for usage within this project."""
     with contextlib.ExitStack() as stack:
-        stack.enter_context(intake_esgf.conf.set(**intake_esgf_options))
-        esmvaltool_config = deepcopy(CFG)
-        for project, data_config in _get_esmvaltool_intake_data_sources().items():
-            esmvaltool_config["projects"][project]["data"] = data_config["data"]
-        stack.enter_context(CFG.context(esmvaltool_config))
+        stack.enter_context(use_default_esmvaltool_config())
+        stack.enter_context(esmvaltool_only_log_errors())
+        yield
+
+
+@contextlib.contextmanager
+def setup_iris_combine_policy() -> Generator[None]:
+    """Set up Iris' combine policy."""
+    combine_policy = {
+        "equalise_cubes_kwargs": {
+            "equalise_attributes": True,
+            "unify_time_units": True,
+        },
+        "merge_concat_sequence": "mc",
+        "repeat_until_unchanged": True,
+    }
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(iris.COMBINE_POLICY.context(**combine_policy))
+        yield
+
+
+@contextlib.contextmanager
+def use_default_esmvaltool_config() -> Generator[None]:
+    """Use default ESMValTool configuration."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Do not instantiate `Config` objects directly",
+            category=UserWarning,
+        )
+        cfg = Config()
+    cfg.load_from_dirs([])
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(CFG.context(cfg))
         yield

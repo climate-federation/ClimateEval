@@ -7,7 +7,7 @@ from pathlib import Path
 import ibis
 
 root = Path.home() / "benchmarking"
-db_path = root / "benchmarking.ddb"
+db_path = root / "Tier2_atmosphere.ddb"
 con = ibis.duckdb.connect(db_path)
 
 for catalog_name in con.list_catalogs():

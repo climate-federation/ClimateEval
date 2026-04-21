@@ -11,8 +11,9 @@ from esmvalcore.preprocessor import (
     regrid,
 )
 
-from benchmarking import Coordinate
-from benchmarking.diags._base import DEFAULT_GRID, Diagnostic
+from benchmarking import Coordinate, setup_esmvaltool_config_and_logging
+from benchmarking.diags._base import Diagnostic
+from benchmarking.diags._utils import DEFAULT_GRID
 
 if TYPE_CHECKING:
     from iris.cube import Cube
@@ -25,13 +26,14 @@ class DiurnalCycle(Diagnostic):
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
-        cube = regrid(
-            cube,
-            DEFAULT_GRID,
-            "linear",
-            cache_weights=True,
-        )  # to ensure we are on a regular grid
-        cube = local_solar_time(cube)
-        cube = area_statistics(cube, "mean")
-        cube = climate_statistics(cube, operator="mean", period="hour")
+        with setup_esmvaltool_config_and_logging():
+            cube = regrid(
+                cube,
+                DEFAULT_GRID,
+                "linear",
+                cache_weights=True,
+            )  # to ensure we are on a regular grid
+            cube = local_solar_time(cube)
+            cube = area_statistics(cube, "mean")
+            cube = climate_statistics(cube, operator="mean", period="hour")
         return cube  # noqa: RET504

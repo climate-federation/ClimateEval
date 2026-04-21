@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING
 
 from esmvaltool.cmorizers.data.downloaders.wget import NASADownloader
 
-from benchmarking.data._base import DataSource, DataSourceInformation
+from benchmarking.data._esmvaltool_cmorizer import ESMValToolCMORizerDataSource
+from benchmarking.data._utils import DataSourceInformation
 
 if TYPE_CHECKING:
     from benchmarking import Variable
@@ -35,7 +36,7 @@ VAR_TO_FILE: dict[str, str] = {
 }
 
 
-class MERRA2(DataSource):
+class MERRA2(ESMValToolCMORizerDataSource):
     """Manage MERRA2 data."""
 
     _INFORMATION = DataSourceInformation(
@@ -47,6 +48,9 @@ class MERRA2(DataSource):
             "https://doi.org/10.5067/AP1B0BA5PD2K",
         ),
     )
+
+    SUPPORTED_VAR_NAMES = tuple(VAR_TO_FILE.keys())
+    TIER = 3
 
     def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
         """Download data.
@@ -68,8 +72,7 @@ class MERRA2(DataSource):
         An account can be registered at https://urs.earthdata.nasa.gov/.
 
         """
-        supported_var_names = list(VAR_TO_FILE)
-        self._check_supported_variables(variable, supported_var_names)
+        self._check_supported_variables(variable)
 
         # Raw downloaded data by ESMValTool will be stored in temporary
         # directory. Our "raw" data will be the formatted data by ESMValTool.
@@ -78,29 +81,28 @@ class MERRA2(DataSource):
 
         # Manually download required files because regular ESMValTool
         # downloader downloads all variables at once (takes lots of time)
-        tier = 3
         source = "https://goldsmr4.gesdisc.eosdis.nasa.gov/data/MERRA2_MONTHLY/"
         dataset_info = {
-            "tier": tier,
+            "tier": self.TIER,
             "source": source,
             "last_access": datetime.now(UTC),
             "info": "",
         }
-        downloader = NASADownloader(
-            original_data_dir=tmp_dir,
-            dataset=self.name,
-            dataset_info=dataset_info,
-            overwrite=False,
-        )
 
-        for year in range(1980, 2022):
-            downloader.download_folder(
-                f"{source}/{VAR_TO_FILE[variable.var_name]}/{year}/",
+        with self._set_esmvaltool_output_dir(tmp_dir):
+            downloader = NASADownloader(
+                original_data_dir=tmp_dir,
+                dataset=self.name,
+                dataset_info=dataset_info,
+                overwrite=False,
             )
+            for year in range(1980, 2022):
+                downloader.download_folder(
+                    f"{source}/{VAR_TO_FILE[variable.var_name]}/{year}/",
+                )
 
         return self._esmvaltool_cmorizer_format(
             data_root_dir,
             variable,
             download_dir=tmp_dir,
-            tier=tier,
         )

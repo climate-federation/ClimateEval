@@ -9,8 +9,9 @@ from esmvalcore.preprocessor import (
     regrid,
 )
 
-from benchmarking import Coordinate
-from benchmarking.diags._base import DEFAULT_GRID, Diagnostic
+from benchmarking import Coordinate, setup_esmvaltool_config_and_logging
+from benchmarking.diags._base import Diagnostic
+from benchmarking.diags._utils import DEFAULT_GRID
 
 if TYPE_CHECKING:
     from iris.cube import Cube
@@ -29,11 +30,12 @@ class AnnualCycleSpatialDistribution(Diagnostic):
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
-        cube = regrid(
-            cube,
-            DEFAULT_GRID,
-            "linear",
-            cache_weights=True,
-        )
-        cube = climate_statistics(cube, operator="mean", period="month")
+        with setup_esmvaltool_config_and_logging():
+            cube = regrid(
+                cube,
+                DEFAULT_GRID,
+                "linear",
+                cache_weights=True,
+            )
+            cube = climate_statistics(cube, operator="mean", period="month")
         return cube  # noqa: RET504

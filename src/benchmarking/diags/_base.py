@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, fields
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Literal
 
 import ibis
+import iris
 import pandas as pd
 from esmvalcore.preprocessor import distance_metric
 from ibis import _
@@ -16,83 +17,20 @@ from iris.pandas import as_data_frame
 from iris.warnings import IrisVagueMetadataWarning
 from loguru import logger
 
-from benchmarking import NO_LEVEL
+from benchmarking import NO_LEVEL, setup_esmvaltool_config_and_logging
 from benchmarking._utils import check_coordinates, get_prepared_cube
+from benchmarking.data._base import DataSource
+from benchmarking.diags._utils import DiagnosticOutput
 
 if TYPE_CHECKING:
     from iris.cube import Cube, CubeList
     from xarray import Dataset
 
     from benchmarking import Coordinate, Variable
-    from benchmarking.data import DataSource, DataSourceInformation, DiagnosticData
+    from benchmarking.data._utils import DataSourceInformation, DiagnosticData
 
 
 logger = logger.opt(colors=True)
-
-DEFAULT_GRID: str = "2x2"
-PLEV19_LEVELS: list[float] = [
-    100000.0,
-    92500.0,
-    85000.0,
-    70000.0,
-    60000.0,
-    50000.0,
-    40000.0,
-    30000.0,
-    25000.0,
-    20000.0,
-    15000.0,
-    10000.0,
-    7000.0,
-    5000.0,
-    3000.0,
-    2000.0,
-    1000.0,
-    500.0,
-    100.0,
-]
-
-
-@dataclass(frozen=True, kw_only=True)
-class DiagnosticOutput:
-    """Manage diagnostic output."""
-
-    raw_output: ibis.Table | None
-    metrics: ibis.Table | None
-    variables: ibis.Table
-    data_sources: ibis.Table
-
-    @classmethod
-    def union(cls, *diagnostic_output: DiagnosticOutput) -> DiagnosticOutput:
-        """Create union of output."""
-        # data
-        all_raw_output = [o.raw_output for o in diagnostic_output]
-        if None in all_raw_output and not all(d is None for d in all_raw_output):
-            msg = "Table 'data' must be None for either all or no diagnostics"
-            raise ValueError(msg)
-        raw_output_union = (
-            None if None in all_raw_output else ibis.union(*all_raw_output)
-        )
-
-        # metrics
-        all_metrics = [o.metrics for o in diagnostic_output]
-        if None in all_metrics and not all(d is None for d in all_metrics):
-            msg = "Table 'metrics' must be None for either all or no diagnostics"
-            raise ValueError(msg)
-        metrics_union = None if None in all_metrics else ibis.union(*all_metrics)
-
-        # variables
-        variables_union = ibis.union(*(o.variables for o in diagnostic_output))
-
-        # data_sources
-        data_sources_union = ibis.union(*(o.data_sources for o in diagnostic_output))
-
-        return cls(
-            raw_output=raw_output_union,
-            metrics=metrics_union,
-            variables=variables_union,
-            data_sources=data_sources_union,
-        )
 
 
 class Diagnostic(ABC):
@@ -150,8 +88,16 @@ class Diagnostic(ABC):
             raise ValueError(msg)
 
         _other_data: dict[Variable, tuple[DataSource, ...]] = {}
-        for variable, data_item in variables_and_data.items():
-            _other_data[variable] = tuple(o() for o in data_item.other)
+        for variable, diag_datas in variables_and_data.items():
+            other_data_sources: list[DataSource] = []
+            for data_source_cls in diag_datas.other:
+                if issubclass(data_source_cls, DataSource):
+                    other_data_sources.append(data_source_cls())
+                else:
+                    other_data_sources.extend(
+                        cls() for cls in data_source_cls().generate(variable)
+                    )
+            _other_data[variable] = tuple(other_data_sources)
         self._other_data = _other_data
 
         self._fail_on_missing_data = fail_on_missing_data
@@ -374,7 +320,8 @@ class Diagnostic(ABC):
         data_type: Literal["to_benchmark", "reference", "other"],
     ) -> ibis.Table:
         """Get data table of a single cube."""
-        df = as_data_frame(cube).reset_index()
+        with iris.FUTURE.context(pandas_ndim=True):
+            df = as_data_frame(cube).reset_index()
         if "time" in df.columns:
             df["time"] = df["time"].astype(str)
         raw_output_table = ibis.memtable(df)
@@ -407,9 +354,12 @@ class Diagnostic(ABC):
                     category=IrisVagueMetadataWarning,
                     module="iris",
                 )
-                metrics[metric] = float(
-                    distance_metric([cube], metric, reference=reference_cube)[0].data,
-                )
+                with setup_esmvaltool_config_and_logging():
+                    metrics[metric] = float(
+                        distance_metric([cube], metric, reference=reference_cube)[
+                            0
+                        ].data,
+                    )
         return metrics
 
     def _get_output_of_other_data(

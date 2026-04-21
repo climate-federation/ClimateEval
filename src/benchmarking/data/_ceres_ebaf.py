@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any, ClassVar
 
-from benchmarking.data._base import DataSource, DataSourceInformation
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from benchmarking import Variable
+from benchmarking.data._esmvaltool_intake import ESMValToolIntakeDataSource
+from benchmarking.data._utils import DataSourceInformation
 
 
-class CERESEBAF(DataSource):
+class CERESEBAF(ESMValToolIntakeDataSource):
     """Manage CERES-EBAF data."""
 
     _INFORMATION = DataSourceInformation(
@@ -22,14 +18,7 @@ class CERESEBAF(DataSource):
         references=("https://doi.org/10.5067/TERRA-AQUA-NOAA20/CERES/EBAF_L3B004.2.1",),
     )
 
-    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
-        """Download data."""
-        return self._esmvaltool_intake_download(
-            data_root_dir,
-            variable,
-            project="obs4MIPs",
-            dataset="CERES-EBAF-4-2-1",
-            mip=variable.cmip6_table_id,
-            short_name=variable.var_name,
-            frequency=variable.frequency,
-        )
+    _ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {
+        "project": "obs4MIPs",
+        "dataset": "CERES-EBAF-4-2-1",
+    }
