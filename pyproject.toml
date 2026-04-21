@@ -77,6 +77,9 @@ future-annotations = true
     "S101",       # Use of `assert` detected
     "SLF001",     # Private member accessed
 ]
+"generate_html.py" = [
+    "E501",       # Line too long
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"

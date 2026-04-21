@@ -7,6 +7,7 @@ import html as html_module
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import ibis
 import numpy as np
@@ -205,7 +206,7 @@ def _get_ref_dataset(data_df: pd.DataFrame, metrics_df: pd.DataFrame) -> str | N
     return ref_datasets[0] if len(ref_datasets) == 1 else None
 
 
-def _base_layout(**kwargs: object) -> dict:
+def _base_layout(**kwargs: Any) -> dict:
     base = {
         "font": _PLOT_FONT,
         "paper_bgcolor": "white",
@@ -409,7 +410,8 @@ def build_map_figures(
                     if not ref_cb_shown
                     else None
                 )
-                _add_panel(ref_pivot, row, 1, cs, vmin, vmax, ref_cb, ref_dataset)
+                ref_name = "" if ref_dataset is None else ref_dataset
+                _add_panel(ref_pivot, row, 1, cs, vmin, vmax, ref_cb, ref_name)
                 ref_cb_shown = True
 
                 mp = _pivot_for(ds)
@@ -467,7 +469,12 @@ def build_map_figures(
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
-                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
                 plot_bgcolor="#dce9f5",
                 height=300 * nrows + 100,
                 margin={"t": 80, "b": 50, "l": 60, "r": 150 if has_bias else 90},
@@ -538,7 +545,12 @@ def build_timeseries_figures(
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
-                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
                 xaxis=xax,
                 yaxis=yax,
                 height=440,
@@ -611,7 +623,11 @@ def build_zonal_line_figures(
             fig.add_vline(
                 x=lat_ref,
                 line={"color": "rgba(150,150,150,0.45)", "width": 1, "dash": "dot"},
-                annotation={"text": label, "font": {"size": 8, "color": "#aaa"}, "y": 0.02},
+                annotation={
+                    "text": label,
+                    "font": {"size": 8, "color": "#aaa"},
+                    "y": 0.02,
+                },
             )
 
         xax = dict(
@@ -624,7 +640,12 @@ def build_zonal_line_figures(
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
-                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
                 xaxis=xax,
                 yaxis=yax,
                 height=420,
@@ -799,7 +820,8 @@ def build_zonal_profile_figures(
                     if not ref_cb_shown
                     else None
                 )
-                _add_panel(ref_pivot, row, 1, cs, vmin, vmax, ref_cb, ref_dataset)
+                ref_name = "" if ref_dataset is None else ref_dataset
+                _add_panel(ref_pivot, row, 1, cs, vmin, vmax, ref_cb, ref_name)
                 ref_cb_shown = True
 
                 mp = _pivot_for(ds)
@@ -857,7 +879,12 @@ def build_zonal_profile_figures(
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
-                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
                 height=360 * nrows + 100,
                 margin={"t": 80, "b": 60, "l": 80, "r": 150 if has_bias else 90},
             ),
@@ -1293,7 +1320,7 @@ def render_diagnostic_section(
             detail_block = (
                 f"<div class='plot-detail-footer'>"
                 f"<button class='detail-toggle-btn' onclick='toggleDetail(\"{detail_id}\")'>"
-                f"<span class='detail-icon'>ℹ</span> Dataset Info &amp; References"
+                f"<span class='detail-icon'>i</span> Dataset Info &amp; References"
                 f"</button>"
                 f"<div class='plot-detail-box' id='{detail_id}'>{detail_html}</div>"
                 f"</div>"
@@ -2161,6 +2188,7 @@ def generate_html(
 
 
 def main() -> None:
+    """Generate HTML."""
     parser = argparse.ArgumentParser(
         description=(
             "Generate a portable HTML benchmarking report from one or more DuckDB "
@@ -2211,9 +2239,6 @@ def main() -> None:
             parser.error(f"Not found: {p}")
 
     output = args.output or db_paths[0].with_name(db_paths[0].stem + "_report.html")
-
-    for p in db_paths:
-        pass
 
     html_content = generate_html(
         db_paths,
