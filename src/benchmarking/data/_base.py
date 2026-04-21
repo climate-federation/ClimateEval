@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pprint import pformat
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from loguru import logger
 
@@ -100,7 +100,7 @@ class DataSource(ABC):
         """Get data- and variable-specific subdirectory."""
         return data_root_dir / self.id / var_name
 
-    def _get_output_filename(self, cube: Cube, **facets: Any) -> str:
+    def _get_output_filename(self, cube: Cube, **facets: str) -> str:
         """Get output file name."""
         suffix = ".nc"
         if cube.coords("time"):
@@ -112,7 +112,14 @@ class DataSource(ABC):
                 "%Y%m%d%H%M%S",
             )
             suffix = f"_{start_date}-{end_date}{suffix}"
-        prefix = "_".join(str(facet_value) for facet_value in facets.values())
+        normalized_facets: dict[str, str] = {}
+        for facet_key, facet_value in facets.items():
+            if facet_key == "timerange":
+                continue
+            normalized_facets[facet_key] = facet_value.replace(" ", "-")
+        prefix = "_".join(
+            str(facet_value) for facet_value in normalized_facets.values()
+        )
         return f"{prefix}{suffix}"
 
     def _get_paths_of_required_variables(
