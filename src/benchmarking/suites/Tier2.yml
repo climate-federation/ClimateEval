@@ -115,10 +115,6 @@ benchmarking.diags.TimeSeries: *2d_variables
 benchmarking.diags.ZonalLine: *2d_variables
 
 benchmarking.diags.ZonalProfileAirPressure:
-  # cl:
-  #   var_name: cl
-  #   frequency: mon
-  #   reference_data: benchmarking.data.ERA5
   hus:
     var_name: hus
     frequency: mon
