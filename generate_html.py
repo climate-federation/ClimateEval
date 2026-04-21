@@ -102,18 +102,18 @@ def detect_diag_type(columns: list[str]) -> str:
 _VAR_COLORSCALE: dict[str, str] = {"pr": "YlGnBu"}
 _DEFAULT_COLORSCALE = "RdBu_r"
 
-_PLOT_FONT = dict(
-    family="'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
-    size=12,
-)
-_AXIS_STYLE = dict(
-    showgrid=True,
-    gridcolor="rgba(180,180,180,0.25)",
-    zeroline=False,
-    linecolor="#ccc",
-    linewidth=1,
-    mirror=True,
-)
+_PLOT_FONT = {
+    "family": "'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
+    "size": 12,
+}
+_AXIS_STYLE = {
+    "showgrid": True,
+    "gridcolor": "rgba(180,180,180,0.25)",
+    "zeroline": False,
+    "linecolor": "#ccc",
+    "linewidth": 1,
+    "mirror": True,
+}
 
 # Seaborn color palette for to_benchmark data
 _SEABORN_COLORS = [
@@ -206,17 +206,17 @@ def _get_ref_dataset(data_df: pd.DataFrame, metrics_df: pd.DataFrame) -> str | N
 
 
 def _base_layout(**kwargs: object) -> dict:
-    base = dict(
-        font=_PLOT_FONT,
-        paper_bgcolor="white",
-        plot_bgcolor="#fafbfc",
-        legend=dict(
-            bgcolor="rgba(255,255,255,0.85)",
-            bordercolor="#ddd",
-            borderwidth=1,
-            font=dict(size=11),
-        ),
-    )
+    base = {
+        "font": _PLOT_FONT,
+        "paper_bgcolor": "white",
+        "plot_bgcolor": "#fafbfc",
+        "legend": {
+            "bgcolor": "rgba(255,255,255,0.85)",
+            "bordercolor": "#ddd",
+            "borderwidth": 1,
+            "font": {"size": 11},
+        },
+    }
     base.update(kwargs)
     return base
 
@@ -307,14 +307,14 @@ def build_map_figures(
             vertical_spacing=min(0.14, 0.8 / (nrows - 1)) if nrows > 1 else 0,
         )
 
-        lon_ticks = dict(
-            tickvals=[-120, -60, 0, 60, 120],
-            ticktext=["120°W", "60°W", "0°", "60°E", "120°E"],
-        )
-        lat_ticks = dict(
-            tickvals=[-60, -30, 0, 30, 60],
-            ticktext=["60°S", "30°S", "0°", "30°N", "60°N"],
-        )
+        lon_ticks = {
+            "tickvals": [-120, -60, 0, 60, 120],
+            "ticktext": ["120°W", "60°W", "0°", "60°E", "120°E"],
+        }
+        lat_ticks = {
+            "tickvals": [-60, -30, 0, 30, 60],
+            "ticktext": ["60°S", "30°S", "0°", "30°N", "60°N"],
+        }
 
         def _add_panel(
             pivot: pd.DataFrame,
@@ -352,7 +352,7 @@ def build_map_figures(
                         x=coast_lons,
                         y=coast_lats,
                         mode="lines",
-                        line=dict(color="rgba(20,20,20,0.80)", width=0.6),
+                        line={"color": "rgba(20,20,20,0.80)", "width": 0.6},
                         showlegend=False,
                         hoverinfo="skip",
                     ),
@@ -369,7 +369,7 @@ def build_map_figures(
                 linecolor="#bbb",
                 linewidth=1,
                 mirror=True,
-                tickfont=dict(size=9),
+                tickfont={"size": 9},
                 title_text="Longitude" if row == nrows else "",
                 **lon_ticks,
                 row=row,
@@ -385,7 +385,7 @@ def build_map_figures(
                 linecolor="#bbb",
                 linewidth=1,
                 mirror=True,
-                tickfont=dict(size=9),
+                tickfont={"size": 9},
                 title_text="Latitude" if col == 1 else "",
                 **lat_ticks,
                 row=row,
@@ -398,14 +398,14 @@ def build_map_figures(
             for i, ds in enumerate(non_ref):
                 row = i + 1
                 ref_cb = (
-                    dict(
-                        title=dict(text=units, side="right"),
-                        thickness=14,
-                        len=0.85,
-                        x=1.01,
-                        tickfont=dict(size=10),
-                        outlinewidth=0,
-                    )
+                    {
+                        "title": {"text": units, "side": "right"},
+                        "thickness": 14,
+                        "len": 0.85,
+                        "x": 1.01,
+                        "tickfont": {"size": 10},
+                        "outlinewidth": 0,
+                    }
                     if not ref_cb_shown
                     else None
                 )
@@ -419,14 +419,14 @@ def build_map_figures(
                 if bp.empty:
                     continue
                 bias_cb = (
-                    dict(
-                        title=dict(text=f"\u0394{units}", side="right"),
-                        thickness=14,
-                        len=0.85,
-                        x=1.09,
-                        tickfont=dict(size=10),
-                        outlinewidth=0,
-                    )
+                    {
+                        "title": {"text": f"\u0394{units}", "side": "right"},
+                        "thickness": 14,
+                        "len": 0.85,
+                        "x": 1.09,
+                        "tickfont": {"size": 10},
+                        "outlinewidth": 0,
+                    }
                     if not bias_cb_shown
                     else None
                 )
@@ -450,14 +450,14 @@ def build_map_figures(
                 if piv is None:
                     continue
                 cb = (
-                    dict(
-                        title=dict(text=units, side="right"),
-                        thickness=14,
-                        len=0.85,
-                        x=1.01,
-                        tickfont=dict(size=10),
-                        outlinewidth=0,
-                    )
+                    {
+                        "title": {"text": units, "side": "right"},
+                        "thickness": 14,
+                        "len": 0.85,
+                        "x": 1.01,
+                        "tickfont": {"size": 10},
+                        "outlinewidth": 0,
+                    }
                     if show_cb
                     else None
                 )
@@ -467,10 +467,10 @@ def build_map_figures(
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
-                title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
+                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
                 plot_bgcolor="#dce9f5",
                 height=300 * nrows + 100,
-                margin=dict(t=80, b=50, l=60, r=150 if has_bias else 90),
+                margin={"t": 80, "b": 50, "l": 60, "r": 150 if has_bias else 90},
             ),
         )
         for ann in fig.layout.annotations:
@@ -480,13 +480,13 @@ def build_map_figures(
                 and ref_dataset in ann.text
                 and "\u2212" not in ann.text
             ):
-                ann.font = dict(size=11, color="#a07000")
+                ann.font = {"size": 11, "color": "#a07000"}
                 ann.bgcolor = "rgba(192,134,10,0.08)"
                 ann.bordercolor = "#c0860a"
                 ann.borderwidth = 1
                 ann.borderpad = 3
             else:
-                ann.font = dict(size=11, color="#333")
+                ann.font = {"size": 11, "color": "#333"}
 
         figures[var_id] = fig
 
@@ -538,22 +538,22 @@ def build_timeseries_figures(
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
-                title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
+                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
                 xaxis=xax,
                 yaxis=yax,
                 height=440,
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1,
-                    bgcolor="rgba(255,255,255,0.85)",
-                    bordercolor="#ddd",
-                    borderwidth=1,
-                    font=dict(size=11),
-                ),
-                margin=dict(t=80, b=60, l=70, r=30),
+                legend={
+                    "orientation": "h",
+                    "yanchor": "bottom",
+                    "y": 1.02,
+                    "xanchor": "right",
+                    "x": 1,
+                    "bgcolor": "rgba(255,255,255,0.85)",
+                    "bordercolor": "#ddd",
+                    "borderwidth": 1,
+                    "font": {"size": 11},
+                },
+                margin={"t": 80, "b": 60, "l": 70, "r": 30},
             ),
         )
         figures[var_id] = fig
@@ -594,9 +594,7 @@ def build_zonal_line_figures(
 
             show_legend = props.pop("show_legend")
             if var_id == "clt":
-                print(dataset)
-                print(props)
-                print()
+                pass
             fig.add_trace(
                 go.Scatter(
                     x=sub["latitude"],
@@ -612,8 +610,8 @@ def build_zonal_line_figures(
         for lat_ref, label in [(0, "Equator"), (23.5, "N Tropic"), (-23.5, "S Tropic")]:
             fig.add_vline(
                 x=lat_ref,
-                line=dict(color="rgba(150,150,150,0.45)", width=1, dash="dot"),
-                annotation=dict(text=label, font=dict(size=8, color="#aaa"), y=0.02),
+                line={"color": "rgba(150,150,150,0.45)", "width": 1, "dash": "dot"},
+                annotation={"text": label, "font": {"size": 8, "color": "#aaa"}, "y": 0.02},
             )
 
         xax = dict(
@@ -626,22 +624,22 @@ def build_zonal_line_figures(
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
-                title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
+                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
                 xaxis=xax,
                 yaxis=yax,
                 height=420,
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1,
-                    bgcolor="rgba(255,255,255,0.85)",
-                    bordercolor="#ddd",
-                    borderwidth=1,
-                    font=dict(size=11),
-                ),
-                margin=dict(t=80, b=60, l=70, r=30),
+                legend={
+                    "orientation": "h",
+                    "yanchor": "bottom",
+                    "y": 1.02,
+                    "xanchor": "right",
+                    "x": 1,
+                    "bgcolor": "rgba(255,255,255,0.85)",
+                    "bordercolor": "#ddd",
+                    "borderwidth": 1,
+                    "font": {"size": 11},
+                },
+                margin={"t": 80, "b": 60, "l": 70, "r": 30},
             ),
         )
         figures[var_id] = fig
@@ -673,10 +671,10 @@ def build_zonal_profile_figures(
             continue
 
         plev_ticks = [1000, 700, 500, 300, 200, 100, 50, 20, 10]
-        lat_ticks = dict(
-            tickvals=[-60, -30, 0, 30, 60],
-            ticktext=["60°S", "30°S", "0°", "30°N", "60°N"],
-        )
+        lat_ticks = {
+            "tickvals": [-60, -30, 0, 30, 60],
+            "ticktext": ["60°S", "30°S", "0°", "30°N", "60°N"],
+        }
 
         def _pivot_for(dataset: str) -> pd.DataFrame | None:
             sub = data_df[data_df["data_id"] == dataset]
@@ -790,14 +788,14 @@ def build_zonal_profile_figures(
             for i, ds in enumerate(non_ref):
                 row = i + 1
                 ref_cb = (
-                    dict(
-                        title=dict(text=units, side="right"),
-                        thickness=14,
-                        len=0.85,
-                        x=1.01,
-                        tickfont=dict(size=10),
-                        outlinewidth=0,
-                    )
+                    {
+                        "title": {"text": units, "side": "right"},
+                        "thickness": 14,
+                        "len": 0.85,
+                        "x": 1.01,
+                        "tickfont": {"size": 10},
+                        "outlinewidth": 0,
+                    }
                     if not ref_cb_shown
                     else None
                 )
@@ -811,14 +809,14 @@ def build_zonal_profile_figures(
                 if bp.empty:
                     continue
                 bias_cb = (
-                    dict(
-                        title=dict(text=f"\u0394{units}", side="right"),
-                        thickness=14,
-                        len=0.85,
-                        x=1.09,
-                        tickfont=dict(size=10),
-                        outlinewidth=0,
-                    )
+                    {
+                        "title": {"text": f"\u0394{units}", "side": "right"},
+                        "thickness": 14,
+                        "len": 0.85,
+                        "x": 1.09,
+                        "tickfont": {"size": 10},
+                        "outlinewidth": 0,
+                    }
                     if not bias_cb_shown
                     else None
                 )
@@ -842,14 +840,14 @@ def build_zonal_profile_figures(
                 if piv is None:
                     continue
                 cb = (
-                    dict(
-                        title=dict(text=units, side="right"),
-                        thickness=14,
-                        len=0.85,
-                        x=1.01,
-                        tickfont=dict(size=10),
-                        outlinewidth=0,
-                    )
+                    {
+                        "title": {"text": units, "side": "right"},
+                        "thickness": 14,
+                        "len": 0.85,
+                        "x": 1.01,
+                        "tickfont": {"size": 10},
+                        "outlinewidth": 0,
+                    }
                     if show_cb
                     else None
                 )
@@ -859,9 +857,9 @@ def build_zonal_profile_figures(
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
-                title=dict(text=title_str, font=dict(size=14), x=0.02, xanchor="left"),
+                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
                 height=360 * nrows + 100,
-                margin=dict(t=80, b=60, l=80, r=150 if has_bias else 90),
+                margin={"t": 80, "b": 60, "l": 80, "r": 150 if has_bias else 90},
             ),
         )
         for ann in fig.layout.annotations:
@@ -871,13 +869,13 @@ def build_zonal_profile_figures(
                 and ref_dataset in ann.text
                 and "\u2212" not in ann.text
             ):
-                ann.font = dict(size=11, color="#a07000")
+                ann.font = {"size": 11, "color": "#a07000"}
                 ann.bgcolor = "rgba(192,134,10,0.08)"
                 ann.bordercolor = "#c0860a"
                 ann.borderwidth = 1
                 ann.borderpad = 3
             else:
-                ann.font = dict(size=11, color="#333")
+                ann.font = {"size": 11, "color": "#333"}
         figures[var_id] = fig
 
     return figures
@@ -1012,7 +1010,7 @@ def _render_detail_table(detail_df: pd.DataFrame, table_id: str) -> str:
         if c in detail_df.columns
     ]
     str_cols = {"data_id", "tier", "diagnostic", "var_id"}
-    cols_show = ["data_id", "tier", "diagnostic", "var_id"] + metric_cols
+    cols_show = ["data_id", "tier", "diagnostic", "var_id", *metric_cols]
     if "tier" in detail_df.columns and detail_df["tier"].nunique() <= 1:
         cols_show = [c for c in cols_show if c != "tier"]
     cols_show = [c for c in cols_show if c in detail_df.columns]
@@ -1095,15 +1093,22 @@ def _build_detail_html(
         r = var_row.iloc[0]
         meta_items = []
         for col, label in [
-            ("long_name", "Name"),
+            ("id", "Variable ID"),
+            ("var_name", "Variable Name"),
+            ("long_name", "Long Name"),
             ("standard_name", "CF Standard Name"),
             ("units", "Units"),
             ("realm", "Realm"),
             ("frequency", "Frequency"),
             ("timerange", "Time Range"),
-            ("coordinates", "Coordinates"),
             ("vertical_level", "Vertical Level"),
-            ("derived", "Derived"),
+            ("min_lat", "Minimum Latitude"),
+            ("max_lat", "Maximum Latitude"),
+            ("min_lon", "Minimum Longitude"),
+            ("max_lon", "Maximum Longitude"),
+            ("landsea_mask", "Land/Sea Mask"),
+            ("ar6_regions_mask", "AR6 Regions Mask"),
+            ("anomaly", "Anomaly"),
         ]:
             val = r.get(col, "")
             if val is not None and str(val).strip() and str(val) != "nan":
@@ -1126,7 +1131,7 @@ def _build_detail_html(
         sub = data_df[data_df[var_id].notna()][
             ["data_id", "data_type"]
         ].drop_duplicates()
-        type_order = {"reference": 0, "other": 1, "to_benchmark": 2}
+        type_order = {"to_benchmark": 0, "reference": 1, "other": 2}
         sub = sub.sort_values("data_type", key=lambda s: s.map(type_order).fillna(3))
 
         ds_items: list[str] = []
@@ -2023,7 +2028,6 @@ def generate_html(
     developer: str = "",
 ) -> str:
     """Read one or more databases and produce a self-contained HTML string."""
-    print("Extracting coastlines …")
     _coastlines()
 
     tiers: list[
@@ -2041,7 +2045,6 @@ def generate_html(
         label = _stem_to_label(db_path.stem)
         db_data = read_database(db_path)
         if not db_data:
-            print(f"  Warning: no diagnostic data in {db_path}, skipping.")
             continue
 
         tier_id = f"tier{tier_idx}"
@@ -2050,7 +2053,8 @@ def generate_html(
         tiers.append((tier_id, label, db_path, diag_sections, tier_metrics))
 
     if not tiers:
-        raise ValueError("No diagnostic databases found in any of the provided files.")
+        msg = "No diagnostic databases found in any of the provided files."
+        raise ValueError(msg)
 
     now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -2209,7 +2213,7 @@ def main() -> None:
     output = args.output or db_paths[0].with_name(db_paths[0].stem + "_report.html")
 
     for p in db_paths:
-        print(f"Reading: {p}")
+        pass
 
     html_content = generate_html(
         db_paths,
@@ -2219,7 +2223,6 @@ def main() -> None:
         developer=args.developer,
     )
     output.write_text(html_content, encoding="utf-8")
-    print(f"Report → {output}  ({output.stat().st_size // 1024} KB)")
 
 
 if __name__ == "__main__":
