@@ -112,6 +112,7 @@ class DataSource(ABC):
                 "%Y%m%d%H%M%S",
             )
             suffix = f"_{start_date}-{end_date}{suffix}"
+
         normalized_facets: dict[str, str] = {}
         for facet_key, facet_value in facets.items():
             if facet_key == "timerange":
@@ -120,6 +121,7 @@ class DataSource(ABC):
         prefix = "_".join(
             str(facet_value) for facet_value in normalized_facets.values()
         )
+
         return f"{prefix}{suffix}"
 
     def _get_paths_of_required_variables(
