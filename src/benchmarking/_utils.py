@@ -98,7 +98,8 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
 
     with setup_esmvaltool_config_and_logging():
         try:
-            cube = data.extract_cube(NameConstraint(var_name=variable.var_name))
+            # Use copy() to avoid overwriting input data
+            cube = data.extract_cube(NameConstraint(var_name=variable.var_name)).copy()
         except ConstraintMismatchError:
             if not variable.derived:
                 raise
@@ -235,7 +236,9 @@ def _get_derived_cube(cubes: CubeList, variable: Variable) -> Cube:
     cubes_for_derivation: CubeList = CubeList([])
     for required_variable in variable.get_required_variables():
         cubes_for_derivation.append(
-            cubes.extract_cube(NameConstraint(var_name=required_variable.var_name)),
+            cubes.extract_cube(
+                NameConstraint(var_name=required_variable.var_name),
+            ).copy(),
         )
     return derive(
         cubes_for_derivation,
