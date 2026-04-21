@@ -1175,7 +1175,6 @@ def _build_detail_html(
             full_name = ""
             provider = ""
             reference = ""
-            url = ""
             if data_sources_df is not None and not data_sources_df.empty:
                 src_row = data_sources_df[data_sources_df["id"] == ds_name]
                 if not src_row.empty:
@@ -1185,8 +1184,7 @@ def _build_detail_html(
                     refs_str = r.get("references", "")
                     if refs_str and str(refs_str).strip():
                         ref_parts = str(refs_str).split()
-                        reference = ref_parts[0]
-                        url = ref_parts[0]  # treat the first reference as a URL
+                        reference = ref_parts[0]  # treat the first reference as a URL
 
             detail_lines = []
             if full_name:
@@ -1194,11 +1192,9 @@ def _build_detail_html(
             if provider:
                 detail_lines.append(f"Provider: {html_module.escape(provider)}")
             if reference:
-                detail_lines.append(f"Citation: {html_module.escape(reference)}")
-            if url:
                 detail_lines.append(
-                    f'URL: <a href="{html_module.escape(url)}" target="_blank" '
-                    f'rel="noopener">{html_module.escape(url)}</a>',
+                    f'Reference: <a href="{html_module.escape(reference)}" target="_blank" '
+                    f'rel="noopener">{html_module.escape(reference)}</a>',
                 )
 
             ds_items.append(
