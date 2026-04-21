@@ -240,7 +240,7 @@ def build_map_figures(
             cols=ncols,
             subplot_titles=titles,
             horizontal_spacing=0.06,
-            vertical_spacing=0.14,
+            vertical_spacing=min(0.14, 0.8 / (nrows - 1)) if nrows > 1 else 0,
         )
 
         lon_ticks = dict(
