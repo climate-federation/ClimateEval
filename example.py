@@ -65,7 +65,7 @@ data_info = DataSourceInformation(
 )
 
 suite = Suite(
-    "Tier2",
+    "Tier2_atmosphere",
     diagnostic_kwargs={
         "data_root_dir": data_root_dir,
         "fail_on_missing_data": False,

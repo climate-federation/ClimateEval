@@ -51,7 +51,7 @@ When inspecting databases, use `ibis`.
 ### Suites (`src/benchmarking/suites/`)
 
 - `_base.py` - `Suite` class: reads a YAML suite definition, builds diagnostics, orchestrates execution, and writes results to an Ibis/DuckDB backend
-- `Tier2.yml` - YAML-defined suite: 19 2-D variables (clivi, clt, clwvi, hfls, hfss, hus400, lwcre, lwp, pr, prw, rlut, rsut, rtnt, swcre, ta200, ta800, tas, ua200, ua800) across five 2-D diagnostics (AnnualCycle, AnnualCycleSpatialDistribution, Map, TimeSeries, ZonalLine) plus 3 3-D variables (hus, ta, ua) for ZonalProfileAirPressure
+- `Tier2_atmosphere.yml` - YAML-defined suite: 19 2-D variables (clivi, clt, clwvi, hfls, hfss, hus400, lwcre, lwp, pr, prw, rlut, rsut, rtnt, swcre, ta200, ta800, tas, ua200, ua800) across five 2-D diagnostics (AnnualCycle, AnnualCycleSpatialDistribution, Map, TimeSeries, ZonalLine) plus 3 3-D variables (hus, ta, ua) for ZonalProfileAirPressure
 
 ### Data Sources (`src/benchmarking/data/`)
 
@@ -62,7 +62,7 @@ When inspecting databases, use `ibis`.
 
 ### Option 1: Use a Suite (recommended)
 
-1. Create a `Suite` instance with a YAML config (e.g., `Suite("Tier2", ...)`)
+1. Create a `Suite` instance with a YAML config (e.g., `Suite("Tier2_atmosphere", ...)`)
 2. Call `suite.get_database(cubes, data_information, database_resource="duckdb://output.ddb")`
 3. Output: Ibis connection with per-diagnostic databases, each containing `raw_output`, `metrics`, `variables`, and `data_sources` tables
 
