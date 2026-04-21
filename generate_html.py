@@ -368,8 +368,8 @@ def build_map_figures(
             continue
 
         def _pivot_for(dataset: str) -> pd.DataFrame | None:
-            sub = data_df[data_df["data_id"] == dataset]
-            sv = sub[["latitude", "longitude", var_id]].dropna(subset=[var_id]).copy()
+            sub = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+            sv = sub[["latitude", "longitude", var_id]].copy()
             if sv.empty:
                 return None
             sv["lon"] = sv["longitude"].apply(lambda x: x - 360 if x > 180 else x)
@@ -685,8 +685,8 @@ def build_timeseries_figures(
     ref_dataset = _get_ref_dataset(data_df, metrics_df)
 
     def _series_for(dataset: str, var_id: str) -> pd.Series | None:
-        grp = data_df[data_df["data_id"] == dataset]
-        sub = grp[["time", var_id]].dropna(subset=[var_id]).sort_values("time")
+        grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+        sub = grp[["time", var_id]].sort_values("time")
         if sub.empty:
             return None
         return sub.set_index("time")[var_id]
@@ -719,7 +719,7 @@ def build_timeseries_figures(
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
-            grp = data_df[data_df["data_id"] == dataset]
+            grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
             dtype = grp["data_type"].iloc[0]
             props = _get_line_properties(dtype, color_idx)
             if dtype == "to_benchmark":
@@ -748,7 +748,7 @@ def build_timeseries_figures(
                 series = _series_for(dataset, var_id)
                 if series is None:
                     continue
-                grp = data_df[data_df["data_id"] == dataset]
+                grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
                 dtype = grp["data_type"].iloc[0]
                 props = _get_line_properties(dtype, color_idx)
                 if dtype == "to_benchmark":
@@ -855,8 +855,8 @@ def build_annual_cycle_figures(
     ]
 
     def _series_for(dataset: str, var_id: str) -> pd.Series | None:
-        grp = data_df[data_df["data_id"] == dataset]
-        sub = grp[["month_number", var_id]].dropna(subset=[var_id])
+        grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+        sub = grp[["month_number", var_id]]
         if sub.empty:
             return None
         return sub.groupby("month_number")[var_id].mean().sort_index()
@@ -889,7 +889,7 @@ def build_annual_cycle_figures(
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
-            grp = data_df[data_df["data_id"] == dataset]
+            grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
             dtype = grp["data_type"].iloc[0]
             props = _get_line_properties(dtype, color_idx)
             if dtype == "to_benchmark":
@@ -925,7 +925,7 @@ def build_annual_cycle_figures(
                 series = _series_for(dataset, var_id)
                 if series is None:
                     continue
-                grp = data_df[data_df["data_id"] == dataset]
+                grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
                 dtype = grp["data_type"].iloc[0]
                 props = _get_line_properties(dtype, color_idx)
                 if dtype == "to_benchmark":
@@ -1026,8 +1026,8 @@ def build_zonal_line_figures(
     ref_dataset = _get_ref_dataset(data_df, metrics_df)
 
     def _series_for(dataset: str, var_id: str) -> pd.Series | None:
-        grp = data_df[data_df["data_id"] == dataset]
-        sub = grp[["latitude", var_id]].dropna(subset=[var_id])
+        grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+        sub = grp[["latitude", var_id]]
         if sub.empty:
             return None
         return sub.groupby("latitude")[var_id].mean().sort_index()
@@ -1063,7 +1063,7 @@ def build_zonal_line_figures(
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
-            grp = data_df[data_df["data_id"] == dataset]
+            grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
             dtype = grp["data_type"].iloc[0]
             props = _get_line_properties(dtype, color_idx)
             if dtype == "to_benchmark":
@@ -1123,7 +1123,7 @@ def build_zonal_line_figures(
                 series = _series_for(dataset, var_id)
                 if series is None:
                     continue
-                grp = data_df[data_df["data_id"] == dataset]
+                grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
                 dtype = grp["data_type"].iloc[0]
                 props = _get_line_properties(dtype, color_idx)
                 if dtype == "to_benchmark":
@@ -1242,7 +1242,7 @@ def build_zonal_profile_figures(
         }
 
         def _pivot_for(dataset: str) -> pd.DataFrame | None:
-            sub = data_df[data_df["data_id"] == dataset]
+            sub = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
             try:
                 p = sub.pivot_table(
                     index="air_pressure",
