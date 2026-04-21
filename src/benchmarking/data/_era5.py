@@ -78,7 +78,6 @@ REQUEST_PL: dict[str, Any] = {
 REQUEST_MAP: dict[str, Any] = {
     "clivi": {**REQUEST_SL, "variable": ["total_column_cloud_ice_water"]},
     "clt": {**REQUEST_SL, "variable": ["total_cloud_cover"]},
-    "cl": {**REQUEST_PL, "variable": ["fraction_of_cloud_cover"]},
     "hus": {**REQUEST_PL, "variable": ["specific_humidity"]},
     "lwp": {**REQUEST_SL, "variable": ["total_column_cloud_liquid_water"]},
     "pr": {**REQUEST_SL, "variable": ["total_precipitation"]},
