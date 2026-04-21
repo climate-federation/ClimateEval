@@ -10,7 +10,7 @@ benchmarking.diags.AnnualCycle: &2d_variables
     reference_data: benchmarking.data.ESACCICloud
     other_data: [benchmarking.data.ERA5]
   clwvi:
-    var_name: clt
+    var_name: clwvi
     frequency: mon
     reference_data: benchmarking.data.ESACCICloud
   hfls:
@@ -18,7 +18,7 @@ benchmarking.diags.AnnualCycle: &2d_variables
     frequency: mon
     reference_data: benchmarking.data.MERRA2
   hfss:
-    var_name: hfls
+    var_name: hfss
     frequency: mon
     reference_data: benchmarking.data.MERRA2
   hus400:
