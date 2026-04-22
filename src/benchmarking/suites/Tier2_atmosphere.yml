@@ -1,4 +1,4 @@
-benchmarking.diags.AnnualCycle: &2d_variables
+benchmarking.diags.simple.AnnualCycle: &2d_variables
   clivi:
     var_name: clivi
     frequency: mon
@@ -106,15 +106,15 @@ benchmarking.diags.AnnualCycle: &2d_variables
       value: 800.0
     reference_data: benchmarking.data.ERA5
 
-benchmarking.diags.AnnualCycleSpatialDistribution: *2d_variables
+benchmarking.diags.simple.AnnualCycleSpatialDistribution: *2d_variables
 
-benchmarking.diags.Map: *2d_variables
+benchmarking.diags.simple.Map: *2d_variables
 
-benchmarking.diags.TimeSeries: *2d_variables
+benchmarking.diags.simple.TimeSeries: *2d_variables
 
-benchmarking.diags.ZonalLine: *2d_variables
+benchmarking.diags.simple.ZonalLine: *2d_variables
 
-benchmarking.diags.ZonalProfileAirPressure:
+benchmarking.diags.simple.ZonalProfileAirPressure:
   hus:
     var_name: hus
     frequency: mon

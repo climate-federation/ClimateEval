@@ -13,14 +13,14 @@ from loguru import logger
 
 from benchmarking import Variable, VerticalLevel
 from benchmarking._utils import str_to_class
-from benchmarking.data import DiagnosticData
+from benchmarking.diags.simple import SimpleDiagnosticInputData
 
 if TYPE_CHECKING:
     from iris.cube import CubeList
     from xarray import Dataset
 
     from benchmarking.data import DataSourceInformation
-    from benchmarking.diags import Diagnostic
+    from benchmarking.diags.simple import SimpleDiagnostic
 
 logger = logger.opt(colors=True)
 
@@ -87,12 +87,12 @@ class Suite:
 
         return connection
 
-    def _get_diagnostics(self) -> list[Diagnostic]:
+    def _get_diagnostics(self) -> list[SimpleDiagnostic]:
         """Get diagnostics to run."""
-        diagnostics: list[Diagnostic] = []
+        diagnostics: list[SimpleDiagnostic] = []
         for diag_str, variables in self._suite_definition.items():
-            diag_cls: type[Diagnostic] = str_to_class(diag_str)
-            variables_and_data: dict[Variable, DiagnosticData] = {}
+            diag_cls: type[SimpleDiagnostic] = str_to_class(diag_str)
+            variables_and_data: dict[Variable, SimpleDiagnosticInputData] = {}
             for variable_id, variable_kwargs in variables.items():
                 all_variable_kwargs = dict(variable_kwargs)
                 reference_data = str_to_class(all_variable_kwargs.pop("reference_data"))
@@ -105,7 +105,7 @@ class Suite:
                     )
                 all_variable_kwargs.update(self._variable_kwargs)
                 variable = Variable(variable_id, **all_variable_kwargs)
-                variables_and_data[variable] = DiagnosticData(
+                variables_and_data[variable] = SimpleDiagnosticInputData(
                     reference=reference_data,
                     other=other_data,
                 )

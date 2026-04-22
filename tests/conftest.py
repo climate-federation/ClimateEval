@@ -8,10 +8,14 @@ from iris.coords import DimCoord
 from iris.cube import Cube
 
 from benchmarking import Variable
-from benchmarking.data import ERA5, GPCP, DiagnosticData, HadCRUT5
+from benchmarking.data import ERA5, GPCP, MERRA2, DataSourceGenerator, HadCRUT5
+from benchmarking.diags.simple import SimpleDiagnosticInputData
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from pathlib import Path
+
+    from benchmarking.data import DataSource
 
 
 pytest.register_assert_rewrite("tests.unit")
@@ -23,17 +27,32 @@ def data_root_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def variables_and_data_2d() -> dict[Variable, DiagnosticData]:
+def variables_and_data_2d() -> dict[Variable, SimpleDiagnosticInputData]:
     return {
-        Variable("my_tas", "tas", "mon"): DiagnosticData(reference=HadCRUT5),
-        Variable("my_pr", "pr", "mon"): DiagnosticData(reference=GPCP),
+        Variable("my_tas", "tas", "mon"): SimpleDiagnosticInputData(reference=HadCRUT5),
+        Variable("my_pr", "pr", "mon"): SimpleDiagnosticInputData(reference=GPCP),
     }
 
 
 @pytest.fixture
-def variables_and_data_3d() -> dict[Variable, DiagnosticData]:
+def variables_and_data_2d_with_other() -> dict[Variable, SimpleDiagnosticInputData]:
+    class MockDataSourceGenerator(DataSourceGenerator):
+        def generate(self, _variable: Variable) -> Generator[type[DataSource]]:
+            """Generate data sources."""
+            yield from (ERA5,)
+
     return {
-        Variable("ta", "ta", "mon"): DiagnosticData(reference=ERA5),
+        Variable("my_tas", "tas", "mon"): SimpleDiagnosticInputData(
+            reference=HadCRUT5,
+            other=(MockDataSourceGenerator, MERRA2),
+        ),
+    }
+
+
+@pytest.fixture
+def variables_and_data_3d() -> dict[Variable, SimpleDiagnosticInputData]:
+    return {
+        Variable("ta", "ta", "mon"): SimpleDiagnosticInputData(reference=ERA5),
     }
 
 

@@ -1,28 +1,27 @@
-"""Provide timeseries diagnostics."""
+"""Provide annual cycle diagnostics."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 from esmvalcore.preprocessor import (
-    annual_statistics,
     area_statistics,
+    climate_statistics,
     regrid,
-    regrid_time,
 )
 
-from benchmarking import COORDINATES, Coordinate, setup_esmvaltool_config_and_logging
-from benchmarking.diags._base import Diagnostic
+from benchmarking import Coordinate, setup_esmvaltool_config_and_logging
 from benchmarking.diags._utils import DEFAULT_GRID
+from benchmarking.diags.simple._base import SimpleDiagnostic
 
 if TYPE_CHECKING:
     from iris.cube import Cube
 
 
-class TimeSeries(Diagnostic):
-    """Manage timeseries diagnostics."""
+class AnnualCycle(SimpleDiagnostic):
+    """Manage annual cycle diagnostics."""
 
-    FINAL_COORDINATES = (Coordinate("time"),)
+    FINAL_COORDINATES = (Coordinate("month_number"),)
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
@@ -34,11 +33,5 @@ class TimeSeries(Diagnostic):
                 cache_weights=True,
             )  # to ensure we are on a regular grid
             cube = area_statistics(cube, "mean")
-            cube = annual_statistics(cube, "mean")
-            cube = regrid_time(
-                cube,
-                frequency="yr",
-                calendar="standard",
-                units=COORDINATES["time"]["units"],
-            )
+            cube = climate_statistics(cube, operator="mean", period="month")
         return cube  # noqa: RET504

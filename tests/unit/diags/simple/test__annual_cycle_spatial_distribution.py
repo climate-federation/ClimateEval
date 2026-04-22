@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from benchmarking.diags import AnnualCycleSpatialDistribution
+from benchmarking.diags.simple import AnnualCycleSpatialDistribution
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -12,12 +12,12 @@ if TYPE_CHECKING:
     from iris.cube import Cube
 
     from benchmarking import Variable
-    from benchmarking.data import DiagnosticData
+    from benchmarking.diags.simple import SimpleDiagnosticInputData
 
 
 @pytest.fixture
 def diagnostic(
-    variables_and_data_2d: dict[Variable, DiagnosticData],
+    variables_and_data_2d: dict[Variable, SimpleDiagnosticInputData],
     data_root_dir: Path,
 ) -> AnnualCycleSpatialDistribution:
     return AnnualCycleSpatialDistribution(

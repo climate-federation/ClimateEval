@@ -12,14 +12,14 @@ from esmvalcore.preprocessor import (
 )
 
 from benchmarking import Coordinate, setup_esmvaltool_config_and_logging
-from benchmarking.diags._base import Diagnostic
 from benchmarking.diags._utils import DEFAULT_GRID
+from benchmarking.diags.simple._base import SimpleDiagnostic
 
 if TYPE_CHECKING:
     from iris.cube import Cube
 
 
-class DiurnalCycle(Diagnostic):
+class DiurnalCycle(SimpleDiagnostic):
     """Manage diurnal cycle diagnostics."""
 
     FINAL_COORDINATES = (Coordinate("hour"),)

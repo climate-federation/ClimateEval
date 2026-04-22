@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from benchmarking.data._base import DataSource, DataSourceGenerator
+from benchmarking.data._base import ComplexDataSource, DataSource, DataSourceGenerator
 from benchmarking.data._ceres_ebaf import CERESEBAF
 from benchmarking.data._cmip6_historical import CMIP6HistoricalR1I1P1F1
 from benchmarking.data._era5 import ERA5
@@ -15,7 +15,7 @@ from benchmarking.data._esmvaltool_intake import (
 from benchmarking.data._gpcp import GPCP
 from benchmarking.data._hadcrut5 import HadCRUT5
 from benchmarking.data._merra2 import MERRA2
-from benchmarking.data._utils import DataSourceInformation, DiagnosticData
+from benchmarking.data._utils import DataSourceInformation
 
 __all__ = [
     "CERESEBAF",
@@ -23,10 +23,10 @@ __all__ = [
     "GPCP",
     "MERRA2",
     "CMIP6HistoricalR1I1P1F1",
+    "ComplexDataSource",
     "DataSource",
     "DataSourceGenerator",
     "DataSourceInformation",
-    "DiagnosticData",
     "ESACCICloud",
     "ESMValToolCMORizerDataSource",
     "ESMValToolIntakeDataSource",

@@ -1,8 +1,9 @@
-"""Provide base class for data sources."""
+"""Provide base classes for data sources."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from pprint import pformat
 from typing import TYPE_CHECKING, ClassVar
 
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from iris.cube import Cube, CubeList
+    from xarray import Dataset
 
     from benchmarking import Variable
     from benchmarking.data._utils import DataSourceInformation
@@ -47,7 +49,7 @@ class DataSource(ABC):
     def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
         """Download data."""
 
-    def get_cube(self, data_root_dir: Path, variable: Variable) -> CubeList:
+    def get_cube(self, data_root_dir: Path, variable: Variable) -> Cube:
         """Get data cube."""
         logger.debug(f"Loading {variable} of {self.id}")
         paths: list[Path] = list(
@@ -156,6 +158,24 @@ class DataSource(ABC):
 
             paths.extend(paths_for_required_variable)
         return paths
+
+
+@dataclass(frozen=True, kw_only=True)
+class ComplexDataSource:
+    """Manage complex data sources (intended for usage within complex diagnostics)."""
+
+    data: dict[str, CubeList | Dataset] = field(repr=False)
+    information: DataSourceInformation = field(repr=False)
+    id: str = field(init=False, compare=False)
+    name: str = field(init=False, repr=False, compare=False)
+    data_keys: tuple[str, ...] = field(init=False, compare=False)
+
+    def __post_init__(self) -> None:
+        """Initialize class instance."""
+        # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
+        object.__setattr__(self, "id", self.information.id)
+        object.__setattr__(self, "name", self.information.name)
+        object.__setattr__(self, "data_keys", tuple(self.data.keys()))
 
 
 class DataSourceGenerator(ABC):

@@ -35,7 +35,7 @@ class ESMValToolCMORizerDataSource(DataSource):
     """Prefix to only select specific files."""
 
     _TIER: ClassVar[int] = 2
-    """Tier of dataset."""
+    """Tier of data set."""
 
     def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
         """Download data.

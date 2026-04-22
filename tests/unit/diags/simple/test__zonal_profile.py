@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from benchmarking.diags import ZonalProfileAirPressure
+from benchmarking.diags.simple import ZonalProfileAirPressure
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -12,12 +12,12 @@ if TYPE_CHECKING:
     from iris.cube import Cube
 
     from benchmarking import Variable
-    from benchmarking.data import DiagnosticData
+    from benchmarking.diags.simple import SimpleDiagnosticInputData
 
 
 @pytest.fixture
 def diagnostic(
-    variables_and_data_3d: dict[Variable, DiagnosticData],
+    variables_and_data_3d: dict[Variable, SimpleDiagnosticInputData],
     data_root_dir: Path,
 ) -> ZonalProfileAirPressure:
     return ZonalProfileAirPressure(variables_and_data_3d, data_root_dir=data_root_dir)

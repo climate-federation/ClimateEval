@@ -2,26 +2,20 @@
 
 from __future__ import annotations
 
-from benchmarking.diags._annual_cycle import AnnualCycle
-from benchmarking.diags._annual_cycle_spatial_distribution import (
-    AnnualCycleSpatialDistribution,
+from benchmarking.diags._utils import (
+    DATA_ID_COLUMN,
+    DATA_TYPE_COLUMN,
+    DTYPE,
+    REFERENCE_DATA_ID_COLUMN,
+    DataTypeValue,
+    DiagnosticOutput,
 )
-from benchmarking.diags._base import Diagnostic
-from benchmarking.diags._diurnal_cycle import DiurnalCycle
-from benchmarking.diags._map import Map
-from benchmarking.diags._timeseries import TimeSeries
-from benchmarking.diags._utils import DiagnosticOutput
-from benchmarking.diags._zonal_line import ZonalLine
-from benchmarking.diags._zonal_profile import ZonalProfileAirPressure
 
 __all__ = [
-    "AnnualCycle",
-    "AnnualCycleSpatialDistribution",
-    "Diagnostic",
+    "DATA_ID_COLUMN",
+    "DATA_TYPE_COLUMN",
+    "DTYPE",
+    "REFERENCE_DATA_ID_COLUMN",
+    "DataTypeValue",
     "DiagnosticOutput",
-    "DiurnalCycle",
-    "Map",
-    "TimeSeries",
-    "ZonalLine",
-    "ZonalProfileAirPressure",
 ]

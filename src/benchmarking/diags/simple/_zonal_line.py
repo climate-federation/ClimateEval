@@ -11,14 +11,14 @@ from esmvalcore.preprocessor import (
 )
 
 from benchmarking import Coordinate, setup_esmvaltool_config_and_logging
-from benchmarking.diags._base import Diagnostic
 from benchmarking.diags._utils import DEFAULT_GRID
+from benchmarking.diags.simple._base import SimpleDiagnostic
 
 if TYPE_CHECKING:
     from iris.cube import Cube
 
 
-class ZonalLine(Diagnostic):
+class ZonalLine(SimpleDiagnostic):
     """Manage zonal line diagnostics."""
 
     FINAL_COORDINATES = (Coordinate("lat"),)

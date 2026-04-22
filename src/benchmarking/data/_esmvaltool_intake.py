@@ -141,7 +141,7 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
             )
             class_name = f"{self.__class__.__name__}DataSource{idx}"
 
-            # Dynamically create subclass for each dataset that has been found
+            # Dynamically create subclass for each data set that has been found
             new_data_source_cls = type(
                 class_name,
                 (ESMValToolIntakeDataSource,),

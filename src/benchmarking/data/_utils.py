@@ -3,17 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 from loguru import logger
-
-if TYPE_CHECKING:
-    from benchmarking.data._base import DataSource, DataSourceGenerator
 
 logger = logger.opt(colors=True)
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True, order=True, kw_only=True)
 class DataSourceInformation:
     """Manage data source information."""
 
@@ -24,7 +20,11 @@ class DataSourceInformation:
     institute: str = field(default="", repr=False)
     exp: str = field(default="", repr=False)
     variant: str = field(default="", repr=False)  # e.g., r1i1p1f1, etc.
-    references: tuple[str, ...] = field(default_factory=tuple, repr=False)
+    references: tuple[str, ...] = field(
+        default_factory=tuple,
+        repr=False,
+        compare=False,
+    )
 
     def __post_init__(self) -> None:
         """Initialize class instance."""
@@ -38,14 +38,6 @@ class DataSourceInformation:
 
         # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
         object.__setattr__(self, "id", "_".join(id_fields_vals))
-
-
-@dataclass(frozen=True, kw_only=True)
-class DiagnosticData:
-    """Manage diagnostic data."""
-
-    reference: type[DataSource]
-    other: tuple[type[DataSource | DataSourceGenerator], ...] = ()
 
 
 def get_cmip6_reference(*, mip: str, institute: str, model: str) -> str:
