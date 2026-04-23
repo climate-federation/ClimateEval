@@ -274,3 +274,47 @@ swcre:
   realm: atmos
   standard_name: ""
   units: W m-2
+
+# Custom variables
+ecs:
+  coordinates: []
+  long_name: Effective Climate Sensitivity
+  realm: atmos
+  standard_name: ""
+  units: "K"
+f2x:
+  coordinates: []
+  long_name: Radiative forcing at 2x atmospheric CO2 concentration
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
+f4x:
+  coordinates: []
+  long_name: Radiative forcing at 4x atmospheric CO2 concentration
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
+lambda:
+  coordinates: []
+  long_name: Climate Feedback Parameter
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
+lambda_stderr:
+  coordinates: []
+  long_name: Standard Error of Climate Feedback Parameter
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
+p_value:
+  coordinates: []
+  long_name: p-value
+  realm: ""
+  standard_name: ""
+  units: "1"
+r2:
+  coordinates: []
+  long_name: Coefficient of determination
+  realm: ""
+  standard_name: ""
+  units: "1"

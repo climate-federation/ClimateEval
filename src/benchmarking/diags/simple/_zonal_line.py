@@ -28,5 +28,5 @@ class ZonalLine(SimpleDiagnostic):
         with setup_esmvaltool_config_and_logging():
             cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
             cube = zonal_statistics(cube, "mean")
-            cube = climate_statistics(cube, operator="mean", period="full")
+            cube = climate_statistics(cube, "mean", "full")
         return cube  # noqa: RET504

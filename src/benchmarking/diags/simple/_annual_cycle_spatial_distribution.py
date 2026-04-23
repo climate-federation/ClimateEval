@@ -37,5 +37,5 @@ class AnnualCycleSpatialDistribution(SimpleDiagnostic):
                 "linear",
                 cache_weights=True,
             )
-            cube = climate_statistics(cube, operator="mean", period="month")
+            cube = climate_statistics(cube, "mean", "month")
         return cube  # noqa: RET504

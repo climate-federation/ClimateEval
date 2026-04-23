@@ -87,6 +87,7 @@ class ComplexDiagnostic(ABC):
         all_data_sources: list[DataSourceInformation] = []
 
         # Process to_benchmark data
+        logger.debug("Processing to_benchmark data")
         to_benchmark_data = ComplexDataSource(data=data, information=data_information)
         raw_output = self._calculate_raw_output(to_benchmark_data)
         raw_output_tables.extend(
@@ -100,6 +101,7 @@ class ComplexDiagnostic(ABC):
         all_variables.extend(raw_output)
 
         # Process other data
+        logger.debug("Processing other data")
         for other_data in self._get_other_data():
             other_raw_output = self._calculate_raw_output(other_data)
             raw_output_tables.extend(

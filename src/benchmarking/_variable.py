@@ -164,12 +164,14 @@ class Variable:
         for a list of all available table IDs.
 
         """
+        if self.realm == "":
+            return ""
         if self.realm == "atmos":
-            if self.frequency in ("3hr", "day"):
+            if self.frequency in ("3hr", "day", "fx"):
                 return self.frequency
             if self.frequency == "mon":
                 return "Amon"
-        if self.realm == "ocean" and self.frequency in ("day", "mon", "yr"):
+        if self.realm == "ocean" and self.frequency in ("day", "fx", "mon", "yr"):
             return f"O{self.frequency}"
         if self.realm == "land" and self.frequency == "mon":
             return "Lmon"

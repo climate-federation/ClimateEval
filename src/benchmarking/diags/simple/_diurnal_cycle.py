@@ -35,5 +35,5 @@ class DiurnalCycle(SimpleDiagnostic):
             )  # to ensure we are on a regular grid
             cube = local_solar_time(cube)
             cube = area_statistics(cube, "mean")
-            cube = climate_statistics(cube, operator="mean", period="hour")
+            cube = climate_statistics(cube, "mean", "hour")
         return cube  # noqa: RET504

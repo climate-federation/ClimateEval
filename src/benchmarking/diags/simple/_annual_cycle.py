@@ -33,5 +33,5 @@ class AnnualCycle(SimpleDiagnostic):
                 cache_weights=True,
             )  # to ensure we are on a regular grid
             cube = area_statistics(cube, "mean")
-            cube = climate_statistics(cube, operator="mean", period="month")
+            cube = climate_statistics(cube, "mean", "month")
         return cube  # noqa: RET504

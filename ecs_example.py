@@ -8,6 +8,7 @@ import warnings
 import iris
 from loguru import logger
 
+from benchmarking import setup_iris_combine_policy
 from benchmarking.diags.complex import ECS
 
 logger = logger.opt(colors=True)
@@ -23,21 +24,38 @@ from benchmarking.data import DataSourceInformation  # noqa: E402
 variables = (
     "rsdt",
     "rsut",
-    "rsutcs",
-    "ta",
+    "rlut",
+    "tas",
 )
-paths = [
-    f"/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/{var}/gn/v20190710/{var}_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc"
+years = [
+    "185001-186912",
+    "187001-188912",
+    "189001-190912",
+    "191001-192912",
+    "193001-194912",
+    "195001-196912",
+    "197001-198912",
+    "199001-200912",
+]
+picontrol_paths = [
+    f"/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/piControl/r1i1p1f1/Amon/{var}/gn/v20190710/{var}_Amon_MPI-ESM1-2-LR_piControl_r1i1p1f1_gn_{year}.nc"
     for var in variables
+    for year in years
+]
+abrupt4xco2_paths = [
+    f"/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/abrupt-4xCO2/r1i1p1f1/Amon/{var}/gn/v20190710/{var}_Amon_MPI-ESM1-2-LR_abrupt-4xCO2_r1i1p1f1_gn_{year}.nc"
+    for var in variables
+    for year in years
 ]
 
-with warnings.catch_warnings():
+with warnings.catch_warnings() and setup_iris_combine_policy():
     warnings.simplefilter("ignore")
-    cubes = iris.load(paths)
+    picontrol_cubes = iris.load(picontrol_paths)
+    abrupt4xco2_cubes = iris.load(abrupt4xco2_paths)
 
 data = {
-    "4xco2": cubes[0:2],
-    "picontrol": cubes[2:4],
+    "4xco2": abrupt4xco2_cubes,
+    "picontrol": picontrol_cubes,
 }
 data_info = DataSourceInformation(
     name="EXAMPLE(MPI-ESM1-2-LR)",
@@ -53,8 +71,6 @@ diagnostic = ECS()
 
 output = diagnostic.get_output(data, data_info)
 
-print(output)
-print()
 print(output.raw_output.to_pandas())
 print()
 print(output.variables.to_pandas())
