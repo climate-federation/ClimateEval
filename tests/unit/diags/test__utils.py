@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from benchmarking.diags._utils import union
+from tests._utils import assert_table_equal
 
 
 @pytest.fixture
@@ -40,19 +41,6 @@ def table_pr() -> ibis.Table:
 def test_union(table_tas: ibis.Table, table_pr: ibis.Table) -> None:
     table = union(table_tas, table_pr)
 
-    expected_schema = ibis.schema(
-        {
-            "data_id": "str",
-            "data_type": "str",
-            "latitude": "float32",
-            "tas": "float64",
-            "longitude": "float64",
-            "pr": "float32",
-        },
-    )
-
-    assert table.schema() == expected_schema
-
     expected_table = ibis.memtable(
         pd.DataFrame(
             {
@@ -68,4 +56,4 @@ def test_union(table_tas: ibis.Table, table_pr: ibis.Table) -> None:
             },
         ),
     )
-    assert table.to_pandas().equals(expected_table.to_pandas())
+    assert_table_equal(table, expected_table)

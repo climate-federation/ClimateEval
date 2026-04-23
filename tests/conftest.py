@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from benchmarking.data import DataSource
 
 
+pytest.register_assert_rewrite("tests._utils")
 pytest.register_assert_rewrite("tests.unit")
 
 
