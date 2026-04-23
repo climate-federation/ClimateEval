@@ -7,8 +7,6 @@ import pytest
 from benchmarking.diags.simple import AnnualCycleSpatialDistribution
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from iris.cube import Cube
 
     from benchmarking import Variable
@@ -18,12 +16,8 @@ if TYPE_CHECKING:
 @pytest.fixture
 def diagnostic(
     variables_and_data_2d: dict[Variable, SimpleDiagnosticInputData],
-    data_root_dir: Path,
 ) -> AnnualCycleSpatialDistribution:
-    return AnnualCycleSpatialDistribution(
-        variables_and_data_2d,
-        data_root_dir=data_root_dir,
-    )
+    return AnnualCycleSpatialDistribution(variables_and_data_2d)
 
 
 def test__safely_preprocess(

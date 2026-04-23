@@ -29,13 +29,12 @@ class MockDiagnostic(SimpleDiagnostic):
 @pytest.fixture
 def diagnostic(
     variables_and_data_2d_with_other: dict[Variable, SimpleDiagnosticInputData],
-    data_root_dir: Path,
 ) -> MockDiagnostic:
-    return MockDiagnostic(variables_and_data_2d_with_other, data_root_dir=data_root_dir)
+    return MockDiagnostic(variables_and_data_2d_with_other)
 
 
-def test___init__(diagnostic: MockDiagnostic, data_root_dir: Path) -> None:
-    assert diagnostic.data_root_dir == data_root_dir
+def test___init__(diagnostic: MockDiagnostic, temporary_data_root_dir: Path) -> None:
+    assert diagnostic.data_root_dir == temporary_data_root_dir
     assert diagnostic.final_coordinate_names == ("latitude",)
     assert diagnostic.name == "MockDiagnostic"
 
@@ -51,7 +50,7 @@ def test___init__(diagnostic: MockDiagnostic, data_root_dir: Path) -> None:
     assert isinstance(diagnostic.other_data[expected_variable][1], MERRA2)
 
 
-def test_non_unique_variables_fail(data_root_dir: Path) -> None:
+def test_non_unique_variables_fail() -> None:
     var_1 = Variable("tas", "tas", "mon")
     var_2 = Variable("tas", "tas", "day")
     data = SimpleDiagnosticInputData(reference=HadCRUT5)
@@ -60,4 +59,4 @@ def test_non_unique_variables_fail(data_root_dir: Path) -> None:
         r"Variable IDs must be unique for diagnostic MockDiagnostic, got ['tas', 'tas']"
     )
     with pytest.raises(ValueError, match=re.escape(msg)):
-        MockDiagnostic(variables_and_data, data_root_dir=data_root_dir)
+        MockDiagnostic(variables_and_data)

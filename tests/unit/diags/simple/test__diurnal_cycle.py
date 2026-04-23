@@ -7,8 +7,6 @@ import pytest
 from benchmarking.diags.simple import DiurnalCycle
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from iris.cube import Cube
 
     from benchmarking import Variable
@@ -18,9 +16,8 @@ if TYPE_CHECKING:
 @pytest.fixture
 def diagnostic(
     variables_and_data_2d: dict[Variable, SimpleDiagnosticInputData],
-    data_root_dir: Path,
 ) -> DiurnalCycle:
-    return DiurnalCycle(variables_and_data_2d, data_root_dir=data_root_dir)
+    return DiurnalCycle(variables_and_data_2d)
 
 
 def test__safely_preprocess(diagnostic: DiurnalCycle, cube_2d: Cube) -> None:

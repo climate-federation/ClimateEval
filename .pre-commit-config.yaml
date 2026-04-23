@@ -3,6 +3,7 @@
 ---
 exclude: |
   (?x)^(
+    ecs_example.py|
     example.py|
     db.py
   )$

@@ -68,6 +68,8 @@ PLEV19_LEVELS: list[float] = [
     100.0,
 ]
 
+_DEFAULT_DATA_ROOT_DIR: Path = Path.home() / ".benchmarking" / "data"
+
 
 @dataclass(frozen=True, kw_only=True)
 class DiagnosticOutput:
@@ -82,7 +84,7 @@ class DiagnosticOutput:
 def get_data_root_dir(data_root_dir: Path | None) -> Path:
     """Get data root directory."""
     if data_root_dir is None:
-        data_root_dir = Path.home() / ".benchmarking" / "data"
+        data_root_dir = _DEFAULT_DATA_ROOT_DIR
     data_root_dir.mkdir(parents=True, exist_ok=True)
     logger.debug(f"Using data root directory {data_root_dir}")
     return data_root_dir

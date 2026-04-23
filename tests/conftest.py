@@ -7,6 +7,7 @@ import pytest
 from iris.coords import DimCoord
 from iris.cube import Cube
 
+import benchmarking.diags._utils
 from benchmarking import Variable
 from benchmarking.data import ERA5, GPCP, MERRA2, DataSourceGenerator, HadCRUT5
 from benchmarking.diags.simple import SimpleDiagnosticInputData
@@ -22,9 +23,15 @@ pytest.register_assert_rewrite("tests._utils")
 pytest.register_assert_rewrite("tests.unit")
 
 
-@pytest.fixture
-def data_root_dir(tmp_path: Path) -> Path:
-    return tmp_path / "data"
+@pytest.fixture(autouse=True)
+def temporary_data_root_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    tmp_data_root_dir = tmp_path / "data"
+    monkeypatch.setattr(
+        benchmarking.diags._utils,
+        "_DEFAULT_DATA_ROOT_DIR",
+        tmp_data_root_dir,
+    )
+    return tmp_data_root_dir
 
 
 @pytest.fixture
