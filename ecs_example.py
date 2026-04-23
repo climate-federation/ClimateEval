@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sys
 import warnings
-from pathlib import Path
 
 import iris
 from loguru import logger
@@ -20,7 +19,6 @@ format_str = (
 logger.add(sys.stdout, level="DEBUG", format=format_str, colorize=True)
 
 from benchmarking.data import DataSourceInformation  # noqa: E402
-from benchmarking.suites import Suite  # noqa: E402
 
 variables = (
     "rsdt",

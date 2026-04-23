@@ -43,11 +43,13 @@ class ComplexDiagnostic(ABC):
         *,
         data_root_dir: Path | None = None,
         fail_on_missing_data: bool = False,
+        **kwargs: Any,
     ) -> None:
         """Initialize class instance."""
         logger.debug(f"Initializing complex diagnostic {self.name}")
         self._data_root_dir = get_data_root_dir(data_root_dir)
         self._fail_on_missing_data = fail_on_missing_data
+        self._kwargs = kwargs
 
     @property
     def data_root_dir(self) -> Path:

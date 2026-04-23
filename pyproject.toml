@@ -77,6 +77,10 @@ future-annotations = true
     "S101",       # Use of `assert` detected
     "SLF001",     # Private member accessed
 ]
+"tests/sample_data/create_sample_data_sources.py" = [
+    "INP001",     # File is part of an implicit namespace package.
+    "T201",       # `print` found
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"

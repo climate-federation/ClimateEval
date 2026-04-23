@@ -103,6 +103,10 @@ class Suite:
                     all_variable_kwargs["vertical_level"] = VerticalLevel(
                         **all_variable_kwargs["vertical_level"],
                     )
+                if "ar6_regions_mask" in all_variable_kwargs:
+                    all_variable_kwargs["ar6_regions_mask"] = tuple(
+                        all_variable_kwargs["ar6_regions_mask"],
+                    )
                 all_variable_kwargs.update(self._variable_kwargs)
                 variable = Variable(variable_id, **all_variable_kwargs)
                 variables_and_data[variable] = SimpleDiagnosticInputData(

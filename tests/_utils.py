@@ -17,7 +17,6 @@ def assert_table_equal(
 ) -> None:
     assert left_table.schema() == right_table.schema()
 
-
     # Use pandas to compare the actual data in the tables
     # Note: since Ibis makes no guarantees about row order, we sort the
     # corresponding data frames first and reset the index before comparing them

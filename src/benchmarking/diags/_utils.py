@@ -113,7 +113,7 @@ def get_raw_output_table(
         df["time"] = df["time"].astype(str)
     raw_output_table = ibis.memtable(df)
     cast_operations = {
-        c: {"time": "timestamp"}.get(c, DTYPE) for c in raw_output_table.columns
+        c: {"time": "timestamp(6)"}.get(c, DTYPE) for c in raw_output_table.columns
     }
     raw_output_table = raw_output_table.cast(**cast_operations)
     raw_output_table = raw_output_table.rename(**{variable.id: cube.name()})
