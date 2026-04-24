@@ -38,7 +38,7 @@ def sample_data_root_dir() -> Path:
 def temporary_data_root_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     tmp_data_root_dir = tmp_path / "data"
     monkeypatch.setattr(
-        benchmarking.diags._utils,
+        benchmarking.diags._base,
         "_DEFAULT_DATA_ROOT_DIR",
         tmp_data_root_dir,
     )

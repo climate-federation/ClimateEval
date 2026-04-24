@@ -17,19 +17,7 @@ from loguru import logger
 from benchmarking import Variable, VerticalLevel, setup_esmvaltool_config_and_logging
 from benchmarking._utils import check_coordinates, get_prepared_cube, str_to_class
 from benchmarking.diags._base import Diagnostic, DiagnosticOutput
-from benchmarking.diags._utils import (
-    DATA_ID_COLUMN,
-    DATA_TYPE_COLUMN,
-    DTYPE,
-    REFERENCE_DATA_ID_COLUMN,
-    VARIABLE_ID_COLUMN,
-    get_data_root_dir,
-    get_data_sources_table,
-    get_raw_output_table,
-    get_variables_table,
-    handle_missing_data,
-    union,
-)
+from benchmarking.diags._utils import union
 from benchmarking.diags.simple._utils import SimpleDiagnosticInputData
 
 if TYPE_CHECKING:
@@ -75,7 +63,7 @@ class SimpleDiagnostic(Diagnostic):
         """Initialize class instance."""
         logger.debug(f"Initializing simple diagnostic {self.name}")
 
-        self._data_root_dir = get_data_root_dir(data_root_dir)
+        self._data_root_dir = self._get_data_root_dir(data_root_dir)
 
         if not variables_and_data:
             msg = "At least a single variable must be given."
@@ -196,12 +184,7 @@ class SimpleDiagnostic(Diagnostic):
                     reference_data.get_cube(self.data_root_dir, variable),
                 )
             except Exception as exc:  # noqa: BLE001
-                handle_missing_data(
-                    reference_data.id,
-                    (variable,),
-                    exc,
-                    fail_on_missing_data=self._fail_on_missing_data,
-                )
+                self._handle_missing_data(reference_data.id, (variable,), exc)
                 continue
             reference_cubes[variable] = reference_cube
 
@@ -249,13 +232,13 @@ class SimpleDiagnostic(Diagnostic):
         metrics_table = union(*metrics_tables) if metrics_tables else None
 
         # Metadata tables
-        variables_table = get_variables_table(self.variables)
+        variables_table = self._get_variables_table(self.variables)
         all_data_source_information = (
             [data_information]
             + [d.information for d in self.reference_data.values()]
             + [d.information for o in self.other_data.values() for d in o]
         )
-        data_sources_table = get_data_sources_table(all_data_source_information)
+        data_sources_table = self._get_data_sources_table(all_data_source_information)
 
         return DiagnosticOutput(
             raw_output=raw_output_table,
@@ -276,15 +259,15 @@ class SimpleDiagnostic(Diagnostic):
         metrics = ibis.memtable(
             pd.DataFrame(
                 {
-                    VARIABLE_ID_COLUMN: variable.id,
+                    self.VARIABLE_ID_COLUMN: variable.id,
                     **self._get_metrics(cube, reference_cube),
-                    DATA_ID_COLUMN: data_id,
-                    REFERENCE_DATA_ID_COLUMN: self.reference_data[variable].id,
+                    self.DATA_ID_COLUMN: data_id,
+                    self.REFERENCE_DATA_ID_COLUMN: self.reference_data[variable].id,
                 },
                 index=[0],
             ),
         )
-        cast_operations = dict.fromkeys(self._get_metric_names(), DTYPE)
+        cast_operations = dict.fromkeys(self._get_metric_names(), self.DTYPE)
         return metrics.cast(**cast_operations)
 
     def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
@@ -330,18 +313,13 @@ class SimpleDiagnostic(Diagnostic):
                         other_data.get_cube(self.data_root_dir, variable),
                     )
                 except Exception as exc:  # noqa: BLE001
-                    handle_missing_data(
-                        other_data.id,
-                        (variable,),
-                        exc,
-                        fail_on_missing_data=self._fail_on_missing_data,
-                    )
+                    self._handle_missing_data(other_data.id, (variable,), exc)
                     continue
 
                 # Expand table
                 if self.OUTPUT_DATA_TABLE:
                     raw_output_tables.append(
-                        get_raw_output_table(
+                        self._get_raw_output_table(
                             other_cube,
                             variable=variable,
                             data_id=other_data.id,
@@ -381,7 +359,7 @@ class SimpleDiagnostic(Diagnostic):
 
         for variable, reference_cube in reference_cubes.items():
             raw_output_tables.append(
-                get_raw_output_table(
+                self._get_raw_output_table(
                     reference_cube,
                     variable=variable,
                     data_id=self.reference_data[variable].id,
@@ -411,18 +389,13 @@ class SimpleDiagnostic(Diagnostic):
             try:
                 cube = self._get_cube(data, variable)
             except Exception as exc:  # noqa: BLE001
-                handle_missing_data(
-                    data_id,
-                    (variable,),
-                    exc,
-                    fail_on_missing_data=self._fail_on_missing_data,
-                )
+                self._handle_missing_data(data_id, (variable,), exc)
                 continue
 
             # Expand table
             if self.OUTPUT_DATA_TABLE:
                 raw_output_tables.append(
-                    get_raw_output_table(
+                    self._get_raw_output_table(
                         cube,
                         variable=variable,
                         data_id=data_id,
@@ -462,8 +435,8 @@ class SimpleDiagnostic(Diagnostic):
 
         """
         unique_columns = (
-            DATA_ID_COLUMN,
-            DATA_TYPE_COLUMN,
+            self.DATA_ID_COLUMN,
+            self.DATA_TYPE_COLUMN,
             *self.final_coordinate_names,
         )
         table = table.group_by(unique_columns).aggregate(
@@ -480,8 +453,8 @@ class SimpleDiagnostic(Diagnostic):
     def _sort_raw_output_columns(self, raw_output_table: ibis.Table) -> ibis.Table:
         """Sort columns of raw output table."""
         new_column_order = (
-            DATA_ID_COLUMN,
-            DATA_TYPE_COLUMN,
+            self.DATA_ID_COLUMN,
+            self.DATA_TYPE_COLUMN,
             *self.final_coordinate_names,
             *sorted(v.id for v in self.variables),
         )

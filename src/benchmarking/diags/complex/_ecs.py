@@ -28,7 +28,7 @@ from benchmarking.data import (
     DataSourceInformation,
 )
 from benchmarking.data._esmvaltool_intake import filter_intake_data_sources
-from benchmarking.diags._utils import DEFAULT_GRID, handle_missing_data
+from benchmarking.diags._utils import DEFAULT_GRID
 from benchmarking.diags.complex._base import ComplexDiagnostic
 
 if TYPE_CHECKING:
@@ -200,12 +200,7 @@ class ECS(ComplexDiagnostic):
                         ),
                     }
                 except Exception as exc:  # noqa: BLE001
-                    handle_missing_data(
-                        data_source_4xco2.id,
-                        variables,
-                        exc,
-                        fail_on_missing_data=self._fail_on_missing_data,
-                    )
+                    self._handle_missing_data(data_source_4xco2.id, variables, exc)
                     continue
             yield ComplexDataSource(data=data, information=data_information)
 

@@ -3,14 +3,27 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Self
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
+import ibis
+import iris
+import pandas as pd
+from iris.pandas import as_data_frame
 from loguru import logger
 
-if TYPE_CHECKING:
+from benchmarking import NO_LEVEL
 
-    import ibis
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from iris.cube import Cube
+
+    from benchmarking import Variable
+    from benchmarking.data import DataSourceInformation
+
+if TYPE_CHECKING:
     from iris.cube import CubeList
     from xarray import Dataset
 
@@ -19,8 +32,29 @@ if TYPE_CHECKING:
 logger = logger.opt(colors=True)
 
 
+_DEFAULT_DATA_ROOT_DIR: Path = Path.home() / ".benchmarking" / "data"
+
+
 class Diagnostic(ABC):
     """Manage diagnostics."""
+
+    DATA_ID_COLUMN: ClassVar[str] = "data_id"
+    """Name of table column containing data ID."""
+
+    REFERENCE_DATA_ID_COLUMN: ClassVar[str] = "reference_data_id"
+    """Name of table column containing reference data ID."""
+
+    DATA_TYPE_COLUMN: ClassVar[str] = "data_type"
+    """Name of table column containing data type."""
+
+    DTYPE: ClassVar[ibis.DataType] = "float32"
+    """Dtype of numerical values."""
+
+    VARIABLE_ID_COLUMN: ClassVar[str] = "var_id"
+    """Name of table column containing variable ID."""
+
+    _fail_on_missing_data: bool = False
+    """Fail on missing data."""
 
     @property
     @abstractmethod
@@ -44,6 +78,86 @@ class Diagnostic(ABC):
         data_information: DataSourceInformation,
     ) -> DiagnosticOutput:
         """Get diagnostic output."""
+
+    def _get_data_root_dir(self, data_root_dir: Path | None) -> Path:
+        """Get data root directory."""
+        if data_root_dir is None:
+            data_root_dir = _DEFAULT_DATA_ROOT_DIR
+        data_root_dir.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"Using data root directory {data_root_dir}")
+        return data_root_dir
+
+    def _get_data_sources_table(
+        self,
+        data_source_information: Iterable[DataSourceInformation],
+    ) -> ibis.Table:
+        """Get data sources table."""
+        df = pd.DataFrame(sorted(set(data_source_information)))
+        df["references"] = df["references"].map(" ".join)
+        return ibis.memtable(df)
+
+    def _get_raw_output_table(
+        self,
+        cube: Cube,
+        *,
+        variable: Variable,
+        data_id: str,
+        data_type: Literal["to_benchmark", "reference", "other"],
+    ) -> ibis.Table:
+        """Get data table of a single cube."""
+        with iris.FUTURE.context(pandas_ndim=True):
+            df = as_data_frame(cube).reset_index()
+        if "time" in df.columns:
+            df["time"] = df["time"].astype(str)
+        raw_output_table = ibis.memtable(df)
+        cast_operations = {
+            c: {"time": "timestamp(6)"}.get(c, self.DTYPE)
+            for c in raw_output_table.columns
+        }
+        raw_output_table = raw_output_table.cast(**cast_operations)
+        raw_output_table = raw_output_table.rename(**{variable.id: cube.name()})
+        raw_output_table = raw_output_table.mutate(
+            **{self.DATA_ID_COLUMN: ibis.literal(data_id)},
+        )
+        raw_output_table = raw_output_table.mutate(
+            **{self.DATA_TYPE_COLUMN: ibis.literal(data_type)},
+        )
+        return raw_output_table  # noqa: RET504
+
+    def _get_variables_table(self, variables: Iterable[Variable]) -> ibis.Table:
+        """Get variables table."""
+        df = pd.DataFrame(sorted(set(variables)))
+        df = df.drop("settings", axis=1)
+        df["coordinates"] = df["coordinates"].map(
+            lambda r: " ".join(c["var_name"] for c in r),
+        )
+        df["ar6_regions_mask"] = df["ar6_regions_mask"].map(" ".join)
+
+        def vertical_level_dict_to_str(
+            vertical_level_dict: dict[str, str | float],
+        ) -> str:
+            """Convert vertical level dictionary to string."""
+            if vertical_level_dict == asdict(NO_LEVEL):
+                return ""
+            return (
+                f"{vertical_level_dict['coordinate_name']} = "
+                f"{vertical_level_dict['value']} {vertical_level_dict['units']}"
+            )
+
+        df["vertical_level"] = df["vertical_level"].map(vertical_level_dict_to_str)
+        return ibis.memtable(df)
+
+    def _handle_missing_data(
+        self,
+        data_id: str,
+        variables: Iterable[Variable],
+        exception: Exception,
+    ) -> None:
+        """Check if data is available."""
+        msg = f"Failed to get data {data_id} for variable(s) {variables}: {exception}"
+        if self._fail_on_missing_data:
+            raise ValueError(msg) from exception
+        logger.warning(msg)
 
 
 @dataclass(frozen=True, kw_only=True)

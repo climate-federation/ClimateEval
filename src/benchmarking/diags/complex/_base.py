@@ -10,10 +10,6 @@ from loguru import logger
 from benchmarking.data import ComplexDataSource
 from benchmarking.diags._base import Diagnostic, DiagnosticOutput
 from benchmarking.diags._utils import (
-    get_data_root_dir,
-    get_data_sources_table,
-    get_raw_output_table,
-    get_variables_table,
     union,
 )
 
@@ -47,7 +43,7 @@ class ComplexDiagnostic(Diagnostic):
     ) -> None:
         """Initialize class instance."""
         logger.debug(f"Initializing complex diagnostic {self.name}")
-        self._data_root_dir = get_data_root_dir(data_root_dir)
+        self._data_root_dir = self._get_data_root_dir(data_root_dir)
         self._fail_on_missing_data = fail_on_missing_data
         self._kwargs = kwargs
 
@@ -125,8 +121,8 @@ class ComplexDiagnostic(Diagnostic):
             all_data_sources.append(other_data.information)
             all_variables.extend(other_raw_output)
 
-        data_sources_table = get_data_sources_table(all_data_sources)
-        variables_table = get_variables_table(all_variables)
+        data_sources_table = self._get_data_sources_table(all_data_sources)
+        variables_table = self._get_variables_table(all_variables)
 
         return DiagnosticOutput(
             raw_output=union(*raw_output_tables),
@@ -165,7 +161,7 @@ class ComplexDiagnostic(Diagnostic):
     ) -> Generator[ibis.Table]:
         """Get raw output table."""
         for variable, cube in raw_output.items():
-            yield get_raw_output_table(
+            yield self._get_raw_output_table(
                 cube,
                 variable=variable,
                 data_id=data_id,
