@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
 import warnings
+from pathlib import Path
 
 import iris
 from loguru import logger
 
 from benchmarking import setup_iris_combine_policy
-from benchmarking.diags.complex import ECS
+from benchmarking.suites import Suite
 
 logger = logger.opt(colors=True)
 logger.remove()
@@ -54,6 +54,10 @@ with warnings.catch_warnings() and setup_iris_combine_policy():
     picontrol_cubes = iris.load(picontrol_paths)
     abrupt4xco2_cubes = iris.load(abrupt4xco2_paths)
 
+suite = "Tier1"
+db_path = Path(f"{suite}.ddb")
+if db_path.is_file():
+    db_path.unlink()
 data_root_dir = Path("/work/bd1179/b309141/benchmarking_input")
 data = {
     "4xco2": abrupt4xco2_cubes,
@@ -69,12 +73,13 @@ data_info = DataSourceInformation(
         "https://www.wdc-climate.de/ui/cmip6?input=CMIP6.CMIP.MPI-M.MPI-ESM1-2-LR",
     ),
 )
-diagnostic = ECS(data_root_dir=data_root_dir)
 
-output = diagnostic.get_output(data, data_info)
-
-print(output.raw_output.to_pandas())
-print()
-print(output.variables.to_pandas())
-print()
-print(output.data_sources.to_pandas())
+suite = Suite(
+    suite,
+    diagnostic_kwargs={
+        "data_root_dir": data_root_dir,
+        "fail_on_missing_data": False,
+    },
+)
+con = suite.get_database(data, data_info, database_resource=f"duckdb://{db_path}")
+print(con)
