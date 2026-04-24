@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import contextlib
 import tempfile
+from collections import defaultdict
+from collections.abc import Iterable
 from copy import deepcopy
 from importlib import resources
 from pathlib import Path
@@ -68,7 +70,7 @@ def _setup_esmvaltool_intake_data_source(cache_dir: Path) -> Generator[None]:
 class ESMValToolIntakeDataSource(DataSource):
     """Manage ESMValTool Intake-ESGF data source."""
 
-    _ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {}
+    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {}
     """Facets used to download data."""
 
     def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
@@ -84,7 +86,7 @@ class ESMValToolIntakeDataSource(DataSource):
             "short_name": variable.var_name,
             "frequency": variable.frequency,
         }
-        facets.update(self._ESMVALTOOL_DATASET_FACETS)
+        facets.update(self.ESMVALTOOL_DATASET_FACETS)
 
         # Store downloaded data in temporary directory
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
@@ -104,20 +106,20 @@ class ESMValToolIntakeDataSource(DataSource):
 class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
     """Generate ESMValTool Intake-ESGF data sources."""
 
-    _ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {}
+    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {}
     """Facets used to generate data sources."""
 
     def generate(
         self,
         variable: Variable,
-    ) -> Generator[type[ESMValToolIntakeDataSource]]:
+    ) -> Generator[ESMValToolIntakeDataSource]:
         """Generate data sources."""
         facets = {
             "mip": variable.cmip6_table_id,
             "short_name": variable.var_name,
             "frequency": variable.frequency,
         }
-        facets.update(self._ESMVALTOOL_DATASET_FACETS)
+        facets.update(self.ESMVALTOOL_DATASET_FACETS)
 
         logger.debug(
             f"Generating data sources for {variable} using ESMValTool "
@@ -147,7 +149,94 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
                 (ESMValToolIntakeDataSource,),
                 {
                     "_INFORMATION": new_data_source_information,
-                    "_ESMVALTOOL_DATASET_FACETS": new_esmvaltool_dataset_facets,
+                    "ESMVALTOOL_DATASET_FACETS": new_esmvaltool_dataset_facets,
                 },
             )
-            yield new_data_source_cls
+            yield new_data_source_cls()
+
+
+def filter_intake_data_sources(
+    *generators: Generator[ESMValToolIntakeDataSource],
+    group_by: str,
+    required_facets: Iterable[dict[str, str]],
+) -> dict[str, list[ESMValToolIntakeDataSource]]:
+    """Filter out data sources where not all required facets are available.
+
+    For each group, at least one data source per required facet must be
+    present. Otherwise, this group is filtered out. Data sources are identified
+    via their :attr:`~ESMValToolIntakeDataSource.ESMVALTOOL_DATASET_FACETS`
+    attribute.
+
+    Parameters
+    ----------
+    *generators:
+        Generators that produce data sources. Can be the return value of
+        :meth:`ESMValToolIntakeDataSource.generate`.
+    group_by:
+        Facets used to identify group elements. Values of these facets will be
+        the dictionary keys of the return value of this function.
+    required_facets:
+        Required facet combinations. To not be filtered out, at least one data
+        source per facet combination must be present per group.
+
+    Returns
+    -------
+    :
+        Filtered data sources.
+
+    Example
+    -------
+
+    ```py
+    group_by = "dataset"
+    required_facets = [
+        {"exp": "piControl", "short_name": "tas"},
+        {"exp": "historical", "short_name": "pr"},
+    ]
+    facets_of_input_data_sources = [  # these are produced by the generators
+        {"dataset": "A", "exp": "piControl", "short_name": "tas"},
+        {"dataset": "A", "exp": "historical", "short_name": "pr"},
+        {"dataset": "B", "exp": "historical", "short_name": "pr"},
+        {"dataset": "C", "exp": "piControl", "short_name": "pr"},
+    ]
+
+    filtered_output = filter_intake_data_sources(
+        *generators, group_by=group_by, required_facets=required_facets
+    )
+
+    # Facets of filtered_output
+    {
+        "A": [
+            {"dataset": "A", "exp": "piControl", "short_name": "tas"},
+            {"dataset": "A", "exp": "historical", "short_name": "pr"},
+        ],
+    }
+    ```
+
+    """
+    # Generate all data sources and group them by group_by facet
+    all_data_sources: dict[str, list[ESMValToolIntakeDataSource]] = defaultdict(list)
+    for generator in generators:
+        for data_source in generator:
+            if group_by in data_source.ESMVALTOOL_DATASET_FACETS:
+                all_data_sources[
+                    data_source.ESMVALTOOL_DATASET_FACETS[group_by]
+                ].append(
+                    data_source,
+                )
+
+    # Check if each group contains all required facets
+    filtered_data_sources: dict[str, list[ESMValToolIntakeDataSource]] = {}
+    for group, data_sources in all_data_sources.items():
+        for required_facet_dict in required_facets:
+            data_sources_facets = tuple(
+                {(f, d.ESMVALTOOL_DATASET_FACETS.get(f)) for f in required_facet_dict}
+                for d in data_sources
+            )
+            required_facet_set = set(required_facet_dict.items())
+            if required_facet_set not in data_sources_facets:
+                break
+        else:
+            filtered_data_sources[group] = data_sources
+
+    return filtered_data_sources
