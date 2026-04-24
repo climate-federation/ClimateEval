@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from esmvalcore.preprocessor import (
     annual_statistics,
@@ -12,17 +12,33 @@ from esmvalcore.preprocessor import (
 )
 from iris import NameConstraint
 from iris.cube import Cube, CubeList
+from loguru import logger
 from scipy import stats
 
-from benchmarking import Variable, setup_esmvaltool_config_and_logging
+from benchmarking import (
+    Variable,
+    setup_esmvaltool_config_and_logging,
+    setup_iris_combine_policy,
+)
 from benchmarking._utils import get_prepared_cube
-from benchmarking.diags._utils import DEFAULT_GRID
+from benchmarking.data import (
+    CMIP6Abrupt4xCO2R1I1P1F1,
+    CMIP6PiControlR1I1P1F1,
+    ComplexDataSource,
+    DataSourceInformation,
+)
+from benchmarking.data._esmvaltool_intake import filter_intake_data_sources
+from benchmarking.diags._utils import DEFAULT_GRID, handle_missing_data
 from benchmarking.diags.complex._base import ComplexDiagnostic
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+    from pathlib import Path
+
     from xarray import Dataset
 
-    from benchmarking.data import ComplexDataSource
+
+logger = logger.opt(colors=True)
 
 
 class ECS(ComplexDiagnostic):
@@ -37,6 +53,27 @@ class ECS(ComplexDiagnostic):
     """
 
     REQUIRED_DATA_KEYS = ("4xco2", "picontrol")
+    _RLUT: ClassVar[Variable] = Variable("rlut", "rlut", "mon")
+    _RSDT: ClassVar[Variable] = Variable("rsdt", "rsdt", "mon")
+    _RSUT: ClassVar[Variable] = Variable("rsut", "rsut", "mon")
+    _RTNT: ClassVar[Variable] = Variable("rtnt", "rtnt", "mon")
+    _TAS: ClassVar[Variable] = Variable("tas", "tas", "mon")
+
+    def __init__(
+        self,
+        *,
+        data_root_dir: Path | None = None,
+        fail_on_missing_data: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize class instance."""
+        super().__init__(
+            data_root_dir=data_root_dir,
+            fail_on_missing_data=fail_on_missing_data,
+            **kwargs,
+        )
+        self._years_slice: slice = self._kwargs.get("year_slice", slice(None, 150))
+        logger.debug(f"Using year slice '{self._years_slice}' for Gregory regression")
 
     def _calculate_raw_output(
         self,
@@ -44,12 +81,9 @@ class ECS(ComplexDiagnostic):
     ) -> dict[Variable, Cube]:
         """Calculate diagnostic raw output."""
         data_dict = complex_data_source.data
-        tas = Variable("tas", "tas", "mon")
-        rtnt = Variable("rtnt", "rtnt", "mon")
-
         cubes_4xco2 = CubeList([])
         cubes_picontrol = CubeList([])
-        for variable in (tas, rtnt):
+        for variable in (self._TAS, self._RTNT):
             cubes_4xco2.append(self._get_cube(data_dict["4xco2"], variable))
             cubes_picontrol.append(self._get_cube(data_dict["picontrol"], variable))
 
@@ -59,20 +93,28 @@ class ECS(ComplexDiagnostic):
         # simulation years determined by branch_time; see
         # https://doi.org/10.5194/esd-11-1233-2020), but does not depend on the
         # presence and/or correctness of the branch_time attribute.
-        tas_cube = cubes_4xco2.extract_cube(
-            NameConstraint(var_name=tas.var_name),
-        ) - climate_statistics(
-            cubes_picontrol.extract_cube(NameConstraint(var_name=tas.var_name)),
+        tas_picontrol = climate_statistics(
+            cubes_picontrol.extract_cube(NameConstraint(var_name=self._TAS.var_name)),
             "mean",
             "full",
         )
-        rtnt_cube = cubes_4xco2.extract_cube(
-            NameConstraint(var_name=rtnt.var_name),
-        ) - climate_statistics(
-            cubes_picontrol.extract_cube(NameConstraint(var_name=rtnt.var_name)),
+        tas_cube = (
+            cubes_4xco2.extract_cube(NameConstraint(var_name=self._TAS.var_name))
+            - tas_picontrol
+        )
+        rtnt_picontrol = climate_statistics(
+            cubes_picontrol.extract_cube(NameConstraint(var_name=self._RTNT.var_name)),
             "mean",
             "full",
         )
+        rtnt_cube = (
+            cubes_4xco2.extract_cube(NameConstraint(var_name=self._RTNT.var_name))
+            - rtnt_picontrol
+        )
+
+        # Select desired years
+        tas_cube = tas_cube[self._years_slice]
+        rtnt_cube = rtnt_cube[self._years_slice]
 
         # Gregory regression (rtnt = F_4x + lambda * tas)
         reg = stats.linregress(tas_cube.data, rtnt_cube.data)
@@ -98,6 +140,75 @@ class ECS(ComplexDiagnostic):
         cube = get_prepared_cube(data, variable)
         return self._preprocess(cube)
 
+    def _get_other_data(self) -> Generator[ComplexDataSource]:
+        """Get other data."""
+        logger.debug(f"Retrieving other data for compley diagnostic {self.name}")
+        variables = (self._RLUT, self._RSDT, self._RSUT, self._TAS)
+        generators = [CMIP6PiControlR1I1P1F1().generate(var) for var in variables] + [
+            CMIP6Abrupt4xCO2R1I1P1F1().generate(var) for var in variables
+        ]
+
+        grouped_data_sources = filter_intake_data_sources(
+            *generators,
+            group_by="dataset",
+            required_facets=(
+                {"exp": "piControl", "short_name": "rlut"},
+                {"exp": "piControl", "short_name": "rsdt"},
+                {"exp": "piControl", "short_name": "rsut"},
+                {"exp": "piControl", "short_name": "tas"},
+                {"exp": "abrupt-4xCO2", "short_name": "rlut"},
+                {"exp": "abrupt-4xCO2", "short_name": "rsdt"},
+                {"exp": "abrupt-4xCO2", "short_name": "rsut"},
+                {"exp": "abrupt-4xCO2", "short_name": "tas"},
+            ),
+        )
+        for dataset, data_sources in grouped_data_sources.items():
+            logger.debug(f"Found other data of CMIP6 model {dataset}")
+
+            # We only need one data source per experiment (one data source
+            # can handle all variables)
+            data_source_4xco2 = next(
+                d
+                for d in data_sources
+                if d.__class__.__name__ == "CMIP6Abrupt4xCO2R1I1P1F1DataSource"
+            )
+            data_source_picontrol = next(
+                d
+                for d in data_sources
+                if d.__class__.__name__ == "CMIP6PiControlR1I1P1F1DataSource"
+            )
+
+            data_information = DataSourceInformation(
+                name=dataset,
+                category="CMIP6",
+                institute=data_source_4xco2.information.category,
+                exp="piControl abrupt-4xCO2",
+                variant="r1i1p1f1",
+                references=data_source_4xco2.information.references,
+            )
+
+            with setup_iris_combine_policy():
+                try:
+                    data = {
+                        "4xco2": CubeList(
+                            data_source_4xco2.get_cube(self.data_root_dir, var)
+                            for var in variables
+                        ),
+                        "picontrol": CubeList(
+                            data_source_picontrol.get_cube(self.data_root_dir, var)
+                            for var in variables
+                        ),
+                    }
+                except Exception as exc:  # noqa: BLE001
+                    handle_missing_data(
+                        data_source_4xco2.id,
+                        variables,
+                        exc,
+                        fail_on_missing_data=self._fail_on_missing_data,
+                    )
+                    continue
+            yield ComplexDataSource(data=data, information=data_information)
+
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
@@ -109,10 +220,4 @@ class ECS(ComplexDiagnostic):
             )  # to ensure we are on a regular grid
             cube = area_statistics(cube, "mean")
             cube = annual_statistics(cube, "mean")
-        slices: list[slice] = [slice(None)] * cube.ndim
-        slices[cube.coord_dims("time")[0]] = self._kwargs.get(
-            "year_slice",
-            slice(None, 150),
-        )
-        cube = cube[tuple(slices)]
         return cube  # noqa: RET504
