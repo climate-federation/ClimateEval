@@ -46,7 +46,7 @@ class DataSource(ABC):
         return self.information.name
 
     @abstractmethod
-    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
         """Download data."""
 
     def get_cube(self, data_root_dir: Path, variable: Variable) -> Cube:
@@ -62,7 +62,7 @@ class DataSource(ABC):
 
         # Check if variable can be derived from existing data
         if variable.derived:
-            paths = self._get_paths_of_required_variables(data_root_dir, variable)
+            paths = self._get_paths_of_required_variables(variable, data_root_dir)
             if paths:
                 logger.debug(
                     f"Found required variables to derive {variable} of {self.id}",
@@ -73,7 +73,7 @@ class DataSource(ABC):
         logger.debug(f"Trying downloading {variable} of {self.id}")
         error_msg = ""
         try:
-            paths = self.download(data_root_dir, variable)
+            paths = self.download(variable, data_root_dir)
         except Exception as exc:
             if not variable.derived:
                 msg = f"Downloading {variable} of {self.id} failed: {exc}"
@@ -91,8 +91,8 @@ class DataSource(ABC):
         get_required_variables = variable.get_required_variables()
         logger.debug(f"Trying required variables {get_required_variables}")
         paths = self._get_paths_of_required_variables(
-            data_root_dir,
             variable,
+            data_root_dir,
             download=True,
         )
         cubes = load_cubes(paths)
@@ -128,8 +128,8 @@ class DataSource(ABC):
 
     def _get_paths_of_required_variables(
         self,
-        data_root_dir: Path,
         variable: Variable,
+        data_root_dir: Path,
         *,
         download: bool = False,
     ) -> list[Path]:
@@ -149,8 +149,8 @@ class DataSource(ABC):
 
                 # Download
                 paths_for_required_variable = self.download(
-                    data_root_dir,
                     required_variable,
+                    data_root_dir,
                 )
                 logger.info(
                     f"Downloaded {self.id}:\n{pformat(paths_for_required_variable)}",

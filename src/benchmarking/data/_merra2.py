@@ -52,7 +52,7 @@ class MERRA2(ESMValToolCMORizerDataSource):
     SUPPORTED_VAR_NAMES = tuple(VAR_TO_FILE.keys())
     TIER = 3
 
-    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
         """Download data.
 
         Note

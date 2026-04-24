@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import tempfile
 from collections import defaultdict
-from collections.abc import Iterable
 from copy import deepcopy
 from importlib import resources
 from pathlib import Path
@@ -24,7 +23,7 @@ from benchmarking.data._base import DataSource, DataSourceGenerator
 from benchmarking.data._utils import DataSourceInformation, get_cmip6_reference
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Generator, Iterable
 
     from benchmarking import Variable
 
@@ -73,7 +72,7 @@ class ESMValToolIntakeDataSource(DataSource):
     ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {}
     """Facets used to download data."""
 
-    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
         """Download data.
 
         See

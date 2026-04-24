@@ -103,7 +103,7 @@ class ERA5(DataSource):
         ),
     )
 
-    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
         """Download data.
 
         Note

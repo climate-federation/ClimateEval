@@ -150,7 +150,9 @@ def test_filter_intake_data_sources(
     generators: tuple[Generator[MockESMValToolIntakeDataSource], ...],
 ) -> None:
     filtered_data_sources = filter_intake_data_sources(
-        *generators, group_by=group_by, required_facets=required_facets,
+        *generators,
+        group_by=group_by,
+        required_facets=required_facets,
     )
 
     assert len(filtered_data_sources) == len(filtered_facets)

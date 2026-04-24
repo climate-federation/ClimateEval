@@ -37,7 +37,7 @@ class ESMValToolCMORizerDataSource(DataSource):
     _TIER: ClassVar[int] = 2
     """Tier of data set."""
 
-    def download(self, data_root_dir: Path, variable: Variable) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
         """Download data.
 
         See
