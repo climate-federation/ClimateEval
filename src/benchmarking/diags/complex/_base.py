@@ -60,11 +60,13 @@ class ComplexDiagnostic(Diagnostic):
     @classmethod
     def from_suite_dict(
         cls,
-        suite_settings: dict[str, Any],
+        suite_settings: dict[str, Any] | None,
         additional_variable_kwargs: dict[str, Any],  # noqa: ARG003
         **additional_diagnostic_kwargs: Any,
     ) -> Self:
         """Load complex diagnostic from suite dictionary (given by YAML file)."""
+        if suite_settings is None:
+            suite_settings = {}
         all_diagnostic_kwargs = {**suite_settings, **additional_diagnostic_kwargs}
         return cls(**all_diagnostic_kwargs)
 
