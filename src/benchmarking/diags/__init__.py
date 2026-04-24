@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+from benchmarking.diags._base import Diagnostic, DiagnosticOutput
 from benchmarking.diags._utils import (
     DATA_ID_COLUMN,
     DATA_TYPE_COLUMN,
     DTYPE,
     REFERENCE_DATA_ID_COLUMN,
     DataTypeValue,
-    DiagnosticOutput,
 )
 
 __all__ = [
@@ -17,5 +17,6 @@ __all__ = [
     "DTYPE",
     "REFERENCE_DATA_ID_COLUMN",
     "DataTypeValue",
+    "Diagnostic",
     "DiagnosticOutput",
 ]

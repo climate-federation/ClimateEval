@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -69,16 +69,6 @@ PLEV19_LEVELS: list[float] = [
 ]
 
 _DEFAULT_DATA_ROOT_DIR: Path = Path.home() / ".benchmarking" / "data"
-
-
-@dataclass(frozen=True, kw_only=True)
-class DiagnosticOutput:
-    """Manage diagnostic output."""
-
-    raw_output: ibis.Table | None
-    metrics: ibis.Table | None
-    variables: ibis.Table
-    data_sources: ibis.Table
 
 
 def get_data_root_dir(data_root_dir: Path | None) -> Path:
@@ -148,6 +138,20 @@ def get_variables_table(variables: Iterable[Variable]) -> ibis.Table:
 
     df["vertical_level"] = df["vertical_level"].map(vertical_level_dict_to_str)
     return ibis.memtable(df)
+
+
+def handle_missing_data(
+    data_id: str,
+    variables: Iterable[Variable],
+    exception: Exception,
+    *,
+    fail_on_missing_data: bool,
+) -> None:
+    """Check if data is available."""
+    msg = f"Failed to get data {data_id} for variable(s) {variables}: {exception}"
+    if fail_on_missing_data:
+        raise ValueError(msg) from exception
+    logger.warning(msg)
 
 
 def union(*tables: ibis.Table) -> ibis.Table:
