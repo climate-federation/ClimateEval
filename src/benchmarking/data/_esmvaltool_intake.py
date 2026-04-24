@@ -154,20 +154,6 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
 
         for dataset in Dataset(**facets).from_files():
             new_esmvaltool_dataset_facets = dict(dataset.facets)
-
-            # Drop variable-specific facets
-            facets_to_drop = (
-                "short_name",
-                "standard_name",
-                "long_name",
-                "units",
-                "modeling_realm",
-                "frequency",
-                "mip",
-            )
-            for facet in facets_to_drop:
-                new_esmvaltool_dataset_facets.pop(facet, None)
-
             references = self._get_references(**new_esmvaltool_dataset_facets)
             new_data_source_information = DataSourceInformation(
                 name=new_esmvaltool_dataset_facets["dataset"],
