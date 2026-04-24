@@ -127,11 +127,13 @@ class SimpleDiagnostic(Diagnostic):
     @classmethod
     def from_suite_dict(
         cls,
-        suite_settings: dict[str, Any],
+        suite_settings: dict[str, Any] | None,
         additional_variable_kwargs: dict[str, Any],
         **additional_diagnostic_kwargs: Any,
     ) -> Self:
         """Load simple diagnostic from suite dictionary (given by YAML file)."""
+        if suite_settings is None:
+            suite_settings = {}
         variables_and_data: dict[Variable, SimpleDiagnosticInputData] = {}
         for variable_id, variable_kwargs_ in suite_settings.items():
             variable_kwargs = dict(variable_kwargs_)

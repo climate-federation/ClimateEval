@@ -65,7 +65,7 @@ class Diagnostic(ABC):
     @abstractmethod
     def from_suite_dict(
         cls,
-        suite_settings: dict[str, Any],
+        suite_settings: dict[str, Any] | None,
         additional_variable_kwargs: dict[str, Any],
         **additional_diagnostic_kwargs: Any,
     ) -> Self:

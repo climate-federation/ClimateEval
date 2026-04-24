@@ -105,7 +105,7 @@ class Suite:
             diagnostics.append(diag)
         return diagnostics
 
-    def _get_suite_defintion(self) -> dict[str, Any]:
+    def _get_suite_defintion(self) -> dict[str, dict[str, Any] | None]:
         """Get suite definition."""
         with self._suite_definition_file.open("r", encoding="utf-8") as file:
             return yaml.safe_load(file)
