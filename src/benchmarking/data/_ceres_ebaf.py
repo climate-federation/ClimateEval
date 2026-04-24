@@ -18,7 +18,7 @@ class CERESEBAF(ESMValToolIntakeDataSource):
         references=("https://doi.org/10.5067/TERRA-AQUA-NOAA20/CERES/EBAF_L3B004.2.1",),
     )
 
-    _ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {
+    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {
         "project": "obs4MIPs",
         "dataset": "CERES-EBAF-4-2-1",
     }

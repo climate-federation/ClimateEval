@@ -56,9 +56,9 @@ def variables_and_data_2d() -> dict[Variable, SimpleDiagnosticInputData]:
 @pytest.fixture
 def variables_and_data_2d_with_other() -> dict[Variable, SimpleDiagnosticInputData]:
     class MockDataSourceGenerator(DataSourceGenerator):
-        def generate(self, _variable: Variable) -> Generator[type[DataSource]]:
+        def generate(self, _variable: Variable) -> Generator[DataSource]:
             """Generate data sources."""
-            yield from (ERA5,)
+            yield from (ERA5(),)
 
     return {
         Variable("my_tas", "tas", "mon"): SimpleDiagnosticInputData(

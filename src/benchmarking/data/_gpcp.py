@@ -21,7 +21,7 @@ class GPCP(ESMValToolIntakeDataSource):
         ),
     )
 
-    _ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {
+    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {
         "project": "obs4MIPs",
         "dataset": "GPCP-3-3",
     }

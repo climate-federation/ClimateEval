@@ -96,8 +96,8 @@ class SimpleDiagnostic(ABC):
             for data_source_cls in diag_datas.other:
                 if hasattr(data_source_cls, "generate"):
                     other_data_sources.extend(
-                        cls()
-                        for cls in data_source_cls().generate(variable)  # type: ignore[union-attr]
+                        d
+                        for d in data_source_cls().generate(variable)  # type: ignore[union-attr]
                     )
                 else:
                     other_data_sources.append(data_source_cls())

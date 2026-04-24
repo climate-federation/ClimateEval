@@ -182,5 +182,5 @@ class DataSourceGenerator(ABC):
     """Generate data sources."""
 
     @abstractmethod
-    def generate(self, variable: Variable) -> Generator[type[DataSource]]:
+    def generate(self, variable: Variable) -> Generator[DataSource]:
         """Generate data sources."""
