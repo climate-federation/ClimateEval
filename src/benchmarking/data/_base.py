@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pprint import pformat
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from loguru import logger
 
@@ -29,6 +29,16 @@ class DataSource(ABC):
     """Manage data source."""
 
     _INFORMATION: ClassVar[DataSourceInformation]
+
+    def __getattr__(self, name: str) -> Any:
+        """Access attributes."""
+        if name == "_INFORMATION" and name not in self.__dict__:
+            msg = (
+                "Child classes of 'DataSource' should define the class variable "
+                "'_INFORMATION'"
+            )
+            raise TypeError(msg)
+        return super().__getattribute__(name)
 
     @property
     def id(self) -> str:

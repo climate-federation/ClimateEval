@@ -69,8 +69,18 @@ def _setup_esmvaltool_intake_data_source(cache_dir: Path) -> Generator[None]:
 class ESMValToolIntakeDataSource(DataSource):
     """Manage ESMValTool Intake-ESGF data source."""
 
-    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {}
+    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]]
     """Facets used to download data."""
+
+    def __getattr__(self, name: str) -> Any:
+        """Access attributes."""
+        if name == "ESMVALTOOL_DATASET_FACETS" and name not in self.__dict__:
+            msg = (
+                "Child classes of 'ESMValToolIntakeDataSource' should define the class "
+                "variable 'ESMVALTOOL_DATASET_FACETS'"
+            )
+            raise TypeError(msg)
+        return super().__getattr__(name)
 
     def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
         """Download data.
@@ -105,8 +115,18 @@ class ESMValToolIntakeDataSource(DataSource):
 class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
     """Generate ESMValTool Intake-ESGF data sources."""
 
-    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {}
+    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]]
     """Facets used to generate data sources."""
+
+    def __getattr__(self, name: str) -> Any:
+        """Access attributes."""
+        if name == "ESMVALTOOL_DATASET_FACETS" and name not in self.__dict__:
+            msg = (
+                "Child classes of 'ESMValToolIntakeDataSourceGenerator' should define "
+                "the class variable 'ESMVALTOOL_DATASET_FACETS'"
+            )
+            raise TypeError(msg)
+        return super().__getattribute__(name)
 
     def generate(
         self,
