@@ -11,16 +11,14 @@ import ibis
 import yaml
 from loguru import logger
 
-from benchmarking import Variable, VerticalLevel
 from benchmarking._utils import str_to_class
-from benchmarking.diags.simple import SimpleDiagnosticInputData
+from benchmarking.diags import Diagnostic
 
 if TYPE_CHECKING:
     from iris.cube import CubeList
     from xarray import Dataset
 
     from benchmarking.data import DataSourceInformation
-    from benchmarking.diags.simple import SimpleDiagnostic
 
 logger = logger.opt(colors=True)
 
@@ -87,35 +85,24 @@ class Suite:
 
         return connection
 
-    def _get_diagnostics(self) -> list[SimpleDiagnostic]:
+    def _get_diagnostics(self) -> list[Diagnostic]:
         """Get diagnostics to run."""
-        diagnostics: list[SimpleDiagnostic] = []
-        for diag_str, variables in self._suite_definition.items():
-            diag_cls: type[SimpleDiagnostic] = str_to_class(diag_str)
-            variables_and_data: dict[Variable, SimpleDiagnosticInputData] = {}
-            for variable_id, variable_kwargs in variables.items():
-                all_variable_kwargs = dict(variable_kwargs)
-                reference_data = str_to_class(all_variable_kwargs.pop("reference_data"))
-                other_data = tuple(
-                    str_to_class(o) for o in all_variable_kwargs.pop("other_data", ())
+        diagnostics: list[Diagnostic] = []
+        for diag_str, diag_settings in self._suite_definition.items():
+            diag_cls = str_to_class(diag_str)
+            if not issubclass(diag_cls, Diagnostic):
+                msg = (
+                    f"Diagnostic '{diag_str}' is not a valid diagnostic; should "
+                    f"be a subclass of benchmarking.diags.simple.SimpleDiagnostic or "
+                    f"benchmarking.diags.copmlex.ComplexDiagnostic"
                 )
-                if "vertical_level" in all_variable_kwargs:
-                    all_variable_kwargs["vertical_level"] = VerticalLevel(
-                        **all_variable_kwargs["vertical_level"],
-                    )
-                if "ar6_regions_mask" in all_variable_kwargs:
-                    all_variable_kwargs["ar6_regions_mask"] = tuple(
-                        all_variable_kwargs["ar6_regions_mask"],
-                    )
-                all_variable_kwargs.update(self._variable_kwargs)
-                variable = Variable(variable_id, **all_variable_kwargs)
-                variables_and_data[variable] = SimpleDiagnosticInputData(
-                    reference=reference_data,
-                    other=other_data,
-                )
-            diagnostics.append(
-                diag_cls(variables_and_data, **self._diagnostic_kwargs),
+                raise TypeError(msg)
+            diag = diag_cls.from_suite_dict(
+                diag_settings,
+                self._variable_kwargs,
+                **self._diagnostic_kwargs,
             )
+            diagnostics.append(diag)
         return diagnostics
 
     def _get_suite_defintion(self) -> dict[str, Any]:

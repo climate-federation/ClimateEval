@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import warnings
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 import ibis
 import pandas as pd
@@ -14,21 +14,23 @@ from ibis import _
 from iris.warnings import IrisVagueMetadataWarning
 from loguru import logger
 
-from benchmarking import setup_esmvaltool_config_and_logging
-from benchmarking._utils import check_coordinates, get_prepared_cube
+from benchmarking import Variable, VerticalLevel, setup_esmvaltool_config_and_logging
+from benchmarking._utils import check_coordinates, get_prepared_cube, str_to_class
+from benchmarking.diags._base import Diagnostic, DiagnosticOutput
 from benchmarking.diags._utils import (
     DATA_ID_COLUMN,
     DATA_TYPE_COLUMN,
     DTYPE,
     REFERENCE_DATA_ID_COLUMN,
     VARIABLE_ID_COLUMN,
-    DiagnosticOutput,
     get_data_root_dir,
     get_data_sources_table,
     get_raw_output_table,
     get_variables_table,
+    handle_missing_data,
     union,
 )
+from benchmarking.diags.simple._utils import SimpleDiagnosticInputData
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -36,9 +38,8 @@ if TYPE_CHECKING:
     from iris.cube import Cube, CubeList
     from xarray import Dataset
 
-    from benchmarking import Coordinate, Variable
+    from benchmarking import Coordinate
     from benchmarking.data import DataSource, DataSourceInformation
-    from benchmarking.diags.simple._utils import SimpleDiagnosticInputData
 
 
 logger = logger.opt(colors=True)
@@ -52,7 +53,7 @@ class _IntermediateDiagnosticOutput:
     metrics: list[ibis.Table]
 
 
-class SimpleDiagnostic(ABC):
+class SimpleDiagnostic(Diagnostic):
     """Manage simple diagnostics."""
 
     OUTPUT_DATA_TABLE: ClassVar[bool] = True
@@ -135,6 +136,37 @@ class SimpleDiagnostic(ABC):
         """Get variables."""
         return self._variables
 
+    @classmethod
+    def from_suite_dict(
+        cls,
+        suite_settings: dict[str, Any],
+        additional_variable_kwargs: dict[str, Any],
+        **additional_diagnostic_kwargs: Any,
+    ) -> Self:
+        """Load simple diagnostic from suite dictionary (given by YAML file)."""
+        variables_and_data: dict[Variable, SimpleDiagnosticInputData] = {}
+        for variable_id, variable_kwargs_ in suite_settings.items():
+            variable_kwargs = dict(variable_kwargs_)
+            reference_data = str_to_class(variable_kwargs.pop("reference_data"))
+            other_data = tuple(
+                str_to_class(o) for o in variable_kwargs.pop("other_data", ())
+            )
+            if "vertical_level" in variable_kwargs:
+                variable_kwargs["vertical_level"] = VerticalLevel(
+                    **variable_kwargs["vertical_level"],
+                )
+            if "ar6_regions_mask" in variable_kwargs:
+                variable_kwargs["ar6_regions_mask"] = tuple(
+                    variable_kwargs["ar6_regions_mask"],
+                )
+            variable_kwargs.update(additional_variable_kwargs)
+            variable = Variable(variable_id, **variable_kwargs)
+            variables_and_data[variable] = SimpleDiagnosticInputData(
+                reference=reference_data,
+                other=other_data,
+            )
+        return cls(variables_and_data, **additional_diagnostic_kwargs)
+
     def get_output(
         self,
         data: CubeList | Dataset,
@@ -163,14 +195,13 @@ class SimpleDiagnostic(ABC):
                 reference_cube = self._safely_preprocess(
                     reference_data.get_cube(self.data_root_dir, variable),
                 )
-            except Exception as exc:
-                msg = (
-                    f"Failed to get reference data {reference_data.id} for "
-                    f"variable {variable}: {exc}"
+            except Exception as exc:  # noqa: BLE001
+                handle_missing_data(
+                    reference_data.id,
+                    (variable,),
+                    exc,
+                    fail_on_missing_data=self._fail_on_missing_data,
                 )
-                if self._fail_on_missing_data:
-                    raise ValueError(msg) from exc
-                logger.warning(msg)
                 continue
             reference_cubes[variable] = reference_cube
 
@@ -298,14 +329,13 @@ class SimpleDiagnostic(ABC):
                     other_cube = self._safely_preprocess(
                         other_data.get_cube(self.data_root_dir, variable),
                     )
-                except Exception as exc:
-                    msg = (
-                        f"Failed to get other data {other_data.id} for variable "
-                        f"{variable}: {exc}"
+                except Exception as exc:  # noqa: BLE001
+                    handle_missing_data(
+                        other_data.id,
+                        (variable,),
+                        exc,
+                        fail_on_missing_data=self._fail_on_missing_data,
                     )
-                    if self._fail_on_missing_data:
-                        raise ValueError(msg) from exc
-                    logger.warning(msg)
                     continue
 
                 # Expand table
@@ -380,11 +410,13 @@ class SimpleDiagnostic(ABC):
             logger.debug(f"Loading {variable} of {data_id}")
             try:
                 cube = self._get_cube(data, variable)
-            except Exception as exc:
-                msg = f"Failed to get data {data_id} for variable {variable}: {exc}"
-                if self._fail_on_missing_data:
-                    raise ValueError(msg) from exc
-                logger.warning(msg)
+            except Exception as exc:  # noqa: BLE001
+                handle_missing_data(
+                    data_id,
+                    (variable,),
+                    exc,
+                    fail_on_missing_data=self._fail_on_missing_data,
+                )
                 continue
 
             # Expand table

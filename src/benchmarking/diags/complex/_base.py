@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar
+from abc import abstractmethod
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from loguru import logger
 
 from benchmarking.data import ComplexDataSource
+from benchmarking.diags._base import Diagnostic, DiagnosticOutput
 from benchmarking.diags._utils import (
-    DiagnosticOutput,
     get_data_root_dir,
     get_data_sources_table,
     get_raw_output_table,
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 logger = logger.opt(colors=True)
 
 
-class ComplexDiagnostic(ABC):
+class ComplexDiagnostic(Diagnostic):
     """Manage complex diagnostics."""
 
     REQUIRED_DATA_KEYS: ClassVar[tuple[str, ...]] = ()
@@ -60,6 +60,17 @@ class ComplexDiagnostic(ABC):
     def name(self) -> str:
         """Get diagnostic name."""
         return self.__class__.__name__
+
+    @classmethod
+    def from_suite_dict(
+        cls,
+        suite_settings: dict[str, Any],
+        additional_variable_kwargs: dict[str, Any],  # noqa: ARG003
+        **additional_diagnostic_kwargs: Any,
+    ) -> Self:
+        """Load complex diagnostic from suite dictionary (given by YAML file)."""
+        all_diagnostic_kwargs = {**suite_settings, **additional_diagnostic_kwargs}
+        return cls(**all_diagnostic_kwargs)
 
     def get_output(
         self,
@@ -140,6 +151,11 @@ class ComplexDiagnostic(ABC):
             )
             raise ValueError(msg)
 
+    def _get_other_data(self) -> Generator[ComplexDataSource]:
+        """Get other data."""
+        logger.debug(f"No other data for complex diagnostic {self.name} available")
+        yield from ()
+
     def _get_raw_output_tables(
         self,
         raw_output: dict[Variable, Cube],
@@ -155,11 +171,6 @@ class ComplexDiagnostic(ABC):
                 data_id=data_id,
                 data_type=data_type,
             )
-
-    def _get_other_data(self) -> Generator[ComplexDataSource]:
-        """Get other data."""
-        logger.debug(f"No other data for complex diagnostic {self.name} available")
-        yield from ()
 
     def _postprocess_output(self, output: DiagnosticOutput) -> DiagnosticOutput:
         """Get other data."""
