@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from benchmarking.data._base import ComplexDataSource, DataSource, DataSourceGenerator
 from benchmarking.data._ceres_ebaf import CERESEBAF
+from benchmarking.data._cmip6_abrupt4xco2 import CMIP6Abrupt4xCO2R1I1P1F1
 from benchmarking.data._cmip6_historical import CMIP6HistoricalR1I1P1F1
+from benchmarking.data._cmip6_picontrol import CMIP6PiControlR1I1P1F1
 from benchmarking.data._era5 import ERA5
 from benchmarking.data._esacci_cloud import ESACCICloud
 from benchmarking.data._esmvaltool_cmorizer import ESMValToolCMORizerDataSource
@@ -22,7 +24,9 @@ __all__ = [
     "ERA5",
     "GPCP",
     "MERRA2",
+    "CMIP6Abrupt4xCO2R1I1P1F1",
     "CMIP6HistoricalR1I1P1F1",
+    "CMIP6PiControlR1I1P1F1",
     "ComplexDataSource",
     "DataSource",
     "DataSourceGenerator",
