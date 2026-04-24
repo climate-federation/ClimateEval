@@ -7,8 +7,10 @@ defined for each diagnostic separately.
 
 from __future__ import annotations
 
+from benchmarking.diags.complex._base import ComplexDiagnostic
 from benchmarking.diags.complex._ecs import ECS
 
 __all__ = [
     "ECS",
+    "ComplexDiagnostic",
 ]
