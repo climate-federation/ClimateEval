@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import tempfile
+from abc import abstractmethod
 from collections import defaultdict
 from copy import deepcopy
 from importlib import resources
@@ -20,7 +21,7 @@ from loguru import logger
 
 from benchmarking import setup_esmvaltool_config_and_logging
 from benchmarking.data._base import DataSource, DataSourceGenerator
-from benchmarking.data._utils import DataSourceInformation, get_cmip6_reference
+from benchmarking.data._utils import DataSourceInformation
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -89,13 +90,17 @@ class ESMValToolIntakeDataSource(DataSource):
         https://docs.esmvaltool.org/projects/ESMValCore/en/latest/quickstart/configure.html#data-sources.
 
         """
-        facets = {
-            "dataset": self.name,
-            "mip": variable.cmip6_table_id,
-            "short_name": variable.var_name,
-            "frequency": variable.frequency,
-        }
+        facets = {"dataset": self.name}
         facets.update(self.ESMVALTOOL_DATASET_FACETS)
+
+        # Always read variable-related facets from variable
+        facets.update(
+            {
+                "mip": variable.cmip6_table_id,
+                "short_name": variable.var_name,
+                "frequency": variable.frequency,
+            },
+        )
 
         # Store downloaded data in temporary directory
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
@@ -133,38 +138,49 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
         variable: Variable,
     ) -> Generator[ESMValToolIntakeDataSource]:
         """Generate data sources."""
-        facets = {
-            "mip": variable.cmip6_table_id,
-            "short_name": variable.var_name,
-            "frequency": variable.frequency,
-        }
-        facets.update(self.ESMVALTOOL_DATASET_FACETS)
+        facets = dict(self.ESMVALTOOL_DATASET_FACETS)
+        facets.update(
+            {
+                "mip": variable.cmip6_table_id,
+                "short_name": variable.var_name,
+                "frequency": variable.frequency,
+            },
+        )
 
         logger.debug(
             f"Generating data sources for {variable} using ESMValTool "
             f"Intake-ESGF facets\n{pformat(facets)}",
         )
 
-        for idx, dataset in enumerate(Dataset(**facets).from_files()):
+        for dataset in Dataset(**facets).from_files():
             new_esmvaltool_dataset_facets = dict(dataset.facets)
-            reference = get_cmip6_reference(
-                mip="CMIP",
-                institute=new_esmvaltool_dataset_facets["institute"],
-                model=new_esmvaltool_dataset_facets["dataset"],
+
+            # Drop variable-specific facets
+            facets_to_drop = (
+                "short_name",
+                "standard_name",
+                "long_name",
+                "units",
+                "modeling_realm",
+                "frequency",
+                "mip",
             )
+            for facet in facets_to_drop:
+                new_esmvaltool_dataset_facets.pop(facet, None)
+
+            references = self._get_references(**new_esmvaltool_dataset_facets)
             new_data_source_information = DataSourceInformation(
                 name=new_esmvaltool_dataset_facets["dataset"],
                 category=new_esmvaltool_dataset_facets["project"],
                 institute=new_esmvaltool_dataset_facets["institute"],
                 exp=new_esmvaltool_dataset_facets["exp"],
                 variant=new_esmvaltool_dataset_facets["ensemble"],
-                references=(reference,),
+                references=references,
             )
-            class_name = f"{self.__class__.__name__}DataSource{idx}"
 
             # Dynamically create subclass for each data set that has been found
             new_data_source_cls = type(
-                class_name,
+                f"{self.__class__.__name__}DataSource",
                 (ESMValToolIntakeDataSource,),
                 {
                     "_INFORMATION": new_data_source_information,
@@ -172,6 +188,10 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
                 },
             )
             yield new_data_source_cls()
+
+    @abstractmethod
+    def _get_references(self, **facets: Any) -> tuple[str, ...]:
+        """Get data source references."""
 
 
 def filter_intake_data_sources(

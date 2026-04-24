@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 from benchmarking.data import (
+    CMIP6DataSourceGenerator,
     ESMValToolIntakeDataSource,
-    ESMValToolIntakeDataSourceGenerator,
 )
 from benchmarking.data._esmvaltool_intake import filter_intake_data_sources
 
@@ -59,7 +59,7 @@ def test_data_source_attribute_access_fail(
         (
             "invalid_attribute",
             AttributeError,
-            r"'ESMValToolIntakeDataSourceGenerator' object has no attribute "
+            r"'CMIP6DataSourceGenerator' object has no attribute "
             r"'invalid_attribute'",
         ),
     ],
@@ -69,7 +69,7 @@ def test_data_source_generator_attribute_access_fail(
     exception_cls: type[Exception],
     error_msg: str,
 ) -> None:
-    data_source = ESMValToolIntakeDataSourceGenerator()
+    data_source = CMIP6DataSourceGenerator()
     with pytest.raises(exception_cls, match=re.escape(error_msg)):
         getattr(data_source, attribute)
 
