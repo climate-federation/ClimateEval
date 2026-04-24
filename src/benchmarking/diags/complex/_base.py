@@ -158,4 +158,10 @@ class ComplexDiagnostic(ABC):
 
     def _get_other_data(self) -> Generator[ComplexDataSource]:
         """Get other data."""
+        logger.debug(f"No other data for complex diagnostic {self.name} available")
         yield from ()
+
+    def _postprocess_output(self, output: DiagnosticOutput) -> DiagnosticOutput:
+        """Get other data."""
+        logger.debug(f"No postprocessing of output in diagnostic {self.name} defined")
+        return output
