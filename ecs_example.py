@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 import sys
 import warnings
 
@@ -53,6 +54,7 @@ with warnings.catch_warnings() and setup_iris_combine_policy():
     picontrol_cubes = iris.load(picontrol_paths)
     abrupt4xco2_cubes = iris.load(abrupt4xco2_paths)
 
+data_root_dir = Path("/work/bd1179/b309141/benchmarking_input")
 data = {
     "4xco2": abrupt4xco2_cubes,
     "picontrol": picontrol_cubes,
@@ -67,7 +69,7 @@ data_info = DataSourceInformation(
         "https://www.wdc-climate.de/ui/cmip6?input=CMIP6.CMIP.MPI-M.MPI-ESM1-2-LR",
     ),
 )
-diagnostic = ECS()
+diagnostic = ECS(data_root_dir=data_root_dir)
 
 output = diagnostic.get_output(data, data_info)
 
