@@ -10,9 +10,10 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import yaml
-from climateeval import setup_esmvaltool_config_and_logging
 from esmvalcore.preprocessor._derive import get_required  # not part of public API yet
 from loguru import logger
+
+from climateeval._config import setup_esmvaltool_config_and_logging
 
 if TYPE_CHECKING:
     from importlib.resources.abc import Traversable

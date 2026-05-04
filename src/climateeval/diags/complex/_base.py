@@ -5,23 +5,25 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
+from loguru import logger
+
 from climateeval.data import ComplexDataSource
 from climateeval.diags._base import Diagnostic, DiagnosticOutput
 from climateeval.diags._utils import (
     union,
 )
-from loguru import logger
 
 if TYPE_CHECKING:
     from collections.abc import Generator
     from pathlib import Path
 
     import ibis
+    from iris.cube import Cube, CubeList
+    from xarray import Dataset
+
     from climateeval import Variable
     from climateeval.data import DataSourceInformation
     from climateeval.diags._utils import DataTypeValue
-    from iris.cube import Cube, CubeList
-    from xarray import Dataset
 
 logger = logger.opt(colors=True)
 

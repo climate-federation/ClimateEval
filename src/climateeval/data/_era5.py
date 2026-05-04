@@ -8,11 +8,12 @@ from typing import TYPE_CHECKING, Any
 
 import cdsapi
 import iris
-from climateeval import setup_esmvaltool_config_and_logging
+from esmvalcore.cmor.fix import fix_data, fix_metadata
+
+from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval._utils import load_cubes
 from climateeval.data._base import DataSource
 from climateeval.data._utils import DataSourceInformation
-from esmvalcore.cmor.fix import fix_data, fix_metadata
 
 if TYPE_CHECKING:
     from climateeval import Variable

@@ -9,23 +9,26 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 import ibis
 import pandas as pd
-from climateeval import Variable, VerticalLevel, setup_esmvaltool_config_and_logging
-from climateeval._utils import check_coordinates, get_prepared_cube, str_to_class
-from climateeval.diags._base import Diagnostic, DiagnosticOutput
-from climateeval.diags._utils import union
-from climateeval.diags.simple._utils import SimpleDiagnosticInputData
 from esmvalcore.preprocessor import distance_metric
 from ibis import _
 from iris.warnings import IrisVagueMetadataWarning
 from loguru import logger
 
+from climateeval import Variable, VerticalLevel
+from climateeval._config import setup_esmvaltool_config_and_logging
+from climateeval._utils import check_coordinates, get_prepared_cube, str_to_class
+from climateeval.diags._base import Diagnostic, DiagnosticOutput
+from climateeval.diags._utils import union
+from climateeval.diags.simple._utils import SimpleDiagnosticInputData
+
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from climateeval import Coordinate
-    from climateeval.data import DataSource, DataSourceInformation
     from iris.cube import Cube, CubeList
     from xarray import Dataset
+
+    from climateeval import Coordinate
+    from climateeval.data import DataSource, DataSourceInformation
 
 
 logger = logger.opt(colors=True)

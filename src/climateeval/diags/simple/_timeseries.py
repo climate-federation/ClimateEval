@@ -4,15 +4,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from climateeval import COORDINATES, Coordinate, setup_esmvaltool_config_and_logging
-from climateeval.diags._utils import DEFAULT_GRID
-from climateeval.diags.simple._base import SimpleDiagnostic
 from esmvalcore.preprocessor import (
     annual_statistics,
     area_statistics,
     regrid,
     regrid_time,
 )
+
+from climateeval import Coordinate
+from climateeval._config import setup_esmvaltool_config_and_logging
+from climateeval._variable import COORDINATES
+from climateeval.diags._utils import DEFAULT_GRID
+from climateeval.diags.simple._base import SimpleDiagnostic
 
 if TYPE_CHECKING:
     from iris.cube import Cube

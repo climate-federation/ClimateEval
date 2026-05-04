@@ -10,21 +10,24 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 import ibis
 import iris
 import pandas as pd
-from climateeval import NO_LEVEL
 from iris.pandas import as_data_frame
 from loguru import logger
+
+from climateeval import NO_LEVEL
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from climateeval import Variable
-    from climateeval.data import DataSourceInformation
     from iris.cube import Cube
 
-if TYPE_CHECKING:
+    from climateeval import Variable
     from climateeval.data import DataSourceInformation
+
+if TYPE_CHECKING:
     from iris.cube import CubeList
     from xarray import Dataset
+
+    from climateeval.data import DataSourceInformation
 
 logger = logger.opt(colors=True)
 

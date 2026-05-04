@@ -2,13 +2,13 @@ import re
 from typing import Any
 
 import pytest
+
 from climateeval import (
-    COORDINATES,
     NO_LEVEL,
-    VARIABLES,
     Coordinate,
     Variable,
 )
+from climateeval._variable import COORDINATES, VARIABLES
 
 
 def test_variables() -> None:

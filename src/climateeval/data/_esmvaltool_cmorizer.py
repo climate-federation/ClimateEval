@@ -9,11 +9,12 @@ from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from climateeval import setup_esmvaltool_config_and_logging
-from climateeval.data._base import DataSource
 from esmvalcore.config import CFG
 from esmvaltool.cmorizers.data.cmorizer import DataCommand
 from loguru import logger
+
+from climateeval._config import setup_esmvaltool_config_and_logging
+from climateeval.data._base import DataSource
 
 if TYPE_CHECKING:
     from collections.abc import Generator

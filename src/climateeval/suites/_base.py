@@ -9,14 +9,16 @@ from typing import TYPE_CHECKING, Any
 
 import ibis
 import yaml
-from climateeval._utils import str_to_class
-from climateeval.diags import Diagnostic
 from loguru import logger
 
+from climateeval._utils import str_to_class
+from climateeval.diags import Diagnostic
+
 if TYPE_CHECKING:
-    from climateeval.data import DataSourceInformation
     from iris.cube import CubeList
     from xarray import Dataset
+
+    from climateeval.data import DataSourceInformation
 
 logger = logger.opt(colors=True)
 

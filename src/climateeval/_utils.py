@@ -6,11 +6,6 @@ import importlib
 from typing import TYPE_CHECKING
 
 import iris
-from climateeval import (
-    NO_LEVEL,
-    setup_esmvaltool_config_and_logging,
-    setup_iris_combine_policy,
-)
 from esmvalcore.preprocessor import (
     anomalies,
     clip_timerange,
@@ -28,12 +23,19 @@ from loguru import logger
 from ncdata.iris_xarray import cubes_from_xarray
 from xarray import Dataset
 
+from climateeval import NO_LEVEL
+from climateeval._config import (
+    setup_esmvaltool_config_and_logging,
+    setup_iris_combine_policy,
+)
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
 
-    from climateeval import Coordinate, Variable, VerticalLevel
     from iris.cube import Cube
+
+    from climateeval import Coordinate, Variable, VerticalLevel
 
 logger = logger.opt(colors=True)
 

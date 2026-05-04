@@ -9,7 +9,7 @@ from pathlib import Path
 import iris
 from loguru import logger
 
-from climateeval import setup_iris_combine_policy
+from climateeval._config import setup_iris_combine_policy
 from climateeval.suites import Suite
 
 logger = logger.opt(colors=True)

@@ -4,8 +4,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from climateeval import (
-    Variable,
+from esmvalcore.preprocessor import (
+    annual_statistics,
+    area_statistics,
+    climate_statistics,
+    regrid,
+)
+from iris import NameConstraint
+from iris.cube import Cube, CubeList
+from loguru import logger
+from scipy import stats
+
+from climateeval import Variable
+from climateeval._config import (
     setup_esmvaltool_config_and_logging,
     setup_iris_combine_policy,
 )
@@ -19,16 +30,6 @@ from climateeval.data import (
 from climateeval.data._esmvaltool_intake import filter_intake_data_sources
 from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.complex._base import ComplexDiagnostic
-from esmvalcore.preprocessor import (
-    annual_statistics,
-    area_statistics,
-    climate_statistics,
-    regrid,
-)
-from iris import NameConstraint
-from iris.cube import Cube, CubeList
-from loguru import logger
-from scipy import stats
 
 if TYPE_CHECKING:
     from collections.abc import Generator

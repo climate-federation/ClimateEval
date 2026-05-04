@@ -15,12 +15,13 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import intake_esgf
 import iris
 import yaml
-from climateeval import setup_esmvaltool_config_and_logging
-from climateeval.data._base import DataSource, DataSourceGenerator
-from climateeval.data._utils import DataSourceInformation
 from esmvalcore.config import CFG
 from esmvalcore.dataset import Dataset
 from loguru import logger
+
+from climateeval._config import setup_esmvaltool_config_and_logging
+from climateeval.data._base import DataSource, DataSourceGenerator
+from climateeval.data._utils import DataSourceInformation
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable

@@ -7,9 +7,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from esmvaltool.cmorizers.data.downloaders.wget import NASADownloader
+
 from climateeval.data._esmvaltool_cmorizer import ESMValToolCMORizerDataSource
 from climateeval.data._utils import DataSourceInformation
-from esmvaltool.cmorizers.data.downloaders.wget import NASADownloader
 
 if TYPE_CHECKING:
     from climateeval import Variable

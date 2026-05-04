@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from climateeval.data._esmvaltool_intake import ESMValToolIntakeDataSourceGenerator
 from esmvalcore.cmor.table import CMOR_TABLES
+
+from climateeval.data._esmvaltool_intake import ESMValToolIntakeDataSourceGenerator
 
 
 class CMIP6DataSourceGenerator(ESMValToolIntakeDataSourceGenerator):

@@ -7,17 +7,19 @@ from dataclasses import dataclass, field
 from pprint import pformat
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from climateeval._utils import get_prepared_cube, load_cubes
 from loguru import logger
+
+from climateeval._utils import get_prepared_cube, load_cubes
 
 if TYPE_CHECKING:
     from collections.abc import Generator
     from pathlib import Path
 
-    from climateeval import Variable
-    from climateeval.data._utils import DataSourceInformation
     from iris.cube import Cube, CubeList
     from xarray import Dataset
+
+    from climateeval import Variable
+    from climateeval.data._utils import DataSourceInformation
 
 
 logger = logger.opt(colors=True)
