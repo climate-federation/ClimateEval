@@ -14,6 +14,7 @@ from iris.pandas import as_data_frame
 from loguru import logger
 
 from climateeval import NO_LEVEL
+from climateeval.exceptions import MissingDataError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -53,10 +54,15 @@ class Diagnostic(ABC):
     _VARIABLE_ID_COLUMN: ClassVar[str] = "var_id"
     """Name of table column containing variable ID."""
 
+    # Attributes that subclass instances need to define
+
     _data_root_dir: Path
     """Data root directory."""
 
-    _fail_on_missing_data: bool = False
+    _download_missing_data: bool
+    """Download missing data."""
+
+    _fail_on_missing_data: bool
     """Fail on missing data."""
 
     @property
@@ -164,7 +170,7 @@ class Diagnostic(ABC):
         """Check if data is available."""
         msg = f"Failed to get data {data_id} for variable(s) {variables}: {exception}"
         if self._fail_on_missing_data:
-            raise ValueError(msg) from exception
+            raise MissingDataError(msg) from exception
         logger.warning(msg)
 
 

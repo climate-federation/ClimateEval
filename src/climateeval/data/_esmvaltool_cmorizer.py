@@ -69,7 +69,7 @@ class ESMValToolCMORizerDataSource(DataSource):
             and variable.var_name not in self.SUPPORTED_VAR_NAMES
         ):
             msg = f"{self.id} does not provide variable '{variable.var_name}'"
-            raise ValueError(msg)
+            raise NotImplementedError(msg)
 
     def _esmvaltool_cmorizer_format(
         self,

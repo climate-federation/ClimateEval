@@ -52,7 +52,7 @@ class ECS(ComplexDiagnostic):
 
     """
 
-    REQUIRED_DATA_KEYS = ("4xco2", "picontrol")
+    _REQUIRED_DATA_KEYS = ("4xco2", "picontrol")
     _RLUT: ClassVar[Variable] = Variable("rlut", "rlut", "mon")
     _RSDT: ClassVar[Variable] = Variable("rsdt", "rsdt", "mon")
     _RSUT: ClassVar[Variable] = Variable("rsut", "rsut", "mon")
@@ -191,11 +191,19 @@ class ECS(ComplexDiagnostic):
                 try:
                     data = {
                         "4xco2": CubeList(
-                            data_source_4xco2.get_cube(self.data_root_dir, var)
+                            data_source_4xco2.get_cube(
+                                self.data_root_dir,
+                                var,
+                                download_missing_data=self._download_missing_data,
+                            )
                             for var in variables
                         ),
                         "picontrol": CubeList(
-                            data_source_picontrol.get_cube(self.data_root_dir, var)
+                            data_source_picontrol.get_cube(
+                                self.data_root_dir,
+                                var,
+                                download_missing_data=self._download_missing_data,
+                            )
                             for var in variables
                         ),
                     }

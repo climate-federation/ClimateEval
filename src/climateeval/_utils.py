@@ -28,6 +28,7 @@ from climateeval._config import (
     setup_esmvaltool_config_and_logging,
     setup_iris_combine_policy,
 )
+from climateeval.exceptions import CoordinateError, MissingDataError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -55,7 +56,7 @@ def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) ->
                     f"coordinates {coordinate.allowed_coordinates} missing in "
                     f"cube\n{cube}"
                 )
-                raise ValueError(msg)
+                raise CoordinateError(msg)
         else:
             expected_coordinate = coordinate
         coord_name = expected_coordinate.name()
@@ -64,14 +65,14 @@ def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) ->
                 f"Expected coordinate {coordinate} with name '{coord_name}' "
                 f"missing in cube\n{cube}"
             )
-            raise ValueError(msg)
+            raise CoordinateError(msg)
         covered_dimensions.extend(cube.coord_dims(coord_name))
     if set(covered_dimensions) != set(range(cube.ndim)):
         msg = (
             f"Expected coordinates {expected_coordinates} do not cover all "
             f"dimensions of cube\n{cube}"
         )
-        raise ValueError(msg)
+        raise CoordinateError(msg)
 
 
 def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
@@ -209,13 +210,13 @@ def _check_data(cube: Cube, variable: Variable) -> None:
             f"Selected timerange is {variable.timerange}, but data starts in "
             f"year {actual_min_year} for cube \n{cube}"
         )
-        raise ValueError(msg)
+        raise MissingDataError(msg)
     if expected_max_year > actual_max_year:
         msg = (
             f"Selected timerange is {variable.timerange}, but data ends in "
             f"year {actual_max_year} for cube \n{cube}"
         )
-        raise ValueError(msg)
+        raise MissingDataError(msg)
 
 
 def _extract_level(cube: Cube, vertical_level: VerticalLevel) -> Cube:

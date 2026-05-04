@@ -60,6 +60,7 @@ class SimpleDiagnostic(Diagnostic):
         *,
         data_root_dir: Path | None = None,
         fail_on_missing_data: bool = False,
+        download_missing_data: bool = True,
     ) -> None:
         """Initialize class instance."""
         logger.debug(f"Initializing simple diagnostic {self.name}")
@@ -94,6 +95,7 @@ class SimpleDiagnostic(Diagnostic):
             self._other_data[variable] = tuple(other_data_sources)
 
         self._fail_on_missing_data = fail_on_missing_data
+        self._download_missing_data = download_missing_data
 
     @property
     def _final_coordinate_names(self) -> tuple[str, ...]:
@@ -159,7 +161,11 @@ class SimpleDiagnostic(Diagnostic):
         for variable, reference_data in self._reference_data.items():
             try:
                 reference_cube = self._safely_preprocess(
-                    reference_data.get_cube(self.data_root_dir, variable),
+                    reference_data.get_cube(
+                        self.data_root_dir,
+                        variable,
+                        download_missing_data=self._download_missing_data,
+                    ),
                 )
             except Exception as exc:  # noqa: BLE001
                 self._handle_missing_data(reference_data.id, (variable,), exc)
@@ -288,7 +294,11 @@ class SimpleDiagnostic(Diagnostic):
             for other_data in other_datas:
                 try:
                     other_cube = self._safely_preprocess(
-                        other_data.get_cube(self.data_root_dir, variable),
+                        other_data.get_cube(
+                            self.data_root_dir,
+                            variable,
+                            download_missing_data=self._download_missing_data,
+                        ),
                     )
                 except Exception as exc:  # noqa: BLE001
                     self._handle_missing_data(other_data.id, (variable,), exc)

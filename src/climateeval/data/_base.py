@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from loguru import logger
 
 from climateeval._utils import get_prepared_cube, load_cubes
+from climateeval.exceptions import DownloadError
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -59,7 +60,13 @@ class DataSource(ABC):
     def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
         """Download data."""
 
-    def get_cube(self, data_root_dir: Path, variable: Variable) -> Cube:
+    def get_cube(
+        self,
+        data_root_dir: Path,
+        variable: Variable,
+        *,
+        download_missing_data: bool = True,
+    ) -> Cube:
         """Get data cube."""
         logger.debug(f"Loading {variable} of {self.id}")
         paths: list[Path] = list(
@@ -79,6 +86,13 @@ class DataSource(ABC):
                 )
                 return get_prepared_cube(load_cubes(paths), variable)
 
+        if not download_missing_data:
+            msg = (
+                f"{variable} of {self.id} would need to be downloaded, but "
+                f"downloads are disabled"
+            )
+            raise DownloadError(msg)
+
         # Try downloading the variable
         logger.debug(f"Trying downloading {variable} of {self.id}")
         error_msg = ""
@@ -87,7 +101,7 @@ class DataSource(ABC):
         except Exception as exc:
             if not variable.derived:
                 msg = f"Downloading {variable} of {self.id} failed: {exc}"
-                raise ValueError(msg) from exc
+                raise DownloadError(msg) from exc
             error_msg = f": {exc}"
         if paths:
             logger.info(f"Downloaded {self.id}:\n{pformat(paths)}")

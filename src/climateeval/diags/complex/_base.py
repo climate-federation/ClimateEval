@@ -39,12 +39,14 @@ class ComplexDiagnostic(Diagnostic):
         *,
         data_root_dir: Path | None = None,
         fail_on_missing_data: bool = False,
+        download_missing_data: bool = True,
         **kwargs: Any,
     ) -> None:
         """Initialize class instance."""
         logger.debug(f"Initializing complex diagnostic {self.name}")
         self._data_root_dir = self._get_data_root_dir(data_root_dir)
         self._fail_on_missing_data = fail_on_missing_data
+        self._download_missing_data = download_missing_data
         self._kwargs = kwargs
 
     @classmethod

@@ -1,10 +1,12 @@
 import re
 
 import pytest
-from climateeval import Coordinate
-from climateeval._utils import check_coordinates
 from iris.coords import AuxCoord, DimCoord
 from iris.cube import Cube
+
+from climateeval import Coordinate
+from climateeval._utils import check_coordinates
+from climateeval.exceptions import CoordinateError
 
 
 @pytest.fixture
@@ -70,7 +72,7 @@ def test_check_coordinates_1d_fail(
         r"Expected coordinates [Coordinate(var_name='time'), "
         r"Coordinate(var_name='lat')] do not cover all dimensions of cube"
     )
-    with pytest.raises(ValueError, match=re.escape(msg)):
+    with pytest.raises(CoordinateError, match=re.escape(msg)):
         check_coordinates(cube, [Coordinate("time"), Coordinate("lat")])
 
 
@@ -104,7 +106,7 @@ def test_check_coordinates_2d_fail(
         r"Expected coordinates [Coordinate(var_name='lat'), "
         r"Coordinate(var_name='lon')] do not cover all dimensions of cube"
     )
-    with pytest.raises(ValueError, match=re.escape(msg)):
+    with pytest.raises(CoordinateError, match=re.escape(msg)):
         check_coordinates(cube, [Coordinate("lat"), Coordinate("lon")])
 
 
@@ -114,7 +116,7 @@ def test_check_coordinates_missing_coord_fail(time_coord: DimCoord) -> None:
         r"Expected coordinate Coordinate(var_name='lat') with name 'latitude' "
         r"missing in cube"
     )
-    with pytest.raises(ValueError, match=re.escape(msg)):
+    with pytest.raises(CoordinateError, match=re.escape(msg)):
         check_coordinates(
             cube,
             [Coordinate("time"), Coordinate("lat"), Coordinate("lon")],
@@ -138,7 +140,7 @@ def test_check_coordinates_general_coord_1d_fail(
         r"Expected coordinates [Coordinate(var_name='alevel')] do not cover "
         r"all dimensions of cube"
     )
-    with pytest.raises(ValueError, match=re.escape(msg)):
+    with pytest.raises(CoordinateError, match=re.escape(msg)):
         check_coordinates(cube, [Coordinate("alevel")])
 
 
@@ -167,7 +169,7 @@ def test_check_coordinates_general_coord_2d_fail(
         r"Expected coordinates [Coordinate(var_name='alevel')] do not cover "
         r"all dimensions of cube"
     )
-    with pytest.raises(ValueError, match=re.escape(msg)):
+    with pytest.raises(CoordinateError, match=re.escape(msg)):
         check_coordinates(cube, [Coordinate("alevel")])
 
 
@@ -178,7 +180,7 @@ def test_check_coordinates_missing_general_coord_fail(time_coord: DimCoord) -> N
         r"allowed coordinates (Coordinate(var_name='alt'), "
         r"Coordinate(var_name='plev')) missing in cube"
     )
-    with pytest.raises(ValueError, match=re.escape(msg)):
+    with pytest.raises(CoordinateError, match=re.escape(msg)):
         check_coordinates(
             cube,
             [Coordinate("time"), Coordinate("alevel")],
