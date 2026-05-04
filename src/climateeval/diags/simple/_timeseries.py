@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 class TimeSeries(SimpleDiagnostic):
     """Manage timeseries diagnostics."""
 
-    FINAL_COORDINATES = (Coordinate("time"),)
+    _FINAL_COORDINATES = (Coordinate("time"),)
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""

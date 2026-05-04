@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class ZonalLine(SimpleDiagnostic):
     """Manage zonal line diagnostics."""
 
-    FINAL_COORDINATES = (Coordinate("lat"),)
+    _FINAL_COORDINATES = (Coordinate("lat"),)
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""

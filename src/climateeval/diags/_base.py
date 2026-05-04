@@ -38,28 +38,36 @@ _DEFAULT_DATA_ROOT_DIR: Path = Path.home() / ".climateeval" / "data"
 class Diagnostic(ABC):
     """Manage diagnostics."""
 
-    DATA_ID_COLUMN: ClassVar[str] = "data_id"
+    _DATA_ID_COLUMN: ClassVar[str] = "data_id"
     """Name of table column containing data ID."""
 
-    REFERENCE_DATA_ID_COLUMN: ClassVar[str] = "reference_data_id"
+    _REFERENCE_DATA_ID_COLUMN: ClassVar[str] = "reference_data_id"
     """Name of table column containing reference data ID."""
 
-    DATA_TYPE_COLUMN: ClassVar[str] = "data_type"
+    _DATA_TYPE_COLUMN: ClassVar[str] = "data_type"
     """Name of table column containing data type."""
 
-    DTYPE: ClassVar[ibis.DataType] = "float32"
+    _DTYPE: ClassVar[ibis.DataType] = "float32"
     """Dtype of numerical values."""
 
-    VARIABLE_ID_COLUMN: ClassVar[str] = "var_id"
+    _VARIABLE_ID_COLUMN: ClassVar[str] = "var_id"
     """Name of table column containing variable ID."""
+
+    _data_root_dir: Path
+    """Data root directory."""
 
     _fail_on_missing_data: bool = False
     """Fail on missing data."""
 
     @property
-    @abstractmethod
+    def data_root_dir(self) -> Path:
+        """Get path to data root directory."""
+        return self._data_root_dir
+
+    @property
     def name(self) -> str:
-        """Diagnostic name."""
+        """Get diagnostic name."""
+        return self.__class__.__name__
 
     @classmethod
     @abstractmethod
@@ -111,16 +119,16 @@ class Diagnostic(ABC):
             df["time"] = df["time"].astype(str)
         raw_output_table = ibis.memtable(df)
         cast_operations = {
-            c: {"time": "timestamp(6)"}.get(c, self.DTYPE)
+            c: {"time": "timestamp(6)"}.get(c, self._DTYPE)
             for c in raw_output_table.columns
         }
         raw_output_table = raw_output_table.cast(**cast_operations)
         raw_output_table = raw_output_table.rename(**{variable.id: cube.name()})
         raw_output_table = raw_output_table.mutate(
-            **{self.DATA_ID_COLUMN: ibis.literal(data_id)},
+            **{self._DATA_ID_COLUMN: ibis.literal(data_id)},
         )
         raw_output_table = raw_output_table.mutate(
-            **{self.DATA_TYPE_COLUMN: ibis.literal(data_type)},
+            **{self._DATA_TYPE_COLUMN: ibis.literal(data_type)},
         )
         return raw_output_table  # noqa: RET504
 

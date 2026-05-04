@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from climateeval.diags._base import Diagnostic, DiagnosticOutput
-from climateeval.diags._utils import DataTypeValue
+from climateeval.diags._base import DiagnosticOutput
 
 __all__ = [
-    "DataTypeValue",
-    "Diagnostic",
     "DiagnosticOutput",
 ]

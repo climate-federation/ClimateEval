@@ -98,8 +98,8 @@ See [db.py](db.py) for an example of how to inspect the output database.
 
 - Variables with `derived: true` in YAML are derived via ESMValTool's derive module
 - `_preprocess()` must be implemented by each diagnostic subclass
-- Final coordinates are specified via `FINAL_COORDINATES` class variable (ensures data has expected dimensions)
-- `OUTPUT_DATA_TABLE` and `OUTPUT_METRICS_TABLE` class variables control which tables a diagnostic outputs
+- Final coordinates are specified via `_FINAL_COORDINATES` class variable (ensures data has expected dimensions)
+- `_OUTPUT_DATA_TABLE` and `_OUTPUT_METRICS_TABLE` class variables control which tables a diagnostic outputs
 - Metrics use ESMValTool's `distance_metric` function
 - `fail_on_missing_data` diagnostic kwarg controls whether missing data raises errors or logs warnings
 - Suites support custom `diagnostic_kwargs` and `variable_kwargs` for customization

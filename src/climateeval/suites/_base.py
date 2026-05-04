@@ -12,7 +12,7 @@ import yaml
 from loguru import logger
 
 from climateeval._utils import str_to_class
-from climateeval.diags import Diagnostic
+from climateeval.diags._base import Diagnostic
 
 if TYPE_CHECKING:
     from iris.cube import CubeList

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class AnnualCycle(SimpleDiagnostic):
     """Manage annual cycle diagnostics."""
 
-    FINAL_COORDINATES = (Coordinate("month_number"),)
+    _FINAL_COORDINATES = (Coordinate("month_number"),)
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""

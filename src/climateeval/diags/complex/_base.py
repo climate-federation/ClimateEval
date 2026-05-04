@@ -31,7 +31,7 @@ logger = logger.opt(colors=True)
 class ComplexDiagnostic(Diagnostic):
     """Manage complex diagnostics."""
 
-    REQUIRED_DATA_KEYS: ClassVar[tuple[str, ...]] = ()
+    _REQUIRED_DATA_KEYS: ClassVar[tuple[str, ...]] = ()
     """Dictionary keys required for multi-data input."""
 
     def __init__(
@@ -46,16 +46,6 @@ class ComplexDiagnostic(Diagnostic):
         self._data_root_dir = self._get_data_root_dir(data_root_dir)
         self._fail_on_missing_data = fail_on_missing_data
         self._kwargs = kwargs
-
-    @property
-    def data_root_dir(self) -> Path:
-        """Get path to data directory."""
-        return self._data_root_dir
-
-    @property
-    def name(self) -> str:
-        """Get diagnostic name."""
-        return self.__class__.__name__
 
     @classmethod
     def from_suite_dict(
@@ -142,9 +132,9 @@ class ComplexDiagnostic(Diagnostic):
 
     def _check_required_dict_keys(self, dict_: dict[str, Any], dict_name: str) -> None:
         """Check if required dictionary keys are present."""
-        if set(dict_) != set(self.REQUIRED_DATA_KEYS):
+        if set(dict_) != set(self._REQUIRED_DATA_KEYS):
             msg = (
-                f"Expected keys {self.REQUIRED_DATA_KEYS} for {dict_name} dictionary, "
+                f"Expected keys {self._REQUIRED_DATA_KEYS} for {dict_name} dictionary, "
                 f"got {tuple(dict_)}"
             )
             raise ValueError(msg)

@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class ZonalProfileAirPressure(SimpleDiagnostic):
     """Manage zonal profile diagnostics."""
 
-    FINAL_COORDINATES = (Coordinate("plev"), Coordinate("lat"))
+    _FINAL_COORDINATES = (Coordinate("plev"), Coordinate("lat"))
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""

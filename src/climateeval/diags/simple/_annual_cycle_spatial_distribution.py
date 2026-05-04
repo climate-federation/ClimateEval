@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class AnnualCycleSpatialDistribution(SimpleDiagnostic):
     """Manage annual cycle spatial distribution diagnostics."""
 
-    FINAL_COORDINATES = (
+    _FINAL_COORDINATES = (
         Coordinate("month_number"),
         Coordinate("lat"),
         Coordinate("lon"),
