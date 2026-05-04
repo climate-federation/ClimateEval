@@ -4,12 +4,11 @@ import re
 from typing import TYPE_CHECKING
 
 import pytest
-
-from benchmarking.data import (
+from climateeval.data import (
     CMIP6DataSourceGenerator,
     ESMValToolIntakeDataSource,
 )
-from benchmarking.data._esmvaltool_intake import filter_intake_data_sources
+from climateeval.data._esmvaltool_intake import filter_intake_data_sources
 
 if TYPE_CHECKING:
     from collections.abc import Generator

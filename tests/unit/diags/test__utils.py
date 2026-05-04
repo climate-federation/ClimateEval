@@ -4,8 +4,8 @@ import ibis
 import numpy as np
 import pandas as pd
 import pytest
+from climateeval.diags._utils import union
 
-from benchmarking.diags._utils import union
 from tests._utils import assert_table_equal
 
 

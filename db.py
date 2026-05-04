@@ -6,7 +6,8 @@ from pathlib import Path
 
 import ibis
 
-root = Path.home() / "benchmarking"
+root = Path.home() / "climateeval"
+# db_path = root / "Tier1.ddb"
 db_path = root / "Tier2_atmosphere.ddb"
 # db_path = root / "Tier2_atmosphere.ddb.BAK"
 con = ibis.duckdb.connect(db_path)
@@ -23,7 +24,7 @@ for catalog_name in con.list_catalogs():
             # print(table.schema())
             # print((table.count().to_pandas(), len(table.schema())))
             print(table.to_pandas())
-            # html_path = root / f"{full_name}.html"
-            # print(table.to_pandas().to_html(html_path))
-            # print(f"Wrote {html_path}")
+            html_path = root / f"{full_name}.html"
+            print(table.to_pandas().to_html(html_path))
+            print(f"Wrote {html_path}")
             print()

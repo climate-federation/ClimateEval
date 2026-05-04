@@ -1,13 +1,13 @@
-benchmarking.diags.simple.AnnualCycle:
+climateeval.diags.simple.AnnualCycle:
   tas:
     var_name: tas
     frequency: mon
-    reference_data: benchmarking.data.ERA5
+    reference_data: climateeval.data.ERA5
   mypr:
     var_name: pr
     frequency: mon
-    reference_data: benchmarking.data.GPCP
-    other_data: [benchmarking.data.ERA5]
+    reference_data: climateeval.data.GPCP
+    other_data: [climateeval.data.ERA5]
     min_lat: -10.0
     max_lat: 40.0
     min_lon: 10.0
@@ -15,11 +15,11 @@ benchmarking.diags.simple.AnnualCycle:
     timerange: 19700101/19701231
     units: g m-2 s-1
 
-benchmarking.diags.simple.TimeSeries:
+climateeval.diags.simple.TimeSeries:
   ta1000:
     var_name: ta
     frequency: mon
-    reference_data: benchmarking.data.ERA5
+    reference_data: climateeval.data.ERA5
     vertical_level:
       coordinate_name: air_pressure
       units: hPa
@@ -28,8 +28,8 @@ benchmarking.diags.simple.TimeSeries:
   mypr:
     var_name: pr
     frequency: mon
-    reference_data: benchmarking.data.GPCP
-    other_data: [benchmarking.data.ERA5]
+    reference_data: climateeval.data.GPCP
+    other_data: [climateeval.data.ERA5]
     timerange: 19710101/19721231
     units: g m-2 s-1
     anomaly: full

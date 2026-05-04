@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import pytest
-
-from benchmarking.data import DataSourceInformation, ESACCICloud
+from climateeval.data import DataSourceInformation, ESACCICloud
 
 
 @pytest.fixture

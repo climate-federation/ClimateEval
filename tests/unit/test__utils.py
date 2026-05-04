@@ -1,11 +1,10 @@
 import re
 
 import pytest
+from climateeval import Coordinate
+from climateeval._utils import check_coordinates
 from iris.coords import AuxCoord, DimCoord
 from iris.cube import Cube
-
-from benchmarking import Coordinate
-from benchmarking._utils import check_coordinates
 
 
 @pytest.fixture

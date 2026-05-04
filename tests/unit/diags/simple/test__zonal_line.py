@@ -3,14 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-
-from benchmarking.diags.simple import ZonalLine
+from climateeval.diags.simple import ZonalLine
 
 if TYPE_CHECKING:
+    from climateeval import Variable
+    from climateeval.diags.simple import SimpleDiagnosticInputData
     from iris.cube import Cube
-
-    from benchmarking import Variable
-    from benchmarking.diags.simple import SimpleDiagnosticInputData
 
 
 @pytest.fixture

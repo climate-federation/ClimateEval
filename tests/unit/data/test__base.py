@@ -4,13 +4,12 @@ import re
 from typing import TYPE_CHECKING
 
 import pytest
-
-from benchmarking.data import DataSource
+from climateeval.data import DataSource
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from benchmarking import Variable
+    from climateeval import Variable
 
 
 class MockDataSource(DataSource):

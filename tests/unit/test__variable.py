@@ -2,8 +2,7 @@ import re
 from typing import Any
 
 import pytest
-
-from benchmarking import (
+from climateeval import (
     COORDINATES,
     NO_LEVEL,
     VARIABLES,

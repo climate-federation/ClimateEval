@@ -4,10 +4,9 @@ import re
 from typing import TYPE_CHECKING
 
 import pytest
-
-from benchmarking import Coordinate, Variable
-from benchmarking.data import ERA5, MERRA2, HadCRUT5
-from benchmarking.diags.simple import (
+from climateeval import Coordinate, Variable
+from climateeval.data import ERA5, MERRA2, HadCRUT5
+from climateeval.diags.simple import (
     SimpleDiagnostic,
     SimpleDiagnosticInputData,
 )

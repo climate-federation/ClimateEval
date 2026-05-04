@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import pytest
-
-from benchmarking.data import MERRA2, DataSourceInformation
+from climateeval.data import MERRA2, DataSourceInformation
 
 
 @pytest.fixture

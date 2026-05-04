@@ -9,8 +9,8 @@ from pathlib import Path
 import iris
 from loguru import logger
 
-from benchmarking import setup_iris_combine_policy
-from benchmarking.suites import Suite
+from climateeval import setup_iris_combine_policy
+from climateeval.suites import Suite
 
 logger = logger.opt(colors=True)
 logger.remove()
@@ -20,7 +20,7 @@ format_str = (
 )
 logger.add(sys.stdout, level="DEBUG", format=format_str, colorize=True)
 
-from benchmarking.data import DataSourceInformation  # noqa: E402
+from climateeval.data import DataSourceInformation  # noqa: E402
 
 variables = (
     "rsdt",
@@ -58,7 +58,7 @@ suite = "Tier1"
 db_path = Path(f"{suite}.ddb")
 if db_path.is_file():
     db_path.unlink()
-data_root_dir = Path("/work/bd1179/b309141/benchmarking_input")
+data_root_dir = Path("/work/bd1179/b309141/climateeval_input")
 data = {
     "4xco2": abrupt4xco2_cubes,
     "picontrol": picontrol_cubes,

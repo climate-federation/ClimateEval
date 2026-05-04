@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from benchmarking.data import CERESEBAF, DataSourceInformation
+from climateeval.data import CERESEBAF, DataSourceInformation
 
 
 @pytest.fixture

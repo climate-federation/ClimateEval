@@ -4,12 +4,12 @@ from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import climateeval.diags._utils
 import pytest
+from climateeval import Variable
+from climateeval.data import ERA5, GPCP, MERRA2, DataSourceGenerator, HadCRUT5
+from climateeval.diags.simple import SimpleDiagnosticInputData
 
-import benchmarking.diags._utils
-from benchmarking import Variable
-from benchmarking.data import ERA5, GPCP, MERRA2, DataSourceGenerator, HadCRUT5
-from benchmarking.diags.simple import SimpleDiagnosticInputData
 from tests.sample_data.create_sample_data_sources import (
     get_air_pressure_coord,
     get_altitude_coord,
@@ -20,9 +20,8 @@ from tests.sample_data.create_sample_data_sources import (
 if TYPE_CHECKING:
     from collections.abc import Generator
 
+    from climateeval.data import DataSource
     from iris.cube import Cube
-
-    from benchmarking.data import DataSource
 
 
 pytest.register_assert_rewrite("tests._utils")
@@ -38,7 +37,7 @@ def sample_data_root_dir() -> Path:
 def temporary_data_root_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     tmp_data_root_dir = tmp_path / "data"
     monkeypatch.setattr(
-        benchmarking.diags._base,
+        climateeval.diags._base,
         "_DEFAULT_DATA_ROOT_DIR",
         tmp_data_root_dir,
     )

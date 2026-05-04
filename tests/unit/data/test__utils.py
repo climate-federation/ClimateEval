@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import pytest
-
-from benchmarking.data import DataSourceInformation
+from climateeval.data import DataSourceInformation
 
 
 def test_data_source_information_defaults() -> None:

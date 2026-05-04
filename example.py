@@ -17,8 +17,8 @@ format_str = (
 )
 logger.add(sys.stdout, level="DEBUG", format=format_str, colorize=True)
 
-from benchmarking.data import DataSourceInformation  # noqa: E402
-from benchmarking.suites import Suite  # noqa: E402
+from climateeval.data import DataSourceInformation  # noqa: E402
+from climateeval.suites import Suite  # noqa: E402
 
 variables = (
     "clivi",
@@ -49,7 +49,7 @@ with warnings.catch_warnings():
 
 
 suite = "Tier2_atmosphere"
-data_root_dir = Path("/work/bd1179/b309141/benchmarking_input")
+data_root_dir = Path("/work/bd1179/b309141/climateeval_input")
 db_path = Path(f"{suite}.ddb")
 if db_path.is_file():
     db_path.unlink()

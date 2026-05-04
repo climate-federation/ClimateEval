@@ -7,10 +7,10 @@ import ibis
 import numpy as np
 import pandas as pd
 import pytest
+from climateeval.data import DataSourceInformation
+from climateeval.suites import Suite
 from iris.cube import CubeList
 
-from benchmarking.data import DataSourceInformation
-from benchmarking.suites import Suite
 from tests._utils import assert_table_equal, get_all_table_names
 from tests.sample_data.create_sample_data_sources import (
     get_air_pressure_coord,

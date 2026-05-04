@@ -1,7 +1,7 @@
 [project]
-name = "benchmarking"
-version = "0.0.0"
-description = "Benchmarking diagnostics"
+name = "climateeval"
+version = "0.0.1"
+description = "Framework for evaluating and benchmarking Earth System Model output"
 authors = [
     {name = "Manuel Schlund", email = "manuel.schlund@dlr.de"},
 ]
