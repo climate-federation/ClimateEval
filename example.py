@@ -48,9 +48,9 @@ with warnings.catch_warnings():
     cubes = iris.load(paths)
 
 
-suite = "Tier2_atmosphere"
+suite_name = "Tier2_atmosphere"
 data_root_dir = Path("/work/bd1179/b309141/climateeval_input")
-db_path = Path(f"{suite}.ddb")
+db_path = Path(f"{suite_name}.ddb")
 if db_path.is_file():
     db_path.unlink()
 
@@ -66,7 +66,7 @@ data_info = DataSourceInformation(
 )
 
 suite = Suite(
-    suite,
+    suite_name,
     diagnostic_kwargs={
         "data_root_dir": data_root_dir,
         "fail_on_missing_data": False,

@@ -54,8 +54,8 @@ with warnings.catch_warnings() and setup_iris_combine_policy():
     picontrol_cubes = iris.load(picontrol_paths)
     abrupt4xco2_cubes = iris.load(abrupt4xco2_paths)
 
-suite = "Tier1"
-db_path = Path(f"{suite}.ddb")
+suite_name = "Tier1"
+db_path = Path(f"{suite_name}.ddb")
 if db_path.is_file():
     db_path.unlink()
 data_root_dir = Path("/work/bd1179/b309141/climateeval_input")
@@ -75,7 +75,7 @@ data_info = DataSourceInformation(
 )
 
 suite = Suite(
-    suite,
+    suite_name,
     diagnostic_kwargs={
         "data_root_dir": data_root_dir,
         "fail_on_missing_data": False,
