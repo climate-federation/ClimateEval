@@ -4,12 +4,12 @@ from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import climateeval.diags._utils
 import pytest
+
+import climateeval.diags._utils
 from climateeval import Variable
 from climateeval.data import ERA5, GPCP, MERRA2, DataSourceGenerator, HadCRUT5
 from climateeval.diags.simple import SimpleDiagnosticInputData
-
 from tests.sample_data.create_sample_data_sources import (
     get_air_pressure_coord,
     get_altitude_coord,
@@ -20,8 +20,9 @@ from tests.sample_data.create_sample_data_sources import (
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from climateeval.data import DataSource
     from iris.cube import Cube
+
+    from climateeval.data import DataSource
 
 
 pytest.register_assert_rewrite("tests._utils")
