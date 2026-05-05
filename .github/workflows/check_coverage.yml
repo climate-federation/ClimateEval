@@ -11,10 +11,9 @@ on:
       - v*.x
   pull_request:
 
-# Required shell entrypoint to have properly configured bash shell
 defaults:
   run:
-    shell: bash -l {0}
+    shell: pixi run bash -e {0}
 
 jobs:
   check_coverage:
@@ -26,19 +25,14 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Setup Conda environment
-        uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
+      - name: Install ClimateEval
+        uses: prefix-dev/setup-pixi@a0af7a228712d6121d37aba47adf55c1332c9c2e # v0.9.5
         with:
-          activate-environment: climateeval
-          environment-file: environment.yml
-          python-version: ${{ matrix.python-version }}
-          miniforge-version: latest
-          use-mamba: true
+          frozen: true
       - name: Install
         run: pip install --no-deps -e .[develop]
       - name: Run tests
-        run: |
-          pytest -n 2 --junitxml=pytest.xml --cov-report=xml:coverage.xml --cov-report=term-missing:skip-covered --cov=src/climateeval tests/
+        run: pytest -n 2 --junitxml=pytest.xml --cov-report=xml:coverage.xml --cov-report=term-missing:skip-covered --cov=src/climateeval tests/
       - name: Comment coverage
         id: coverage
         uses: MishaKav/pytest-coverage-comment@dd5b80bde6d16941f336518e92929e89069d8451 # v1.7.2

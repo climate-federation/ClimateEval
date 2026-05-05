@@ -20,6 +20,34 @@ results (raw output and metrics calculated relative to the reference data) are
 stored in a database (either in-memory or on disk for post-hoc analyses), which
 can be then explored through an interactive HTML file.
 
+## Installation from source
+
+1. Clone the ClimateEval repository:
+
+   ```bash
+   git clone https://github.com/EyringMLClimateGroup/ClimateEval.git
+   ```
+
+   or
+
+   ```bash
+   git clone git@github.com:EyringMLClimateGroup/ClimateEval.git
+   ```
+
+   if you prefer to connect to the repository over SSH
+
+1. Install [Pixi](https://pixi.prefix.dev/latest/installation/)
+
+1. Install ClimateEval
+
+   ```bash
+   cd ClimateEval
+   pixi install
+   ```
+
+Now you can use `pixi shell` to launch a shell in your pixi environment or
+`pixi run ...` to run commands in your pixi environment.
+
 ## Known limitations
 
 - Data source generators do not work yet with derived variables (see <https://github.com/ESMValGroup/ESMValCore/issues/2769>).
