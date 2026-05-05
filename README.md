@@ -36,9 +36,10 @@ can be then explored through an interactive HTML file.
 
    if you prefer to connect to the repository over SSH
 
-1. Install [Pixi](https://pixi.prefix.dev/latest/installation/)
+1. Install Pixi as described in their [installation
+   instructions](https://pixi.prefix.dev/latest/installation/).
 
-1. Install ClimateEval
+1. Install ClimateEval:
 
    ```bash
    cd ClimateEval
