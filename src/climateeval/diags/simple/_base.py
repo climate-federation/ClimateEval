@@ -251,9 +251,9 @@ class SimpleDiagnostic(Diagnostic):
         metrics = ibis.memtable(
             pd.DataFrame(
                 {
-                    self._VARIABLE_ID_COLUMN: variable.id,
                     self._DATA_ID_COLUMN: data_id,
                     self._REFERENCE_DATA_ID_COLUMN: self._reference_data[variable].id,
+                    self._VARIABLE_ID_COLUMN: variable.id,
                     **self._get_metrics(cube, reference_cube),
                 },
                 index=[0],
