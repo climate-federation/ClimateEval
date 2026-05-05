@@ -27,7 +27,7 @@ class AnnualCycleSpatialDistribution(SimpleDiagnostic):
         Coordinate("lon"),
     )
 
-    OUTPUT_DATA_TABLE = False
+    _OUTPUT_DATA_TABLE = False
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
