@@ -88,6 +88,11 @@ class ECS(ComplexDiagnostic):
             fail_on_missing_data=fail_on_missing_data,
             **kwargs,
         )
+        if "year_slice" in self._kwargs and not isinstance(
+            self._kwargs["year_slice"],
+            slice,
+        ):
+            self._kwargs["year_slice"] = slice(*self._kwargs["year_slice"])
         self._years_slice: slice = self._kwargs.get("year_slice", slice(None, 150))
         logger.debug(f"Using year slice '{self._years_slice}' for Gregory regression")
 
