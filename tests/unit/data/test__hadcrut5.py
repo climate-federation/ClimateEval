@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import pytest
-
-from benchmarking.data import DataSourceInformation, HadCRUT5
+from climateeval.data import DataSourceInformation, HadCRUT5
 
 
 @pytest.fixture

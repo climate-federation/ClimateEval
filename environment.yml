@@ -1,5 +1,5 @@
 ---
-name: benchmarking
+name: climateeval
 channels:
   - conda-forge
   - nodefaults

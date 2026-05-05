@@ -1,7 +1,7 @@
 [project]
-name = "benchmarking"
-version = "0.0.0"
-description = "Benchmarking diagnostics"
+name = "climateeval"
+version = "0.0.1"
+description = "Framework for evaluating and benchmarking Earth System Model output"
 authors = [
     {name = "Manuel Schlund", email = "manuel.schlund@dlr.de"},
 ]
@@ -65,6 +65,9 @@ ignore = [
 future-annotations = true
 
 [tool.ruff.lint.per-file-ignores]
+"generate_html.py" = [
+    "E501",       # Line too long
+]
 "tests/**.py" = [
     "ARG001",     # Unused function arguments
     "D100",       # Missing docstring in public module
@@ -77,8 +80,9 @@ future-annotations = true
     "S101",       # Use of `assert` detected
     "SLF001",     # Private member accessed
 ]
-"generate_html.py" = [
-    "E501",       # Line too long
+"tests/sample_data/create_sample_data_sources.py" = [
+    "INP001",     # File is part of an implicit namespace package.
+    "T201",       # `print` found
 ]
 
 [tool.ruff.lint.pydocstyle]

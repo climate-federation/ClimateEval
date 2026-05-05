@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import pytest
-
-from benchmarking.data import GPCP, DataSourceInformation
+from climateeval.data import GPCP, DataSourceInformation
 
 
 @pytest.fixture

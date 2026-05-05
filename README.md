@@ -1,95 +1,25 @@
-# benchmarking
+# ClimateEval
 
-Benchmarking diagnostics for Earth System Models.
+ClimateEval is a framework for evaluating and benchmarking Earth System Model
+output. It allows climate modelers to systematically assess their simulations
+across multiple variables and diagnostics, and to benchmark them against
+established observational references within a unified, extensible framework.
 
-This repository provides diagnostics for comparing model output against reference
-observations, and a small set of scripts for running a benchmark and exporting
-the results as a portable HTML report.
+ClimateEval employs a suite-based architecture where users define diagnostics
+(e.g., spatial maps, time series, vertical profiles), variables, and reference
+data sets (e.g., ERA5 reanalysis, GPCP precipitation, CERES-EBAF radiative
+fluxes) through YAML configuration files, allowing flexible and reproducible
+evaluation workflows. The modular approach also facilitates the usage of custom
+diagnostics, variables, and reference data sets. When executed, the suites
+process input data through standardized preprocessing steps such as unit
+conversion, spatial regridding, regional masking, calculation of statistics.
+This preprocessing is based on [ESMValTool](https://esmvaltool.org/), which
+provides a set of robust and well-established preprocessing functions. Any
+missing reference data is automatically downloaded if required. Diagnostics
+results (raw output and metrics calculated relative to the reference data) are
+stored in a database (either in-memory or on disk for post-hoc analyses), which
+can be then explored through an interactive HTML file.
 
-## Setup
+## Known limitations
 
-The recommended setup is a dedicated `mamba` environment named `benchmarking`.
-This is safer than using a local `.venv` because the project depends on a larger
-scientific Python stack, including Iris, ESMValTool, Ibis, and DuckDB.
-
-Create the environment from the repository root:
-
-```bash
-mamba env create -f environment.yml
-```
-
-If the environment already exists and you want to refresh it:
-
-```bash
-mamba env update -f environment.yml --prune
-```
-
-Activate it and install the package in editable mode:
-
-```bash
-mamba activate benchmarking
-python -m pip install -e ".[develop]"
-```
-
-The editable install makes the local `benchmarking` package importable while you
-edit the source code.
-
-## Running The Benchmark
-
-The main manual benchmark entry point is [`example.py`](example.py). It loads a
-set of example CMIP6 cubes, runs the `Tier2Atmosphere` suite, and writes a DuckDB
-database to `~/benchmarking/benchmarking.ddb`.
-
-Run it from the repository root after activating the environment:
-
-```bash
-python example.py
-```
-
-The script uses hard-coded input paths in the current example. If those files are
-not available on your system, update the paths in `example.py` before running it.
-
-To inspect the generated DuckDB output in the terminal, use [`db.py`](db.py):
-
-```bash
-python db.py
-```
-
-That script opens `~/benchmarking/benchmarking.ddb` with Ibis and prints the
-available catalogs, databases, and tables.
-
-## Generate HTML Output
-
-Use [`generate_html.py`](generate_html.py) to turn one or more DuckDB benchmark
-databases into a self-contained HTML report.
-
-For a single benchmark database:
-
-```bash
-python generate_html.py ~/benchmarking/benchmarking.ddb
-```
-
-This creates `~/benchmarking/benchmarking_report.html` by default.
-
-If you pass multiple `.ddb` files, the script builds a multi-tier report:
-
-```bash
-python generate_html.py tier1.ddb tier2.ddb tier3.ddb
-```
-
-Useful optional flags:
-
-```bash
-python generate_html.py ~/benchmarking/benchmarking.ddb \
-	--model MPI-ESM1-2-LR \
-	--user "Your Name" \
-	--developer "diffESM Benchmarking"
-```
-
-Use `--online` if you want Plotly.js loaded from the CDN instead of embedded in
-the HTML file.
-
-## Reference
-
-More implementation details and the current code layout are documented in
-[`CLAUDE.md`](CLAUDE.md).
+- Data source generators do not work yet with derived variables (see <https://github.com/ESMValGroup/ESMValCore/issues/2769>).

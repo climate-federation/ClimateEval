@@ -2,10 +2,25 @@
 
 ## Project Overview
 
-Benchmarking diagnostics for Earth System Models (ESMs). The package provides
-diagnostics (e.g., Map, TimeSeries) to compare climate model output against
-reference observational datasets (e.g., ERA5, GPCP, HadCRUT5, CERES-EBAF). Uses
-ESMValTool for data loading/preprocessing and Ibis/DuckDB for output.
+ClimateEval is a framework for evaluating and benchmarking Earth System Model
+output. It allows climate modelers to systematically assess their simulations
+across multiple variables and diagnostics, and to benchmark them against
+established observational references within a unified, extensible framework.
+
+ClimateEval employs a suite-based architecture where users define diagnostics
+(e.g., spatial maps, time series, vertical profiles), variables, and reference
+data sets (e.g., ERA5 reanalysis, GPCP precipitation, CERES-EBAF radiative
+fluxes) through YAML configuration files, allowing flexible and reproducible
+evaluation workflows. The modular approach also facilitates the usage of custom
+diagnostics, variables, and reference data sets. When executed, the suites
+process input data through standardized preprocessing steps such as unit
+conversion, spatial regridding, regional masking, calculation of statistics.
+This preprocessing is based on ESMValTool, which provides a set of robust and
+well-established preprocessing functions. Any missing reference data is
+automatically downloaded if required. Diagnostics results (raw output and
+metrics calculated relative to the reference data) are stored in a database
+(either in-memory or on disk for post-hoc analyses), which can be then explored
+through an interactive HTML file.
 
 ## Common Commands
 
@@ -17,7 +32,7 @@ pip install -e ".[develop]"
 pytest
 
 # Run tests with coverage
-pytest --cov=src/benchmarking --cov-report=html
+pytest --cov=src/climateeval --cov-report=html
 
 # Lint
 pre-commit run --all
@@ -37,7 +52,7 @@ When inspecting databases, use `ibis`.
 - `_config.py` - ESMValTool config reset and intake-ESGF data source setup
 - `_utils.py` - `get_prepared_cube()` performs preprocessing (unit conversion, longitude normalization, time range extraction, level extraction, spatial masking via landsea/AR6 region masks). Also provides `str_to_class()` for dynamic class loading and `check_coordinates()` to validate cube dimensions
 
-### Diagnostics (`src/benchmarking/diags/`)
+### Diagnostics (`src/climateeval/diags/`)
 
 - `_base.py` - Abstract `Diagnostic` class with `DiagnosticOutput` dataclass: manages reference/other data, computes metrics (weighted_rmse, weighted_pearsonr, weighted_emd), generates Ibis tables. Also provides `DiagnosticOutput.union()` to merge outputs
 - `_annual_cycle.py` - `AnnualCycle` diagnostic: evaluates seasonal cycle by comparing monthly means
@@ -48,12 +63,12 @@ When inspecting databases, use `ibis`.
 - `_zonal_line.py` - `ZonalLine` diagnostic: zonal mean fields; output coordinates: latitude
 - `_zonal_profile.py` - `ZonalProfileAirPressure` diagnostic: vertical profiles of humidity/temperature/wind; output coordinates: air_pressure, latitude
 
-### Suites (`src/benchmarking/suites/`)
+### Suites (`src/climateeval/suites/`)
 
 - `_base.py` - `Suite` class: reads a YAML suite definition, builds diagnostics, orchestrates execution, and writes results to an Ibis/DuckDB backend
 - `Tier2_atmosphere.yml` - YAML-defined suite: 19 2-D variables (clivi, clt, clwvi, hfls, hfss, hus400, lwcre, lwp, pr, prw, rlut, rsut, rtnt, swcre, ta200, ta800, tas, ua200, ua800) across five 2-D diagnostics (AnnualCycle, AnnualCycleSpatialDistribution, Map, TimeSeries, ZonalLine) plus 3 3-D variables (hus, ta, ua) for ZonalProfileAirPressure
 
-### Data Sources (`src/benchmarking/data/`)
+### Data Sources (`src/climateeval/data/`)
 
 - `_base.py` - `DataSource` abstract class for data loading/downloading; `DiagnosticData` dataclass pairs a variable with its reference and optional "other" data sources; `DataSourceInformation` dataclass holds provenance metadata (name, category, institute, exp, variant, references, auto-generated id)
 - Concrete implementations: `CERESEBAF`, `ERA5`, `ESACCICloud`, `GPCP`, `HadCRUT5`, `MERRA2`
@@ -83,8 +98,8 @@ See [db.py](db.py) for an example of how to inspect the output database.
 
 - Variables with `derived: true` in YAML are derived via ESMValTool's derive module
 - `_preprocess()` must be implemented by each diagnostic subclass
-- Final coordinates are specified via `FINAL_COORDINATES` class variable (ensures data has expected dimensions)
-- `OUTPUT_DATA_TABLE` and `OUTPUT_METRICS_TABLE` class variables control which tables a diagnostic outputs
+- Final coordinates are specified via `_FINAL_COORDINATES` class variable (ensures data has expected dimensions)
+- `_OUTPUT_DATA_TABLE` and `_OUTPUT_METRICS_TABLE` class variables control which tables a diagnostic outputs
 - Metrics use ESMValTool's `distance_metric` function
 - `fail_on_missing_data` diagnostic kwarg controls whether missing data raises errors or logs warnings
 - Suites support custom `diagnostic_kwargs` and `variable_kwargs` for customization
@@ -99,7 +114,7 @@ Suites output to DuckDB using **attached databases** (one per diagnostic) to org
 ```python
 import ibis
 
-conn = ibis.connect("duckdb://benchmarking.ddb")
+conn = ibis.connect("duckdb://climateeval.ddb")
 
 # List diagnostic databases
 dbs = conn.list_databases()  # e.g., ['AnnualCycle', 'AnnualCycleSpatialDistribution', 'Map', 'TimeSeries', 'ZonalLine', 'ZonalProfileAirPressure']
@@ -117,7 +132,7 @@ Each diagnostic is stored as an attached database containing four tables:
 `raw_output`, `metrics`, `variables`, and `data_sources`.
 
 ```bash
-benchmarking.ddb
+climateeval.ddb
 ├── AnnualCycle/
 │   ├── raw_output      # Monthly climatology (month_number coordinate)
 │   ├── metrics         # Comparison metrics

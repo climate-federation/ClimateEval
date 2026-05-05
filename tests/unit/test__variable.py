@@ -3,13 +3,12 @@ from typing import Any
 
 import pytest
 
-from benchmarking import (
-    COORDINATES,
+from climateeval import (
     NO_LEVEL,
-    VARIABLES,
     Coordinate,
     Variable,
 )
+from climateeval._variable import COORDINATES, VARIABLES
 
 
 def test_variables() -> None:

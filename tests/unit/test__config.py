@@ -1,6 +1,5 @@
 import numpy as np
-
-from benchmarking import NO_LEVEL, VerticalLevel
+from climateeval import NO_LEVEL, VerticalLevel
 
 
 def test_no_level() -> None:

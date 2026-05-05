@@ -1,41 +1,43 @@
 from __future__ import annotations
 
+import re
+from typing import TYPE_CHECKING
+
 import pytest
+from climateeval.data import DataSource
 
-from benchmarking.data import DataSourceInformation
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from climateeval import Variable
 
 
-def test_data_source_information_defaults() -> None:
-    data_source_info = DataSourceInformation(name="NAME", category="CATEGORY")
-
-    assert data_source_info.name == "NAME"
-    assert data_source_info.category == "CATEGORY"
-    assert data_source_info.institute == ""
-    assert data_source_info.exp == ""
-    assert data_source_info.variant == ""
-    assert data_source_info.references == ()
+class MockDataSource(DataSource):
+    def download(self, _variable: Variable, _data_root_dir: Path) -> list[Path]:
+        return []
 
 
 @pytest.mark.parametrize(
-    ("data_source_information", "id_"),
+    ("attribute", "exception_cls", "error_msg"),
     [
-        (DataSourceInformation(name="N A M E", category="C"), "C_N-A-M-E"),
-        (DataSourceInformation(name="N", category="C", exp="E X P"), "C_N_E-X-P"),
         (
-            DataSourceInformation(
-                name="N",
-                category="C",
-                institute="I",
-                exp="E",
-                variant="V",
-                references=("REFERENCE1", "REFERENCE2"),
-            ),
-            "C_N_E_V",
+            "information",
+            TypeError,
+            r"Child classes of 'DataSource' should define the class variable "
+            r"'_INFORMATION'",
+        ),
+        (
+            "invalid_attribute",
+            AttributeError,
+            r"'MockDataSource' object has no attribute 'invalid_attribute'",
         ),
     ],
 )
-def test_data_source_information_id(
-    data_source_information: DataSourceInformation,
-    id_: str,
+def test_data_source_attribute_access_fail(
+    attribute: str,
+    exception_cls: type[Exception],
+    error_msg: str,
 ) -> None:
-    assert data_source_information.id == id_
+    data_source = MockDataSource()
+    with pytest.raises(exception_cls, match=re.escape(error_msg)):
+        getattr(data_source, attribute)
