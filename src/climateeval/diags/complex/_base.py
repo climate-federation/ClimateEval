@@ -118,12 +118,13 @@ class ComplexDiagnostic(Diagnostic):
         data_sources_table = self._get_data_sources_table(all_data_sources)
         variables_table = self._get_variables_table(all_variables)
 
-        return DiagnosticOutput(
+        diagnostic_output = DiagnosticOutput(
             raw_output=union(*raw_output_tables),
             metrics=None,
             variables=variables_table,
             data_sources=data_sources_table,
         )
+        return self._postprocess_output(diagnostic_output)
 
     @abstractmethod
     def _calculate_raw_output(
@@ -163,6 +164,6 @@ class ComplexDiagnostic(Diagnostic):
             )
 
     def _postprocess_output(self, output: DiagnosticOutput) -> DiagnosticOutput:
-        """Get other data."""
+        """Postprocess diagnostic output."""
         logger.debug(f"No postprocessing of output in diagnostic {self.name} defined")
         return output

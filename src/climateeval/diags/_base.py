@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 import ibis
 import iris
 import pandas as pd
+from ibis import _
 from iris.pandas import as_data_frame
 from loguru import logger
 
@@ -172,6 +173,29 @@ class Diagnostic(ABC):
         if self._fail_on_missing_data:
             raise MissingDataError(msg) from exception
         logger.warning(msg)
+
+    def _remove_superfluous_rows(
+        self,
+        table: ibis.Table,
+        *,
+        unique_columns: Iterable[str],
+        variable_columns: Iterable[str],
+    ) -> ibis.Table:
+        """Drop superfluous rows by removing NaN entries.
+
+        Note
+        ----
+        Currently, we first add NaNs and then remove it again. The reason for
+        this is that the logic is simple and the code robust. There are
+        certainly smarter and more efficient ways to do this, but since our
+        tables are usually quite small, it's probably not necessary.
+
+        """
+        variable_columns = tuple(variable_columns)
+        table = table.group_by(unique_columns).aggregate(
+            **{v: _[v].first() for v in variable_columns},
+        )
+        return table.drop_null(variable_columns, how="all")
 
 
 @dataclass(frozen=True, kw_only=True)
