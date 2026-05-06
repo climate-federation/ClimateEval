@@ -72,14 +72,15 @@ pre-commit = "*"
 [tool.pixi.feature.test.dependencies]
 pytest = "*"
 pytest-cov = "*"
+pytest-html = "*"
 pytest-mock = "*"
 pytest-xdist = "*"
 
 [tool.pixi.feature.py312.dependencies]
-"python" = "3.12.*"
+python = "3.12.*"
 
 [tool.pixi.feature.py313.dependencies]
-"python" = "3.13.*"
+python = "3.13.*"
 
 [tool.pixi.pypi-dependencies]
 climateeval = { path = ".", editable = true }
@@ -90,7 +91,15 @@ platforms = ["linux-64", "osx-arm64"]
 
 
 [tool.pytest.ini_options]
-addopts = ["-ra", "--strict-config", "--strict-markers"]
+addopts = [
+    "-ra",
+    "--strict-config",
+    "--strict-markers",
+    "--doctest-modules",
+    "--cov-report=xml:test-reports/coverage.xml",
+    "--cov-report=html:test-reports/coverage_html",
+    "--html=test-reports/report.html",
+]
 minversion = "6.0"
 xfail_strict = true
 
