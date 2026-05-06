@@ -73,7 +73,7 @@ def main() -> None:
         diagnostic_kwargs={
             "data_root_dir": data_root_dir,
             "fail_on_missing_data": False,
-            "download_missing_data": True,
+            "download_missing_data": False,
         },
         variable_kwargs={
             "timerange": "20000101/20011231",
