@@ -36,6 +36,7 @@ dependencies = [
     "pandas>=3",
     "pyyaml",
     "scitools-iris",
+    "tzdata",  # required by ibis-framework
     "xarray",
 ]
 
@@ -47,8 +48,8 @@ ignore-words-list = "vas"
 [tool.pixi.dependencies]
 cdsapi = "*"
 cf-units = "*"
-esmvalcore = "*"
-esmvaltool = "*"
+esmvalcore = ">=2.14.0"
+esmvaltool-python = ">=2.14.0"
 ibis-framework = "*"
 intake-esgf = "*"
 iris = "*"
@@ -57,6 +58,7 @@ ncdata = "*"
 numpy = "*"
 pandas = ">=3"
 pyyaml = "*"
+tzdata = "*"  # required by ibis-framework
 xarray = "*"
 
 [tool.pixi.environments]
@@ -84,7 +86,7 @@ climateeval = { path = ".", editable = true }
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["linux-64"]
+platforms = ["linux-64", "osx-arm64"]
 
 
 [tool.pytest.ini_options]
