@@ -315,6 +315,14 @@ def test_simple_diagnostics(
     expected_metrics_annual_cycle = ibis.memtable(
         pd.DataFrame(
             {
+                "data_id": pd.Series(
+                    ["C_N_E_V", "C_N_E_V", "reanalysis_ERA5"],
+                    dtype="str",
+                ),
+                "reference_data_id": pd.Series(
+                    ["reanalysis_ERA5", "observation_GPCP", "observation_GPCP"],
+                    dtype="str",
+                ),
                 "var_id": pd.Series(["tas", "mypr", "mypr"], dtype="str"),
                 "weighted_rmse": pd.Series(
                     [10.965857, 3476.613525, 3476.613525],
@@ -324,14 +332,6 @@ def test_simple_diagnostics(
                 "weighted_emd": pd.Series(
                     [9.87, 3441.8474, 3441.8474],
                     dtype="float32",
-                ),
-                "data_id": pd.Series(
-                    ["C_N_E_V", "C_N_E_V", "reanalysis_ERA5"],
-                    dtype="str",
-                ),
-                "reference_data_id": pd.Series(
-                    ["reanalysis_ERA5", "observation_GPCP", "observation_GPCP"],
-                    dtype="str",
                 ),
             },
         ),
@@ -343,6 +343,14 @@ def test_simple_diagnostics(
     expected_metrics_timeseries = ibis.memtable(
         pd.DataFrame(
             {
+                "data_id": pd.Series(
+                    ["C_N_E_V", "C_N_E_V", "reanalysis_ERA5"],
+                    dtype="str",
+                ),
+                "reference_data_id": pd.Series(
+                    ["reanalysis_ERA5", "observation_GPCP", "observation_GPCP"],
+                    dtype="str",
+                ),
                 "var_id": pd.Series(["ta1000", "mypr", "mypr"], dtype="str"),
                 "weighted_rmse": pd.Series(
                     [10.404326, 3001.802979, 3001.802979],
@@ -352,14 +360,6 @@ def test_simple_diagnostics(
                 "weighted_emd": pd.Series(
                     [8.3475, 2940.082, 2940.082],
                     dtype="float32",
-                ),
-                "data_id": pd.Series(
-                    ["C_N_E_V", "C_N_E_V", "reanalysis_ERA5"],
-                    dtype="str",
-                ),
-                "reference_data_id": pd.Series(
-                    ["reanalysis_ERA5", "observation_GPCP", "observation_GPCP"],
-                    dtype="str",
                 ),
             },
         ),

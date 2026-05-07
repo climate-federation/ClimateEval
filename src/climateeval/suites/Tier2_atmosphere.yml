@@ -8,19 +8,22 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
     var_name: clt
     frequency: mon
     reference_data: climateeval.data.ESACCICloud
-    other_data: [climateeval.data.ERA5]
+    other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
   clwvi:
     var_name: clwvi
     frequency: mon
     reference_data: climateeval.data.ESACCICloud
+    other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
   hfls:
     var_name: hfls
     frequency: mon
     reference_data: climateeval.data.MERRA2
+    other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
   hfss:
     var_name: hfss
     frequency: mon
     reference_data: climateeval.data.MERRA2
+    other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
   hus400:
     var_name: hus
     frequency: mon
@@ -44,21 +47,22 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
     frequency: mon
     units: mm day-1
     reference_data: climateeval.data.GPCP
-    other_data: [climateeval.data.ERA5]
+    other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
   prw:
     var_name: prw
     frequency: mon
     reference_data: climateeval.data.MERRA2
+    other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
   rlut:
     var_name: rlut
     frequency: mon
     reference_data: climateeval.data.CERESEBAF
-    other_data: [climateeval.data.ESACCICloud]
+    other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
   rsut:
     var_name: rsut
     frequency: mon
     reference_data: climateeval.data.CERESEBAF
-    other_data: [climateeval.data.ESACCICloud]
+    other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
   rtnt:
     var_name: rtnt
     frequency: mon
@@ -88,7 +92,7 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
     var_name: tas
     frequency: mon
     reference_data: climateeval.data.HadCRUT5
-    other_data: [climateeval.data.ERA5]
+    other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
   ua200:
     var_name: ua
     frequency: mon

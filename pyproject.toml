@@ -28,7 +28,7 @@ dependencies = [
     "cf-units",
     "esmvalcore",
     "esmvaltool",
-    "ibis-framework[duckdb]",
+    "ibis-framework",
     "intake-esgf",
     "loguru",
     "ncdata",
@@ -36,25 +36,73 @@ dependencies = [
     "pandas>=3",
     "pyyaml",
     "scitools-iris",
+    "tzdata",  # required by ibis-framework
     "xarray",
 ]
 
-[project.optional-dependencies]
-develop = [
-    "pre-commit",
-    "pytest",
-    "pytest-cov",
-    "pytest-mock",
-    "pytest-xdist",
-]
 
 [tool.codespell]
 ignore-words-list = "vas"
 
+
+[tool.pixi.dependencies]
+cdsapi = "*"
+cf-units = "*"
+esmvalcore = ">=2.14.0"
+esmvaltool-python = ">=2.14.0"
+ibis-framework = "*"
+intake-esgf = "*"
+iris = "*"
+loguru = "*"
+ncdata = "*"
+numpy = "*"
+pandas = ">=3"
+pyyaml = "*"
+tzdata = "*"  # required by ibis-framework
+xarray = "*"
+
+[tool.pixi.environments]
+default = { features= ["dev", "test"], solve-group = "default" }
+test-py312 = { features = ["py312", "test"], solve-group = "py312" }
+test-py313 = { features = ["py313", "test"], solve-group = "py313" }
+
+[tool.pixi.feature.dev.dependencies]
+pre-commit = "*"
+
+[tool.pixi.feature.test.dependencies]
+pytest = "*"
+pytest-cov = "*"
+pytest-html = "*"
+pytest-mock = "*"
+pytest-xdist = "*"
+
+[tool.pixi.feature.py312.dependencies]
+python = "3.12.*"
+
+[tool.pixi.feature.py313.dependencies]
+python = "3.13.*"
+
+[tool.pixi.pypi-dependencies]
+climateeval = { path = ".", editable = true }
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64"]
+
+
 [tool.pytest.ini_options]
-addopts = ["-ra", "--strict-config", "--strict-markers"]
+addopts = [
+    "-ra",
+    "--strict-config",
+    "--strict-markers",
+    "--doctest-modules",
+    "--cov-report=xml:test-reports/coverage.xml",
+    "--cov-report=html:test-reports/coverage_html",
+    "--html=test-reports/report.html",
+]
 minversion = "6.0"
 xfail_strict = true
+
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -65,6 +113,10 @@ ignore = [
 future-annotations = true
 
 [tool.ruff.lint.per-file-ignores]
+"*example.py" = [
+    "ERA001",     # Found commented-out code
+    "T201",       # `print` found
+]
 "generate_html.py" = [
     "E501",       # Line too long
 ]
