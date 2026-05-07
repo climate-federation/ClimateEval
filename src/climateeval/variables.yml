@@ -1,5 +1,12 @@
 # Atmosphere
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_atmos.json
+chl:
+  coordinates: [time,lat, lon]
+  long_name: "Mass Concentration of Total Phytoplankton Expressed as Chlorophyll in Sea Water"
+  realm: "ocnBgchem"
+  standard_name: "mass_concentration_of_phytoplankton_expressed_as_chlorophyll_in_sea_water"
+  units: "kg m-3"
+
 cl:
   coordinates: [time, alevel, lat, lon]
   long_name: Percentage Cloud Cover

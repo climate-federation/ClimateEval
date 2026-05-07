@@ -21,22 +21,7 @@ from climateeval.data import DataSourceInformation  # noqa: E402
 from climateeval.suites import Suite  # noqa: E402
 
 variables = (
-    "clivi",
-    "clt",
-    "clwvi",
-    "hfls",
-    "hfss",
-    "hus",
-    "pr",
-    "prw",
-    "rlut",
-    "rlutcs",
-    "rsdt",
-    "rsut",
-    "rsutcs",
-    "ta",
-    "tas",
-    "ua",
+    "chl"
 )
 paths = [
     f"/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/{var}/gn/v20190710/{var}_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc"
@@ -48,8 +33,8 @@ with warnings.catch_warnings():
     cubes = iris.load(paths)
 
 
-suite = "Tier2_atmosphere"
-data_root_dir = Path("/work/bd1179/b309141/climateeval_input")
+suite = "Tier2_ocean"
+data_root_dir = Path("/work/bd1179/b384036/climateeval_input")
 db_path = Path(f"{suite}.ddb")
 if db_path.is_file():
     db_path.unlink()
@@ -73,7 +58,7 @@ suite = Suite(
         "download_missing_data": False,
     },
     variable_kwargs={
-        "timerange": "20000101/20011231",
+        "timerange": "19970101/20150101",
     },
 )
 con = suite.get_database(cubes, data_info, database_resource=f"duckdb://{db_path}")

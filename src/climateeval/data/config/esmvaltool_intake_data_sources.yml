@@ -57,6 +57,15 @@ CMIP3:
         frequency: time_frequency
         project: project
         short_name: variable
+
+ESACCI-OC:
+  data:
+    local:
+      type: climateeval.data._esacci_chl.ESACCIOC
+      priority: 1
+      rootpath: /work/bd0854/DATA/ESMValTool2/OBS
+      tier: Tier2
+
 obs4MIPs:
   data:
     intake-esgf-v2:
