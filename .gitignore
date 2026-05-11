@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ESMValTool diagnostic outputs
+*.ddb
+Tier2_ocean_report.html
+phase_a_figures/
+cache/
