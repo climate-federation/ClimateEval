@@ -3,7 +3,7 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
     var_name: chl
     frequency: mon
     reference_data: climateeval.data.ESACCIOC
-    
+
 climateeval.diags.simple.AnnualCycleSpatialDistribution: *2d_variables
 
 climateeval.diags.simple.Map: *2d_variables
@@ -11,4 +11,3 @@ climateeval.diags.simple.Map: *2d_variables
 climateeval.diags.simple.TimeSeries: *2d_variables
 
 climateeval.diags.simple.ZonalLine: *2d_variables
-

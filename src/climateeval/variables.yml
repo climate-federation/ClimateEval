@@ -190,25 +190,25 @@ zg:
 # Ocean
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_ocean.json
 so:
-  coordinates: [time, olevel, lon, lat]
+  coordinates: [time, olevel, lat, lon]
   long_name: Sea Water Salinity
   realm: ocean
   standard_name: sea_water_salinity
   units: "1E-03"
 phcint:
-  coordinates: [time, olevel, lon, lat]
+  coordinates: [time, olevel, lat, lon]
   long_name: Integrated Ocean Heat Content from Potential Temperature
   realm: ocean
   standard_name: integral_wrt_depth_of_sea_water_potential_temperature_expressed_as_heat_content
   units: J m-2
 thetao:
-  coordinates: [time, olevel, lon, lat]
+  coordinates: [time, olevel, lat, lon]
   long_name: Sea Water Potential Temperature
   realm: ocean
   standard_name: sea_water_potential_temperature
   units: degC
 tos:
-  coordinates: [time, lon, lat]
+  coordinates: [time, lat, lon]
   long_name: Sea Surface Temperature
   realm: ocean
   standard_name: sea_surface_temperature
@@ -217,7 +217,7 @@ tos:
 # Ocean biogeochemistry
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_ocnBgchem.json
 chl:
-  coordinates: [time,lat, lon]
+  coordinates: [time, lat, lon]
   long_name: Mass Concentration of Total Phytoplankton Expressed as Chlorophyll in Sea Water
   realm: ocnBgchem
   standard_name: mass_concentration_of_phytoplankton_expressed_as_chlorophyll_in_sea_water
