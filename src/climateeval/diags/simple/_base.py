@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self
 import ibis
 import pandas as pd
 from esmvalcore.preprocessor import distance_metric
-from ibis import _
 from iris.warnings import IrisVagueMetadataWarning
 from loguru import logger
 
@@ -201,7 +200,16 @@ class SimpleDiagnostic(Diagnostic):
         ]
         if raw_output_tables:
             raw_output_table = union(*raw_output_tables)
-            raw_output_table = self._remove_superfluous_rows(raw_output_table)
+            unique_columns = (
+                self._DATA_ID_COLUMN,
+                self._DATA_TYPE_COLUMN,
+                *self._final_coordinate_names,
+            )
+            raw_output_table = self._remove_superfluous_rows(
+                raw_output_table,
+                unique_columns=unique_columns,
+                variable_columns=(v.id for v in self._variables),
+            )
             raw_output_table = self._sort_raw_output_columns(raw_output_table)
         else:
             raw_output_table = None
@@ -243,10 +251,10 @@ class SimpleDiagnostic(Diagnostic):
         metrics = ibis.memtable(
             pd.DataFrame(
                 {
-                    self._VARIABLE_ID_COLUMN: variable.id,
-                    **self._get_metrics(cube, reference_cube),
                     self._DATA_ID_COLUMN: data_id,
                     self._REFERENCE_DATA_ID_COLUMN: self._reference_data[variable].id,
+                    self._VARIABLE_ID_COLUMN: variable.id,
+                    **self._get_metrics(cube, reference_cube),
                 },
                 index=[0],
             ),
@@ -410,27 +418,6 @@ class SimpleDiagnostic(Diagnostic):
     @abstractmethod
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess cube."""
-
-    def _remove_superfluous_rows(self, table: ibis.Table) -> ibis.Table:
-        """Drop superfluous rows by removing NaN entries.
-
-        Note
-        ----
-        Currently, we first add NaNs and then remove it again. The reason for
-        this is that the logic is simple and the code robust. There are
-        certainly smarter and more efficient ways to do this, but since our
-        tables are usually quite small, it's probably not necessary.
-
-        """
-        unique_columns = (
-            self._DATA_ID_COLUMN,
-            self._DATA_TYPE_COLUMN,
-            *self._final_coordinate_names,
-        )
-        table = table.group_by(unique_columns).aggregate(
-            **{v.id: _[v.id].first() for v in self._variables},
-        )
-        return table.drop_null([v.id for v in self._variables], how="all")
 
     def _safely_preprocess(self, cube: Cube) -> Cube:
         """Safely preprocess cube."""

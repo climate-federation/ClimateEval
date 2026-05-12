@@ -3,12 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+
 from climateeval.diags.simple import TimeSeries
 
 if TYPE_CHECKING:
+    from iris.cube import Cube
+
     from climateeval import Variable
     from climateeval.diags.simple import SimpleDiagnosticInputData
-    from iris.cube import Cube
 
 
 @pytest.fixture

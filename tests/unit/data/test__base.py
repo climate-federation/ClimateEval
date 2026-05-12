@@ -4,6 +4,7 @@ import re
 from typing import TYPE_CHECKING
 
 import pytest
+
 from climateeval.data import DataSource
 
 if TYPE_CHECKING:

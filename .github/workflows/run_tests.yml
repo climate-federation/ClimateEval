@@ -13,52 +13,43 @@ on:
   schedule:
     - cron: "0 0 * * *"  # once per day
 
-# Required shell entrypoint to have properly configured bash shell
 defaults:
   run:
-    shell: bash -l {0}
+    shell: pixi run bash -e {0}
 
 jobs:
-  run_tests_on_linux:
-    runs-on: ubuntu-latest
+  test:
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13"]
-    name: Run tests on Linux Python ${{ matrix.python-version }}
+        os:
+          - ubuntu-latest
+          - macos-latest
+        environment:
+          - test-py312
+          - test-py313
+    name: ${{ matrix.os }} ${{ matrix.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Setup Conda environment
-        uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
+      - name: Install ClimateEval
+        uses: prefix-dev/setup-pixi@1b2de7f3351f171c8b4dfeb558c639cb58ed4ec0 # v0.9.5
         with:
-          activate-environment: climateeval
-          environment-file: environment.yml
-          python-version: ${{ matrix.python-version }}
-          miniforge-version: latest
-          use-mamba: true
-      - name: Create artifacts directory
-        run: mkdir -p test_linux_artifacts_python_${{ matrix.python-version }}
-      - name: Report Conda version
-        run: conda --version 2>&1 | tee test_linux_artifacts_python_${{ matrix.python-version }}/conda_version.txt
-      - name: Report Python version
-        run: python -V 2>&1 | tee test_linux_artifacts_python_${{ matrix.python-version }}/python_version.txt
-      - name: Show environment
-        run: conda list
-      - name: Install
-        run: pip install --no-deps -e .[develop] 2>&1 | tee test_linux_artifacts_python_${{ matrix.python-version }}/install.txt
-      - name: Show environment
-        run: conda list
-      # - name: Check dependencies
-      #   run: pip check
+          frozen: true
+          environments: ${{ matrix.environment }}
+      - name: Check dependencies are compatible
+        run: pip check
+      - name: Check code quality
+        run: pre-commit run --all
       - name: Run tests
-        run: pytest -n 2 -vv 2>&1 | tee test_linux_artifacts_python_${{ matrix.python-version }}/test_report.txt
+        run: pytest -n 2 --durations=10
       - name: Upload artifacts
+        if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: ${{ always() }} # upload artifacts even if fail
         with:
-          name: Test_Linux_python_${{ matrix.python-version }}
-          path: test_linux_artifacts_python_${{ matrix.python-version }}
+          name: Test_reports_${{ matrix.os }}_${{ matrix.environment }}
+          path: test-reports

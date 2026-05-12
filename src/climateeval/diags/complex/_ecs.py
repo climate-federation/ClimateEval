@@ -28,6 +28,7 @@ from climateeval.data import (
     DataSourceInformation,
 )
 from climateeval.data._esmvaltool_intake import filter_intake_data_sources
+from climateeval.diags._base import DiagnosticOutput
 from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.complex._base import ComplexDiagnostic
 
@@ -53,11 +54,26 @@ class ECS(ComplexDiagnostic):
     """
 
     _REQUIRED_DATA_KEYS = ("4xco2", "picontrol")
+
+    # Input variables
     _RLUT: ClassVar[Variable] = Variable("rlut", "rlut", "mon")
     _RSDT: ClassVar[Variable] = Variable("rsdt", "rsdt", "mon")
     _RSUT: ClassVar[Variable] = Variable("rsut", "rsut", "mon")
     _RTNT: ClassVar[Variable] = Variable("rtnt", "rtnt", "mon")
     _TAS: ClassVar[Variable] = Variable("tas", "tas", "mon")
+
+    # Output variables
+    _ECS: ClassVar[Variable] = Variable("ecs", "ecs", "fx")
+    _F2X: ClassVar[Variable] = Variable("f2x", "f2x", "fx")
+    _F4X: ClassVar[Variable] = Variable("f4x", "f4x", "fx")
+    _LAMBDA: ClassVar[Variable] = Variable("lambda", "lambda", "fx")
+    _LAMBDA_STDERR: ClassVar[Variable] = Variable(
+        "lambda_stderr",
+        "lambda_stderr",
+        "fx",
+    )
+    _P_VALUE: ClassVar[Variable] = Variable("p_value", "p_value", "fx")
+    _R2: ClassVar[Variable] = Variable("r2", "r2", "fx")
 
     def __init__(
         self,
@@ -72,6 +88,11 @@ class ECS(ComplexDiagnostic):
             fail_on_missing_data=fail_on_missing_data,
             **kwargs,
         )
+        if "year_slice" in self._kwargs and not isinstance(
+            self._kwargs["year_slice"],
+            slice,
+        ):
+            self._kwargs["year_slice"] = slice(*self._kwargs["year_slice"])
         self._years_slice: slice = self._kwargs.get("year_slice", slice(None, 150))
         logger.debug(f"Using year slice '{self._years_slice}' for Gregory regression")
 
@@ -120,19 +141,13 @@ class ECS(ComplexDiagnostic):
         reg = stats.linregress(tas_cube.data, rtnt_cube.data)
 
         return {
-            Variable("ecs", "ecs", "fx"): Cube(
-                -reg.intercept / 2.0 / reg.slope,
-                var_name="ecs",
-            ),
-            Variable("f2x", "f2x", "fx"): Cube(reg.intercept / 2.0, var_name="f2x"),
-            Variable("f4x", "f4x", "fx"): Cube(reg.intercept, var_name="f2x"),
-            Variable("lambda", "lambda", "fx"): Cube(reg.slope, var_name="lambda"),
-            Variable("lambda_stderr", "lambda_stderr", "fx"): Cube(
-                reg.stderr,
-                var_name="lambda_stderr",
-            ),
-            Variable("p_value", "p_value", "fx"): Cube(reg.pvalue, var_name="p_value"),
-            Variable("r2", "r2", "fx"): Cube(reg.rvalue**2, var_name="r2"),
+            self._ECS: Cube(-reg.intercept / 2.0 / reg.slope, var_name="ecs"),
+            self._F2X: Cube(reg.intercept / 2.0, var_name="f2x"),
+            self._F4X: Cube(reg.intercept, var_name="f2x"),
+            self._LAMBDA: Cube(reg.slope, var_name="lambda"),
+            self._LAMBDA_STDERR: Cube(reg.stderr, var_name="lambda_stderr"),
+            self._P_VALUE: Cube(reg.pvalue, var_name="p_value"),
+            self._R2: Cube(reg.rvalue**2, var_name="r2"),
         }
 
     def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
@@ -180,10 +195,10 @@ class ECS(ComplexDiagnostic):
 
             data_information = DataSourceInformation(
                 name=dataset,
-                category="CMIP6",
-                institute=data_source_4xco2.information.category,
+                category=data_source_4xco2.information.category,
+                institute=data_source_4xco2.information.institute,
                 exp="piControl abrupt-4xCO2",
-                variant="r1i1p1f1",
+                variant=data_source_4xco2.information.variant,
                 references=data_source_4xco2.information.references,
             )
 
@@ -211,6 +226,41 @@ class ECS(ComplexDiagnostic):
                     self._handle_missing_data(data_source_4xco2.id, variables, exc)
                     continue
             yield ComplexDataSource(data=data, information=data_information)
+
+    def _postprocess_output(self, output: DiagnosticOutput) -> DiagnosticOutput:
+        """Postprocess diagnostic output."""
+        if output.raw_output is None:
+            return output
+
+        # Drop unused column
+        raw_output = output.raw_output.drop("level_0")
+
+        # Remove superfluous rows
+        unique_columns = (self._DATA_ID_COLUMN, self._DATA_TYPE_COLUMN)
+        variables = (
+            self._ECS.id,
+            self._F2X.id,
+            self._F4X.id,
+            self._LAMBDA.id,
+            self._LAMBDA_STDERR.id,
+            self._P_VALUE.id,
+            self._R2.id,
+        )
+        raw_output = self._remove_superfluous_rows(
+            raw_output,
+            unique_columns=unique_columns,
+            variable_columns=variables,
+        )
+
+        # Sort columns
+        raw_output = raw_output.select((*unique_columns, *variables))
+
+        return DiagnosticOutput(
+            raw_output=raw_output,
+            metrics=output.metrics,
+            variables=output.variables,
+            data_sources=output.data_sources,
+        )
 
     def _preprocess(self, cube: Cube) -> Cube:
         """Preprocess data."""
