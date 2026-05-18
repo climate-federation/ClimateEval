@@ -53,10 +53,19 @@ def test_check_coordinates_1d(
         [[[0.0]]],
         dim_coords_and_dims=[(time_coord, 0), (lat_coord_1d, 1), (lon_coord_1d, 2)],
     )
-    check_coordinates(
+
+    cube = check_coordinates(
         cube,
         [Coordinate("time"), Coordinate("lat"), Coordinate("lon")],
     )
+
+    for name in ("var_name", "standard_name", "long_name"):
+        assert getattr(cube.coord("time"), name) == getattr(Coordinate("time"), name)
+        assert getattr(cube.coord("latitude"), name) == getattr(Coordinate("lat"), name)
+        assert getattr(cube.coord("longitude"), name) == getattr(
+            Coordinate("lon"),
+            name,
+        )
 
 
 def test_check_coordinates_1d_fail(
@@ -86,10 +95,19 @@ def test_check_coordinates_2d(
         dim_coords_and_dims=[(time_coord, 0)],
         aux_coords_and_dims=[(lat_coord_2d, (1, 2)), (lon_coord_2d, (1, 2))],
     )
-    check_coordinates(
+
+    cube = check_coordinates(
         cube,
         [Coordinate("time"), Coordinate("lat"), Coordinate("lon")],
     )
+
+    for name in ("var_name", "standard_name", "long_name"):
+        assert getattr(cube.coord("time"), name) == getattr(Coordinate("time"), name)
+        assert getattr(cube.coord("latitude"), name) == getattr(Coordinate("lat"), name)
+        assert getattr(cube.coord("longitude"), name) == getattr(
+            Coordinate("lon"),
+            name,
+        )
 
 
 def test_check_coordinates_2d_fail(
@@ -128,7 +146,15 @@ def test_check_coordinates_general_coord_1d(
     alevel_coord_1d: DimCoord,
 ) -> None:
     cube = Cube([[0.0]], dim_coords_and_dims=[(time_coord, 0), (alevel_coord_1d, 1)])
-    check_coordinates(cube, [Coordinate("time"), Coordinate("alevel")])
+
+    cube = check_coordinates(cube, [Coordinate("time"), Coordinate("alevel")])
+
+    for name in ("var_name", "standard_name", "long_name"):
+        assert getattr(cube.coord("time"), name) == getattr(Coordinate("time"), name)
+        assert getattr(cube.coord(alevel_coord_1d.name()), name) == getattr(
+            Coordinate(alevel_coord_1d.var_name),
+            name,
+        )
 
 
 def test_check_coordinates_general_coord_1d_fail(
@@ -153,7 +179,15 @@ def test_check_coordinates_general_coord_2d(
         dim_coords_and_dims=[(time_coord, 0)],
         aux_coords_and_dims=[(alevel_coord_2d, (1, 2))],
     )
-    check_coordinates(cube, [Coordinate("time"), Coordinate("alevel")])
+
+    cube = check_coordinates(cube, [Coordinate("time"), Coordinate("alevel")])
+
+    for name in ("var_name", "standard_name", "long_name"):
+        assert getattr(cube.coord("time"), name) == getattr(Coordinate("time"), name)
+        assert getattr(cube.coord(alevel_coord_2d.name()), name) == getattr(
+            Coordinate(alevel_coord_2d.var_name),
+            name,
+        )
 
 
 def test_check_coordinates_general_coord_2d_fail(
