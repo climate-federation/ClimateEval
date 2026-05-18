@@ -59,14 +59,14 @@ When inspecting databases, use `ibis`.
 - `_annual_cycle_spatial_distribution.py` - `AnnualCycleSpatialDistribution` diagnostic: evaluates monthly spatial fields; outputs only metrics (no data table)
 - `_diurnal_cycle.py` - `DiurnalCycle` diagnostic: evaluates diurnal cycle via hourly climatology in local solar time
 - `_map.py` - `Map` diagnostic: regrid to 2x2, compute spatial mean; output coordinates: latitude, longitude
-- `_timeseries.py` - `TimeSeries` diagnostic: regrid to 2x2, area mean, annual mean; output coordinates: time
+- `_timeseries.py` - `AnnualMeanTimeSeries` diagnostic: regrid to 2x2, area mean, annual mean; output coordinates: time
 - `_zonal_line.py` - `ZonalLine` diagnostic: zonal mean fields; output coordinates: latitude
 - `_zonal_profile.py` - `ZonalProfileAirPressure` diagnostic: vertical profiles of humidity/temperature/wind; output coordinates: air_pressure, latitude
 
 ### Suites (`src/climateeval/suites/`)
 
 - `_base.py` - `Suite` class: reads a YAML suite definition, builds diagnostics, orchestrates execution, and writes results to an Ibis/DuckDB backend
-- `Tier2_atmosphere.yml` - YAML-defined suite: 19 2-D variables (clivi, clt, clwvi, hfls, hfss, hus400, lwcre, lwp, pr, prw, rlut, rsut, rtnt, swcre, ta200, ta800, tas, ua200, ua800) across five 2-D diagnostics (AnnualCycle, AnnualCycleSpatialDistribution, Map, TimeSeries, ZonalLine) plus 3 3-D variables (hus, ta, ua) for ZonalProfileAirPressure
+- `Tier2_atmosphere.yml` - YAML-defined suite: 19 2-D variables (clivi, clt, clwvi, hfls, hfss, hus400, lwcre, lwp, pr, prw, rlut, rsut, rtnt, swcre, ta200, ta800, tas, ua200, ua800) across five 2-D diagnostics (AnnualCycle, AnnualCycleSpatialDistribution, Map, AnnualMeanTimeSeries, ZonalLine) plus 3 3-D variables (hus, ta, ua) for ZonalProfileAirPressure
 
 ### Data Sources (`src/climateeval/data/`)
 
@@ -117,7 +117,7 @@ import ibis
 conn = ibis.connect("duckdb://climateeval.ddb")
 
 # List diagnostic databases
-dbs = conn.list_databases()  # e.g., ['AnnualCycle', 'AnnualCycleSpatialDistribution', 'Map', 'TimeSeries', 'ZonalLine', 'ZonalProfileAirPressure']
+dbs = conn.list_databases()  # e.g., ['AnnualCycle', 'AnnualCycleSpatialDistribution', 'Map', 'AnnualMeanTimeSeries', 'ZonalLine', 'ZonalProfileAirPressure']
 
 # Access tables within a diagnostic
 raw_output = conn.table("raw_output", database="Map")
@@ -147,7 +147,7 @@ climateeval.ddb
 │   ├── metrics
 │   ├── variables
 │   └── data_sources
-├── TimeSeries/
+├── AnnualMeanTimeSeries/
 │   ├── raw_output      # Temporal data (time coordinate, annual means)
 │   ├── metrics
 │   ├── variables
@@ -178,7 +178,7 @@ configuration.
 | AnnualCycle                    | `month_number` (float, 1–12) |
 | AnnualCycleSpatialDistribution | `month_number`, `lat`, `lon` |
 | Map                            | `latitude`, `longitude`      |
-| TimeSeries                     | `time` (timestamp)           |
+| AnnualMeanTimeSeries           | `time` (timestamp)           |
 | ZonalLine                      | `latitude`                   |
 | ZonalProfileAirPressure        | `air_pressure`, `latitude`   |
 
