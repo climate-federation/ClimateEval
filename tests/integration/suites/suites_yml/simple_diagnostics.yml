@@ -15,7 +15,7 @@ climateeval.diags.simple.AnnualCycle:
     timerange: 19700101/19701231
     units: g m-2 s-1
 
-climateeval.diags.simple.TimeSeries:
+climateeval.diags.simple.AnnualMeanTimeSeries:
   ta1000:
     var_name: ta
     frequency: mon

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from iris.cube import Cube
 
 
-class TimeSeries(SimpleDiagnostic):
+class AnnualMeanTimeSeries(SimpleDiagnostic):
     """Manage timeseries diagnostics."""
 
     _FINAL_COORDINATES = (Coordinate("time"),)

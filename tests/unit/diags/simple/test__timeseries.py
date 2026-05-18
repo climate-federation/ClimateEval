@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from climateeval.diags.simple import TimeSeries
+from climateeval.diags.simple import AnnualMeanTimeSeries
 
 if TYPE_CHECKING:
     from iris.cube import Cube
@@ -16,9 +16,9 @@ if TYPE_CHECKING:
 @pytest.fixture
 def diagnostic(
     variables_and_data_2d: dict[Variable, SimpleDiagnosticInputData],
-) -> TimeSeries:
-    return TimeSeries(variables_and_data_2d)
+) -> AnnualMeanTimeSeries:
+    return AnnualMeanTimeSeries(variables_and_data_2d)
 
 
-def test__safely_preprocess(diagnostic: TimeSeries, cube_2d: Cube) -> None:
+def test__safely_preprocess(diagnostic: AnnualMeanTimeSeries, cube_2d: Cube) -> None:
     diagnostic._safely_preprocess(cube_2d)
