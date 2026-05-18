@@ -283,11 +283,15 @@ class SimpleDiagnostic(Diagnostic):
                     module="iris",
                 )
                 with setup_esmvaltool_config_and_logging():
-                    metrics[metric] = float(
-                        distance_metric([cube], metric, reference=reference_cube)[
-                            0
-                        ].data,
-                    )
+                    try:
+                        metrics[metric] = float(
+                            distance_metric([cube], metric, reference=reference_cube)[
+                                0
+                            ].data,
+                        )
+                    except Exception as exc:
+                        msg = f"Calculation of metric '{metric}' failed: {exc}"
+                        raise ValueError(msg) from exc
         return metrics
 
     def _get_output_of_other_data(
