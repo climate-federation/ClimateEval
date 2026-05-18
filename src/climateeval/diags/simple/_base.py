@@ -290,7 +290,10 @@ class SimpleDiagnostic(Diagnostic):
                             ].data,
                         )
                     except Exception as exc:
-                        msg = f"Calculation of metric '{metric}' failed: {exc}"
+                        msg = (
+                            f"Calculation of metric '{metric}' for variable "
+                            f"'{cube.var_name}' failed: {exc}"
+                        )
                         raise ValueError(msg) from exc
         return metrics
 
