@@ -208,13 +208,13 @@ def _check_data(cube: Cube, variable: Variable) -> None:
     if expected_min_year < actual_min_year:
         msg = (
             f"Selected timerange is {variable.timerange}, but data starts in "
-            f"year {actual_min_year} for cube \n{cube}"
+            f"year {actual_min_year} for {variable}"
         )
         raise MissingDataError(msg)
     if expected_max_year > actual_max_year:
         msg = (
             f"Selected timerange is {variable.timerange}, but data ends in "
-            f"year {actual_max_year} for cube \n{cube}"
+            f"year {actual_max_year} for {variable}"
         )
         raise MissingDataError(msg)
 
