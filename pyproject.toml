@@ -120,6 +120,9 @@ future-annotations = true
 "generate_html.py" = [
     "E501",       # Line too long
 ]
+"src/climateeval/report/*.py" = [
+    "E501",       # Line too long
+]
 "tests/**.py" = [
     "ARG001",     # Unused function arguments
     "D100",       # Missing docstring in public module

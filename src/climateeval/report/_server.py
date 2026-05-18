@@ -13,6 +13,7 @@ GET /api/figure/<tier>/<diag>/<var>     Plotly figure for one variable (JSON).
 GET /api/leaderboard                    Scoreboard + summary table (JSON).
 GET /plotly.js                          Bundled Plotly.js for offline use.
 """
+
 from __future__ import annotations
 
 import json
@@ -36,10 +37,10 @@ from ._leaderboard import build_leaderboard_data, build_scoreboard_figure
 # ---------------------------------------------------------------------------
 
 _STATE: dict[str, Any] = {
-    "tiers": [],        # list[dict]  – see _load_state()
+    "tiers": [],  # list[dict]  – see _load_state()
     "all_metrics": {},  # {tier_label: {diag_name: metrics_df}}
-    "fig_cache": {},    # {(tier_id, diag_name, var_id): go.Figure}
-    "html_shell": "",   # pre-rendered HTML shell served at GET /
+    "fig_cache": {},  # {(tier_id, diag_name, var_id): go.Figure}
+    "html_shell": "",  # pre-rendered HTML shell served at GET /
     "lb_json": b"{}",  # pre-built leaderboard JSON bytes
 }
 
@@ -47,6 +48,7 @@ _STATE: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 # Data loading
 # ---------------------------------------------------------------------------
+
 
 def _load_state(
     db_paths: list[Path],
@@ -60,6 +62,7 @@ def _load_state(
 
     for tier_idx, db_path in enumerate(db_paths):
         from ._html import _stem_to_label
+
         label = _stem_to_label(db_path.stem)
         db_data = read_database(db_path)
         if not db_data:
@@ -87,19 +90,26 @@ def _load_state(
                 "db_path": db_path,
                 "db_data": db_data,
                 "diag_types": diag_types,
-            }
+            },
         )
         all_metrics[label] = tier_metrics
 
     _STATE["tiers"] = tiers
     _STATE["all_metrics"] = all_metrics
-    _STATE["html_shell"] = build_html_shell(tiers, all_metrics, model_name, user_name, developer)
+    _STATE["html_shell"] = build_html_shell(
+        tiers,
+        all_metrics,
+        model_name,
+        user_name,
+        developer,
+    )
     _STATE["lb_json"] = _build_leaderboard_json()
 
 
 # ---------------------------------------------------------------------------
 # Figure building (lazy, cached per (tier_id, diag_name))
 # ---------------------------------------------------------------------------
+
 
 def _get_figure_json(tier_id: str, diag_name: str, var_id: str) -> bytes | None:
     """Return Plotly figure JSON bytes for one variable (builds + caches all vars on first call)."""
@@ -134,6 +144,7 @@ def _get_figure_json(tier_id: str, diag_name: str, var_id: str) -> bytes | None:
 # Leaderboard JSON
 # ---------------------------------------------------------------------------
 
+
 def _build_leaderboard_json() -> bytes:
     """Return the leaderboard payload (scoreboard figure + summary rows) as JSON bytes."""
     payload: dict[str, Any] = {}
@@ -165,6 +176,7 @@ def _build_leaderboard_json() -> bytes:
 # Structure API
 # ---------------------------------------------------------------------------
 
+
 def _build_structure() -> bytes:
     """Return the tier / diagnostic / variable structure as JSON bytes."""
     tiers_out = []
@@ -193,14 +205,13 @@ def _build_structure() -> bytes:
                     "type": dtype,
                     "label": _DIAG_LABELS.get(diag_name)
                     or _DIAG_LABELS.get(dtype, diag_name),
-                    "icon": _DIAG_ICONS.get(diag_name)
-                    or _DIAG_ICONS.get(dtype, ""),
+                    "icon": _DIAG_ICONS.get(diag_name) or _DIAG_ICONS.get(dtype, ""),
                     "variables": variables,
-                }
+                },
             )
 
         tiers_out.append(
-            {"id": tier["id"], "label": tier["label"], "diagnostics": diags_out}
+            {"id": tier["id"], "label": tier["label"], "diagnostics": diags_out},
         )
 
     return json.dumps({"tiers": tiers_out}).encode()
@@ -210,11 +221,17 @@ def _build_structure() -> bytes:
 # HTTP request handler
 # ---------------------------------------------------------------------------
 
+
 class _Handler(BaseHTTPRequestHandler):
-    def log_message(self, fmt: str, *args: Any) -> None:  # noqa: ANN002
+    def log_message(self, fmt: str, *args: Any) -> None:
         print(f"  {self.address_string()} {fmt % args}", flush=True)
 
-    def _send(self, body: bytes, content_type: str = "application/json", status: int = 200) -> None:
+    def _send(
+        self,
+        body: bytes,
+        content_type: str = "application/json",
+        status: int = 200,
+    ) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
@@ -222,7 +239,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
 
@@ -240,7 +257,7 @@ class _Handler(BaseHTTPRequestHandler):
 
         if path.startswith("/api/figure/"):
             # /api/figure/<tier_id>/<diag_name>/<var_id>
-            parts = path[len("/api/figure/"):].split("/", 2)
+            parts = path[len("/api/figure/") :].split("/", 2)
             if len(parts) != 3:
                 self._send(b'{"error":"bad request"}', status=400)
                 return
@@ -256,7 +273,9 @@ class _Handler(BaseHTTPRequestHandler):
             try:
                 import plotly as _plotly
 
-                js_path = Path(_plotly.__file__).parent / "package_data" / "plotly.min.js"
+                js_path = (
+                    Path(_plotly.__file__).parent / "package_data" / "plotly.min.js"
+                )
                 if js_path.exists():
                     self._send(js_path.read_bytes(), "application/javascript")
                     return
@@ -271,6 +290,7 @@ class _Handler(BaseHTTPRequestHandler):
 # ---------------------------------------------------------------------------
 # Public serve() function
 # ---------------------------------------------------------------------------
+
 
 def serve(
     db_paths: list[Path],
@@ -299,7 +319,10 @@ def serve(
     print("Loading databases…", flush=True)
     _load_state(db_paths, model_name, user_name, developer)
     n_tiers = len(_STATE["tiers"])
-    print(f"  Loaded {n_tiers} tier(s): {[t['label'] for t in _STATE['tiers']]}", flush=True)
+    print(
+        f"  Loaded {n_tiers} tier(s): {[t['label'] for t in _STATE['tiers']]}",
+        flush=True,
+    )
 
     if save_html is not None:
         print(f"Writing portable HTML to {save_html}…", flush=True)

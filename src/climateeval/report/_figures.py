@@ -1,4 +1,5 @@
 """All build_*_figures functions and related helpers for the benchmarking report."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -542,7 +543,7 @@ def build_map_figures(
     return figures
 
 
-def build_timeseries_figures(
+def build_annual_mean_timeseries_figures(
     data_df: pd.DataFrame,
     variables_df: pd.DataFrame,
     metrics_df: pd.DataFrame | None = None,
@@ -1297,12 +1298,7 @@ def build_zonal_profile_figures(
             ),
         )
         for ann in fig.layout.annotations:
-            if (
-                has_bias
-                and ann.text
-                and ref_label in ann.text
-                and "−" not in ann.text
-            ):
+            if has_bias and ann.text and ref_label in ann.text and "−" not in ann.text:
                 ann.font = {"size": 11, "color": "#a07000"}
                 ann.bgcolor = "rgba(192,134,10,0.08)"
                 ann.bordercolor = "#c0860a"
@@ -1350,7 +1346,11 @@ def build_bar_figures(
 
         # Compute a sensible x-axis padding so text labels are not clipped
         x_vals = sub[var_id].tolist()
-        x_range_pad = (max(x_vals) - min(x_vals)) * 0.15 if len(x_vals) > 1 else abs(x_vals[0]) * 0.15
+        x_range_pad = (
+            (max(x_vals) - min(x_vals)) * 0.15
+            if len(x_vals) > 1
+            else abs(x_vals[0]) * 0.15
+        )
 
         bars = go.Bar(
             x=x_vals,
@@ -1372,17 +1372,26 @@ def build_bar_figures(
                         x=[None],
                         y=[None],
                         orientation="h",
-                        name={"to_benchmark": "Model", "reference": "Reference", "other": "Other"}.get(dtype, dtype),
+                        name={
+                            "to_benchmark": "Model",
+                            "reference": "Reference",
+                            "other": "Other",
+                        }.get(dtype, dtype),
                         marker_color=color,
                         showlegend=True,
-                    )
+                    ),
                 )
 
         fig = go.Figure([bars, *legend_traces])
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
-                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
                 height=max(300 + 18 * len(sub), 400),
                 margin={"t": 70, "b": 50, "l": 240, "r": 80},
                 legend={
@@ -1399,7 +1408,7 @@ def build_bar_figures(
             ),
             xaxis={
                 **_AXIS_STYLE,
-                "title": {"text": units if units else var_id},
+                "title": {"text": units or var_id},
                 "range": [min(x_vals) - x_range_pad, max(x_vals) + x_range_pad],
             },
             yaxis={**_AXIS_STYLE, "title": ""},
@@ -1412,7 +1421,7 @@ def build_bar_figures(
 
 _FIGURE_BUILDERS = {
     "Map": build_map_figures,
-    "TimeSeries": build_timeseries_figures,
+    "AnnualMeanTimeSeries": build_annual_mean_timeseries_figures,
     "AnnualCycle": build_annual_cycle_figures,
     "ZonalLine": build_zonal_line_figures,
     "ZonalProfile": build_zonal_profile_figures,
@@ -1421,7 +1430,7 @@ _FIGURE_BUILDERS = {
 
 _DIAG_LABELS = {
     "Map": "Map",
-    "TimeSeries": "Time Series",
+    "AnnualMeanTimeSeries": "Time Series",
     "AnnualCycle": "Annual Cycle",
     "ZonalLine": "Zonal Mean",
     "ZonalProfile": "Zonal Profile",
@@ -1430,7 +1439,7 @@ _DIAG_LABELS = {
 
 _DIAG_ICONS = {
     "Map": "🗺",
-    "TimeSeries": "📈",
+    "AnnualMeanTimeSeries": "📈",
     "AnnualCycle": "📅",
     "ZonalLine": "〰",
     "ZonalProfile": "🌡",

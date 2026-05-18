@@ -1,4 +1,5 @@
 """HTML template rendering for the benchmarking report."""
+
 from __future__ import annotations
 
 import html as html_module
@@ -19,7 +20,6 @@ from ._leaderboard import (
     build_scoreboard_figure,
 )
 from ._style import _CSS, _JS
-
 
 # ---------------------------------------------------------------------------
 # HTML assembly helpers
@@ -331,7 +331,11 @@ def render_leaderboard_section(
 def _build_figures_for_tier(
     db_data: dict[str, dict[str, pd.DataFrame]],
     scope_prefix: str,
-) -> tuple[dict[str, tuple[str, pd.DataFrame]], dict[str, pd.DataFrame], dict[str, str]]:
+) -> tuple[
+    dict[str, tuple[str, pd.DataFrame]],
+    dict[str, pd.DataFrame],
+    dict[str, str],
+]:
     """Return (diag_sections, tier_metrics, diag_types) for one database.
 
     diag_sections: {diag_name: (html, variables_df)}
@@ -392,7 +396,10 @@ def _render_tier_panel(
 
     def _label(dname: str) -> str:
         # First try direct name, then fall back to detected type
-        return _DIAG_LABELS.get(dname) or _DIAG_LABELS.get(diag_types.get(dname, ""), dname)
+        return _DIAG_LABELS.get(dname) or _DIAG_LABELS.get(
+            diag_types.get(dname, ""),
+            dname,
+        )
 
     def _icon(dname: str) -> str:
         return _DIAG_ICONS.get(dname) or _DIAG_ICONS.get(diag_types.get(dname, ""), "")
@@ -486,7 +493,10 @@ def generate_portable_html(
             continue
 
         tier_id = f"tier{tier_idx}"
-        diag_sections, tier_metrics, diag_types = _build_figures_for_tier(db_data, tier_id)
+        diag_sections, tier_metrics, diag_types = _build_figures_for_tier(
+            db_data,
+            tier_id,
+        )
         all_metrics[label] = tier_metrics
         tiers.append((tier_id, label, db_path, diag_sections, tier_metrics, diag_types))
 
@@ -506,7 +516,7 @@ def generate_portable_html(
         "<div class='sidebar-divider'></div>"
         "<div class='sidebar-section-label'>Tiers</div>"
     )
-    for tier_id, label, *_ in tiers:  # noqa: B007
+    for tier_id, label, *_ in tiers:
         sidebar_items += (
             f"<div class='sidebar-item' data-section='{tier_id}' "
             f"onclick='sidebarNav(\"{tier_id}\")'>"
@@ -528,7 +538,12 @@ def generate_portable_html(
     all_panels = lb_panel
 
     for tier_id, label, db_path, diag_sections, tier_metrics, diag_types in tiers:
-        toolbar_html, panel_html = _render_tier_panel(tier_id, db_path, diag_sections, diag_types)
+        toolbar_html, panel_html = _render_tier_panel(
+            tier_id,
+            db_path,
+            diag_sections,
+            diag_types,
+        )
         all_toolbars += toolbar_html
         all_panels += panel_html
 
@@ -620,8 +635,8 @@ def build_html_shell(
     -------
         Full HTML string for the shell page served at GET /.
     """
-    from ._figures import _var_label
     from ._db import get_var_cols
+    from ._figures import _var_label
 
     now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -696,7 +711,7 @@ def build_html_shell(
 
         var_buttons = "".join(
             "<button class='var-pill {active}' data-var='{vid}' title='{vid}' "
-            "onclick='showVarPanel(\"{scope}\", \"{vid}\")'>{label}</button>".format(
+            'onclick=\'showVarPanel("{scope}", "{vid}")\'>{label}</button>'.format(
                 active="active" if v["id"] == first_var else "",
                 vid=html_module.escape(v["id"]),
                 scope=scope_id,
@@ -774,14 +789,14 @@ def build_html_shell(
         # Toolbar
         filter_btns = (
             f"<button class='diag-filter-btn active' data-diag='all' "
-            f"onclick='filterDiag(\"{tier_id}\",\"all\")'>All</button>"
+            f'onclick=\'filterDiag("{tier_id}","all")\'>All</button>'
         )
         for dname, dtype in diags_for_toolbar:
             label = _diag_label(dname, dtype)
             icon = _diag_icon(dname, dtype)
             filter_btns += (
                 f"<button class='diag-filter-btn' data-diag='{dname}' "
-                f"onclick='filterDiag(\"{tier_id}\",\"{dname}\")'>"
+                f'onclick=\'filterDiag("{tier_id}","{dname}")\'>'
                 f"{icon} {html_module.escape(label)}</button>"
             )
 
@@ -838,11 +853,14 @@ def build_html_shell(
     # Plotly.js tag (try bundled first, fall back to CDN)
     try:
         import plotly as _plotly
+
         js_path = Path(_plotly.__file__).parent / "package_data" / "plotly.min.js"
         if js_path.exists():
             plotly_tag = f"<script>{js_path.read_text()}</script>"
         else:
-            plotly_tag = '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
+            plotly_tag = (
+                '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
+            )
     except Exception:
         plotly_tag = '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
 

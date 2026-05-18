@@ -1,4 +1,5 @@
 """CSS, JS, colour constants and colorscale helpers for the benchmarking report."""
+
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------

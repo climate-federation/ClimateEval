@@ -100,7 +100,7 @@ def detect_diag_type(columns: list[str]) -> str:
     if "latitude" in cols:
         return "ZonalLine"
     if "time" in cols:
-        return "TimeSeries"
+        return "AnnualMeanTimeSeries"
     if "month_number" in cols:
         return "AnnualCycle"
     return "Unknown"
@@ -678,12 +678,12 @@ def build_map_figures(
     return figures
 
 
-def build_timeseries_figures(
+def build_annual_mean_timeseries_figures(
     data_df: pd.DataFrame,
     variables_df: pd.DataFrame,
     metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
-    """Annual time series, one figure per variable, all datasets overlaid.
+    """Annual mean time series, one figure per variable, all datasets overlaid.
 
     When a single reference dataset is available, a second panel shows the bias
     (dataset − reference) over the overlapping time range for every non-reference
@@ -1453,7 +1453,7 @@ def build_zonal_profile_figures(
 
 _FIGURE_BUILDERS = {
     "Map": build_map_figures,
-    "TimeSeries": build_timeseries_figures,
+    "AnnualMeanTimeSeries": build_annual_mean_timeseries_figures,
     "AnnualCycle": build_annual_cycle_figures,
     "ZonalLine": build_zonal_line_figures,
     "ZonalProfile": build_zonal_profile_figures,
@@ -1461,7 +1461,7 @@ _FIGURE_BUILDERS = {
 
 _DIAG_LABELS = {
     "Map": "Map",
-    "TimeSeries": "Time Series",
+    "AnnualMeanTimeSeries": "Time Series",
     "AnnualCycle": "Annual Cycle",
     "ZonalLine": "Zonal Mean",
     "ZonalProfile": "Zonal Profile",
@@ -1469,7 +1469,7 @@ _DIAG_LABELS = {
 
 _DIAG_ICONS = {
     "Map": "🗺",
-    "TimeSeries": "📈",
+    "AnnualMeanTimeSeries": "📈",
     "AnnualCycle": "📅",
     "ZonalLine": "〰",
     "ZonalProfile": "🌡",

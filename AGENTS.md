@@ -94,7 +94,7 @@ in `generate_html.py`) and support the same diagnostic types:
 | `Map` | 2-D heatmap + coastlines | `latitude`, `longitude` |
 | `ZonalProfile` | 2-D pressure × latitude heatmap | `air_pressure`, `latitude` |
 | `ZonalLine` | 1-D line (zonal mean) | `latitude` |
-| `TimeSeries` | 1-D line (annual mean) | `time` |
+| `AnnualMeanTimeSeries` | 1-D line (annual mean) | `time` |
 | `AnnualCycle` | 1-D line (monthly climatology) | `month_number` |
 | `Scalar` | Horizontal bar chart (0-D) | *(none)* |
 

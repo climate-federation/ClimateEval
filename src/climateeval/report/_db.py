@@ -1,4 +1,5 @@
 """Database reading and diagnostic-type detection utilities."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -57,7 +58,7 @@ def detect_diag_type(columns: list[str]) -> str:
     if "latitude" in cols:
         return "ZonalLine"
     if "time" in cols:
-        return "TimeSeries"
+        return "AnnualMeanTimeSeries"
     if "month_number" in cols:
         return "AnnualCycle"
     _COORD_COLS = {"latitude", "longitude", "time", "air_pressure", "month_number"}

@@ -4,6 +4,7 @@
 Default behaviour: start a local web server and open the browser.
 Use --save-portable-html-output to also write a self-contained HTML file.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -20,13 +21,46 @@ def main() -> None:
             "Pass --save-portable-html-output to also write a self-contained HTML file."
         ),
     )
-    parser.add_argument("db", type=Path, nargs="+", help="Path(s) to DuckDB .ddb files.")
-    parser.add_argument("--model", default="", metavar="NAME", help="Model name in the header.")
-    parser.add_argument("--user", default="", metavar="NAME", help="Analyst name in the header.")
-    parser.add_argument("--developer", default="", metavar="NAME", help="Developer / tool name.")
-    parser.add_argument("--host", default="127.0.0.1", help="Server bind address (default: 127.0.0.1).")
-    parser.add_argument("--port", type=int, default=8765, help="Server port (default: 8765).")
-    parser.add_argument("--no-browser", action="store_true", help="Do not open the browser automatically.")
+    parser.add_argument(
+        "db",
+        type=Path,
+        nargs="+",
+        help="Path(s) to DuckDB .ddb files.",
+    )
+    parser.add_argument(
+        "--model",
+        default="",
+        metavar="NAME",
+        help="Model name in the header.",
+    )
+    parser.add_argument(
+        "--user",
+        default="",
+        metavar="NAME",
+        help="Analyst name in the header.",
+    )
+    parser.add_argument(
+        "--developer",
+        default="",
+        metavar="NAME",
+        help="Developer / tool name.",
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Server bind address (default: 127.0.0.1).",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8765,
+        help="Server port (default: 8765).",
+    )
+    parser.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Do not open the browser automatically.",
+    )
     parser.add_argument(
         "--save-portable-html-output",
         nargs="?",

@@ -1,4 +1,5 @@
 """Leaderboard data building and scoreboard figure for the benchmarking report."""
+
 from __future__ import annotations
 
 import html as html_module
@@ -180,7 +181,7 @@ def build_scoreboard_figure(
     # Compute median RMSE per (diag, var_id) across all data_ids, then
     # deviation_pct = (model_rmse - median_rmse) / median_rmse * 100
     rmse_df = detail[["_diag", "var_id", "data_id", "weighted_rmse"]].dropna(
-        subset=["weighted_rmse"]
+        subset=["weighted_rmse"],
     )
 
     median_rmse = (
@@ -197,9 +198,7 @@ def build_scoreboard_figure(
 
     # One deviation per (data_id, var_id) averaged over diagnostics
     pivot = (
-        rmse_df.groupby(["data_id", "var_id"])["deviation_pct"]
-        .mean()
-        .unstack("var_id")
+        rmse_df.groupby(["data_id", "var_id"])["deviation_pct"].mean().unstack("var_id")
     )
     if pivot.empty:
         return None
@@ -208,7 +207,9 @@ def build_scoreboard_figure(
     pivot["Overall"] = pivot.mean(axis=1)
 
     # Sort models by mean absolute deviation (best = smallest MAD first)
-    pivot = pivot.loc[pivot.drop(columns="Overall").abs().mean(axis=1).sort_values().index]
+    pivot = pivot.loc[
+        pivot.drop(columns="Overall").abs().mean(axis=1).sort_values().index
+    ]
 
     z = pivot.values.tolist()
     x_labels = [str(c) for c in pivot.columns]
@@ -253,7 +254,7 @@ def build_scoreboard_figure(
             },
             xgap=2,
             ygap=2,
-        )
+        ),
     )
 
     # Highlight the "Overall" column with a distinct border via a shape
@@ -294,7 +295,7 @@ def build_scoreboard_figure(
                 "y1": 1,
                 "line": {"color": "#333", "width": 2},
                 "fillcolor": "rgba(0,0,0,0)",
-            }
+            },
         ],
     )
     return fig
