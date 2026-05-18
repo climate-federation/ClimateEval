@@ -3,6 +3,10 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
     var_name: chl
     frequency: mon
     reference_data: climateeval.data.ESACCIOC
+    vertical_level:
+      coordinate_name: depth
+      units: m
+      value: 0.0
 
 climateeval.diags.simple.AnnualCycleSpatialDistribution: *2d_variables
 
