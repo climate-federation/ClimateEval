@@ -285,8 +285,8 @@ class SimpleDiagnostic(Diagnostic):
                         )[0]
                     except Exception as exc:
                         msg = (
-                            f"Calculation of metric '{metric}' for variable "
-                            f"'{cube.var_name}' failed: {exc}"
+                            f"Calculation of metric '{metric}' for cube "
+                            f"'{cube.summary(shorten=True)}' failed: {exc}"
                         )
                         raise ValueError(msg) from exc
                     metrics[metric] = pd.Series(metric_cube.data, dtype=self._DTYPE)

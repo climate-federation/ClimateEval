@@ -29,6 +29,7 @@ class VerticalLevel:
     coordinate_name: str
     units: str
     value: float
+    extrapolate: bool = field(default=False, repr=False, compare=False)
 
     def __str__(self) -> str:
         """Get human-readable string."""
@@ -46,10 +47,6 @@ class _NoLevel(VerticalLevel):
     def __repr__(self) -> str:
         """Get string representation."""
         return "NO_LEVEL"
-
-    def __str__(self) -> str:
-        """Get human-readable string."""
-        return ""
 
 
 NO_LEVEL = _NoLevel()
@@ -171,7 +168,12 @@ class Variable:
                 return self.frequency
             if self.frequency == "mon":
                 return "Amon"
-        if self.realm == "ocean" and self.frequency in ("day", "fx", "mon", "yr"):
+        if self.realm in ("ocean", "ocnBgchem") and self.frequency in (
+            "day",
+            "fx",
+            "mon",
+            "yr",
+        ):
             return f"O{self.frequency}"
         if self.realm == "land" and self.frequency == "mon":
             return "Lmon"

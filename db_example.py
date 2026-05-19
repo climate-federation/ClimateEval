@@ -11,7 +11,8 @@ def main() -> None:
     """Run example script."""
     root = Path.home() / "ClimateEval"
     # db_path = root / "Tier1.ddb"
-    db_path = root / "Tier2_atmosphere.ddb"
+    # db_path = root / "Tier2_atmosphere.ddb"
+    db_path = root / "Tier2_ocean.ddb"
     con = ibis.duckdb.connect(db_path)
 
     for catalog_name in con.list_catalogs():

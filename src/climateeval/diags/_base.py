@@ -149,7 +149,7 @@ class Diagnostic(ABC):
         df["ar6_regions_mask"] = df["ar6_regions_mask"].map(" ".join)
 
         def vertical_level_dict_to_str(
-            vertical_level_dict: dict[str, str | float],
+            vertical_level_dict: dict[str, str | float | bool],
         ) -> str:
             """Convert vertical level dictionary to string."""
             if vertical_level_dict == asdict(NO_LEVEL):

@@ -12,6 +12,7 @@ from climateeval.data._cmip6_generators import (
 )
 from climateeval.data._era5 import ERA5
 from climateeval.data._esacci_cloud import ESACCICloud
+from climateeval.data._esacci_oc import ESACCIOC
 from climateeval.data._esmvaltool_cmorizer import ESMValToolCMORizerDataSource
 from climateeval.data._esmvaltool_intake import (
     ESMValToolIntakeDataSource,
@@ -25,6 +26,7 @@ from climateeval.data._utils import DataSourceInformation
 __all__ = [
     "CERESEBAF",
     "ERA5",
+    "ESACCIOC",
     "GPCP",
     "MERRA2",
     "CMIP6Abrupt4xCO2R1I1P1F1",
