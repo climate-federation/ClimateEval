@@ -75,7 +75,7 @@ pre-commit = "*"
 esmvalcore = ">=2.14.0"
 esmvaltool-python = ">=2.14.0"
 
-# Ensure that all ESMValTool dependencies are installed fron conda-forge, not
+# Ensure that all ESMValTool dependencies are installed from conda-forge, not
 # PyPI
 [tool.pixi.feature.esmvaltool-dev.dependencies]
 "aiohttp" = "*"
