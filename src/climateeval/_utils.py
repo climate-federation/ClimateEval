@@ -217,10 +217,11 @@ def _extract_level(cube: Cube, vertical_level: VerticalLevel) -> Cube:
     """Extract level from cube."""
     coord = cube.coord(vertical_level.coordinate_name)
     coord.convert_units(vertical_level.units)
+    scheme = "linear_extrapolate" if vertical_level.extrapolate else "linear"
     cube = extract_levels(
         cube,
         vertical_level.value,
-        "linear",
+        scheme,
         coordinate=vertical_level.coordinate_name,
     )
 

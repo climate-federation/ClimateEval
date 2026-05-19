@@ -7,6 +7,7 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
       coordinate_name: depth
       units: m
       value: 0.0
+      extrapolate: true
 
 climateeval.diags.simple.AnnualCycleSpatialDistribution: *2d_variables
 
