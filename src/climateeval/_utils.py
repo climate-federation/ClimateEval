@@ -41,10 +41,12 @@ if TYPE_CHECKING:
 logger = logger.opt(colors=True)
 
 
-def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) -> None:
-    """Check coordinates of data."""
+def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) -> Cube:
+    """Check coordinates of data and unify coordinate names (in-place)."""
     covered_dimensions: list[int] = []
+
     for coordinate in expected_coordinates:
+        # Handle generic coordinates
         if coordinate.allowed_coordinates:
             for allowed_coordinate in coordinate.allowed_coordinates:
                 if cube.coords(allowed_coordinate.name()):
@@ -59,6 +61,8 @@ def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) ->
                 raise CoordinateError(msg)
         else:
             expected_coordinate = coordinate
+
+        # Check if coordinate is present
         coord_name = expected_coordinate.name()
         if not cube.coords(coord_name):
             msg = (
@@ -66,13 +70,24 @@ def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) ->
                 f"missing in cube\n{cube}"
             )
             raise CoordinateError(msg)
+
+        # Unify coordinate names
+        cube_coord = cube.coord(coord_name)
+        cube_coord.var_name = expected_coordinate.var_name
+        cube_coord.long_name = expected_coordinate.long_name
+        cube_coord.standard_name = expected_coordinate.standard_name
+
         covered_dimensions.extend(cube.coord_dims(coord_name))
+
+    # Check cube rank
     if set(covered_dimensions) != set(range(cube.ndim)):
         msg = (
             f"Expected coordinates {expected_coordinates} do not cover all "
             f"dimensions of cube\n{cube}"
         )
         raise CoordinateError(msg)
+
+    return cube
 
 
 def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
@@ -106,13 +121,10 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
                 raise
             cube = _get_derived_cube(data, variable)
 
-        _check_data(cube, variable)
+        cube = _check_data(cube, variable)
 
         # Add bounds if necessary
         cube = _set_coordinate_bounds(cube)
-
-        # Make sure units are correct
-        cube = convert_units(cube, variable.units)
 
         # Make sure longitude is in [0, 360]
         if cube.coords("longitude"):
@@ -140,6 +152,9 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
         # Extract level
         if variable.vertical_level is not NO_LEVEL:
             cube = _extract_level(cube, variable.vertical_level)
+
+        # Convert units
+        cube = convert_units(cube, variable.units)
 
         # Calculate anomalies
         if variable.anomaly:
@@ -190,15 +205,15 @@ def _apply_masks(cube: Cube, variable: Variable) -> Cube:
     return cube
 
 
-def _check_data(cube: Cube, variable: Variable) -> None:
-    """Check data."""
-    check_coordinates(cube, variable.coordinates)
+def _check_data(cube: Cube, variable: Variable) -> Cube:
+    """Check data and unify some metadata (in-place)."""
+    cube = check_coordinates(cube, variable.coordinates)
 
     # Time
     if not cube.coords("time"):
-        return
+        return cube
     if variable.timerange == "*":
-        return
+        return cube
     time_coord = cube.coord("time")
     datetimes = time_coord.units.num2date(time_coord.points)
     actual_min_year = datetimes[0].year
@@ -208,15 +223,17 @@ def _check_data(cube: Cube, variable: Variable) -> None:
     if expected_min_year < actual_min_year:
         msg = (
             f"Selected timerange is {variable.timerange}, but data starts in "
-            f"year {actual_min_year} for cube \n{cube}"
+            f"year {actual_min_year} for {variable}"
         )
         raise MissingDataError(msg)
     if expected_max_year > actual_max_year:
         msg = (
             f"Selected timerange is {variable.timerange}, but data ends in "
-            f"year {actual_max_year} for cube \n{cube}"
+            f"year {actual_max_year} for {variable}"
         )
         raise MissingDataError(msg)
+
+    return cube
 
 
 def _extract_level(cube: Cube, vertical_level: VerticalLevel) -> Cube:

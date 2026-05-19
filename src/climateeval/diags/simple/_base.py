@@ -248,7 +248,7 @@ class SimpleDiagnostic(Diagnostic):
         data_id: str,
     ) -> ibis.Table:
         """Get metrics table."""
-        metrics = ibis.memtable(
+        return ibis.memtable(
             pd.DataFrame(
                 {
                     self._DATA_ID_COLUMN: data_id,
@@ -259,22 +259,16 @@ class SimpleDiagnostic(Diagnostic):
                 index=[0],
             ),
         )
-        cast_operations = dict.fromkeys(self._get_metric_names(), self._DTYPE)
-        return metrics.cast(**cast_operations)
 
     def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
         """Get data cube."""
         cube = get_prepared_cube(data, variable)
         return self._safely_preprocess(cube)
 
-    def _get_metric_names(self) -> tuple[str, ...]:
-        """Get metric names."""
-        return ("weighted_rmse", "weighted_pearsonr", "weighted_emd")
-
-    def _get_metrics(self, cube: Cube, reference_cube: Cube) -> dict[str, float]:
+    def _get_metrics(self, cube: Cube, reference_cube: Cube) -> dict[str, pd.Series]:
         """Get metrics."""
-        metrics: dict[str, float] = {}
-        for metric in self._get_metric_names():
+        metrics: dict[str, pd.Series] = {}
+        for metric in ("weighted_rmse", "weighted_pearsonr", "weighted_emd"):
             with warnings.catch_warnings():
                 warnings.filterwarnings(
                     "ignore",
@@ -283,11 +277,19 @@ class SimpleDiagnostic(Diagnostic):
                     module="iris",
                 )
                 with setup_esmvaltool_config_and_logging():
-                    metrics[metric] = float(
-                        distance_metric([cube], metric, reference=reference_cube)[
-                            0
-                        ].data,
-                    )
+                    try:
+                        metric_cube = distance_metric(
+                            [cube],
+                            metric,
+                            reference=reference_cube,
+                        )[0]
+                    except Exception as exc:
+                        msg = (
+                            f"Calculation of metric '{metric}' for variable "
+                            f"'{cube.var_name}' failed: {exc}"
+                        )
+                        raise ValueError(msg) from exc
+                    metrics[metric] = pd.Series(metric_cube.data, dtype=self._DTYPE)
         return metrics
 
     def _get_output_of_other_data(
@@ -422,8 +424,7 @@ class SimpleDiagnostic(Diagnostic):
     def _safely_preprocess(self, cube: Cube) -> Cube:
         """Safely preprocess cube."""
         cube = self._preprocess(cube)
-        check_coordinates(cube, self._FINAL_COORDINATES)
-        return cube
+        return check_coordinates(cube, self._FINAL_COORDINATES)
 
     def _sort_raw_output_columns(self, raw_output_table: ibis.Table) -> ibis.Table:
         """Sort columns of raw output table."""

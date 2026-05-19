@@ -69,7 +69,7 @@ def test_simple_diagnostics(
     con = suite.get_database(cubes, data_information)
     table_names = get_all_table_names(con)
 
-    expected_diagnostics = ("AnnualCycle", "TimeSeries")
+    expected_diagnostics = ("AnnualCycle", "AnnualMeanTimeSeries")
     for diagnostic in expected_diagnostics:
         assert (diagnostic, "data_sources") in table_names
         assert (diagnostic, "metrics") in table_names
@@ -188,7 +188,7 @@ def test_simple_diagnostics(
         ),
     )
     assert_table_equal(
-        con.table("variables", database="TimeSeries"),
+        con.table("variables", database="AnnualMeanTimeSeries"),
         expected_variables_timeseries,
     )
 
@@ -307,7 +307,7 @@ def test_simple_diagnostics(
         time="timestamp(6)",
     )
     assert_table_equal(
-        con.table("raw_output", database="TimeSeries"),
+        con.table("raw_output", database="AnnualMeanTimeSeries"),
         expected_raw_output_timeseries,
     )
 
@@ -365,6 +365,6 @@ def test_simple_diagnostics(
         ),
     )
     assert_table_equal(
-        con.table("metrics", database="TimeSeries"),
+        con.table("metrics", database="AnnualMeanTimeSeries"),
         expected_metrics_timeseries,
     )
