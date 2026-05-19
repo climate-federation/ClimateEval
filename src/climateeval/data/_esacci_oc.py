@@ -10,13 +10,12 @@ from loguru import logger
 from climateeval.data._esmvaltool_cmorizer import ESMValToolCMORizerDataSource
 from climateeval.data._utils import DataSourceInformation
 
-
 # Path to the pre-CMORized ESA-CCI Chl file on Levante.
 # Use fv3.1 because it is 3-D (time, lat, lon) and does not require
 # the lev=1 squeeze that the 4-D fv5.0 file would.
 _LEVANTE_ESACCI_OC_FILE = Path(
     "/work/bd0854/DATA/ESMValTool2/OBS/Tier2/ESACCI-OC/"
-    "OBS_ESACCI-OC_sat_fv3.1_Omon_chl_199709-201806.nc"
+    "OBS_ESACCI-OC_sat_fv3.1_Omon_chl_199709-201806.nc",
 )
 
 
@@ -56,7 +55,7 @@ class ESACCIOC(ESMValToolCMORizerDataSource):
         if not target.is_file():
             logger.debug(
                 f"Copying pre-CMORized {self.id} from "
-                f"{_LEVANTE_ESACCI_OC_FILE} to {target}"
+                f"{_LEVANTE_ESACCI_OC_FILE} to {target}",
             )
             shutil.copyfile(_LEVANTE_ESACCI_OC_FILE, target)
         else:
