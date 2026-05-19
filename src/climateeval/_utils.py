@@ -12,6 +12,7 @@ from esmvalcore.preprocessor import (
     convert_units,
     derive,
     extract_levels,
+    extract_region,
     extract_shape,
     mask_landsea,
 )
@@ -121,42 +122,18 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
                 raise
             cube = _get_derived_cube(data, variable)
 
+        # General preprocessing
         cube = _check_data(cube, variable)
-
-        # Add bounds if necessary
         cube = _set_coordinate_bounds(cube)
-
-        # Make sure longitude is in [0, 360]
         if cube.coords("longitude"):
             cube = _set_lon_to_0_360(cube)
 
-        # Apply masks
+        # Custom preprocessing
         cube = _apply_masks(cube, variable)
-
-        # Extract desired time range and bounding box
-        if cube.coords("time") and variable.timerange != "*":
-            cube = clip_timerange(cube, variable.timerange)
-        if cube.coords("latitude"):
-            cube = cube.extract(
-                Constraint(
-                    latitude=lambda cell: variable.min_lat <= cell <= variable.max_lat,
-                ),
-            )
-        if cube.coords("longitude"):
-            cube = cube.extract(
-                Constraint(
-                    longitude=lambda cell: variable.min_lon <= cell <= variable.max_lon,
-                ),
-            )
-
-        # Extract level
+        cube = _extract_time_and_region(variable, cube)
         if variable.vertical_level is not NO_LEVEL:
             cube = _extract_level(cube, variable.vertical_level)
-
-        # Convert units
         cube = convert_units(cube, variable.units)
-
-        # Calculate anomalies
         if variable.anomaly:
             cube = anomalies(cube, variable.anomaly)
 
@@ -240,12 +217,49 @@ def _extract_level(cube: Cube, vertical_level: VerticalLevel) -> Cube:
     """Extract level from cube."""
     coord = cube.coord(vertical_level.coordinate_name)
     coord.convert_units(vertical_level.units)
-    return extract_levels(
+    cube = extract_levels(
         cube,
         vertical_level.value,
         "linear",
         coordinate=vertical_level.coordinate_name,
     )
+
+    # Squeeze cube if necessary
+    if cube.coords(vertical_level.coordinate_name, dim_coords=True):
+        coord = cube.coord(vertical_level.coordinate_name, dim_coords=True)
+        if coord.shape[0] == 1:
+            index: list[slice | int] = [slice(None)] * cube.ndim
+            index[cube.coord_dims(coord)[0]] = 0
+            cube = cube[tuple(index)]
+
+    return cube
+
+
+def _extract_time_and_region(cube: Cube, variable: Variable) -> Cube:
+    """Extract timerange and region."""
+    if cube.coords("time") and variable.timerange != "*":
+        cube = clip_timerange(cube, variable.timerange)
+    if cube.coords("latitude") and cube.coords("longitude"):
+        cube = extract_region(
+            cube,
+            start_longitude=variable.min_lon,
+            end_longitude=variable.max_lon,
+            start_latitude=variable.min_lat,
+            end_latitude=variable.max_lat,
+        )
+    elif cube.coords("latitude"):
+        cube = cube.extract(
+            Constraint(
+                latitude=lambda cell: variable.min_lat <= cell <= variable.max_lat,
+            ),
+        )
+    elif cube.coords("longitude"):
+        cube = cube.extract(
+            Constraint(
+                longitude=lambda cell: variable.min_lon <= cell <= variable.max_lon,
+            ),
+        )
+    return cube
 
 
 def _get_derived_cube(cubes: CubeList, variable: Variable) -> Cube:
