@@ -171,7 +171,12 @@ class Variable:
                 return self.frequency
             if self.frequency == "mon":
                 return "Amon"
-        if self.realm == "ocean" and self.frequency in ("day", "fx", "mon", "yr"):
+        if self.realm in ("ocean", "ocnBgchem") and self.frequency in (
+            "day",
+            "fx",
+            "mon",
+            "yr",
+        ):
             return f"O{self.frequency}"
         if self.realm == "land" and self.frequency == "mon":
             return "Lmon"
