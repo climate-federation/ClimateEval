@@ -10,8 +10,8 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
 
 climateeval.diags.simple.AnnualCycleSpatialDistribution: *2d_variables
 
-climateeval.diags.simple.Map: *2d_variables
+climateeval.diags.simple.AnnualMeanTimeSeries: *2d_variables
 
-climateeval.diags.simple.TimeSeries: *2d_variables
+climateeval.diags.simple.Map: *2d_variables
 
 climateeval.diags.simple.ZonalLine: *2d_variables
