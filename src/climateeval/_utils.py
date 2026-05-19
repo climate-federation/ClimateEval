@@ -56,7 +56,7 @@ def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) ->
                 msg = (
                     f"Expected general coordinate {coordinate} with allowed "
                     f"coordinates {coordinate.allowed_coordinates} missing in "
-                    f"cube\n{cube}"
+                    f"cube {cube.summary(shorten=True)}"
                 )
                 raise CoordinateError(msg)
         else:
@@ -67,7 +67,7 @@ def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) ->
         if not cube.coords(coord_name):
             msg = (
                 f"Expected coordinate {coordinate} with name '{coord_name}' "
-                f"missing in cube\n{cube}"
+                f"missing in cube {cube.summary(shorten=True)}"
             )
             raise CoordinateError(msg)
 
@@ -83,7 +83,7 @@ def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) ->
     if set(covered_dimensions) != set(range(cube.ndim)):
         msg = (
             f"Expected coordinates {expected_coordinates} do not cover all "
-            f"dimensions of cube\n{cube}"
+            f"dimensions of cube {cube.summary(shorten=True)}"
         )
         raise CoordinateError(msg)
 
