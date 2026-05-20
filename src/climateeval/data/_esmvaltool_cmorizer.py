@@ -13,13 +13,12 @@ from esmvalcore.config import CFG
 from esmvaltool.cmorizers.data.cmorizer import DataCommand
 from loguru import logger
 
+from climateeval import Variable
 from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval.data._base import DataSource
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-
-    from climateeval import Variable
 
 
 logger = logger.opt(colors=True)
@@ -111,7 +110,10 @@ class ESMValToolCMORizerDataSource(DataSource):
             var_name = raw_file.stem.split("_")[-2]
             grouped_files[var_name].append(raw_file)
         for var_name, var_files in grouped_files.items():
-            data_dir = self._get_data_dir(data_root_dir, var_name)
+            # The following might be a problem if CMORizers write data with
+            # multiple frequencies
+            formatted_variable = Variable(var_name, var_name, variable.frequency)
+            data_dir = self._get_data_dir(data_root_dir, formatted_variable)
 
             # Do not overwrite existing other variables
             if var_name != variable.var_name and list(data_dir.glob("*.nc")):

@@ -70,7 +70,7 @@ class DataSource(ABC):
         """Get data cube."""
         logger.debug(f"Loading {variable} of {self.id}")
         paths: list[Path] = list(
-            self._get_data_dir(data_root_dir, variable.var_name).glob("*.nc"),
+            self._get_data_dir(data_root_dir, variable).glob("*.nc"),
         )
         if paths:
             return get_prepared_cube(load_cubes(paths), variable)
@@ -122,9 +122,9 @@ class DataSource(ABC):
         cubes = load_cubes(paths)
         return get_prepared_cube(cubes, variable)
 
-    def _get_data_dir(self, data_root_dir: Path, var_name: str) -> Path:
+    def _get_data_dir(self, data_root_dir: Path, variable: Variable) -> Path:
         """Get data- and variable-specific subdirectory."""
-        return data_root_dir / self.id / var_name
+        return data_root_dir / self.id / variable.frequency / variable.var_name
 
     def _get_output_filename(self, cube: Cube, **facets: str) -> str:
         """Get output file name."""
@@ -161,7 +161,7 @@ class DataSource(ABC):
         paths: list[Path] = []
         for required_variable in variable.get_required_variables():
             paths_for_required_variable = list(
-                self._get_data_dir(data_root_dir, required_variable.var_name).glob(
+                self._get_data_dir(data_root_dir, required_variable).glob(
                     "*.nc",
                 ),
             )

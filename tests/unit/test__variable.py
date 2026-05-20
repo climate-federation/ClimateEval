@@ -225,11 +225,16 @@ def test_get_required_variables_not_derived() -> None:
 @pytest.mark.parametrize(
     ("var_name", "frequency", "cmip6_table_id"),
     [
+        ("pr", "yr", ""),
+        ("pr", "mon", "Amon"),
+        ("pr", "day", "day"),
+        ("pr", "3hr", "3hr"),
+        ("pr", "1hr", "E1hr"),
         ("tas", "yr", ""),
         ("tas", "mon", "Amon"),
         ("tas", "day", "day"),
         ("tas", "3hr", "3hr"),
-        ("tas", "1hr", ""),
+        ("tas", "1hr", "AERhr"),
         ("tos", "yr", "Oyr"),
         ("tos", "mon", "Omon"),
         ("tos", "day", "Oday"),

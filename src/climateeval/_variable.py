@@ -169,7 +169,7 @@ class Variable:
             for v in required_facets
         )
 
-    def _get_cmip6_table_id(self) -> str:
+    def _get_cmip6_table_id(self) -> str:  # noqa: PLR0911
         """Get CMIP6 table ID.
 
         Note
@@ -182,6 +182,11 @@ class Variable:
         if self.realm == "":
             return ""
         if self.realm == "atmos":
+            if self.frequency == "1hr":
+                if self.var_name in ("pr", "prc"):
+                    return "E1hr"
+                if self.var_name in ("ps", "tas"):
+                    return "AERhr"
             if self.frequency in ("3hr", "day", "fx"):
                 return self.frequency
             if self.frequency == "mon":

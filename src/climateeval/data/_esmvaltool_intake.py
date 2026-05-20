@@ -109,7 +109,7 @@ class ESMValToolIntakeDataSource(DataSource):
             cube = Dataset(**facets).load()
 
         # Save file into data directory
-        data_dir = self._get_data_dir(data_root_dir, variable.var_name)
+        data_dir = self._get_data_dir(data_root_dir, variable)
         data_dir.mkdir(parents=True, exist_ok=True)
         output_path = data_dir / self._get_output_filename(cube, **facets)
         iris.save(cube, output_path)
