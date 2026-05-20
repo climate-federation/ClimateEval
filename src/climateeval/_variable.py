@@ -128,6 +128,7 @@ class Variable:
     realm: str = field(init=False, repr=False, compare=False)
     standard_name: str = field(init=False, repr=False, compare=False)
     cmip6_table_id: str = field(init=False, repr=False, compare=False)
+    ndim: int = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         """Initialize class instance."""
@@ -150,6 +151,23 @@ class Variable:
             object.__setattr__(self, key, val)
         object.__setattr__(self, "settings", self._get_settings())
         object.__setattr__(self, "cmip6_table_id", self._get_cmip6_table_id())
+        object.__setattr__(self, "ndim", len(self.coordinates))
+
+    def get_required_variables(self) -> tuple[Variable, ...]:
+        """Get variables necessary for derivation."""
+        if not self.derived:
+            return (self,)
+        with setup_esmvaltool_config_and_logging():
+            required_facets = get_required(self.var_name, "CMIP6")
+        return tuple(
+            Variable(
+                v["short_name"],
+                v["short_name"],
+                self.frequency,
+                **self.settings,
+            )
+            for v in required_facets
+        )
 
     def _get_cmip6_table_id(self) -> str:
         """Get CMIP6 table ID.
@@ -191,22 +209,6 @@ class Variable:
             if field_.init and field_.kw_only:
                 settings[field_.name] = getattr(self, field_.name)
         return settings
-
-    def get_required_variables(self) -> tuple[Variable, ...]:
-        """Get variables necessary for derivation."""
-        if not self.derived:
-            return (self,)
-        with setup_esmvaltool_config_and_logging():
-            required_facets = get_required(self.var_name, "CMIP6")
-        return tuple(
-            Variable(
-                v["short_name"],
-                v["short_name"],
-                self.frequency,
-                **self.settings,
-            )
-            for v in required_facets
-        )
 
 
 def _read_coordinates() -> dict[str, dict[str, str | list[str]]]:

@@ -84,6 +84,44 @@ def test_tas() -> None:
     assert var.realm == "atmos"
     assert var.standard_name == "air_temperature"
     assert var.cmip6_table_id == "Amon"
+    assert var.ndim == 3
+
+
+def test_ta() -> None:
+    var = Variable("my_ta", "ta", "mon")
+
+    assert var.id == "my_ta"
+    assert var.var_name == "ta"
+    assert var.frequency == "mon"
+
+    settings = {
+        "vertical_level": NO_LEVEL,
+        "min_lat": -90.0,
+        "max_lat": 90.0,
+        "min_lon": 0.0,
+        "max_lon": 360.0,
+        "landsea_mask": "*",
+        "ar6_regions_mask": (),
+        "timerange": "*",
+        "units": "K",
+        "anomaly": "",
+    }
+    assert var.settings == settings
+    for key, val in settings.items():
+        assert getattr(var, key) == val
+
+    assert var.coordinates == (
+        Coordinate("time"),
+        Coordinate("alevel"),
+        Coordinate("lat"),
+        Coordinate("lon"),
+    )
+    assert var.derived is False
+    assert var.long_name == "Air Temperature"
+    assert var.realm == "atmos"
+    assert var.standard_name == "air_temperature"
+    assert var.cmip6_table_id == "Amon"
+    assert var.ndim == 4
 
 
 def test_lwcre() -> None:
@@ -119,6 +157,7 @@ def test_lwcre() -> None:
     assert var.realm == "atmos"
     assert var.standard_name == ""
     assert var.cmip6_table_id == "Amon"
+    assert var.ndim == 3
 
 
 @pytest.mark.parametrize(
