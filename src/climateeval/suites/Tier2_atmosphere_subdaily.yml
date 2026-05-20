@@ -1,0 +1,5 @@
+climateeval.diags.simple.DiurnalCycle:
+  pr:
+    var_name: pr
+    frequency: 3hr
+    reference_data: null
