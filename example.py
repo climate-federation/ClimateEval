@@ -126,10 +126,8 @@ def main() -> None:
     print(con)
 
     # Atmosphere subdaily
-    atmosphere_subdaily_variables = ("pr",)
     atmosphere_subdaily_paths = [
-        f"/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/3hr/{var}/gn/v20190710/{var}_3hr_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001010130-200912312230.nc"
-        for var in atmosphere_subdaily_variables
+        "/work/ik1017/CMIP6/data/CMIP6/CMIP/CNRM-CERFACS/CNRM-CM6-1/historical/r1i1p1f2/E1hr/pr/gr/v20180917/pr_E1hr_CNRM-CM6-1_historical_r1i1p1f2_gr_200001010030-200412312330.nc",
     ]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -143,7 +141,7 @@ def main() -> None:
             "download_missing_data": True,
         },
         variable_kwargs={
-            "timerange": "20000101/20011231",
+            "timerange": "20000101/20001231",
         },
     )
     print(con)
