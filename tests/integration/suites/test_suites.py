@@ -99,7 +99,9 @@ def test_simple_diagnostics(
                     "references": pd.Series(
                         [
                             "",
-                            "https://doi.org/10.24381/cds.f17050d7 https://doi.org/10.24381/cds.6860a573",
+                            "https://doi.org/10.24381/cds.f17050d7 "
+                            "https://doi.org/10.24381/cds.6860a573 "
+                            "https://doi.org/10.24381/cds.adbb2d47",
                             "https://doi.org/10.5067/MEASURES/GPCP/DATA306 https://doi.org/10.5067/MEASURES/GPCP/DATA307",
                         ],
                         dtype="str",
@@ -141,6 +143,7 @@ def test_simple_diagnostics(
                     dtype="str",
                 ),
                 "cmip6_table_id": pd.Series(["Amon", "Amon"], dtype="str"),
+                "ndim": pd.Series([3, 3], dtype="int"),
             },
         ),
     )
@@ -185,6 +188,7 @@ def test_simple_diagnostics(
                     dtype="str",
                 ),
                 "cmip6_table_id": pd.Series(["Amon", "Amon"], dtype="str"),
+                "ndim": pd.Series([4, 3], dtype="int"),
             },
         ),
     )
@@ -435,6 +439,7 @@ def test_simple_diagnostics_no_reference(
                 "realm": pd.Series(["atmos"], dtype="str"),
                 "standard_name": pd.Series(["air_temperature"], dtype="str"),
                 "cmip6_table_id": pd.Series(["Amon"], dtype="str"),
+                "ndim": pd.Series([3], dtype="int"),
             },
         ),
     )

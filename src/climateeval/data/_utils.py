@@ -20,11 +20,7 @@ class DataSourceInformation:
     institute: str = field(default="", repr=False)
     exp: str = field(default="", repr=False)
     variant: str = field(default="", repr=False)  # e.g., r1i1p1f1, etc.
-    references: tuple[str, ...] = field(
-        default_factory=tuple,
-        repr=False,
-        compare=False,
-    )
+    references: tuple[str, ...] = field(default_factory=tuple, repr=False)
 
     def __post_init__(self) -> None:
         """Initialize class instance."""

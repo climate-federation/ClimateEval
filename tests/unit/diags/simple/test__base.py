@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from climateeval import Coordinate, Variable
-from climateeval.data import ERA5, MERRA2, HadCRUT5
+from climateeval.data import MERRA2, ERA5Monthly, HadCRUT5
 from climateeval.diags.simple import (
     SimpleDiagnostic,
     SimpleDiagnosticInputData,
@@ -46,7 +46,7 @@ def test___init__(diagnostic: MockDiagnostic, temporary_data_root_dir: Path) -> 
     assert len(diagnostic._other_data) == 1
     assert expected_variable in diagnostic._other_data
     assert len(diagnostic._other_data[expected_variable]) == 2
-    assert isinstance(diagnostic._other_data[expected_variable][0], ERA5)
+    assert isinstance(diagnostic._other_data[expected_variable][0], ERA5Monthly)
     assert isinstance(diagnostic._other_data[expected_variable][1], MERRA2)
 
 

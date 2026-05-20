@@ -8,7 +8,7 @@ import pytest
 
 import climateeval.diags._utils
 from climateeval import Variable
-from climateeval.data import ERA5, GPCP, MERRA2, DataSourceGenerator, HadCRUT5
+from climateeval.data import GPCP, MERRA2, DataSourceGenerator, ERA5Monthly, HadCRUT5
 from climateeval.diags.simple import SimpleDiagnosticInputData
 from tests.sample_data.create_sample_data_sources import (
     get_air_pressure_coord,
@@ -58,7 +58,7 @@ def variables_and_data_2d_with_other() -> dict[Variable, SimpleDiagnosticInputDa
     class MockDataSourceGenerator(DataSourceGenerator):
         def generate(self, _variable: Variable) -> Generator[DataSource]:
             """Generate data sources."""
-            yield from (ERA5(),)
+            yield from (ERA5Monthly(),)
 
     return {
         Variable("my_tas", "tas", "mon"): SimpleDiagnosticInputData(
@@ -71,7 +71,7 @@ def variables_and_data_2d_with_other() -> dict[Variable, SimpleDiagnosticInputDa
 @pytest.fixture
 def variables_and_data_3d() -> dict[Variable, SimpleDiagnosticInputData]:
     return {
-        Variable("ta", "ta", "mon"): SimpleDiagnosticInputData(reference=ERA5),
+        Variable("ta", "ta", "mon"): SimpleDiagnosticInputData(reference=ERA5Monthly),
     }
 
 

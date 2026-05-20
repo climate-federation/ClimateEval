@@ -62,68 +62,68 @@ def main() -> None:
     )
 
     # Atmosphere monthly
-    # atmosphere_monthly_variables = (
-    #     "clivi",
-    #     "clt",
-    #     "clwvi",
-    #     "hfls",
-    #     "hfss",
-    #     "hus",
-    #     "pr",
-    #     "prw",
-    #     "rlut",
-    #     "rlutcs",
-    #     "rsdt",
-    #     "rsut",
-    #     "rsutcs",
-    #     "ta",
-    #     "tas",
-    #     "ua",
-    # )
-    # atmosphere_monthly_paths = [
-    #     f"/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/{var}/gn/v20190710/{var}_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc"
-    #     for var in atmosphere_monthly_variables
-    # ]
-    # with warnings.catch_warnings():
-    #     warnings.simplefilter("ignore")
-    #     atmosphere_monthly_cubes = iris.load(atmosphere_monthly_paths)
+    atmosphere_monthly_variables = (
+        "clivi",
+        "clt",
+        "clwvi",
+        "hfls",
+        "hfss",
+        "hus",
+        "pr",
+        "prw",
+        "rlut",
+        "rlutcs",
+        "rsdt",
+        "rsut",
+        "rsutcs",
+        "ta",
+        "tas",
+        "ua",
+    )
+    atmosphere_monthly_paths = [
+        f"/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r1i1p1f1/Amon/{var}/gn/v20190710/{var}_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc"
+        for var in atmosphere_monthly_variables
+    ]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        atmosphere_monthly_cubes = iris.load(atmosphere_monthly_paths)
 
-    # con = run_suite(
-    #     "Tier2_atmosphere_monthly",
-    #     atmosphere_monthly_cubes,
-    #     data_info,
-    #     diagnostic_kwargs={
-    #         "fail_on_missing_data": False,
-    #         "download_missing_data": False,
-    #     },
-    #     variable_kwargs={
-    #         "timerange": "20000101/20011231",
-    #     },
-    # )
-    # print(con)
+    con = run_suite(
+        "Tier2_atmosphere_monthly",
+        atmosphere_monthly_cubes,
+        data_info,
+        diagnostic_kwargs={
+            "fail_on_missing_data": False,
+            "download_missing_data": False,
+        },
+        variable_kwargs={
+            "timerange": "20000101/20011231",
+        },
+    )
+    print(con)
 
-    # # Ocean monthly
-    # ocean_monthly_variables = ("chl",)
-    # ocean_monthly_paths = [
-    #     f"/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r22i1p1f1/Omon/{var}/gn/v20210901/{var}_Omon_MPI-ESM1-2-LR_historical_r22i1p1f1_gn_199001-200912.nc"
-    #     for var in ocean_monthly_variables
-    # ]
-    # with warnings.catch_warnings():
-    #     warnings.simplefilter("ignore")
-    #     ocean_monthly_cubes = iris.load(ocean_monthly_paths)
-    # con = run_suite(
-    #     "Tier2_ocean_monthly",
-    #     ocean_monthly_cubes,
-    #     data_info,
-    #     diagnostic_kwargs={
-    #         "fail_on_missing_data": False,
-    #         "download_missing_data": False,
-    #     },
-    #     variable_kwargs={
-    #         "timerange": "20000101/20011231",
-    #     },
-    # )
-    # print(con)
+    # Ocean monthly
+    ocean_monthly_variables = ("chl",)
+    ocean_monthly_paths = [
+        f"/work/ik1017/CMIP6/data/CMIP6/CMIP/MPI-M/MPI-ESM1-2-LR/historical/r22i1p1f1/Omon/{var}/gn/v20210901/{var}_Omon_MPI-ESM1-2-LR_historical_r22i1p1f1_gn_199001-200912.nc"
+        for var in ocean_monthly_variables
+    ]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        ocean_monthly_cubes = iris.load(ocean_monthly_paths)
+    con = run_suite(
+        "Tier2_ocean_monthly",
+        ocean_monthly_cubes,
+        data_info,
+        diagnostic_kwargs={
+            "fail_on_missing_data": False,
+            "download_missing_data": False,
+        },
+        variable_kwargs={
+            "timerange": "20000101/20011231",
+        },
+    )
+    print(con)
 
     # Atmosphere subdaily
     atmosphere_subdaily_variables = ("pr",)
