@@ -120,6 +120,9 @@ class ERA5(DataSource):
 
         # Download data
         dataset, request = self._get_cds_client_retrieve_kwargs(variable)
+        request["variable"] = [VARIABLE_MAPPING[variable.var_name]]
+        request["data_format"] = "netcdf"
+        request["download_format"] = "unarchived"
         cdsapi.Client().retrieve(dataset, request).download(tmp_target)
 
         # Reformat data with ESMValTool and save
@@ -176,8 +179,6 @@ class ERA5Monthly(ERA5):
             "year": [str(y) for y in range(1979, 2027)],
             "month": ALL_MONTHS,
             "time": ["00:00"],
-            "data_format": "netcdf",
-            "download_format": "unarchived",
         }
 
         if variable.ndim == 3:  # noqa: PLR2004
@@ -194,7 +195,7 @@ class ERA5Monthly(ERA5):
             "short_name": variable.var_name,
             "project": "native6",
             "dataset": "ERA5",
-            "mip": "Amon",
+            "mip": "Amon",  # so far, all supported variables are atmospheric
             "frequency": "mon",
         }
 
@@ -209,12 +210,10 @@ class ERA5Hourly(ERA5):
         """Get arguments for :meth:`cds.Client.retrieve`."""
         request: dict[str, Any] = {
             "product_type": "reanalysis",
-            "year": [str(y) for y in range(2000, 2000)],
+            "year": [str(y) for y in range(2000, 2001)],
             "month": ALL_MONTHS,
             "day": ALL_DAYS,
             "time": ALL_TIMES,
-            "data_format": "netcdf",
-            "download_format": "unarchived",
         }
 
         if variable.ndim == 3:  # noqa: PLR2004
@@ -231,6 +230,6 @@ class ERA5Hourly(ERA5):
             "short_name": variable.var_name,
             "project": "native6",
             "dataset": "ERA5",
-            "mip": "3hr",
+            "mip": "3hr",  # so far, all supported variables are atmospheric
             "frequency": "1hr",
         }

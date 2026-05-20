@@ -2,4 +2,4 @@ climateeval.diags.simple.DiurnalCycle:
   pr:
     var_name: pr
     frequency: 1hr
-    reference_data: null
+    reference_data: climateeval.data.ERA5Hourly
