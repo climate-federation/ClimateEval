@@ -18,7 +18,8 @@ def test_suite(suite: Suite) -> None:
     assert suite.name == "Tier2_atmosphere_monthly"
     assert (
         suite._suite_definition_file
-        == Path(str(resources.files("climateeval.suites"))) / "Tier2_atmosphere_monthly.yml"
+        == Path(str(resources.files("climateeval.suites")))
+        / "Tier2_atmosphere_monthly.yml"
     )
     with suite._suite_definition_file.open("r", encoding="utf-8") as file:
         assert suite._suite_definition == yaml.safe_load(file)

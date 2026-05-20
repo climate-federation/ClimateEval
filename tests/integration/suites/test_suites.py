@@ -63,6 +63,7 @@ def test_simple_diagnostics(
         diagnostic_kwargs={
             "data_root_dir": sample_data_root_dir,
             "fail_on_missing_data": True,
+            "download_missing_data": False,
         },
     )
 
@@ -367,4 +368,93 @@ def test_simple_diagnostics(
     assert_table_equal(
         con.table("metrics", database="AnnualMeanTimeSeries"),
         expected_metrics_timeseries,
+    )
+
+
+def test_simple_diagnostics_no_reference(
+    sample_data_root_dir: Path,
+    cubes: CubeList,
+    data_information: DataSourceInformation,
+) -> None:
+    suite = Suite(
+        SUITES_YML_DIR / "simple_diagnostics_no_reference.yml",
+        diagnostic_kwargs={
+            "data_root_dir": sample_data_root_dir,
+            "fail_on_missing_data": True,
+            "download_missing_data": False,
+        },
+    )
+
+    con = suite.get_database(cubes, data_information)
+    table_names = get_all_table_names(con)
+
+    assert ("AnnualCycle", "data_sources") in table_names
+    assert ("AnnualCycle", "metrics") not in table_names
+    assert ("AnnualCycle", "raw_output") in table_names
+    assert ("AnnualCycle", "variables") in table_names
+
+    # Check data sources
+    expected_data_sources = ibis.memtable(
+        pd.DataFrame(
+            {
+                "id": pd.Series(["C_N_E_V"], dtype="str"),
+                "name": pd.Series(["N"], dtype="str"),
+                "category": pd.Series(["C"], dtype="str"),
+                "institute": pd.Series([""], dtype="str"),
+                "exp": pd.Series(["E"], dtype="str"),
+                "variant": pd.Series(["V"], dtype="str"),
+                "references": pd.Series([""], dtype="str"),
+            },
+        ),
+    )
+    assert_table_equal(
+        con.table("data_sources", database="AnnualCycle"),
+        expected_data_sources,
+    )
+
+    # Check variables
+    expected_variables = ibis.memtable(
+        pd.DataFrame(
+            {
+                "id": pd.Series(["tas"], dtype="str"),
+                "var_name": pd.Series(["tas"], dtype="str"),
+                "frequency": pd.Series(["mon"], dtype="str"),
+                "vertical_level": pd.Series([""], dtype="str"),
+                "min_lat": pd.Series([-90.0], dtype="float64"),
+                "max_lat": pd.Series([90.0], dtype="float64"),
+                "min_lon": pd.Series([0.0], dtype="float64"),
+                "max_lon": pd.Series([360.0], dtype="float64"),
+                "landsea_mask": pd.Series(["*"], dtype="str"),
+                "ar6_regions_mask": pd.Series([""], dtype="str"),
+                "timerange": pd.Series(["*"], dtype="str"),
+                "units": pd.Series(["K"], dtype="str"),
+                "anomaly": pd.Series([""], dtype="str"),
+                "coordinates": pd.Series(["time lat lon"], dtype="str"),
+                "derived": pd.Series([False], dtype="bool"),
+                "long_name": pd.Series(["Near-Surface Air Temperature"], dtype="str"),
+                "realm": pd.Series(["atmos"], dtype="str"),
+                "standard_name": pd.Series(["air_temperature"], dtype="str"),
+                "cmip6_table_id": pd.Series(["Amon"], dtype="str"),
+            },
+        ),
+    )
+    assert_table_equal(
+        con.table("variables", database="AnnualCycle"),
+        expected_variables,
+    )
+
+    # Check raw output
+    expected_raw_output = ibis.memtable(
+        pd.DataFrame(
+            {
+                "data_id": pd.Series(["C_N_E_V", "C_N_E_V"], dtype="str"),
+                "data_type": pd.Series(["to_benchmark", "to_benchmark"], dtype="str"),
+                "month_number": pd.Series([1.0, 2.0], dtype="float32"),
+                "tas": pd.Series([5.5, 14.5], dtype="float32"),
+            },
+        ),
+    )
+    assert_table_equal(
+        con.table("raw_output", database="AnnualCycle"),
+        expected_raw_output,
     )

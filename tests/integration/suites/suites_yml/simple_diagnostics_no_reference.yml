@@ -1,0 +1,4 @@
+climateeval.diags.simple.AnnualCycle:
+  tas:
+    var_name: tas
+    frequency: mon

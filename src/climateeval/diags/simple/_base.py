@@ -70,8 +70,13 @@ class SimpleDiagnostic(Diagnostic):
             msg = "At least a single variable must be given."
             raise ValueError(msg)
 
+        # Set up variables and reference data
         self._variables = tuple(sorted(variables_and_data.keys()))
-        self._reference_data = {v: d.reference() for v, d in variables_and_data.items()}
+
+        self._reference_data: dict[Variable, DataSource] = {}
+        for variable, diag_input_data in variables_and_data.items():
+            if diag_input_data.reference is not None:
+                self._reference_data[variable] = diag_input_data.reference()
         variable_ids = [v.id for v in self._variables]
         if len(set(variable_ids)) != len(variable_ids):
             msg = (
@@ -80,6 +85,7 @@ class SimpleDiagnostic(Diagnostic):
             )
             raise ValueError(msg)
 
+        # Set up other data
         self._other_data: dict[Variable, tuple[DataSource, ...]] = {}
         for variable, diag_datas in variables_and_data.items():
             other_data_sources: list[DataSource] = []
@@ -114,7 +120,12 @@ class SimpleDiagnostic(Diagnostic):
         variables_and_data: dict[Variable, SimpleDiagnosticInputData] = {}
         for variable_id, variable_kwargs_ in suite_settings.items():
             variable_kwargs = dict(variable_kwargs_)
-            reference_data = str_to_class(variable_kwargs.pop("reference_data"))
+            given_reference_data = variable_kwargs.pop("reference_data", None)
+            reference_data: type[DataSource] | None
+            if given_reference_data is None:
+                reference_data = None
+            else:
+                reference_data = str_to_class(given_reference_data)
             other_data = tuple(
                 str_to_class(o) for o in variable_kwargs.pop("other_data", ())
             )
