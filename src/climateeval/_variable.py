@@ -120,6 +120,12 @@ class Variable:
     timerange: str = field(default="*", repr=False, kw_only=True)
     units: str = field(default="", repr=False, kw_only=True)
     anomaly: str = field(default="", repr=False, kw_only=True)
+    diagnostic_kwargs: dict[str, Any] = field(
+        default_factory=dict,
+        repr=False,
+        kw_only=True,
+        compare=False,
+    )
 
     # Automatically filled fields
     coordinates: tuple[Coordinate] = field(init=False, repr=False, compare=False)

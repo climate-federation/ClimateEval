@@ -69,6 +69,7 @@ def test_tas() -> None:
         "timerange": "*",
         "units": "K",
         "anomaly": "",
+        "diagnostic_kwargs": {},
     }
     assert var.settings == settings
     for key, val in settings.items():
@@ -105,6 +106,7 @@ def test_ta() -> None:
         "timerange": "*",
         "units": "K",
         "anomaly": "",
+        "diagnostic_kwargs": {},
     }
     assert var.settings == settings
     for key, val in settings.items():
@@ -142,6 +144,7 @@ def test_lwcre() -> None:
         "timerange": "*",
         "units": "W m-2",
         "anomaly": "",
+        "diagnostic_kwargs": {},
     }
     assert var.settings == settings
     for key, val in settings.items():
@@ -176,6 +179,7 @@ def test_lwcre() -> None:
                 "timerange": "*",
                 "units": "W m-2",
                 "anomaly": "",
+                "diagnostic_kwargs": {},
             },
         ),
         (
@@ -183,6 +187,7 @@ def test_lwcre() -> None:
                 "units": "kW w-2",
                 "landsea_mask": "land-only",
                 "ar6_regions_mask": ("Caribbean", "E.Europe"),
+                "diagnostic_kwargs": {"test": 1},
             },
             {
                 "vertical_level": NO_LEVEL,
@@ -195,6 +200,7 @@ def test_lwcre() -> None:
                 "timerange": "*",
                 "units": "kW w-2",
                 "anomaly": "",
+                "diagnostic_kwargs": {"test": 1},
             },
         ),
     ],

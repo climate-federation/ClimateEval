@@ -160,6 +160,9 @@ class Diagnostic(ABC):
             )
 
         df["vertical_level"] = df["vertical_level"].map(vertical_level_dict_to_str)
+        df["diagnostic_kwargs"] = df["diagnostic_kwargs"].map(
+            lambda r: " ".join(f"{k}={v}" for k, v in r.items()),
+        )
         return ibis.memtable(df)
 
     def _handle_missing_data(
