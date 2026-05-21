@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
 
-import ibis
-import iris
 from esmvalcore.preprocessor import histogram, regrid
 from loguru import logger
 
@@ -15,7 +13,7 @@ from climateeval.diags.simple._base import SimpleDiagnostic
 from climateeval.exceptions import CoordinateError
 
 if TYPE_CHECKING:
-
+    import ibis
     from iris.cube import Cube
 
     from climateeval import Variable
@@ -78,7 +76,7 @@ class Histogram(SimpleDiagnostic):
         )
         raw_output_table = raw_output_table.rename(
             **{f"density_{variable.id}": variable.id},
-            **{variable.id: cube.coords(dim_coords=True)[0].name()}
+            **{variable.id: cube.coords(dim_coords=True)[0].name()},
         )
         return raw_output_table  # noqa: RET504
 
