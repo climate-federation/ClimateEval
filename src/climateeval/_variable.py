@@ -104,7 +104,7 @@ class Variable:
     var_name: str = field(repr=False)
     frequency: str = field(repr=False)
 
-    # Settings
+    # Custom user settings
     settings: dict[str, Any] = field(init=False, repr=False, compare=False)
     vertical_level: VerticalLevel = field(default=NO_LEVEL, repr=False, kw_only=True)
     min_lat: float = field(default=-90.0, repr=False, kw_only=True)
@@ -127,7 +127,7 @@ class Variable:
         compare=False,
     )
 
-    # Automatically filled fields
+    # Automatically filled fields (additional metadata)
     coordinates: tuple[Coordinate] = field(init=False, repr=False, compare=False)
     derived: bool = field(default=False, init=False, repr=False, compare=False)
     long_name: str = field(init=False, repr=False, compare=False)
