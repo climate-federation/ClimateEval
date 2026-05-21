@@ -4,11 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from esmvalcore.preprocessor import (
-    area_statistics,
-    climate_statistics,
-    regrid,
-)
+from esmvalcore.preprocessor import area_statistics, climate_statistics, regrid
 
 from climateeval import Coordinate
 from climateeval._config import setup_esmvaltool_config_and_logging

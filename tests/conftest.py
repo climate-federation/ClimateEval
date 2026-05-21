@@ -47,17 +47,22 @@ def temporary_data_root_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
 
 @pytest.fixture
 def variable_tas() -> Variable:
-    return Variable("my_tas", "tas", "mon")
+    return Variable(
+        "my_tas",
+        "tas",
+        "mon",
+        diagnostic_kwargs={"bin_range": (250.0, 350.0)},
+    )
 
 
 @pytest.fixture
 def variable_ta() -> Variable:
-    return Variable("ta", "ta", "mon")
+    return Variable("ta", "ta", "mon", diagnostic_kwargs={"bin_range": (250.0, 350.0)})
 
 
 @pytest.fixture
 def variable_pr() -> Variable:
-    return Variable("my_pr", "pr", "mon")
+    return Variable("my_pr", "pr", "mon", diagnostic_kwargs={"bin_range": (0.0, 15.0)})
 
 
 @pytest.fixture

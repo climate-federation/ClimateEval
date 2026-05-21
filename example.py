@@ -141,7 +141,7 @@ def main() -> None:
             "download_missing_data": True,
         },
         variable_kwargs={
-            "timerange": "20000101/20001231",
+            "timerange": "20000101/20000110",
         },
     )
     print(con)
