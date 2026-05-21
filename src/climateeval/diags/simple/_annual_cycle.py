@@ -18,13 +18,15 @@ from climateeval.diags.simple._base import SimpleDiagnostic
 if TYPE_CHECKING:
     from iris.cube import Cube
 
+    from climateeval import Variable
+
 
 class AnnualCycle(SimpleDiagnostic):
     """Manage annual cycle diagnostics."""
 
     _FINAL_COORDINATES = (Coordinate("month_number"),)
 
-    def _preprocess(self, cube: Cube) -> Cube:
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
             cube = regrid(

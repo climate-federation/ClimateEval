@@ -17,6 +17,8 @@ from climateeval.diags.simple._base import SimpleDiagnostic
 if TYPE_CHECKING:
     from iris.cube import Cube
 
+    from climateeval import Variable
+
 
 class AnnualCycleSpatialDistribution(SimpleDiagnostic):
     """Manage annual cycle spatial distribution diagnostics."""
@@ -29,7 +31,7 @@ class AnnualCycleSpatialDistribution(SimpleDiagnostic):
 
     _OUTPUT_DATA_TABLE = False
 
-    def _preprocess(self, cube: Cube) -> Cube:
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
             cube = regrid(

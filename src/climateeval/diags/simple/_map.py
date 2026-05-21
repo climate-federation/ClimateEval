@@ -17,13 +17,15 @@ from climateeval.diags.simple._base import SimpleDiagnostic
 if TYPE_CHECKING:
     from iris.cube import Cube
 
+    from climateeval import Variable
+
 
 class Map(SimpleDiagnostic):
     """Manage map diagnostics."""
 
     _FINAL_COORDINATES = (Coordinate("lat"), Coordinate("lon"))
 
-    def _preprocess(self, cube: Cube) -> Cube:
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
             cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)

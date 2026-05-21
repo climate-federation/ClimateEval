@@ -176,6 +176,7 @@ class SimpleDiagnostic(Diagnostic):
                         variable,
                         download_missing_data=self._download_missing_data,
                     ),
+                    variable,
                 )
             except Exception as exc:  # noqa: BLE001
                 self._handle_missing_data(reference_data.id, (variable,), exc)
@@ -274,7 +275,7 @@ class SimpleDiagnostic(Diagnostic):
     def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
         """Get data cube."""
         cube = get_prepared_cube(data, variable)
-        return self._safely_preprocess(cube)
+        return self._safely_preprocess(cube, variable)
 
     def _get_metrics(self, cube: Cube, reference_cube: Cube) -> dict[str, pd.Series]:
         """Get metrics."""
@@ -320,6 +321,7 @@ class SimpleDiagnostic(Diagnostic):
                             variable,
                             download_missing_data=self._download_missing_data,
                         ),
+                        variable,
                     )
                 except Exception as exc:  # noqa: BLE001
                     self._handle_missing_data(other_data.id, (variable,), exc)
@@ -429,12 +431,12 @@ class SimpleDiagnostic(Diagnostic):
         )
 
     @abstractmethod
-    def _preprocess(self, cube: Cube) -> Cube:
+    def _preprocess(self, cube: Cube, variable: Variable) -> Cube:
         """Preprocess cube."""
 
-    def _safely_preprocess(self, cube: Cube) -> Cube:
+    def _safely_preprocess(self, cube: Cube, variable: Variable) -> Cube:
         """Safely preprocess cube."""
-        cube = self._preprocess(cube)
+        cube = self._preprocess(cube, variable)
         return check_coordinates(cube, self._FINAL_COORDINATES)
 
     def _sort_raw_output_columns(self, raw_output_table: ibis.Table) -> ibis.Table:

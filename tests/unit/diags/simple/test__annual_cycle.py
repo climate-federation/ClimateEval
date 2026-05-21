@@ -20,5 +20,9 @@ def diagnostic(
     return AnnualCycle(variables_and_data_2d)
 
 
-def test__safely_preprocess(diagnostic: AnnualCycle, cube_2d: Cube) -> None:
-    diagnostic._safely_preprocess(cube_2d)
+def test__safely_preprocess(
+    diagnostic: AnnualCycle,
+    cube_2d: Cube,
+    variable_tas: Variable,
+) -> None:
+    diagnostic._safely_preprocess(cube_2d, variable_tas)

@@ -20,5 +20,9 @@ def diagnostic(
     return ZonalProfileAirPressure(variables_and_data_3d)
 
 
-def test__safely_preprocess(diagnostic: ZonalProfileAirPressure, cube_3d: Cube) -> None:
-    diagnostic._safely_preprocess(cube_3d)
+def test__safely_preprocess(
+    diagnostic: ZonalProfileAirPressure,
+    cube_3d: Cube,
+    variable_ta: Variable,
+) -> None:
+    diagnostic._safely_preprocess(cube_3d, variable_ta)
