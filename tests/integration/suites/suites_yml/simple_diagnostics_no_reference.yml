@@ -2,3 +2,6 @@ climateeval.diags.simple.AnnualCycle:
   tas:
     var_name: tas
     frequency: mon
+    diagnostic_kwargs:
+      a: 1
+      b: 2
