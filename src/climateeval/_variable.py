@@ -126,6 +126,12 @@ class Variable:
         kw_only=True,
         compare=False,
     )
+    additional_preprocessors: dict[str, dict[str, Any]] = field(
+        default_factory=dict,
+        repr=False,
+        kw_only=True,
+        compare=False,
+    )
 
     # Automatically filled fields (additional metadata)
     coordinates: tuple[Coordinate] = field(init=False, repr=False, compare=False)

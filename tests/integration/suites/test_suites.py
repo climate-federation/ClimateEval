@@ -132,6 +132,7 @@ def test_simple_diagnostics(
                 "units": pd.Series(["K", "g m-2 s-1"], dtype="str"),
                 "anomaly": pd.Series(["", ""], dtype="str"),
                 "diagnostic_kwargs": pd.Series(["", ""], dtype="str"),
+                "additional_preprocessors": pd.Series(["", ""], dtype="str"),
                 "coordinates": pd.Series(["time lat lon", "time lat lon"], dtype="str"),
                 "derived": pd.Series([False, False], dtype="bool"),
                 "long_name": pd.Series(
@@ -175,6 +176,7 @@ def test_simple_diagnostics(
                 "units": pd.Series(["K", "g m-2 s-1"], dtype="str"),
                 "anomaly": pd.Series(["", "full"], dtype="str"),
                 "diagnostic_kwargs": pd.Series(["", ""], dtype="str"),
+                "additional_preprocessors": pd.Series(["", ""], dtype="str"),
                 "coordinates": pd.Series(
                     ["time alevel lat lon", "time lat lon"],
                     dtype="str",
@@ -435,7 +437,8 @@ def test_simple_diagnostics_no_reference(
                 "timerange": pd.Series(["*"], dtype="str"),
                 "units": pd.Series(["K"], dtype="str"),
                 "anomaly": pd.Series([""], dtype="str"),
-                "diagnostic_kwargs": pd.Series([""], dtype="str"),
+                "diagnostic_kwargs": pd.Series(["a=1 b=2"], dtype="str"),
+                "additional_preprocessors": pd.Series([""], dtype="str"),
                 "coordinates": pd.Series(["time lat lon"], dtype="str"),
                 "derived": pd.Series([False], dtype="bool"),
                 "long_name": pd.Series(["Near-Surface Air Temperature"], dtype="str"),

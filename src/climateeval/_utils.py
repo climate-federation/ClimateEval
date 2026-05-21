@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import iris
 from esmvalcore.preprocessor import (
@@ -136,8 +136,9 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
         cube = convert_units(cube, variable.units)
         if variable.anomaly:
             cube = anomalies(cube, variable.anomaly)
+        cube = _run_additional_preprocessors(cube, variable)
 
-    return cube
+    return cube  # noqa: RET504
 
 
 def load_cubes(uris: str | Path | Iterable[str] | Iterable[Path]) -> CubeList:
@@ -146,16 +147,16 @@ def load_cubes(uris: str | Path | Iterable[str] | Iterable[Path]) -> CubeList:
         return iris.load(uris)
 
 
-def str_to_class(class_str: str) -> type:
-    """Convert string to Python class."""
+def str_to_object(object_str: str) -> Any:
+    """Convert string to loadable Python object."""
     try:
-        module_name, class_name = class_str.rsplit(".", 1)
+        module_name, class_name = object_str.rsplit(".", 1)
         module = importlib.import_module(module_name)
-        class_ = getattr(module, class_name)
+        object_ = getattr(module, class_name)
     except Exception as exc:
-        msg = f"Failed to load class '{class_str}': {exc}"
+        msg = f"Failed to load Python object '{object_str}': {exc}"
         raise ValueError(msg) from exc
-    return class_
+    return object_
 
 
 def _apply_masks(cube: Cube, variable: Variable) -> Cube:
@@ -280,6 +281,21 @@ def _get_derived_cube(cubes: CubeList, variable: Variable) -> Cube:
         units=variable.units,
         standard_name=variable.standard_name,
     )
+
+
+def _run_additional_preprocessors(cube: Cube, variable: Variable) -> Cube:
+    """Run additional preprocessors."""
+    for func_name, settings in variable.additional_preprocessors.items():
+        func = str_to_object(func_name)
+        try:
+            cube = func(cube, **settings)
+        except Exception as exc:
+            msg = (
+                f"Failed to run preprocessor function '{func_name}' with "
+                f"settings {settings} on {variable}: {exc}"
+            )
+            raise ValueError(msg) from exc
+    return cube
 
 
 def _set_coordinate_bounds(cube: Cube) -> Cube:

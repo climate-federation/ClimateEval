@@ -70,6 +70,7 @@ def test_tas() -> None:
         "units": "K",
         "anomaly": "",
         "diagnostic_kwargs": {},
+        "additional_preprocessors": {},
     }
     assert var.settings == settings
     for key, val in settings.items():
@@ -107,6 +108,7 @@ def test_ta() -> None:
         "units": "K",
         "anomaly": "",
         "diagnostic_kwargs": {},
+        "additional_preprocessors": {},
     }
     assert var.settings == settings
     for key, val in settings.items():
@@ -145,6 +147,7 @@ def test_lwcre() -> None:
         "units": "W m-2",
         "anomaly": "",
         "diagnostic_kwargs": {},
+        "additional_preprocessors": {},
     }
     assert var.settings == settings
     for key, val in settings.items():
@@ -180,6 +183,7 @@ def test_lwcre() -> None:
                 "units": "W m-2",
                 "anomaly": "",
                 "diagnostic_kwargs": {},
+                "additional_preprocessors": {},
             },
         ),
         (
@@ -188,6 +192,7 @@ def test_lwcre() -> None:
                 "landsea_mask": "land-only",
                 "ar6_regions_mask": ("Caribbean", "E.Europe"),
                 "diagnostic_kwargs": {"test": 1},
+                "additional_preprocessors": {"func": {"kwarg": 1}},
             },
             {
                 "vertical_level": NO_LEVEL,
@@ -201,6 +206,7 @@ def test_lwcre() -> None:
                 "units": "kW w-2",
                 "anomaly": "",
                 "diagnostic_kwargs": {"test": 1},
+                "additional_preprocessors": {"func": {"kwarg": 1}},
             },
         ),
     ],

@@ -4,8 +4,8 @@ import pytest
 from iris.coords import AuxCoord, DimCoord
 from iris.cube import Cube
 
-from climateeval import Coordinate
-from climateeval._utils import check_coordinates
+from climateeval import Coordinate, Variable
+from climateeval._utils import _run_additional_preprocessors, check_coordinates
 from climateeval.exceptions import CoordinateError
 
 
@@ -219,3 +219,44 @@ def test_check_coordinates_missing_general_coord_fail(time_coord: DimCoord) -> N
             cube,
             [Coordinate("time"), Coordinate("alevel")],
         )
+
+
+def test__run_additional_preprocessors(cube_2d: Cube) -> None:
+    variable = Variable(
+        "my_tas",
+        "tas",
+        "mon",
+        additional_preprocessors={
+            "esmvalcore.preprocessor.area_statistics": {"operator": "mean"},
+        },
+    )
+    cube = _run_additional_preprocessors(cube_2d, variable)
+    assert [c.name() for c in cube.coords(dim_coords=True)] == ["time"]
+    assert cube.shape == (3,)
+
+
+def test__run_additional_preprocessors_invalid_func_fail(cube_2d: Cube) -> None:
+    variable = Variable(
+        "my_tas",
+        "tas",
+        "mon",
+        additional_preprocessors={"invalid.func": {"test": "1"}},
+    )
+    msg = r"Failed to load Python object 'invalid.func': No module named 'invalid'"
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        _run_additional_preprocessors(cube_2d, variable)
+
+
+def test__run_additional_preprocessors_calculation_error_fail(cube_2d: Cube) -> None:
+    variable = Variable(
+        "my_tas",
+        "tas",
+        "mon",
+        additional_preprocessors={"tests.unit.raise_value_error": {"test": "1"}},
+    )
+    msg = (
+        r"Failed to run preprocessor function 'tests.unit.raise_value_error' with "
+        r"settings {'test': '1'} on Variable(id='my_tas'): value error"
+    )
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        _run_additional_preprocessors(cube_2d, variable)

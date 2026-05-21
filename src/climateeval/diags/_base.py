@@ -159,9 +159,14 @@ class Diagnostic(ABC):
                 f"{vertical_level_dict['value']} {vertical_level_dict['units']}"
             )
 
+        def dict_to_str(dict_: dict[str, Any]) -> str:
+            """Convert dictionary to string."""
+            return " ".join(f"{k}={v}" for k, v in dict_.items())
+
         df["vertical_level"] = df["vertical_level"].map(vertical_level_dict_to_str)
-        df["diagnostic_kwargs"] = df["diagnostic_kwargs"].map(
-            lambda r: " ".join(f"{k}={v}" for k, v in r.items()),
+        df["diagnostic_kwargs"] = df["diagnostic_kwargs"].map(dict_to_str)
+        df["additional_preprocessors"] = df["additional_preprocessors"].map(
+            lambda r: " ".join(f"{p}: {dict_to_str(s)}" for p, s in r.items()),
         )
         return ibis.memtable(df)
 

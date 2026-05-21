@@ -15,7 +15,7 @@ from loguru import logger
 
 from climateeval import Variable, VerticalLevel
 from climateeval._config import setup_esmvaltool_config_and_logging
-from climateeval._utils import check_coordinates, get_prepared_cube, str_to_class
+from climateeval._utils import check_coordinates, get_prepared_cube, str_to_object
 from climateeval.diags._base import Diagnostic, DiagnosticOutput
 from climateeval.diags._utils import union
 from climateeval.diags.simple._utils import SimpleDiagnosticInputData
@@ -126,9 +126,9 @@ class SimpleDiagnostic(Diagnostic):
             if given_reference_data is None:
                 reference_data = None
             else:
-                reference_data = str_to_class(given_reference_data)
+                reference_data = str_to_object(given_reference_data)
             other_data = tuple(
-                str_to_class(o) for o in variable_kwargs.pop("other_data", ())
+                str_to_object(o) for o in variable_kwargs.pop("other_data", ())
             )
             if "vertical_level" in variable_kwargs:
                 variable_kwargs["vertical_level"] = VerticalLevel(

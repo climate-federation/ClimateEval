@@ -11,7 +11,7 @@ import ibis
 import yaml
 from loguru import logger
 
-from climateeval._utils import str_to_class
+from climateeval._utils import str_to_object
 from climateeval.diags._base import Diagnostic
 
 if TYPE_CHECKING:
@@ -89,7 +89,7 @@ class Suite:
         """Get diagnostics to run."""
         diagnostics: list[Diagnostic] = []
         for diag_str, diag_settings in self._suite_definition.items():
-            diag_cls = str_to_class(diag_str)
+            diag_cls = str_to_object(diag_str)
             if not issubclass(diag_cls, Diagnostic):
                 msg = (
                     f"Diagnostic '{diag_str}' is not a valid diagnostic; should "
