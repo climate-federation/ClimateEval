@@ -31,7 +31,7 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
       coordinate_name: air_pressure
       units: hPa
       value: 400.0
-    reference_data: climateeval.data.ERA5
+    reference_data: climateeval.data.ERA5Monthly
   lwcre:
     var_name: lwcre
     frequency: mon
@@ -41,7 +41,7 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
     var_name: lwp
     frequency: mon
     reference_data: climateeval.data.ESACCICloud
-    other_data: [climateeval.data.ERA5]
+    other_data: [climateeval.data.ERA5Monthly]
   pr:
     var_name: pr
     frequency: mon
@@ -79,7 +79,7 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
       coordinate_name: air_pressure
       units: hPa
       value: 200.0
-    reference_data: climateeval.data.ERA5
+    reference_data: climateeval.data.ERA5Monthly
   ta800:
     var_name: ta
     frequency: mon
@@ -87,7 +87,7 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
       coordinate_name: air_pressure
       units: hPa
       value: 800.0
-    reference_data: climateeval.data.ERA5
+    reference_data: climateeval.data.ERA5Monthly
   tas:
     var_name: tas
     frequency: mon
@@ -100,7 +100,7 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
       coordinate_name: air_pressure
       units: hPa
       value: 200.0
-    reference_data: climateeval.data.ERA5
+    reference_data: climateeval.data.ERA5Monthly
   ua800:
     var_name: ua
     frequency: mon
@@ -108,7 +108,7 @@ climateeval.diags.simple.AnnualCycle: &2d_variables
       coordinate_name: air_pressure
       units: hPa
       value: 800.0
-    reference_data: climateeval.data.ERA5
+    reference_data: climateeval.data.ERA5Monthly
 
 climateeval.diags.simple.AnnualCycleSpatialDistribution: *2d_variables
 
@@ -122,12 +122,12 @@ climateeval.diags.simple.ZonalProfileAirPressure:
   hus:
     var_name: hus
     frequency: mon
-    reference_data: climateeval.data.ERA5
+    reference_data: climateeval.data.ERA5Monthly
   ta:
     var_name: ta
     frequency: mon
-    reference_data: climateeval.data.ERA5
+    reference_data: climateeval.data.ERA5Monthly
   ua:
     var_name: ua
     frequency: mon
-    reference_data: climateeval.data.ERA5
+    reference_data: climateeval.data.ERA5Monthly
