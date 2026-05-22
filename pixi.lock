@@ -6030,7 +6030,7 @@ packages:
 - pypi: ./
   name: climateeval
   version: 0.0.1
-  sha256: 2723f42b618c158ba1ccf83f78ac1553e7d7214a73c10c8e67a47fc2149b1b0e
+  sha256: 99cc3fdcf69692f0f1eb99aa4b5374fd50b7cd849d437522e8468fb703a4dcf3
   requires_dist:
   - cdsapi
   - cf-units
