@@ -183,12 +183,6 @@ def render_diagnostic_section(
     first_var = var_cols[0]
 
     def _btn_label(v: str) -> str:
-        if variables_df is not None and not variables_df.empty:
-            row = variables_df[variables_df["id"] == v]
-            if not row.empty:
-                ln = str(row["long_name"].values[0])
-                u = str(row["units"].values[0])
-                return f"{ln} [{u}]" if u else ln
         return v
 
     def _search_terms(v: str) -> str:
@@ -705,9 +699,7 @@ def build_html_shell(
         height = 700 if is_2d else 450
 
         def _btn_label(v: dict) -> str:
-            ln = v.get("long_name") or v["id"]
-            u = v.get("units", "")
-            return f"{ln} [{u}]" if u else ln
+            return v["id"]
 
         var_buttons = "".join(
             "<button class='var-pill {active}' data-var='{vid}' title='{vid}' "
