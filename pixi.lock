@@ -436,6 +436,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/requests-cache-1.3.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/retrying-1.4.2-pyhe01879c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/rich-15.0.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/ruff-0.15.14-h994f30f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/s2geometry-0.11.1-he11e83f_5.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/s2n-1.6.2-he8a4886_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/scikit-image-0.26.0-np2py312h4ae17e4_0.conda
@@ -935,6 +936,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/requests-cache-1.3.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/retrying-1.4.2-pyhe01879c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/rich-15.0.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ruff-0.15.14-hbd3f8a3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/s2geometry-0.11.1-hd7f1bc2_5.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/scikit-image-0.26.0-np2py313h7c04bff_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/scikit-learn-1.8.0-np2py313h3b23316_1.conda
@@ -1394,6 +1396,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/requests-cache-1.3.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/retrying-1.4.2-pyhe01879c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/rich-15.0.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/ruff-0.15.14-h994f30f_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/s2geometry-0.11.1-he11e83f_5.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/s2n-1.6.2-he8a4886_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/scikit-image-0.26.0-np2py312h4ae17e4_0.conda
@@ -1885,6 +1888,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/requests-cache-1.3.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/retrying-1.4.2-pyhe01879c_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/rich-15.0.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/ruff-0.15.14-hbd3f8a3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/s2geometry-0.11.1-hd7f1bc2_5.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/scikit-image-0.26.0-np2py313h7c04bff_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/scikit-learn-1.8.0-np2py313h3b23316_1.conda
@@ -6026,7 +6030,7 @@ packages:
 - pypi: ./
   name: climateeval
   version: 0.0.1
-  sha256: 24af956d5a286f35fc10fc83e263afc35d1c4cdb0c13ced799dd02e2354e874f
+  sha256: 2723f42b618c158ba1ccf83f78ac1553e7d7214a73c10c8e67a47fc2149b1b0e
   requires_dist:
   - cdsapi
   - cf-units
@@ -16410,6 +16414,35 @@ packages:
   - pkg:pypi/rich?source=hash-mapping
   size: 208577
   timestamp: 1775991661559
+- conda: https://conda.anaconda.org/conda-forge/linux-64/ruff-0.15.14-h994f30f_0.conda
+  noarch: python
+  sha256: 787f6608c4d23abe735875cfcfe316790e06ba43654ff269a43b920e83482bbe
+  md5: 605e065354fc2525ae245adbe189eb84
+  depends:
+  - python
+  - __glibc >=2.17,<3.0.a0
+  - libgcc >=14
+  constrains:
+  - __glibc >=2.17
+  license: MIT
+  purls:
+  - pkg:pypi/ruff?source=compressed-mapping
+  size: 9340598
+  timestamp: 1779388159173
+- conda: https://conda.anaconda.org/conda-forge/osx-arm64/ruff-0.15.14-hbd3f8a3_0.conda
+  noarch: python
+  sha256: 43b8af9b6d6365f5765cfaf5130b9c30e22085a0351b4f9f7e1b66ad73e013e6
+  md5: 69c977f27db4957d4fdc1eddcd942ca6
+  depends:
+  - python
+  - __osx >=11.0
+  constrains:
+  - __osx >=11.0
+  license: MIT
+  purls:
+  - pkg:pypi/ruff?source=compressed-mapping
+  size: 8509938
+  timestamp: 1779388343525
 - conda: https://conda.anaconda.org/conda-forge/linux-64/s2geometry-0.11.1-he11e83f_5.conda
   sha256: a539263a3094221980076ac9a65a01b2f88848faad4d57f78e15ea5c40e232d7
   md5: 2e0ad497f7e7d4615133672b127e2e42
