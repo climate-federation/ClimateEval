@@ -343,6 +343,7 @@ def serve(
         )
         save_html.write_text(html_content, encoding="utf-8")
         print(f"  HTML saved to {save_html}", flush=True)
+        return
 
     url = f"http://{host}:{port}"
     print(f"\nServing at {url}", flush=True)

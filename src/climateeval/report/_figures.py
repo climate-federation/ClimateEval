@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from climateeval.report._db import get_var_cols
+from climateeval.report._db import get_var_cols, get_density_cols
 from climateeval.report._style import (
     _AXIS_STYLE,
     _DIVERGING_VARS,
@@ -1589,7 +1589,100 @@ def build_histogram_figures(
     variables_df: pd.DataFrame,
     _metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
-    """Histogram diagnostics, one figure per variable."""
+    """Histogram diagnostics, one figure per density variable, all datasets overlaid.
+
+    Each density variable (e.g., density_pr_global) is plotted as a line chart
+    showing density vs bin center. Reference datasets are shown in black; the
+    model being benchmarked in blue (with the seaborn palette for multiple
+    benchmark models); all other datasets in grey.
+    """
+    figures: dict[str, go.Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    density_cols = get_density_cols(data_df)
+
+    for density_col in density_cols:
+        var_id = density_col.replace("density_", "")
+        sub = data_df[["data_id", "data_type", var_id, density_col]].dropna(
+            subset=[density_col],
+        )
+        if sub.empty:
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+
+        fig = go.Figure()
+        color_idx = 0
+
+        for dataset in all_datasets:
+            ds_sub = sub[sub["data_id"] == dataset].sort_values(var_id)
+            if ds_sub.empty:
+                continue
+            dtype = ds_sub["data_type"].iloc[0]
+
+            if dtype == "reference":
+                line_color = "black"
+                dash = "solid"
+                width = 2
+            elif dtype == "to_benchmark":
+                line_color = _SEABORN_COLORS[color_idx % len(_SEABORN_COLORS)]
+                dash = "solid"
+                width = 2
+                color_idx += 1
+            else:
+                line_color = "#888"
+                dash = "dash"
+                width = 1.5
+
+            fig.add_trace(
+                go.Scatter(
+                    x=ds_sub[var_id].values,
+                    y=ds_sub[density_col].values,
+                    mode="lines",
+                    name=str(dataset),
+                    legendgroup=str(dataset),
+                    line={"color": line_color, "dash": dash, "width": width},
+                    hovertemplate=(
+                        f"<b>{dataset}</b><br>"
+                        f"{var_id}: %{{x:.4g}} {units}<br>"
+                        f"density: %{{y:.4g}}<extra></extra>"
+                    ),
+                ),
+            )
+
+        title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
+        fig.update_layout(
+            **_base_layout(
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
+                legend={
+                    "orientation": "h",
+                    "yanchor": "bottom",
+                    "y": 1.02,
+                    "xanchor": "right",
+                    "x": 1,
+                    "bgcolor": "rgba(255,255,255,0.85)",
+                    "bordercolor": "#ddd",
+                    "borderwidth": 1,
+                    "font": {"size": 11},
+                },
+                margin={"t": 80, "b": 60, "l": 70, "r": 30},
+                height=440,
+            ),
+            xaxis={
+                **_AXIS_STYLE,
+                "title": {"text": units or var_id},
+            },
+            yaxis={
+                **_AXIS_STYLE,
+                "title": {"text": "Density"},
+            },
+        )
+        figures[var_id] = fig
+
+    return figures
 
 
 _FIGURE_BUILDERS = {
