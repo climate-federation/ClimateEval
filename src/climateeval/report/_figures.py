@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from climateeval.report._db import get_var_cols, get_density_cols
+from climateeval.report._db import get_density_cols, get_var_cols
 from climateeval.report._style import (
     _AXIS_STYLE,
     _DIVERGING_VARS,
