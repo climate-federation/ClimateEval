@@ -163,7 +163,7 @@ def build_scoreboard_figure(
     Only uses `weighted_rmse`. Returns None if `weighted_rmse` is not available.
     """
     dfs = []
-    for tier_label, tier_metrics in all_metrics.items():
+    for tier_metrics in all_metrics.values():
         for diag_name, mdf in tier_metrics.items():
             if mdf is None or mdf.empty:
                 continue

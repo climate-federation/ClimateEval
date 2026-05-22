@@ -6,10 +6,9 @@ import html as html_module
 import re
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-import plotly.graph_objects as go
 
 from climateeval.report._db import detect_diag_type, read_database
 from climateeval.report._figures import _DIAG_ICONS, _DIAG_LABELS, _FIGURE_BUILDERS
@@ -20,6 +19,9 @@ from climateeval.report._leaderboard import (
     build_scoreboard_figure,
 )
 from climateeval.report._style import _CSS, _JS
+
+if TYPE_CHECKING:
+    import plotly.graph_objects as go
 
 # ---------------------------------------------------------------------------
 # HTML assembly helpers

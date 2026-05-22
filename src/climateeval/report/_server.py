@@ -74,7 +74,7 @@ def _load_state(
         label = _stem_to_label(db_path.stem)
         db_data = read_database(db_path)
         if not db_data:
-            print(f"[warn] No diagnostic data found in {db_path}", file=sys.stderr)
+            print(f"[warn] No diagnostic data found in {db_path}", file=sys.stderr)  # noqa: T201
             continue
 
         tier_id = f"tier{tier_idx}"
@@ -232,7 +232,7 @@ def _build_structure() -> bytes:
 
 class _Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: Any) -> None:
-        print(f"  {self.address_string()} {fmt % args}", flush=True)
+        print(f"  {self.address_string()} {fmt % args}", flush=True)  # noqa: T201
 
     def _send(
         self,
@@ -324,16 +324,16 @@ def serve(
         save_html: If a Path is given, also write a self-contained HTML file
                    to that location using generate_portable_html().
     """
-    print("Loading databases…", flush=True)
+    print("Loading databases…", flush=True)  # noqa: T201
     _load_state(db_paths, model_name, user_name, developer)
     n_tiers = len(_STATE["tiers"])
-    print(
+    print(  # noqa: T201
         f"  Loaded {n_tiers} tier(s): {[t['label'] for t in _STATE['tiers']]}",
         flush=True,
     )
 
     if save_html is not None:
-        print(f"Writing portable HTML to {save_html}…", flush=True)
+        print(f"Writing portable HTML to {save_html}…", flush=True)  # noqa: T201
         html_content = generate_portable_html(
             db_paths,
             offline=True,
@@ -342,12 +342,12 @@ def serve(
             developer=developer,
         )
         save_html.write_text(html_content, encoding="utf-8")
-        print(f"  HTML saved to {save_html}", flush=True)
+        print(f"  HTML saved to {save_html}", flush=True)  # noqa: T201
         return
 
     url = f"http://{host}:{port}"
-    print(f"\nServing at {url}", flush=True)
-    print("Press Ctrl-C to stop.\n", flush=True)
+    print(f"\nServing at {url}", flush=True)  # noqa: T201
+    print("Press Ctrl-C to stop.\n", flush=True)  # noqa: T201
 
     if open_browser:
         threading.Timer(0.5, webbrowser.open, args=(url,)).start()
@@ -356,4 +356,4 @@ def serve(
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nStopped.", flush=True)
+        print("\nStopped.", flush=True)  # noqa: T201

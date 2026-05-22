@@ -164,7 +164,7 @@ def _get_ref_datasets(
         and not metrics_df.empty
         and "reference_data_id" in metrics_df.columns
     ):
-        refs = [r for r in metrics_df["reference_data_id"].dropna().unique().tolist()]
+        refs = list(metrics_df["reference_data_id"].dropna().unique().tolist())
         if refs:
             return refs
     return data_df[data_df["data_type"] == "reference"]["data_id"].unique().tolist()
@@ -657,14 +657,14 @@ def build_annual_mean_timeseries_figures(
             )
 
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
-        layout_kwargs = dict(
-            title={
+        layout_kwargs = {
+            "title": {
                 "text": title_str,
                 "font": {"size": 14},
                 "x": 0.02,
                 "xanchor": "left",
             },
-            legend={
+            "legend": {
                 "orientation": "h",
                 "yanchor": "bottom",
                 "y": 1.02,
@@ -675,8 +675,8 @@ def build_annual_mean_timeseries_figures(
                 "borderwidth": 1,
                 "font": {"size": 11},
             },
-            margin={"t": 80, "b": 60, "l": 70, "r": 30},
-        )
+            "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
+        }
         if has_bias:
             fig.update_xaxes(**_AXIS_STYLE, row=1, col=1)
             fig.update_xaxes(title_text="Date", **_AXIS_STYLE, row=2, col=1)
@@ -833,14 +833,14 @@ def build_annual_cycle_figures(
             **_AXIS_STYLE,
         }
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
-        layout_kwargs = dict(
-            title={
+        layout_kwargs = {
+            "title": {
                 "text": title_str,
                 "font": {"size": 14},
                 "x": 0.02,
                 "xanchor": "left",
             },
-            legend={
+            "legend": {
                 "orientation": "h",
                 "yanchor": "bottom",
                 "y": 1.02,
@@ -851,8 +851,8 @@ def build_annual_cycle_figures(
                 "borderwidth": 1,
                 "font": {"size": 11},
             },
-            margin={"t": 80, "b": 60, "l": 70, "r": 30},
-        )
+            "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
+        }
         if has_bias:
             fig.update_xaxes(
                 **{k: v for k, v in x_kwargs.items() if k != "title_text"},
@@ -998,14 +998,14 @@ def build_diurnal_cycle_figures(
             **_AXIS_STYLE,
         }
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
-        layout_kwargs = dict(
-            title={
+        layout_kwargs = {
+            "title": {
                 "text": title_str,
                 "font": {"size": 14},
                 "x": 0.02,
                 "xanchor": "left",
             },
-            legend={
+            "legend": {
                 "orientation": "h",
                 "yanchor": "bottom",
                 "y": 1.02,
@@ -1016,8 +1016,8 @@ def build_diurnal_cycle_figures(
                 "borderwidth": 1,
                 "font": {"size": 11},
             },
-            margin={"t": 80, "b": 60, "l": 70, "r": 30},
-        )
+            "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
+        }
         if has_bias:
             fig.update_xaxes(
                 **{k: v for k, v in x_kwargs.items() if k != "title_text"},
@@ -1186,14 +1186,14 @@ def build_zonal_line_figures(
             )
 
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
-        layout_kwargs = dict(
-            title={
+        layout_kwargs = {
+            "title": {
                 "text": title_str,
                 "font": {"size": 14},
                 "x": 0.02,
                 "xanchor": "left",
             },
-            legend={
+            "legend": {
                 "orientation": "h",
                 "yanchor": "bottom",
                 "y": 1.02,
@@ -1204,8 +1204,8 @@ def build_zonal_line_figures(
                 "borderwidth": 1,
                 "font": {"size": 11},
             },
-            margin={"t": 80, "b": 60, "l": 70, "r": 30},
-        )
+            "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
+        }
         x_kwargs_full = dict(
             title_text="Latitude (°)",
             tickvals=lat_tickvals,
