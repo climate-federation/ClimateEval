@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-from ._figures import _base_layout
+from climateeval.report._figures import _base_layout
 
 
 def build_leaderboard_data(

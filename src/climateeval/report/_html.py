@@ -11,15 +11,15 @@ from typing import Any
 import pandas as pd
 import plotly.graph_objects as go
 
-from ._db import detect_diag_type, read_database
-from ._figures import _DIAG_ICONS, _DIAG_LABELS, _FIGURE_BUILDERS
-from ._leaderboard import (
+from climateeval.report._db import detect_diag_type, read_database
+from climateeval.report._figures import _DIAG_ICONS, _DIAG_LABELS, _FIGURE_BUILDERS
+from climateeval.report._leaderboard import (
     _render_detail_table,
     _render_summary_table,
     build_leaderboard_data,
     build_scoreboard_figure,
 )
-from ._style import _CSS, _JS
+from climateeval.report._style import _CSS, _JS
 
 # ---------------------------------------------------------------------------
 # HTML assembly helpers
@@ -470,7 +470,7 @@ def generate_portable_html(
     developer: str = "",
 ) -> str:
     """Read one or more databases and produce a self-contained HTML string."""
-    from ._figures import _coastlines
+    from climateeval.report._figures import _coastlines
 
     _coastlines()
 
@@ -635,8 +635,8 @@ def build_html_shell(
     -------
         Full HTML string for the shell page served at GET /.
     """
-    from ._db import get_var_cols
-    from ._figures import _var_label
+    from climateeval.report._db import get_var_cols
+    from climateeval.report._figures import _var_label
 
     now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 

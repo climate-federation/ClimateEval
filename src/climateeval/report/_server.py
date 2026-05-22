@@ -27,10 +27,18 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
-from ._db import detect_diag_type, get_var_cols, read_database
-from ._figures import _DIAG_ICONS, _DIAG_LABELS, _FIGURE_BUILDERS, _var_label
-from ._html import build_html_shell, generate_portable_html
-from ._leaderboard import build_leaderboard_data, build_scoreboard_figure
+from climateeval.report._db import detect_diag_type, get_var_cols, read_database
+from climateeval.report._figures import (
+    _DIAG_ICONS,
+    _DIAG_LABELS,
+    _FIGURE_BUILDERS,
+    _var_label,
+)
+from climateeval.report._html import build_html_shell, generate_portable_html
+from climateeval.report._leaderboard import (
+    build_leaderboard_data,
+    build_scoreboard_figure,
+)
 
 # ---------------------------------------------------------------------------
 # Global server state (populated once by _load_state before server starts)
@@ -61,7 +69,7 @@ def _load_state(
     all_metrics: dict[str, dict[str, pd.DataFrame]] = {}
 
     for tier_idx, db_path in enumerate(db_paths):
-        from ._html import _stem_to_label
+        from climateeval.report._html import _stem_to_label
 
         label = _stem_to_label(db_path.stem)
         db_data = read_database(db_path)
