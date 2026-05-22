@@ -69,6 +69,8 @@ def test_tas() -> None:
         "timerange": "*",
         "units": "K",
         "anomaly": "",
+        "diagnostic_kwargs": {},
+        "additional_preprocessors": {},
     }
     assert var.settings == settings
     for key, val in settings.items():
@@ -84,6 +86,46 @@ def test_tas() -> None:
     assert var.realm == "atmos"
     assert var.standard_name == "air_temperature"
     assert var.cmip6_table_id == "Amon"
+    assert var.ndim == 3
+
+
+def test_ta() -> None:
+    var = Variable("my_ta", "ta", "mon")
+
+    assert var.id == "my_ta"
+    assert var.var_name == "ta"
+    assert var.frequency == "mon"
+
+    settings = {
+        "vertical_level": NO_LEVEL,
+        "min_lat": -90.0,
+        "max_lat": 90.0,
+        "min_lon": 0.0,
+        "max_lon": 360.0,
+        "landsea_mask": "*",
+        "ar6_regions_mask": (),
+        "timerange": "*",
+        "units": "K",
+        "anomaly": "",
+        "diagnostic_kwargs": {},
+        "additional_preprocessors": {},
+    }
+    assert var.settings == settings
+    for key, val in settings.items():
+        assert getattr(var, key) == val
+
+    assert var.coordinates == (
+        Coordinate("time"),
+        Coordinate("alevel"),
+        Coordinate("lat"),
+        Coordinate("lon"),
+    )
+    assert var.derived is False
+    assert var.long_name == "Air Temperature"
+    assert var.realm == "atmos"
+    assert var.standard_name == "air_temperature"
+    assert var.cmip6_table_id == "Amon"
+    assert var.ndim == 4
 
 
 def test_lwcre() -> None:
@@ -104,6 +146,8 @@ def test_lwcre() -> None:
         "timerange": "*",
         "units": "W m-2",
         "anomaly": "",
+        "diagnostic_kwargs": {},
+        "additional_preprocessors": {},
     }
     assert var.settings == settings
     for key, val in settings.items():
@@ -119,6 +163,7 @@ def test_lwcre() -> None:
     assert var.realm == "atmos"
     assert var.standard_name == ""
     assert var.cmip6_table_id == "Amon"
+    assert var.ndim == 3
 
 
 @pytest.mark.parametrize(
@@ -137,6 +182,8 @@ def test_lwcre() -> None:
                 "timerange": "*",
                 "units": "W m-2",
                 "anomaly": "",
+                "diagnostic_kwargs": {},
+                "additional_preprocessors": {},
             },
         ),
         (
@@ -144,6 +191,8 @@ def test_lwcre() -> None:
                 "units": "kW w-2",
                 "landsea_mask": "land-only",
                 "ar6_regions_mask": ("Caribbean", "E.Europe"),
+                "diagnostic_kwargs": {"test": 1},
+                "additional_preprocessors": {"func": {"kwarg": 1}},
             },
             {
                 "vertical_level": NO_LEVEL,
@@ -156,6 +205,8 @@ def test_lwcre() -> None:
                 "timerange": "*",
                 "units": "kW w-2",
                 "anomaly": "",
+                "diagnostic_kwargs": {"test": 1},
+                "additional_preprocessors": {"func": {"kwarg": 1}},
             },
         ),
     ],
@@ -186,11 +237,16 @@ def test_get_required_variables_not_derived() -> None:
 @pytest.mark.parametrize(
     ("var_name", "frequency", "cmip6_table_id"),
     [
+        ("pr", "yr", ""),
+        ("pr", "mon", "Amon"),
+        ("pr", "day", "day"),
+        ("pr", "3hr", "3hr"),
+        ("pr", "1hr", "E1hr"),
         ("tas", "yr", ""),
         ("tas", "mon", "Amon"),
         ("tas", "day", "day"),
         ("tas", "3hr", "3hr"),
-        ("tas", "1hr", ""),
+        ("tas", "1hr", "AERhr"),
         ("tos", "yr", "Oyr"),
         ("tos", "mon", "Omon"),
         ("tos", "day", "Oday"),

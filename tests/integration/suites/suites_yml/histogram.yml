@@ -1,0 +1,14 @@
+climateeval.diags.simple.Histogram:
+  tas:
+    var_name: tas
+    frequency: mon
+    diagnostic_kwargs:
+      bins: 3
+      bin_range: [0.0, 30.0]
+    additional_preprocessors:
+      esmvalcore.preprocessor.extract_region:
+        start_longitude: 25.0
+        end_longitude: 75.0
+        start_latitude: -15.0
+        end_latitude: 15.0
+    reference_data: climateeval.data.ERA5Monthly

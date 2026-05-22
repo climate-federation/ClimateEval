@@ -11,14 +11,15 @@ from climateeval.suites import Suite
 
 @pytest.fixture
 def suite() -> Suite:
-    return Suite("Tier2_atmosphere")
+    return Suite("Tier2_atmosphere_monthly")
 
 
 def test_suite(suite: Suite) -> None:
-    assert suite.name == "Tier2_atmosphere"
+    assert suite.name == "Tier2_atmosphere_monthly"
     assert (
         suite._suite_definition_file
-        == Path(str(resources.files("climateeval.suites"))) / "Tier2_atmosphere.yml"
+        == Path(str(resources.files("climateeval.suites")))
+        / "Tier2_atmosphere_monthly.yml"
     )
     with suite._suite_definition_file.open("r", encoding="utf-8") as file:
         assert suite._suite_definition == yaml.safe_load(file)

@@ -2,12 +2,12 @@ climateeval.diags.simple.AnnualCycle:
   tas:
     var_name: tas
     frequency: mon
-    reference_data: climateeval.data.ERA5
+    reference_data: climateeval.data.ERA5Monthly
   mypr:
     var_name: pr
     frequency: mon
     reference_data: climateeval.data.GPCP
-    other_data: [climateeval.data.ERA5]
+    other_data: [climateeval.data.ERA5Monthly]
     min_lat: -10.0
     max_lat: 40.0
     min_lon: 10.0
@@ -19,7 +19,7 @@ climateeval.diags.simple.AnnualMeanTimeSeries:
   ta1000:
     var_name: ta
     frequency: mon
-    reference_data: climateeval.data.ERA5
+    reference_data: climateeval.data.ERA5Monthly
     vertical_level:
       coordinate_name: air_pressure
       units: hPa
@@ -29,7 +29,7 @@ climateeval.diags.simple.AnnualMeanTimeSeries:
     var_name: pr
     frequency: mon
     reference_data: climateeval.data.GPCP
-    other_data: [climateeval.data.ERA5]
+    other_data: [climateeval.data.ERA5Monthly]
     timerange: 19710101/19721231
     units: g m-2 s-1
     anomaly: full

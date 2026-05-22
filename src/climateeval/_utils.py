@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import iris
 from esmvalcore.preprocessor import (
@@ -12,6 +12,7 @@ from esmvalcore.preprocessor import (
     convert_units,
     derive,
     extract_levels,
+    extract_region,
     extract_shape,
     mask_landsea,
 )
@@ -56,7 +57,7 @@ def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) ->
                 msg = (
                     f"Expected general coordinate {coordinate} with allowed "
                     f"coordinates {coordinate.allowed_coordinates} missing in "
-                    f"cube\n{cube}"
+                    f"cube {cube.summary(shorten=True)}"
                 )
                 raise CoordinateError(msg)
         else:
@@ -67,7 +68,7 @@ def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) ->
         if not cube.coords(coord_name):
             msg = (
                 f"Expected coordinate {coordinate} with name '{coord_name}' "
-                f"missing in cube\n{cube}"
+                f"missing in cube {cube.summary(shorten=True)}"
             )
             raise CoordinateError(msg)
 
@@ -83,7 +84,7 @@ def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) ->
     if set(covered_dimensions) != set(range(cube.ndim)):
         msg = (
             f"Expected coordinates {expected_coordinates} do not cover all "
-            f"dimensions of cube\n{cube}"
+            f"dimensions of cube {cube.summary(shorten=True)}"
         )
         raise CoordinateError(msg)
 
@@ -121,46 +122,23 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
                 raise
             cube = _get_derived_cube(data, variable)
 
+        # General preprocessing
         cube = _check_data(cube, variable)
-
-        # Add bounds if necessary
         cube = _set_coordinate_bounds(cube)
-
-        # Make sure longitude is in [0, 360]
         if cube.coords("longitude"):
             cube = _set_lon_to_0_360(cube)
 
-        # Apply masks
+        # Custom preprocessing
         cube = _apply_masks(cube, variable)
-
-        # Extract desired time range and bounding box
-        if cube.coords("time") and variable.timerange != "*":
-            cube = clip_timerange(cube, variable.timerange)
-        if cube.coords("latitude"):
-            cube = cube.extract(
-                Constraint(
-                    latitude=lambda cell: variable.min_lat <= cell <= variable.max_lat,
-                ),
-            )
-        if cube.coords("longitude"):
-            cube = cube.extract(
-                Constraint(
-                    longitude=lambda cell: variable.min_lon <= cell <= variable.max_lon,
-                ),
-            )
-
-        # Extract level
+        cube = _extract_time_and_region(cube, variable)
         if variable.vertical_level is not NO_LEVEL:
             cube = _extract_level(cube, variable.vertical_level)
-
-        # Convert units
         cube = convert_units(cube, variable.units)
-
-        # Calculate anomalies
         if variable.anomaly:
             cube = anomalies(cube, variable.anomaly)
+        cube = _run_additional_preprocessors(cube, variable)
 
-    return cube
+    return cube  # noqa: RET504
 
 
 def load_cubes(uris: str | Path | Iterable[str] | Iterable[Path]) -> CubeList:
@@ -169,16 +147,16 @@ def load_cubes(uris: str | Path | Iterable[str] | Iterable[Path]) -> CubeList:
         return iris.load(uris)
 
 
-def str_to_class(class_str: str) -> type:
-    """Convert string to Python class."""
+def str_to_object(object_str: str) -> Any:
+    """Convert string to loadable Python object."""
     try:
-        module_name, class_name = class_str.rsplit(".", 1)
+        module_name, class_name = object_str.rsplit(".", 1)
         module = importlib.import_module(module_name)
-        class_ = getattr(module, class_name)
+        object_ = getattr(module, class_name)
     except Exception as exc:
-        msg = f"Failed to load class '{class_str}': {exc}"
+        msg = f"Failed to load Python object '{object_str}': {exc}"
         raise ValueError(msg) from exc
-    return class_
+    return object_
 
 
 def _apply_masks(cube: Cube, variable: Variable) -> Cube:
@@ -240,12 +218,50 @@ def _extract_level(cube: Cube, vertical_level: VerticalLevel) -> Cube:
     """Extract level from cube."""
     coord = cube.coord(vertical_level.coordinate_name)
     coord.convert_units(vertical_level.units)
-    return extract_levels(
+    scheme = "linear_extrapolate" if vertical_level.extrapolate else "linear"
+    cube = extract_levels(
         cube,
         vertical_level.value,
-        "linear",
+        scheme,
         coordinate=vertical_level.coordinate_name,
     )
+
+    # Squeeze cube if necessary
+    if cube.coords(vertical_level.coordinate_name, dim_coords=True):
+        coord = cube.coord(vertical_level.coordinate_name, dim_coords=True)
+        if coord.shape[0] == 1:
+            index: list[slice | int] = [slice(None)] * cube.ndim
+            index[cube.coord_dims(coord)[0]] = 0
+            cube = cube[tuple(index)]
+
+    return cube
+
+
+def _extract_time_and_region(cube: Cube, variable: Variable) -> Cube:
+    """Extract timerange and region."""
+    if cube.coords("time") and variable.timerange != "*":
+        cube = clip_timerange(cube, variable.timerange)
+    if cube.coords("latitude") and cube.coords("longitude"):
+        cube = extract_region(
+            cube,
+            start_longitude=variable.min_lon,
+            end_longitude=variable.max_lon,
+            start_latitude=variable.min_lat,
+            end_latitude=variable.max_lat,
+        )
+    elif cube.coords("latitude"):
+        cube = cube.extract(
+            Constraint(
+                latitude=lambda cell: variable.min_lat <= cell <= variable.max_lat,
+            ),
+        )
+    elif cube.coords("longitude"):
+        cube = cube.extract(
+            Constraint(
+                longitude=lambda cell: variable.min_lon <= cell <= variable.max_lon,
+            ),
+        )
+    return cube
 
 
 def _get_derived_cube(cubes: CubeList, variable: Variable) -> Cube:
@@ -265,6 +281,21 @@ def _get_derived_cube(cubes: CubeList, variable: Variable) -> Cube:
         units=variable.units,
         standard_name=variable.standard_name,
     )
+
+
+def _run_additional_preprocessors(cube: Cube, variable: Variable) -> Cube:
+    """Run additional preprocessors."""
+    for func_name, settings in variable.additional_preprocessors.items():
+        func = str_to_object(func_name)
+        try:
+            cube = func(cube, **settings)
+        except Exception as exc:
+            msg = (
+                f"Failed to run preprocessor function '{func_name}' with "
+                f"settings {settings} on {variable}: {exc}"
+            )
+            raise ValueError(msg) from exc
+    return cube
 
 
 def _set_coordinate_bounds(cube: Cube) -> Cube:

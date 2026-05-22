@@ -29,6 +29,7 @@ class VerticalLevel:
     coordinate_name: str
     units: str
     value: float
+    extrapolate: bool = field(default=False, repr=False, compare=False)
 
     def __str__(self) -> str:
         """Get human-readable string."""
@@ -46,10 +47,6 @@ class _NoLevel(VerticalLevel):
     def __repr__(self) -> str:
         """Get string representation."""
         return "NO_LEVEL"
-
-    def __str__(self) -> str:
-        """Get human-readable string."""
-        return ""
 
 
 NO_LEVEL = _NoLevel()
@@ -107,7 +104,7 @@ class Variable:
     var_name: str = field(repr=False)
     frequency: str = field(repr=False)
 
-    # Settings
+    # Custom user settings
     settings: dict[str, Any] = field(init=False, repr=False, compare=False)
     vertical_level: VerticalLevel = field(default=NO_LEVEL, repr=False, kw_only=True)
     min_lat: float = field(default=-90.0, repr=False, kw_only=True)
@@ -123,14 +120,27 @@ class Variable:
     timerange: str = field(default="*", repr=False, kw_only=True)
     units: str = field(default="", repr=False, kw_only=True)
     anomaly: str = field(default="", repr=False, kw_only=True)
+    diagnostic_kwargs: dict[str, Any] = field(
+        default_factory=dict,
+        repr=False,
+        kw_only=True,
+        compare=False,
+    )
+    additional_preprocessors: dict[str, dict[str, Any]] = field(
+        default_factory=dict,
+        repr=False,
+        kw_only=True,
+        compare=False,
+    )
 
-    # Automatically filled fields
+    # Automatically filled fields (additional metadata)
     coordinates: tuple[Coordinate] = field(init=False, repr=False, compare=False)
     derived: bool = field(default=False, init=False, repr=False, compare=False)
     long_name: str = field(init=False, repr=False, compare=False)
     realm: str = field(init=False, repr=False, compare=False)
     standard_name: str = field(init=False, repr=False, compare=False)
     cmip6_table_id: str = field(init=False, repr=False, compare=False)
+    ndim: int = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         """Initialize class instance."""
@@ -153,8 +163,25 @@ class Variable:
             object.__setattr__(self, key, val)
         object.__setattr__(self, "settings", self._get_settings())
         object.__setattr__(self, "cmip6_table_id", self._get_cmip6_table_id())
+        object.__setattr__(self, "ndim", len(self.coordinates))
 
-    def _get_cmip6_table_id(self) -> str:
+    def get_required_variables(self) -> tuple[Variable, ...]:
+        """Get variables necessary for derivation."""
+        if not self.derived:
+            return (self,)
+        with setup_esmvaltool_config_and_logging():
+            required_facets = get_required(self.var_name, "CMIP6")
+        return tuple(
+            Variable(
+                v["short_name"],
+                v["short_name"],
+                self.frequency,
+                **self.settings,
+            )
+            for v in required_facets
+        )
+
+    def _get_cmip6_table_id(self) -> str:  # noqa: PLR0911
         """Get CMIP6 table ID.
 
         Note
@@ -167,11 +194,21 @@ class Variable:
         if self.realm == "":
             return ""
         if self.realm == "atmos":
+            if self.frequency == "1hr":
+                if self.var_name in ("pr", "prc"):
+                    return "E1hr"
+                if self.var_name in ("ps", "tas"):
+                    return "AERhr"
             if self.frequency in ("3hr", "day", "fx"):
                 return self.frequency
             if self.frequency == "mon":
                 return "Amon"
-        if self.realm == "ocean" and self.frequency in ("day", "fx", "mon", "yr"):
+        if self.realm in ("ocean", "ocnBgchem") and self.frequency in (
+            "day",
+            "fx",
+            "mon",
+            "yr",
+        ):
             return f"O{self.frequency}"
         if self.realm == "land" and self.frequency == "mon":
             return "Lmon"
@@ -189,22 +226,6 @@ class Variable:
             if field_.init and field_.kw_only:
                 settings[field_.name] = getattr(self, field_.name)
         return settings
-
-    def get_required_variables(self) -> tuple[Variable, ...]:
-        """Get variables necessary for derivation."""
-        if not self.derived:
-            return (self,)
-        with setup_esmvaltool_config_and_logging():
-            required_facets = get_required(self.var_name, "CMIP6")
-        return tuple(
-            Variable(
-                v["short_name"],
-                v["short_name"],
-                self.frequency,
-                **self.settings,
-            )
-            for v in required_facets
-        )
 
 
 def _read_coordinates() -> dict[str, dict[str, str | list[str]]]:

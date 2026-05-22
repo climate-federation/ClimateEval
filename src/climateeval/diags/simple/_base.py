@@ -15,7 +15,7 @@ from loguru import logger
 
 from climateeval import Variable, VerticalLevel
 from climateeval._config import setup_esmvaltool_config_and_logging
-from climateeval._utils import check_coordinates, get_prepared_cube, str_to_class
+from climateeval._utils import check_coordinates, get_prepared_cube, str_to_object
 from climateeval.diags._base import Diagnostic, DiagnosticOutput
 from climateeval.diags._utils import union
 from climateeval.diags.simple._utils import SimpleDiagnosticInputData
@@ -70,8 +70,14 @@ class SimpleDiagnostic(Diagnostic):
             msg = "At least a single variable must be given."
             raise ValueError(msg)
 
+        # Set up variables and reference data
         self._variables = tuple(sorted(variables_and_data.keys()))
-        self._reference_data = {v: d.reference() for v, d in variables_and_data.items()}
+        self._check_variables()
+
+        self._reference_data: dict[Variable, DataSource] = {}
+        for variable, diag_input_data in variables_and_data.items():
+            if diag_input_data.reference is not None:
+                self._reference_data[variable] = diag_input_data.reference()
         variable_ids = [v.id for v in self._variables]
         if len(set(variable_ids)) != len(variable_ids):
             msg = (
@@ -80,6 +86,7 @@ class SimpleDiagnostic(Diagnostic):
             )
             raise ValueError(msg)
 
+        # Set up other data
         self._other_data: dict[Variable, tuple[DataSource, ...]] = {}
         for variable, diag_datas in variables_and_data.items():
             other_data_sources: list[DataSource] = []
@@ -114,9 +121,14 @@ class SimpleDiagnostic(Diagnostic):
         variables_and_data: dict[Variable, SimpleDiagnosticInputData] = {}
         for variable_id, variable_kwargs_ in suite_settings.items():
             variable_kwargs = dict(variable_kwargs_)
-            reference_data = str_to_class(variable_kwargs.pop("reference_data"))
+            given_reference_data = variable_kwargs.pop("reference_data", None)
+            reference_data: type[DataSource] | None
+            if given_reference_data is None:
+                reference_data = None
+            else:
+                reference_data = str_to_object(given_reference_data)
             other_data = tuple(
-                str_to_class(o) for o in variable_kwargs.pop("other_data", ())
+                str_to_object(o) for o in variable_kwargs.pop("other_data", ())
             )
             if "vertical_level" in variable_kwargs:
                 variable_kwargs["vertical_level"] = VerticalLevel(
@@ -154,26 +166,10 @@ class SimpleDiagnostic(Diagnostic):
             Diagnostic output.
 
         """
-        # Load reference cubes
+        # Load and process reference data
         logger.debug("Loading reference data")
-        reference_cubes: dict[Variable, Cube] = {}
-        for variable, reference_data in self._reference_data.items():
-            try:
-                reference_cube = self._safely_preprocess(
-                    reference_data.get_cube(
-                        self.data_root_dir,
-                        variable,
-                        download_missing_data=self._download_missing_data,
-                    ),
-                )
-            except Exception as exc:  # noqa: BLE001
-                self._handle_missing_data(reference_data.id, (variable,), exc)
-                continue
-            reference_cubes[variable] = reference_cube
-
-            # Load cube data ahead to avoid potential bug in ESMValCore (see
-            # https://github.com/ESMValGroup/ESMValCore/pull/3038)
-            reference_cube.data  # noqa: B018
+        reference_cubes = self._get_reference_cubes()
+        reference_output = self._get_output_of_reference_data(reference_cubes)
 
         # Process data to benchmark
         logger.debug("Loading to_benchmark data")
@@ -187,32 +183,12 @@ class SimpleDiagnostic(Diagnostic):
         logger.debug("Loading other data")
         other_output = self._get_output_of_other_data(reference_cubes)
 
-        # Add reference data to table
-        reference_output = self._get_output_of_reference_data(reference_cubes)
-
-        # Combine raw output tables and drop superfluous rows by removing NaN
-        # entries
-        raw_output_table: ibis.Table | None
-        raw_output_tables = [
+        # Combine raw output tables
+        raw_output_table = self._combine_raw_output_tables(
             *to_benchmark_output.raw_output,
             *other_output.raw_output,
             *reference_output.raw_output,
-        ]
-        if raw_output_tables:
-            raw_output_table = union(*raw_output_tables)
-            unique_columns = (
-                self._DATA_ID_COLUMN,
-                self._DATA_TYPE_COLUMN,
-                *self._final_coordinate_names,
-            )
-            raw_output_table = self._remove_superfluous_rows(
-                raw_output_table,
-                unique_columns=unique_columns,
-                variable_columns=(v.id for v in self._variables),
-            )
-            raw_output_table = self._sort_raw_output_columns(raw_output_table)
-        else:
-            raw_output_table = None
+        )
 
         # Combine metrics tables
         metrics_table: ibis.Table | None
@@ -239,6 +215,29 @@ class SimpleDiagnostic(Diagnostic):
             data_sources=data_sources_table,
         )
 
+    def _check_variables(self) -> None:
+        """Check variables."""
+
+    def _combine_raw_output_tables(
+        self,
+        *raw_output_tables: ibis.Table,
+    ) -> ibis.Table | None:
+        """Combine raw output tables."""
+        if not raw_output_tables:
+            return None
+        raw_output_table = union(*raw_output_tables)
+        unique_columns = (
+            self._DATA_ID_COLUMN,
+            self._DATA_TYPE_COLUMN,
+            *self._final_coordinate_names,
+        )
+        raw_output_table = self._remove_superfluous_rows(
+            raw_output_table,
+            unique_columns=unique_columns,
+            variable_columns=(v.id for v in self._variables),
+        )
+        return self._sort_raw_output_columns(raw_output_table)
+
     def _get_metrics_table(
         self,
         cube: Cube,
@@ -263,7 +262,7 @@ class SimpleDiagnostic(Diagnostic):
     def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
         """Get data cube."""
         cube = get_prepared_cube(data, variable)
-        return self._safely_preprocess(cube)
+        return self._safely_preprocess(cube, variable)
 
     def _get_metrics(self, cube: Cube, reference_cube: Cube) -> dict[str, pd.Series]:
         """Get metrics."""
@@ -285,8 +284,8 @@ class SimpleDiagnostic(Diagnostic):
                         )[0]
                     except Exception as exc:
                         msg = (
-                            f"Calculation of metric '{metric}' for variable "
-                            f"'{cube.var_name}' failed: {exc}"
+                            f"Calculation of metric '{metric}' for cube "
+                            f"'{cube.summary(shorten=True)}' failed: {exc}"
                         )
                         raise ValueError(msg) from exc
                     metrics[metric] = pd.Series(metric_cube.data, dtype=self._DTYPE)
@@ -309,12 +308,13 @@ class SimpleDiagnostic(Diagnostic):
                             variable,
                             download_missing_data=self._download_missing_data,
                         ),
+                        variable,
                     )
                 except Exception as exc:  # noqa: BLE001
                     self._handle_missing_data(other_data.id, (variable,), exc)
                     continue
 
-                # Expand table
+                # Expand raw output
                 if self._OUTPUT_DATA_TABLE:
                     raw_output_tables.append(
                         self._get_raw_output_table(
@@ -390,7 +390,7 @@ class SimpleDiagnostic(Diagnostic):
                 self._handle_missing_data(data_id, (variable,), exc)
                 continue
 
-            # Expand table
+            # Expand raw output
             if self._OUTPUT_DATA_TABLE:
                 raw_output_tables.append(
                     self._get_raw_output_table(
@@ -417,13 +417,36 @@ class SimpleDiagnostic(Diagnostic):
             metrics=metrics_tables,
         )
 
+    def _get_reference_cubes(self) -> dict[Variable, Cube]:
+        """Get reference cubes."""
+        reference_cubes: dict[Variable, Cube] = {}
+        for variable, reference_data in self._reference_data.items():
+            try:
+                reference_cube = self._safely_preprocess(
+                    reference_data.get_cube(
+                        self.data_root_dir,
+                        variable,
+                        download_missing_data=self._download_missing_data,
+                    ),
+                    variable,
+                )
+            except Exception as exc:  # noqa: BLE001
+                self._handle_missing_data(reference_data.id, (variable,), exc)
+                continue
+            reference_cubes[variable] = reference_cube
+
+            # Load cube data ahead to avoid potential bug in ESMValCore (see
+            # https://github.com/ESMValGroup/ESMValCore/pull/3038)
+            reference_cube.data  # noqa: B018
+        return reference_cubes
+
     @abstractmethod
-    def _preprocess(self, cube: Cube) -> Cube:
+    def _preprocess(self, cube: Cube, variable: Variable) -> Cube:
         """Preprocess cube."""
 
-    def _safely_preprocess(self, cube: Cube) -> Cube:
+    def _safely_preprocess(self, cube: Cube, variable: Variable) -> Cube:
         """Safely preprocess cube."""
-        cube = self._preprocess(cube)
+        cube = self._preprocess(cube, variable)
         return check_coordinates(cube, self._FINAL_COORDINATES)
 
     def _sort_raw_output_columns(self, raw_output_table: ibis.Table) -> ibis.Table:

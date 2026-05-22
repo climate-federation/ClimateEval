@@ -17,5 +17,5 @@ logger = logger.opt(colors=True)
 class SimpleDiagnosticInputData:
     """Manage input data for simple diagnostics."""
 
-    reference: type[DataSource]
+    reference: type[DataSource] | None
     other: tuple[type[DataSource | DataSourceGenerator], ...] = ()

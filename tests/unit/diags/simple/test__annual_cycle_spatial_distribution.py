@@ -23,5 +23,6 @@ def diagnostic(
 def test__safely_preprocess(
     diagnostic: AnnualCycleSpatialDistribution,
     cube_2d: Cube,
+    variable_tas: Variable,
 ) -> None:
-    diagnostic._safely_preprocess(cube_2d)
+    diagnostic._safely_preprocess(cube_2d, variable_tas)

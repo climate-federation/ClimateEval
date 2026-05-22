@@ -122,7 +122,7 @@ When inspecting databases, use `ibis`.
 ### Suites (`src/climateeval/suites/`)
 
 - `_base.py` - `Suite` class: reads a YAML suite definition, builds diagnostics, orchestrates execution, and writes results to an Ibis/DuckDB backend
-- `Tier2_atmosphere.yml` - YAML-defined suite: 19 2-D variables (clivi, clt, clwvi, hfls, hfss, hus400, lwcre, lwp, pr, prw, rlut, rsut, rtnt, swcre, ta200, ta800, tas, ua200, ua800) across five 2-D diagnostics (AnnualCycle, AnnualCycleSpatialDistribution, Map, AnnualMeanTimeSeries, ZonalLine) plus 3 3-D variables (hus, ta, ua) for ZonalProfileAirPressure
+- `Tier2_atmosphere_monthly.yml` - YAML-defined suite: 19 2-D variables (clivi, clt, clwvi, hfls, hfss, hus400, lwcre, lwp, pr, prw, rlut, rsut, rtnt, swcre, ta200, ta800, tas, ua200, ua800) across five 2-D diagnostics (AnnualCycle, AnnualCycleSpatialDistribution, Map, AnnualMeanTimeSeries, ZonalLine) plus 3 3-D variables (hus, ta, ua) for ZonalProfileAirPressure
 
 ### Data Sources (`src/climateeval/data/`)
 

@@ -15,6 +15,9 @@ def assert_table_equal(
     right_table: ibis.Table,
     **kwargs: Any,
 ) -> None:
+    print(left_table.to_pandas())  # noqa: T201
+    print(right_table.to_pandas())  # noqa: T201
+
     assert left_table.schema() == right_table.schema()
 
     # Use pandas to compare the actual data in the tables
