@@ -49,6 +49,7 @@ def get_var_cols(data_df: pd.DataFrame) -> list[str]:
     }
     return [c for c in data_df.columns if c not in skip]
 
+
 def get_density_cols(data_df: pd.DataFrame) -> list[str]:
     """Return density column names."""
     return [c for c in data_df.columns if "density_" in c]
@@ -71,7 +72,14 @@ def detect_diag_type(columns: list[str]) -> str:
     for col in cols:
         if "density_" in col:
             return "Histogram"
-    coord_columns = {"latitude", "longitude", "time", "air_pressure", "month_number", "hour"}
+    coord_columns = {
+        "latitude",
+        "longitude",
+        "time",
+        "air_pressure",
+        "month_number",
+        "hour",
+    }
     if not (cols & coord_columns):
         return "Scalar"
     return "Unknown"

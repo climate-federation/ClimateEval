@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from climateeval.report._db import get_density_cols, get_var_cols
+from climateeval.report._db import get_var_cols
 from climateeval.report._style import (
     _AXIS_STYLE,
     _DIVERGING_VARS,
@@ -993,8 +993,8 @@ def build_diurnal_cycle_figures(
 
         x_kwargs = {
             "title_text": "Hour",
-            "tickvals": list(range(0, 24)),
-            "ticktext": list(range(0, 24)),
+            "tickvals": list(range(24)),
+            "ticktext": list(range(24)),
             **_AXIS_STYLE,
         }
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
@@ -1590,7 +1590,6 @@ def build_histogram_figures(
     _metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
     """Histogram diagnostics, one figure per variable."""
-    pass
 
 
 _FIGURE_BUILDERS = {
