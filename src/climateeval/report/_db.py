@@ -45,8 +45,13 @@ def get_var_cols(data_df: pd.DataFrame) -> list[str]:
         "time",
         "air_pressure",
         "month_number",
+        "hour",
     }
     return [c for c in data_df.columns if c not in skip]
+
+def get_density_cols(data_df: pd.DataFrame) -> list[str]:
+    """Return density column names."""
+    return [c for c in data_df.columns if "density_" in c]
 
 
 def detect_diag_type(columns: list[str]) -> str:
@@ -61,7 +66,12 @@ def detect_diag_type(columns: list[str]) -> str:
         return "AnnualMeanTimeSeries"
     if "month_number" in cols:
         return "AnnualCycle"
-    _COORD_COLS = {"latitude", "longitude", "time", "air_pressure", "month_number"}
-    if not (cols & _COORD_COLS):
+    if "hour" in cols:
+        return "DiurnalCycle"
+    for col in cols:
+        if "density_" in col:
+            return "Histogram"
+    coord_columns = {"latitude", "longitude", "time", "air_pressure", "month_number", "hour"}
+    if not (cols & coord_columns):
         return "Scalar"
     return "Unknown"

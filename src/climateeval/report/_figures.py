@@ -9,8 +9,8 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from ._db import get_var_cols
-from ._style import (
+from climateeval.report._db import get_density_cols, get_var_cols
+from climateeval.report._style import (
     _AXIS_STYLE,
     _DIVERGING_VARS,
     _PLOT_FONT,
@@ -873,6 +873,171 @@ def build_annual_cycle_figures(
     return figures
 
 
+def build_diurnal_cycle_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, go.Figure]:
+    """Hourly climatology (dirunaly cycle), one figure per variable, all datasets overlaid.
+
+    When a single reference dataset is available, a second panel shows the bias
+    (dataset − reference) for every non-reference dataset.
+    """
+    figures: dict[str, go.Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_dataset = _get_ref_dataset(data_df, metrics_df)
+
+    def _series_for(dataset: str, var_id: str) -> pd.Series | None:
+        grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+        sub = grp[["hour", var_id]]
+        if sub.empty:
+            return None
+        return sub.groupby("hour")[var_id].mean().sort_index()
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+
+        ref_series = _series_for(ref_dataset, var_id) if ref_dataset else None
+        non_ref = [d for d in all_datasets if d != ref_dataset]
+        has_bias = ref_series is not None and any(
+            _series_for(d, var_id) is not None for d in non_ref
+        )
+
+        if has_bias:
+            fig = make_subplots(
+                rows=2,
+                cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.08,
+                row_heights=[0.65, 0.35],
+                subplot_titles=("", f"Bias (dataset − {ref_dataset})"),
+            )
+        else:
+            fig = go.Figure()
+
+        color_idx = 0
+        for dataset in all_datasets:
+            series = _series_for(dataset, var_id)
+            if series is None:
+                continue
+            grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+            dtype = grp["data_type"].iloc[0]
+
+            trace = go.Scatter(
+                x=series.index.tolist(),
+                y=series.values.tolist(),
+                mode="lines+markers",
+                name=str(dataset),
+                marker={"size": 6},
+                legendgroup=str(dataset),
+                hovertemplate=(
+                    f"<b>{dataset}</b><br>"
+                    f"Hour: %{{x:.0f}}<br>"
+                    f"{var_id}: %{{y:.4g}} {units}"
+                    "<extra></extra>"
+                ),
+                **_get_line_properties(dtype, color_idx),
+            )
+            if has_bias:
+                fig.add_trace(trace, row=1, col=1)
+            else:
+                fig.add_trace(trace)
+
+            if dtype == "to_benchmark":
+                color_idx += 1
+
+        if has_bias:
+            color_idx = 0
+            for dataset in all_datasets:
+                if dataset == ref_dataset:
+                    continue
+                series = _series_for(dataset, var_id)
+                if series is None:
+                    continue
+                grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+                dtype = grp["data_type"].iloc[0]
+
+                aligned = series.reindex(ref_series.index)
+                bias = (aligned - ref_series).dropna()
+                if bias.empty:
+                    continue
+                fig.add_trace(
+                    go.Scatter(
+                        x=bias.index.tolist(),
+                        y=bias.values.tolist(),
+                        mode="lines+markers",
+                        name=str(dataset),
+                        marker={"size": 5},
+                        legendgroup=str(dataset),
+                        hovertemplate=(
+                            f"<b>{dataset} − {ref_dataset}</b><br>"
+                            f"Hour: %{{x:.0f}}<br>"
+                            f"Δ{var_id}: %{{y:.4g}} {units}"
+                            "<extra></extra>"
+                        ),
+                        **_get_line_properties(dtype, color_idx),
+                    ),
+                    row=2,
+                    col=1,
+                )
+                if dtype == "to_benchmark":
+                    color_idx += 1
+            fig.add_hline(
+                y=0,
+                line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
+                row=2,
+                col=1,
+            )
+
+        x_kwargs = {
+            "title_text": "Hour",
+            "tickvals": list(range(0, 24)),
+            "ticktext": list(range(0, 24)),
+            **_AXIS_STYLE,
+        }
+        title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
+        layout_kwargs = dict(
+            title={
+                "text": title_str,
+                "font": {"size": 14},
+                "x": 0.02,
+                "xanchor": "left",
+            },
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": 1.02,
+                "xanchor": "right",
+                "x": 1,
+                "bgcolor": "rgba(255,255,255,0.85)",
+                "bordercolor": "#ddd",
+                "borderwidth": 1,
+                "font": {"size": 11},
+            },
+            margin={"t": 80, "b": 60, "l": 70, "r": 30},
+        )
+        if has_bias:
+            fig.update_xaxes(
+                **{k: v for k, v in x_kwargs.items() if k != "title_text"},
+                row=1,
+                col=1,
+            )
+            fig.update_xaxes(**x_kwargs, row=2, col=1)
+            fig.update_yaxes(title_text=units, **_AXIS_STYLE, row=1, col=1)
+            fig.update_yaxes(title_text=f"Δ{units}", **_AXIS_STYLE, row=2, col=1)
+            layout_kwargs["height"] = 560
+        else:
+            layout_kwargs["xaxis"] = x_kwargs
+            layout_kwargs["yaxis"] = dict(title_text=units, **_AXIS_STYLE)
+            layout_kwargs["height"] = 420
+        fig.update_layout(**_base_layout(**layout_kwargs))
+        figures[var_id] = fig
+
+    return figures
+
+
 def build_zonal_line_figures(
     data_df: pd.DataFrame,
     variables_df: pd.DataFrame,
@@ -1314,7 +1479,7 @@ def build_zonal_profile_figures(
 def build_bar_figures(
     data_df: pd.DataFrame,
     variables_df: pd.DataFrame,
-    metrics_df: pd.DataFrame | None = None,
+    _metrics_df: pd.DataFrame | None = None,
 ) -> dict[str, go.Figure]:
     """Horizontal bar chart for scalar (0-D) diagnostics, one figure per variable.
 
@@ -1322,7 +1487,7 @@ def build_bar_figures(
     dataset is highlighted in blue; reference datasets in gold; all other datasets
     (e.g. the CMIP6 ensemble used for context) in light grey.
     """
-    _TYPE_COLOR = {
+    type_color = {
         "to_benchmark": "#4C72B0",
         "reference": "#c0860a",
         "other": "#aaaaaa",
@@ -1340,7 +1505,7 @@ def build_bar_figures(
         sub["_type_rank"] = sub["data_type"].map(type_order).fillna(3)
         sub = sub.sort_values(["_type_rank", var_id], ascending=[True, True])
 
-        colors = [_TYPE_COLOR.get(str(t), "#aaaaaa") for t in sub["data_type"]]
+        colors = [type_color.get(str(t), "#aaaaaa") for t in sub["data_type"]]
         # Strip long id prefixes for display (keep the model name after last _)
         y_labels = sub["data_id"].tolist()
 
@@ -1365,7 +1530,7 @@ def build_bar_figures(
 
         # Legend pseudo-traces (invisible, just for legend)
         legend_traces = []
-        for dtype, color in _TYPE_COLOR.items():
+        for dtype, color in type_color.items():
             if dtype in sub["data_type"].values:
                 legend_traces.append(
                     go.Bar(
@@ -1419,12 +1584,23 @@ def build_bar_figures(
     return figures
 
 
+def build_histogram_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    _metrics_df: pd.DataFrame | None = None,
+) -> dict[str, go.Figure]:
+    """Histogram diagnostics, one figure per variable."""
+    pass
+
+
 _FIGURE_BUILDERS = {
     "Map": build_map_figures,
     "AnnualMeanTimeSeries": build_annual_mean_timeseries_figures,
     "AnnualCycle": build_annual_cycle_figures,
+    "DiurnalCycle": build_diurnal_cycle_figures,
     "ZonalLine": build_zonal_line_figures,
     "ZonalProfile": build_zonal_profile_figures,
+    "Histogram": build_histogram_figures,
     "Scalar": build_bar_figures,
 }
 
@@ -1432,8 +1608,10 @@ _DIAG_LABELS = {
     "Map": "Map",
     "AnnualMeanTimeSeries": "Time Series",
     "AnnualCycle": "Annual Cycle",
+    "DiurnalCycle": "Diurnal Cycle",
     "ZonalLine": "Zonal Mean",
     "ZonalProfile": "Zonal Profile",
+    "Histogram": "Histogram",
     "Scalar": "Scalar",
 }
 
@@ -1441,7 +1619,9 @@ _DIAG_ICONS = {
     "Map": "🗺",
     "AnnualMeanTimeSeries": "📈",
     "AnnualCycle": "📅",
+    "DiurnalCycle": "🌅",
     "ZonalLine": "〰",
     "ZonalProfile": "🌡",
+    "Histogram": "📊",
     "Scalar": "📊",
 }
