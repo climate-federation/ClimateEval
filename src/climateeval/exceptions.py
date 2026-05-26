@@ -13,5 +13,9 @@ class DownloadError(ClimateEvalError):
     """Download error."""
 
 
+class MetricError(ClimateEvalError):
+    """Metric calculation error."""
+
+
 class MissingDataError(ClimateEvalError):
     """Missing data error."""
