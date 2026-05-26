@@ -162,12 +162,11 @@ def str_to_object(object_str: str) -> Any:
 def _apply_masks(cube: Cube, variable: Variable) -> Cube:
     """Apply masks to cube."""
     if variable.landsea_mask != "*":
-        mask_out_options = {"land_only": "sea", "sea-only": "land"}
+        mask_out_options = {"land_only": "sea", "sea_only": "land"}
         if variable.landsea_mask not in mask_out_options:
             msg = (
-                f"Got invalid value '{variable.landsea_mask}' for option "
-                f"'landsea_mask' of variable {variable}, expected one of "
-                f"{list(mask_out_options)}"
+                f"Expected one of ('*', 'land_only', 'sea_only') for option "
+                f"'landsea_mask' of variable {variable}, got '{variable.landsea_mask}'"
             )
             raise ValueError(msg)
         cube = mask_landsea(cube, mask_out_options[variable.landsea_mask])

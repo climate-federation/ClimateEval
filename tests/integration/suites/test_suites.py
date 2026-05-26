@@ -24,7 +24,7 @@ SUITES_YML_DIR: Path = (
 
 
 @pytest.fixture
-def cubes() -> CubeList:
+def data() -> CubeList:
     tas_cube = get_simple_2d_cube(
         var_name="tas",
         standard_name="air_temperature",
@@ -67,7 +67,7 @@ def data_information() -> DataSourceInformation:
 
 def test_simple_diagnostics(
     sample_data_root_dir: Path,
-    cubes: CubeList,
+    data: CubeList,
     data_information: DataSourceInformation,
 ) -> None:
     suite = Suite(
@@ -79,7 +79,7 @@ def test_simple_diagnostics(
         },
     )
 
-    con = suite.get_database(cubes, data_information)
+    con = suite.get_database(data, data_information)
     table_names = get_all_table_names(con)
 
     expected_diagnostics = ("AnnualCycle", "AnnualMeanTimeSeries")
@@ -372,7 +372,7 @@ def test_simple_diagnostics(
 
 def test_simple_diagnostics_no_reference(
     sample_data_root_dir: Path,
-    cubes: CubeList,
+    data: CubeList,
     data_information: DataSourceInformation,
 ) -> None:
     suite = Suite(
@@ -384,7 +384,7 @@ def test_simple_diagnostics_no_reference(
         },
     )
 
-    con = suite.get_database(cubes, data_information)
+    con = suite.get_database(data, data_information)
     table_names = get_all_table_names(con)
 
     assert ("AnnualCycle", "data_sources") in table_names
@@ -468,7 +468,7 @@ def test_simple_diagnostics_no_reference(
 
 def test_histogram(
     sample_data_root_dir: Path,
-    cubes: CubeList,
+    data: CubeList,
     data_information: DataSourceInformation,
 ) -> None:
     suite = Suite(
@@ -480,7 +480,7 @@ def test_histogram(
         },
     )
 
-    con = suite.get_database(cubes, data_information)
+    con = suite.get_database(data, data_information)
     table_names = get_all_table_names(con)
 
     assert ("Histogram", "data_sources") in table_names
