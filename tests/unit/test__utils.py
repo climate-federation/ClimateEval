@@ -1,12 +1,23 @@
+from __future__ import annotations
+
 import re
+from typing import TYPE_CHECKING
 
 import pytest
 from iris.coords import AuxCoord, DimCoord
 from iris.cube import Cube
 
 from climateeval import Coordinate, Variable
-from climateeval._utils import _run_additional_preprocessors, check_coordinates
+from climateeval._utils import (
+    _run_additional_preprocessors,
+    check_coordinates,
+    get_prepared_cube,
+)
 from climateeval.exceptions import CoordinateError
+
+if TYPE_CHECKING:
+    import xarray as xr
+    from iris.cube import CubeList
 
 
 @pytest.fixture
@@ -260,3 +271,18 @@ def test__run_additional_preprocessors_calculation_error_fail(cube_2d: Cube) -> 
     )
     with pytest.raises(ValueError, match=re.escape(msg)):
         _run_additional_preprocessors(cube_2d, variable)
+
+
+def test_get_prepared_cube_cubes(cubes: CubeList, variable_tas: Variable) -> None:
+    cube = get_prepared_cube(cubes, variable_tas)
+    assert cube.var_name == "tas"
+    assert cube.shape == (3, 3, 2)
+
+
+def test_get_prepared_cube_dataset(
+    xarray_ds: xr.Dataset,
+    variable_tas: Variable,
+) -> None:
+    cube = get_prepared_cube(xarray_ds, variable_tas)
+    assert cube.var_name == "tas"
+    assert cube.shape == (3, 3, 2)

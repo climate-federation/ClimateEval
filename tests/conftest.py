@@ -4,7 +4,10 @@ from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pytest
+import xarray as xr
+from iris.cube import CubeList
 
 import climateeval.diags._utils
 from climateeval import Variable
@@ -26,6 +29,7 @@ if TYPE_CHECKING:
 
 
 pytest.register_assert_rewrite("tests._utils")
+pytest.register_assert_rewrite("tests.integration")
 pytest.register_assert_rewrite("tests.unit")
 
 
@@ -124,4 +128,75 @@ def cube_3d(request: pytest.FixtureRequest) -> Cube:
         standard_name="air_temperature",
         long_name="Air Temperature",
         units="K",
+    )
+
+
+@pytest.fixture
+def cubes(cube_2d: Cube, cube_3d: Cube) -> CubeList:
+    return CubeList([cube_2d, cube_3d])
+
+
+@pytest.fixture
+def xarray_ds() -> xr.Dataset:
+    return xr.Dataset(
+        data_vars={
+            "tas": xr.Variable(
+                ("time", "lat", "lon"),
+                np.arange(3 * 3 * 2, dtype=np.float32).reshape(3, 3, 2),
+                attrs={
+                    "standard_name": "air_temperature",
+                    "long_name": "Near-Surface Air Temperature",
+                    "units": "K",
+                },
+            ),
+            "ta": xr.Variable(
+                ("time", "plev", "lat", "lon"),
+                np.arange(3 * 2 * 3 * 2, dtype=np.float32).reshape(3, 2, 3, 2),
+                attrs={
+                    "standard_name": "air_temperature",
+                    "long_name": "Air Temperature",
+                    "units": "K",
+                },
+            ),
+        },
+        coords={
+            "time": xr.Variable(
+                "time",
+                [15.0, 380.0, 779.0],
+                attrs={
+                    "standard_name": "time",
+                    "long_name": "Time Intervals",
+                    "units": "days since 1970-01-01 00:00:00",
+                },
+            ),
+            "plev": xr.Variable(
+                "plev",
+                [100000.0, 80000.0],
+                attrs={
+                    "standard_name": "air_pressure",
+                    "long_name": "Pressure Levels",
+                    "units": "Pa",
+                    "positive": "down",
+                },
+            ),
+            "lat": xr.Variable(
+                "lat",
+                [-30.0, 0.0, 30.0],
+                attrs={
+                    "standard_name": "lat",
+                    "long_name": "Latitude",
+                    "units": "degrees_north",
+                },
+            ),
+            "lon": xr.Variable(
+                "lon",
+                [50.0, 100.0],
+                attrs={
+                    "standard_name": "lon",
+                    "long_name": "Longitude",
+                    "units": "degrees_east",
+                },
+            ),
+        },
+        attrs={"test": 1.0},
     )
