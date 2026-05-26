@@ -176,7 +176,7 @@ class Diagnostic(ABC):
         variables: Iterable[Variable],
         exception: Exception,
     ) -> None:
-        """Check if data is available."""
+        """Handle missing data."""
         msg = f"Failed to get data {data_id} for variable(s) {variables}: {exception}"
         if self._fail_on_missing_data:
             raise MissingDataError(msg) from exception

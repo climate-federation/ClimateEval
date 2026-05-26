@@ -19,6 +19,7 @@ from climateeval._utils import check_coordinates, get_prepared_cube, str_to_obje
 from climateeval.diags._base import Diagnostic, DiagnosticOutput
 from climateeval.diags._utils import union
 from climateeval.diags.simple._utils import SimpleDiagnosticInputData
+from climateeval.exceptions import MetricError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -60,6 +61,7 @@ class SimpleDiagnostic(Diagnostic):
         data_root_dir: Path | None = None,
         fail_on_missing_data: bool = False,
         download_missing_data: bool = True,
+        fail_on_metric_error: bool = True,
     ) -> None:
         """Initialize class instance."""
         logger.debug(f"Initializing simple diagnostic {self.name}")
@@ -102,6 +104,7 @@ class SimpleDiagnostic(Diagnostic):
 
         self._fail_on_missing_data = fail_on_missing_data
         self._download_missing_data = download_missing_data
+        self._fail_on_metric_error = fail_on_metric_error
 
     @property
     def _final_coordinate_names(self) -> tuple[str, ...]:
@@ -284,8 +287,9 @@ class SimpleDiagnostic(Diagnostic):
                         )[0]
                     except Exception as exc:
                         msg = (
-                            f"Calculation of metric '{metric}' for cube "
-                            f"'{cube.summary(shorten=True)}' failed: {exc}"
+                            f"Calculation of metric '{metric}' of diagnostic "
+                            f"{self.name} for cube {cube.summary(shorten=True)} "
+                            f"failed: {exc}"
                         )
                         raise ValueError(msg) from exc
                     metrics[metric] = pd.Series(metric_cube.data, dtype=self._DTYPE)
@@ -326,7 +330,9 @@ class SimpleDiagnostic(Diagnostic):
                     )
 
                 # Expand metrics
-                if self._OUTPUT_METRICS_TABLE and variable in reference_cubes:
+                if not (self._OUTPUT_METRICS_TABLE and variable in reference_cubes):
+                    continue
+                try:
                     metrics_tables.append(
                         self._get_metrics_table(
                             other_cube,
@@ -335,6 +341,8 @@ class SimpleDiagnostic(Diagnostic):
                             data_id=other_data.id,
                         ),
                     )
+                except Exception as exc:  # noqa: BLE001
+                    self._handle_metric_error(other_data.id, variable, exc)
 
         return _IntermediateDiagnosticOutput(
             raw_output=raw_output_tables,
@@ -402,7 +410,15 @@ class SimpleDiagnostic(Diagnostic):
                 )
 
             # Expand metrics
-            if self._OUTPUT_METRICS_TABLE and variable in reference_cubes:
+            if not self._OUTPUT_METRICS_TABLE:
+                continue
+            if variable not in reference_cubes:
+                logger.warning(
+                    f"No reference data available for {variable}: skipping "
+                    f"metrics calculation",
+                )
+                continue
+            try:
                 metrics_tables.append(
                     self._get_metrics_table(
                         cube,
@@ -411,6 +427,8 @@ class SimpleDiagnostic(Diagnostic):
                         data_id=data_id,
                     ),
                 )
+            except Exception as exc:  # noqa: BLE001
+                self._handle_metric_error(data_id, variable, exc)
 
         return _IntermediateDiagnosticOutput(
             raw_output=raw_output_tables,
@@ -439,6 +457,18 @@ class SimpleDiagnostic(Diagnostic):
             # https://github.com/ESMValGroup/ESMValCore/pull/3038)
             reference_cube.data  # noqa: B018
         return reference_cubes
+
+    def _handle_metric_error(
+        self,
+        data_id: str,
+        variable: Variable,
+        exception: Exception,
+    ) -> None:
+        """Handle metric calculation error."""
+        msg = f"Failed to calculate metrics for {variable} of {data_id}: {exception}"
+        if self._fail_on_metric_error:
+            raise MetricError(msg) from exception
+        logger.warning(msg)
 
     @abstractmethod
     def _preprocess(self, cube: Cube, variable: Variable) -> Cube:
