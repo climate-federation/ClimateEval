@@ -28,7 +28,7 @@ def run_suite(
     variable_kwargs: dict[str, Any],
 ) -> ibis.BaseBackend:
     """Run suite."""
-    data_root_dir = Path("/work/bd1179/b309141/climateeval_input")
+    data_root_dir = "/work/bd1179/b309141/climateeval_input"
     db_path = Path(f"{suite_name}.ddb")
     if db_path.is_file():
         db_path.unlink()

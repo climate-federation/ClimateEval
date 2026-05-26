@@ -91,7 +91,7 @@ class ERA5(DataSource):
         ),
     )
 
-    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:
         """Download data.
 
         Note
@@ -101,6 +101,8 @@ class ERA5(DataSource):
         details.
 
         """
+        data_root_dir = Path(data_root_dir)
+
         if variable.var_name not in VARIABLE_MAPPING:
             msg = f"Variable '{variable.var_name}' is not supported for ERA5"
             raise NotImplementedError(msg)
@@ -136,11 +138,14 @@ class ERA5(DataSource):
 
     def format(
         self,
-        input_file: Path,
+        input_file: Path | str,
         variable: Variable,
         *,
-        data_root_dir: Path,
+        data_root_dir: Path | str,
     ) -> Path:
+        """Format ERA5 data."""
+        data_root_dir = Path(data_root_dir)
+
         era5_facets = self._get_esmvaltool_facets(variable)
         cubes = load_cubes(input_file)
         with setup_esmvaltool_config_and_logging():
@@ -148,10 +153,12 @@ class ERA5(DataSource):
             cube = fix_data(cube, **era5_facets)
         if cube.coords("expver"):
             cube.remove_coord("expver")
+
         data_dir = self._get_data_dir(data_root_dir, variable)
         data_dir.mkdir(parents=True, exist_ok=True)
         target = data_dir / self._get_output_filename(cube, **era5_facets)
         iris.save(cube, target)
+
         return target
 
     @abstractmethod

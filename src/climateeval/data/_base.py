@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from pathlib import Path
 from pprint import pformat
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -14,7 +15,6 @@ from climateeval.exceptions import DownloadError
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from pathlib import Path
 
     from iris.cube import Cube, CubeList
     from xarray import Dataset
@@ -57,18 +57,20 @@ class DataSource(ABC):
         return self.information.name
 
     @abstractmethod
-    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:
         """Download data."""
 
     def get_cube(
         self,
-        data_root_dir: Path,
+        data_root_dir: Path | str,
         variable: Variable,
         *,
         download_missing_data: bool = True,
     ) -> Cube:
         """Get data cube."""
         logger.debug(f"Loading {variable} of {self.id}")
+
+        data_root_dir = Path(data_root_dir)
         paths: list[Path] = list(
             self._get_data_dir(data_root_dir, variable).glob("*.nc"),
         )

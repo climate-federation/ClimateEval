@@ -83,13 +83,15 @@ class ESMValToolIntakeDataSource(DataSource):
             raise TypeError(msg)
         return super().__getattr__(name)
 
-    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:
         """Download data.
 
         See
         https://docs.esmvaltool.org/projects/ESMValCore/en/latest/quickstart/configure.html#data-sources.
 
         """
+        data_root_dir = Path(data_root_dir)
+
         facets = {"dataset": self.name}
         facets.update(self.ESMVALTOOL_DATASET_FACETS)
 

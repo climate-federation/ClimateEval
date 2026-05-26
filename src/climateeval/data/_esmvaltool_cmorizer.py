@@ -36,13 +36,15 @@ class ESMValToolCMORizerDataSource(DataSource):
     _TIER: ClassVar[int] = 2
     """Tier of data set."""
 
-    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:
         """Download data.
 
         See
         https://docs.esmvaltool.org/en/latest/input.html#using-a-cmorizer-script.
 
         """
+        data_root_dir = Path(data_root_dir)
+
         self._check_supported_variables(variable)
 
         # Raw downloaded data by ESMValTool will be stored in temporary

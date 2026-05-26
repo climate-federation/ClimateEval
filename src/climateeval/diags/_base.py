@@ -94,10 +94,11 @@ class Diagnostic(ABC):
     ) -> DiagnosticOutput:
         """Get diagnostic output."""
 
-    def _get_data_root_dir(self, data_root_dir: Path | None) -> Path:
+    def _get_data_root_dir(self, data_root_dir: Path | str | None) -> Path:
         """Get data root directory."""
         if data_root_dir is None:
             data_root_dir = _DEFAULT_DATA_ROOT_DIR
+        data_root_dir = Path(data_root_dir)
         data_root_dir.mkdir(parents=True, exist_ok=True)
         logger.debug(f"Using data root directory {data_root_dir}")
         return data_root_dir
