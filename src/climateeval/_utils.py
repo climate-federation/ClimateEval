@@ -242,7 +242,7 @@ def _extract_time_and_region(cube: Cube, variable: Variable) -> Cube:
     """Extract timerange and region."""
     if cube.coords("time") and variable.timerange != "*":
         cube = clip_timerange(cube, variable.timerange)
-    if cube.coords("latitude") and cube.coords("longitude"):
+    try:
         cube = extract_region(
             cube,
             start_longitude=variable.min_lon,
@@ -250,18 +250,23 @@ def _extract_time_and_region(cube: Cube, variable: Variable) -> Cube:
             start_latitude=variable.min_lat,
             end_latitude=variable.max_lat,
         )
-    elif cube.coords("latitude"):
-        cube = cube.extract(
-            Constraint(
-                latitude=lambda cell: variable.min_lat <= cell <= variable.max_lat,
-            ),
+    except Exception as exc:  # noqa: BLE001
+        logger.debug(
+            f"Failed to run extract_region() on cube {cube.summary(shorten=True)} "
+            f"({exc}), trying cube.extract() with corresponding constraints",
         )
-    elif cube.coords("longitude"):
-        cube = cube.extract(
-            Constraint(
-                longitude=lambda cell: variable.min_lon <= cell <= variable.max_lon,
-            ),
-        )
+        if cube.coords("latitude"):
+            cube = cube.extract(
+                Constraint(
+                    latitude=lambda cell: variable.min_lat <= cell <= variable.max_lat,
+                ),
+            )
+        if cube.coords("longitude"):
+            cube = cube.extract(
+                Constraint(
+                    longitude=lambda cell: variable.min_lon <= cell <= variable.max_lon,
+                ),
+            )
     return cube
 
 
