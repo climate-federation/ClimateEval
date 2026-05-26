@@ -43,9 +43,11 @@ logger = logger.opt(colors=True)
 
 
 def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) -> Cube:
-    """Check coordinates of data and unify coordinate names (in-place)."""
-    covered_dimensions: list[int] = []
+    """Check coordinates of data and unify coordinate names."""
+    # Avoid overwriting input cubes
+    cube = cube.copy()
 
+    covered_dimensions: list[int] = []
     for coordinate in expected_coordinates:
         # Handle generic coordinates
         if coordinate.allowed_coordinates:
@@ -183,7 +185,7 @@ def _apply_masks(cube: Cube, variable: Variable) -> Cube:
 
 
 def _check_data(cube: Cube, variable: Variable) -> Cube:
-    """Check data and unify some metadata (in-place)."""
+    """Check data and unify some metadata."""
     cube = check_coordinates(cube, variable.coordinates)
 
     # Time
@@ -298,7 +300,8 @@ def _run_additional_preprocessors(cube: Cube, variable: Variable) -> Cube:
 
 
 def _set_coordinate_bounds(cube: Cube) -> Cube:
-    """Set coordinate bounds (in-place)."""
+    """Set coordinate bounds."""
+    cube = cube.copy()
     for coord_name in ("time", "latitude", "longitude"):
         if cube.coords(coord_name, dim_coords=True):
             coord = cube.coord(coord_name, dim_coords=True)
