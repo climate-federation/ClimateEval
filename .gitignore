@@ -215,3 +215,5 @@ __marimo__/
 *.ddb.wal
 *.html
 *.png
+run_benchmarking_25124195.py
+run_legoesm.py
