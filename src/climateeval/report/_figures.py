@@ -596,6 +596,10 @@ def build_annual_mean_timeseries_figures(
         else:
             fig = go.Figure()
 
+        # Use markers when there are too few points for a visible line.
+        n_times = data_df["time"].nunique()
+        ts_mode = "lines+markers" if n_times < 3 else "lines"
+
         color_idx = 0
         for dataset in all_datasets:
             series = _series_for(dataset, var_id)
@@ -607,7 +611,7 @@ def build_annual_mean_timeseries_figures(
             trace = go.Scatter(
                 x=series.index,
                 y=series.values,
-                mode="lines",
+                mode=ts_mode,
                 name=str(dataset),
                 legendgroup=str(dataset),
                 **_get_line_properties(dtype, color_idx),
@@ -641,7 +645,7 @@ def build_annual_mean_timeseries_figures(
                     go.Scatter(
                         x=bias.index,
                         y=bias.values,
-                        mode="lines",
+                        mode=ts_mode,
                         name=str(dataset),
                         legendgroup=str(dataset),
                         hovertemplate=(

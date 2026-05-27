@@ -21,6 +21,7 @@ import sys
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -47,10 +48,11 @@ from climateeval.report._leaderboard import (
 _STATE: dict[str, Any] = {
     "tiers": [],  # list[dict]  – see _load_state()
     "all_metrics": {},  # {tier_label: {diag_name: metrics_df}}
-    "fig_cache": {},  # {(tier_id, diag_name, var_id): go.Figure}
+    "fig_cache": {},  # {(tier_id, diag_name, var_id): bytes}
     "html_shell": "",  # pre-rendered HTML shell served at GET /
     "lb_json": b"{}",  # pre-built leaderboard JSON bytes
 }
+_fig_cache_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -119,33 +121,56 @@ def _load_state(
 # ---------------------------------------------------------------------------
 
 
-def _get_figure_json(tier_id: str, diag_name: str, var_id: str) -> bytes | None:
-    """Return Plotly figure JSON bytes for one variable (builds + caches all vars on first call)."""
-    cache_key = (tier_id, diag_name, var_id)
-    if cache_key in _STATE["fig_cache"]:
-        return _STATE["fig_cache"][cache_key]
-
-    # First request for this (tier, diag) pair: build all variables
+def _build_diag_figures(tier_id: str, diag_name: str) -> None:
+    """Build and cache all figures for one (tier, diagnostic) pair."""
     tier = next((t for t in _STATE["tiers"] if t["id"] == tier_id), None)
     if tier is None:
-        return None
+        return
     tables = tier["db_data"].get(diag_name)
     if tables is None or "raw_output" not in tables:
-        return None
-
+        return
     data_df: pd.DataFrame = tables["raw_output"]
     variables_df: pd.DataFrame = tables.get("variables", pd.DataFrame())
     metrics_df: pd.DataFrame = tables.get("metrics", pd.DataFrame())
     dtype = tier["diag_types"].get(diag_name, "Unknown")
     builder = _FIGURE_BUILDERS.get(dtype)
     if builder is None or data_df.empty:
-        return None
+        return
+    try:
+        figures = builder(data_df, variables_df, metrics_df)
+    except Exception as exc:
+        print(f"[warn] figure build failed for {tier_id}/{diag_name}: {exc}", file=sys.stderr)
+        return
+    with _fig_cache_lock:
+        for vid, fig in figures.items():
+            _STATE["fig_cache"].setdefault((tier_id, diag_name, vid), fig.to_json().encode())
 
-    figures = builder(data_df, variables_df, metrics_df)
-    for vid, fig in figures.items():
-        _STATE["fig_cache"][(tier_id, diag_name, vid)] = fig.to_json().encode()
 
-    return _STATE["fig_cache"].get(cache_key)
+def _get_figure_json(tier_id: str, diag_name: str, var_id: str) -> bytes | None:
+    """Return Plotly figure JSON bytes for one variable (builds + caches all vars on first call)."""
+    cache_key = (tier_id, diag_name, var_id)
+    with _fig_cache_lock:
+        cached = _STATE["fig_cache"].get(cache_key)
+    if cached is not None:
+        return cached
+    _build_diag_figures(tier_id, diag_name)
+    with _fig_cache_lock:
+        return _STATE["fig_cache"].get(cache_key)
+
+
+def _prebuild_all_figures() -> None:
+    """Pre-build every figure in background so the first click is instant."""
+    for tier in _STATE["tiers"]:
+        tier_id = tier["id"]
+        for diag_name in tier["db_data"]:
+            with _fig_cache_lock:
+                already_built = any(
+                    k[0] == tier_id and k[1] == diag_name
+                    for k in _STATE["fig_cache"]
+                )
+            if not already_built:
+                _build_diag_figures(tier_id, diag_name)
+    print("  [server] figure cache warm.", flush=True)  # noqa: T201
 
 
 # ---------------------------------------------------------------------------
@@ -228,6 +253,12 @@ def _build_structure() -> bytes:
 # ---------------------------------------------------------------------------
 # HTTP request handler
 # ---------------------------------------------------------------------------
+
+
+class _Server(ThreadingMixIn, HTTPServer):
+    """Multi-threaded HTTP server so concurrent figure requests don't queue up."""
+
+    daemon_threads = True
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -349,10 +380,13 @@ def serve(
     print(f"\nServing at {url}", flush=True)  # noqa: T201
     print("Press Ctrl-C to stop.\n", flush=True)  # noqa: T201
 
+    # Pre-build all figures in background so the first click hits the cache.
+    threading.Thread(target=_prebuild_all_figures, daemon=True, name="fig-prebuild").start()
+
     if open_browser:
         threading.Timer(0.5, webbrowser.open, args=(url,)).start()
 
-    server = HTTPServer((host, port), _Handler)
+    server = _Server((host, port), _Handler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

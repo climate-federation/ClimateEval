@@ -211,60 +211,85 @@ def build_scoreboard_figure(
         pivot.drop(columns="Overall").abs().mean(axis=1).sort_values().index
     ]
 
-    z = pivot.values.tolist()
-    x_labels = [str(c) for c in pivot.columns]
-    y_labels = [str(i) for i in pivot.index]
+    single_model = len(pivot.index) < 2
 
-    # Symmetric color range clamped at ±50% or the actual data range
-    finite_vals = pivot.values[np.isfinite(pivot.values)]
-    if len(finite_vals) > 0:
-        max_abs = float(np.nanpercentile(np.abs(finite_vals), 98))
-        max_abs = max(max_abs, 1.0)
-        clamp = min(max_abs, 50.0)
-    else:
-        clamp = 50.0
-
-    # Cell text: rounded deviation with % sign, blank for NaN
-    text_annots = [
-        [
-            (f"+{v:.0f}%" if v > 0 else f"{v:.0f}%") if np.isfinite(v) else ""
-            for v in row
+    if single_model:
+        # Only 1 model: deviation from its own median is always 0 → show raw RMSE instead.
+        raw_pivot = (
+            rmse_df.groupby(["data_id", "var_id"])["weighted_rmse"]
+            .mean()
+            .unstack("var_id")
+        )
+        raw_pivot["Overall"] = raw_pivot.mean(axis=1)
+        z = raw_pivot.values.tolist()
+        x_labels = [str(c) for c in raw_pivot.columns]
+        y_labels = [str(i) for i in raw_pivot.index]
+        finite_vals = raw_pivot.values[np.isfinite(raw_pivot.values)]
+        zmax = float(np.nanpercentile(finite_vals, 98)) if len(finite_vals) > 0 else 1.0
+        zmax = max(zmax, 1e-6)
+        text_annots = [
+            [f"{v:.3g}" if np.isfinite(v) else "" for v in row]
+            for row in raw_pivot.values
         ]
-        for row in pivot.values
-    ]
+        colorscale = [[0, "#2166ac"], [0.5, "#ffffff"], [1, "#d6604d"]]
+        heatmap_kwargs = dict(zmin=0, zmax=zmax, zmid=zmax / 2)
+        colorbar_title = "RMSE<br>(lower = better)"
+        title_note = "(weighted RMSE per variable, blue = lower = better)"
+        hover_suffix = "<extra></extra>"
+        hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.4g}" + hover_suffix
+    else:
+        # Multiple models: show % deviation from the multi-model median RMSE.
+        z = pivot.values.tolist()
+        x_labels = [str(c) for c in pivot.columns]
+        y_labels = [str(i) for i in pivot.index]
+        finite_vals = pivot.values[np.isfinite(pivot.values)]
+        if len(finite_vals) > 0:
+            max_abs = float(np.nanpercentile(np.abs(finite_vals), 98))
+            max_abs = max(max_abs, 1.0)
+            clamp = min(max_abs, 50.0)
+        else:
+            clamp = 50.0
+        text_annots = [
+            [
+                (f"+{v:.0f}%" if v > 0 else f"{v:.0f}%") if np.isfinite(v) else ""
+                for v in row
+            ]
+            for row in pivot.values
+        ]
+        colorscale = [[0, "#2166ac"], [0.5, "#ffffff"], [1, "#d6604d"]]
+        heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
+        colorbar_title = "% deviation<br>from median"
+        title_note = "(% deviation from median RMSE, blue = better)"
+        hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
 
     fig = go.Figure(
         go.Heatmap(
             z=z,
             x=x_labels,
             y=y_labels,
-            colorscale=[[0, "#2166ac"], [0.5, "#ffffff"], [1, "#d6604d"]],
-            zmid=0,
-            zmin=-clamp,
-            zmax=clamp,
+            colorscale=colorscale,
+            **heatmap_kwargs,
             text=text_annots,
             texttemplate="%{text}",
             textfont={"size": 9},
-            hovertemplate="%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>",
+            hovertemplate=hover_tmpl,
             colorbar={
-                "title": {"text": "% deviation<br>from median", "side": "right"},
+                "title": {"text": colorbar_title, "side": "right"},
                 "thickness": 14,
                 "len": 0.8,
-                "ticksuffix": "%",
+                **({"ticksuffix": "%"} if not single_model else {}),
             },
             xgap=2,
             ygap=2,
         ),
     )
 
-    # Highlight the "Overall" column with a distinct border via a shape
     overall_col_idx = len(x_labels) - 1
     fig.update_layout(
         **_base_layout(
             title={
-                "text": "<b>Performance Scoreboard</b>"
-                " <span style='font-size:0.8em;font-weight:400'>"
-                "(% deviation from median RMSE, blue = better)</span>",
+                "text": f"<b>Performance Scoreboard</b>"
+                f" <span style='font-size:0.8em;font-weight:400'>{title_note}</span>",
                 "font": {"size": 15},
                 "x": 0.5,
                 "xanchor": "center",

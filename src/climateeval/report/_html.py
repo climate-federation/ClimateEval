@@ -844,19 +844,9 @@ def build_html_shell(
         "</svg>"
     )
 
-    # Plotly.js tag (try bundled first, fall back to CDN)
-    try:
-        import plotly as _plotly
-
-        js_path = Path(_plotly.__file__).parent / "package_data" / "plotly.min.js"
-        if js_path.exists():
-            plotly_tag = f"<script>{js_path.read_text()}</script>"
-        else:
-            plotly_tag = (
-                '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
-            )
-    except Exception:
-        plotly_tag = '<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>'
+    # In server mode, serve Plotly.js via the /plotly.js endpoint so the HTML
+    # shell stays small and loads instantly.
+    plotly_tag = '<script src="/plotly.js"></script>'
 
     # Leaderboard JS: fetch data from /api/leaderboard and render
     lb_js = """
@@ -947,37 +937,40 @@ function _esc(s) {
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>ClimateEval Benchmarking Report</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ESM Benchmarking Report</title>
   <style>{_CSS}</style>
 </head>
 <body>
-<div id='appBody' class='app-body'>
-  <aside id='sidebar' class='sidebar'>
-    <div class='sidebar-header'>
-      {logo_svg}
-      <span class='sidebar-title'>ClimateEval</span>
-      <button class='sidebar-toggle' onclick='toggleSidebar()' title='Collapse sidebar'
-        aria-label='Collapse sidebar'>
-        <svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'>
-          <polyline points='15 18 9 12 15 6'/>
-        </svg>
-      </button>
+<div class="app-shell">
+
+  <header class="app-header">
+    <div class="header-logo">{logo_svg}</div>
+    <div class="header-title">
+      <h1>ESM Benchmarking Report</h1>
+      <div class="header-meta">{chips}</div>
     </div>
-    <nav class='sidebar-nav'>
+  </header>
+
+  <div class="app-body" id="appBody">
+
+    <aside class="sidebar" id="sidebar">
       {sidebar_items}
-    </nav>
-  </aside>
+    </aside>
+    <button class="sidebar-toggle" type="button" onclick="toggleSidebar()"
+            aria-label="Collapse sidebar" title="Collapse sidebar">
+      <span class="bar bar-top"></span>
+      <span class="bar bar-mid"></span>
+      <span class="bar bar-bot"></span>
+    </button>
 
-  <div class='content-area' id='contentArea'>
-    <header class='top-header'>
-      <div class='header-chips'>{chips}</div>
-      <div id='toolbarMount'>{all_toolbars}</div>
-    </header>
+    <div class="content-wrap">
+      {all_toolbars}
+      <main class="main-content">
+        {all_panels}
+      </main>
+    </div>
 
-    <main class='main-content' id='mainContent'>
-      {all_panels}
-    </main>
   </div>
 </div>
 
