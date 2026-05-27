@@ -513,6 +513,12 @@ def build_map_figures(
                 show_cb = False
 
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
+        # Each map panel should be ~2:1 (width:height) to match 360°×180° lon/lat.
+        # Set explicit width so the aspect ratio is correct regardless of browser width.
+        _panel_w = 440  # px per column
+        _panel_h = 260  # px per row  (440/2 + room for axis labels)
+        _h_margin = 130  # t=80 + b=50
+        _w_margin = (260 if has_bias else 180)  # l + r + colorbars
         fig.update_layout(
             **_base_layout(
                 title={
@@ -522,7 +528,9 @@ def build_map_figures(
                     "xanchor": "left",
                 },
                 plot_bgcolor="#dce9f5",
-                height=max(450 * nrows + 140, 560),
+                height=nrows * _panel_h + _h_margin,
+                width=ncols * _panel_w + _w_margin,
+                autosize=False,
                 margin={"t": 80, "b": 50, "l": 60, "r": 150 if has_bias else 90},
             ),
         )

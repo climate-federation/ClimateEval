@@ -201,6 +201,15 @@ class Diagnostic(ABC):
 
         """
         variable_columns = tuple(variable_columns)
+        missing = [v for v in variable_columns if v not in table.columns]
+        if missing:
+            if self._fail_on_missing_data:
+                raise MissingDataError(
+                    f"Missing variable columns in table: {missing}"
+                )
+            variable_columns = tuple(v for v in variable_columns if v in table.columns)
+        if not variable_columns:
+            return table
         table = table.group_by(unique_columns).aggregate(
             **{v: _[v].first() for v in variable_columns},
         )

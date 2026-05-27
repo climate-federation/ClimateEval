@@ -557,6 +557,13 @@ details > summary:hover { opacity: 0.75; }
 _JS = """
 var _rendered = {};
 
+function _applyFigData(div, figData) {
+  // Only set autosize if the figure has no explicit width (maps have explicit width).
+  if (!figData.layout.width) figData.layout.autosize = true;
+  Plotly.newPlot(div, figData.data, figData.layout,
+    {responsive:true, displayModeBar:true, displaylogo:false});
+}
+
 function renderPanel(panelId) {
   if (typeof Plotly === 'undefined') return;
   var panel = document.getElementById(panelId);
@@ -567,16 +574,17 @@ function renderPanel(panelId) {
     requestAnimationFrame(function() {
       var div = document.getElementById(graphId);
       if (!div) return;
-      if (_rendered[graphId]) { Plotly.relayout(div, {autosize:true}); return; }
+      // Already rendered: just trigger a lightweight resize check, not a full re-render.
+      if (_rendered[graphId]) { Plotly.Plots.resize(div); return; }
 
       // Offline mode: read figure JSON embedded in the page
       var scriptEl = document.getElementById('figdata-' + graphId);
       if (scriptEl) {
-        var figData = JSON.parse(scriptEl.textContent);
-        figData.layout.autosize = true;
-        Plotly.newPlot(div, figData.data, figData.layout,
-          {responsive:true, displayModeBar:true, displaylogo:false});
-        _rendered[graphId] = true;
+        try {
+          var figData = JSON.parse(scriptEl.textContent);
+          _applyFigData(div, figData);
+          _rendered[graphId] = true;
+        } catch(e) { console.warn('renderPanel error:', e); }
         return;
       }
 
@@ -588,9 +596,7 @@ function renderPanel(panelId) {
         .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(function(figData) {
           div.innerHTML = '';
-          figData.layout.autosize = true;
-          Plotly.newPlot(div, figData.data, figData.layout,
-            {responsive:true, displayModeBar:true, displaylogo:false});
+          _applyFigData(div, figData);
           _rendered[graphId] = true;
         })
         .catch(function(e) {
@@ -598,6 +604,31 @@ function renderPanel(panelId) {
         });
     });
   });
+}
+
+// Progressively pre-render all offline figures during browser idle time so that
+// switching variables feels instant after the page has settled.
+function _preRenderQueue() {
+  if (typeof Plotly === 'undefined' || typeof requestIdleCallback === 'undefined') return;
+  var scripts = Array.from(document.querySelectorAll('script[type="application/json"][id^="figdata-"]'));
+  var idx = 0;
+  function next(deadline) {
+    while (idx < scripts.length && deadline.timeRemaining() > 10) {
+      var scriptEl = scripts[idx++];
+      var graphId = scriptEl.id.slice(8); // strip 'figdata-' prefix
+      if (_rendered[graphId]) continue;
+      var div = document.getElementById(graphId);
+      if (!div) continue;
+      try {
+        var figData = JSON.parse(scriptEl.textContent);
+        _applyFigData(div, figData);
+        _rendered[graphId] = true;
+      } catch(e) {}
+    }
+    if (idx < scripts.length) requestIdleCallback(next, {timeout:8000});
+  }
+  // Delay start so the visible first panel renders before we begin background work.
+  setTimeout(function() { requestIdleCallback(next, {timeout:8000}); }, 800);
 }
 
 // Sidebar collapse/expand toggle
@@ -752,4 +783,7 @@ function sortTable(tableId, colIdx, numeric) {
   });
   rows.forEach(function(r){ tbody.appendChild(r); });
 }
+
+// Kick off background pre-rendering for the portable HTML mode.
+_preRenderQueue();
 """

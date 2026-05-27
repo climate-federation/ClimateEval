@@ -19,7 +19,7 @@ from climateeval._utils import check_coordinates, get_prepared_cube, str_to_obje
 from climateeval.diags._base import Diagnostic, DiagnosticOutput
 from climateeval.diags._utils import union
 from climateeval.diags.simple._utils import SimpleDiagnosticInputData
-from climateeval.exceptions import MetricError
+from climateeval.exceptions import MetricError, MissingDataError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -481,10 +481,17 @@ class SimpleDiagnostic(Diagnostic):
 
     def _sort_raw_output_columns(self, raw_output_table: ibis.Table) -> ibis.Table:
         """Sort columns of raw output table."""
+        present = set(raw_output_table.columns)
+        missing = [v.id for v in self._variables if v.id not in present]
+        if missing:
+            if self._fail_on_missing_data:
+                raise MissingDataError(
+                    f"Missing variable columns in raw output: {missing}"
+                )
         new_column_order = (
             self._DATA_ID_COLUMN,
             self._DATA_TYPE_COLUMN,
             *self._final_coordinate_names,
-            *sorted(v.id for v in self._variables),
+            *sorted(v.id for v in self._variables if v.id in present),
         )
         return raw_output_table.select(new_column_order)

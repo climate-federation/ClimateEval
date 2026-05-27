@@ -1,17 +1,19 @@
 """Benchmark legoESM (amip_1979_270d_25124195) using Tier2_atmosphere_monthly suite.
 
-Produces one .ddb per suite (per-tier convention) and exports a portable HTML report.
-CMIP6 historical comparison models are loaded automatically from the suite definition
-via climateeval.data.CMIP6HistoricalR1I1P1F1.
+Compares legoESM against observational reference data only (ERA5, CERES-EBAF, etc.).
+CMIP6 other_data entries are stripped so no CMIP6 models are loaded.
 """
 
 from __future__ import annotations
 
 import sys
+import tempfile
 import warnings
+from importlib import resources
 from pathlib import Path
 
 import iris
+import yaml
 from loguru import logger
 
 from climateeval.data import DataSourceInformation
@@ -34,16 +36,42 @@ DIAGNOSTIC_KWARGS = {
 }
 
 
+def _suite_yml_era5_only(suite_name: str) -> Path:
+    """Return path to a temporary suite YAML using ERA5Monthly as reference for all
+    variables and with other_data removed."""
+    suite_dir = Path(str(resources.files("climateeval.suites")))
+    with (suite_dir / f"{suite_name}.yml").open() as f:
+        suite_def = yaml.safe_load(f)
+
+    for diag_settings in suite_def.values():
+        if not isinstance(diag_settings, dict):
+            continue
+        for var_settings in diag_settings.values():
+            if isinstance(var_settings, dict):
+                var_settings.pop("other_data", None)
+                if "reference_data" in var_settings:
+                    var_settings["reference_data"] = "climateeval.data.ERA5Monthly"
+
+    tmp = Path(tempfile.mktemp(suffix=".yml"))
+    with tmp.open("w") as f:
+        yaml.dump(suite_def, f)
+    return tmp
+
+
 def run_suite(suite_name: str, cubes: object, data_info: DataSourceInformation) -> Path:
     db_path = Path(f"{suite_name}.ddb")
     if db_path.is_file():
         db_path.unlink()
-    suite = Suite(
-        suite_name,
-        diagnostic_kwargs=DIAGNOSTIC_KWARGS,
-        variable_kwargs={"timerange": LEGOESM_TIMERANGE},
-    )
-    suite.get_database(cubes, data_info, database_resource=f"duckdb://{db_path}")
+    yml_path = _suite_yml_era5_only(suite_name)
+    try:
+        suite = Suite(
+            yml_path,
+            diagnostic_kwargs=DIAGNOSTIC_KWARGS,
+            variable_kwargs={"timerange": LEGOESM_TIMERANGE},
+        )
+        suite.get_database(cubes, data_info, database_resource=f"duckdb://{db_path}")
+    finally:
+        yml_path.unlink(missing_ok=True)
     logger.info(f"Database written to {db_path}")
     return db_path
 
