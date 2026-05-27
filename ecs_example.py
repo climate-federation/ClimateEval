@@ -62,7 +62,7 @@ def main() -> None:
     db_path = Path(f"{suite_name}.ddb")
     if db_path.is_file():
         db_path.unlink()
-    data_root_dir = Path("/work/bd1179/b309141/climateeval_input")
+    data_root_dir = "/work/bd1179/b309141/climateeval_input"
     data = {
         "4xco2": abrupt4xco2_cubes,
         "picontrol": picontrol_cubes,

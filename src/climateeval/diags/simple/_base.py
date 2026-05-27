@@ -58,7 +58,7 @@ class SimpleDiagnostic(Diagnostic):
         self,
         variables_and_data: dict[Variable, SimpleDiagnosticInputData],
         *,
-        data_root_dir: Path | None = None,
+        data_root_dir: Path | str | None = None,
         fail_on_missing_data: bool = False,
         download_missing_data: bool = True,
         fail_on_metric_error: bool = True,

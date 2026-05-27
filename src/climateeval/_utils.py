@@ -43,9 +43,11 @@ logger = logger.opt(colors=True)
 
 
 def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) -> Cube:
-    """Check coordinates of data and unify coordinate names (in-place)."""
-    covered_dimensions: list[int] = []
+    """Check coordinates of data and unify coordinate names."""
+    # Avoid overwriting input cubes
+    cube = cube.copy()
 
+    covered_dimensions: list[int] = []
     for coordinate in expected_coordinates:
         # Handle generic coordinates
         if coordinate.allowed_coordinates:
@@ -162,12 +164,11 @@ def str_to_object(object_str: str) -> Any:
 def _apply_masks(cube: Cube, variable: Variable) -> Cube:
     """Apply masks to cube."""
     if variable.landsea_mask != "*":
-        mask_out_options = {"land_only": "sea", "sea-only": "land"}
+        mask_out_options = {"land_only": "sea", "sea_only": "land"}
         if variable.landsea_mask not in mask_out_options:
             msg = (
-                f"Got invalid value '{variable.landsea_mask}' for option "
-                f"'landsea_mask' of variable {variable}, expected one of "
-                f"{list(mask_out_options)}"
+                f"Expected one of ('*', 'land_only', 'sea_only') for option "
+                f"'landsea_mask' of variable {variable}, got '{variable.landsea_mask}'"
             )
             raise ValueError(msg)
         cube = mask_landsea(cube, mask_out_options[variable.landsea_mask])
@@ -184,7 +185,7 @@ def _apply_masks(cube: Cube, variable: Variable) -> Cube:
 
 
 def _check_data(cube: Cube, variable: Variable) -> Cube:
-    """Check data and unify some metadata (in-place)."""
+    """Check data and unify some metadata."""
     cube = check_coordinates(cube, variable.coordinates)
 
     # Time
@@ -241,7 +242,7 @@ def _extract_time_and_region(cube: Cube, variable: Variable) -> Cube:
     """Extract timerange and region."""
     if cube.coords("time") and variable.timerange != "*":
         cube = clip_timerange(cube, variable.timerange)
-    if cube.coords("latitude") and cube.coords("longitude"):
+    try:
         cube = extract_region(
             cube,
             start_longitude=variable.min_lon,
@@ -249,18 +250,23 @@ def _extract_time_and_region(cube: Cube, variable: Variable) -> Cube:
             start_latitude=variable.min_lat,
             end_latitude=variable.max_lat,
         )
-    elif cube.coords("latitude"):
-        cube = cube.extract(
-            Constraint(
-                latitude=lambda cell: variable.min_lat <= cell <= variable.max_lat,
-            ),
+    except Exception as exc:  # noqa: BLE001
+        logger.debug(
+            f"Failed to run extract_region() on cube {cube.summary(shorten=True)} "
+            f"({exc}), trying cube.extract() with corresponding constraints",
         )
-    elif cube.coords("longitude"):
-        cube = cube.extract(
-            Constraint(
-                longitude=lambda cell: variable.min_lon <= cell <= variable.max_lon,
-            ),
-        )
+        if cube.coords("latitude"):
+            cube = cube.extract(
+                Constraint(
+                    latitude=lambda cell: variable.min_lat <= cell <= variable.max_lat,
+                ),
+            )
+        if cube.coords("longitude"):
+            cube = cube.extract(
+                Constraint(
+                    longitude=lambda cell: variable.min_lon <= cell <= variable.max_lon,
+                ),
+            )
     return cube
 
 
@@ -299,7 +305,8 @@ def _run_additional_preprocessors(cube: Cube, variable: Variable) -> Cube:
 
 
 def _set_coordinate_bounds(cube: Cube) -> Cube:
-    """Set coordinate bounds (in-place)."""
+    """Set coordinate bounds."""
+    cube = cube.copy()
     for coord_name in ("time", "latitude", "longitude"):
         if cube.coords(coord_name, dim_coords=True):
             coord = cube.coord(coord_name, dim_coords=True)

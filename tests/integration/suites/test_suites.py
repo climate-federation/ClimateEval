@@ -24,7 +24,7 @@ SUITES_YML_DIR: Path = (
 
 
 @pytest.fixture
-def cubes() -> CubeList:
+def data() -> CubeList:
     tas_cube = get_simple_2d_cube(
         var_name="tas",
         standard_name="air_temperature",
@@ -37,6 +37,18 @@ def cubes() -> CubeList:
         long_name="Precipitation",
         units="kg m-2 s-1",
     )
+    rsdt_cube = get_simple_2d_cube(
+        var_name="rsdt",
+        standard_name="toa_incoming_shortwave_flux",
+        long_name="TOA Incident Shortwave Radiation",
+        units="W m-2",
+    )
+    rsut_cube = get_simple_2d_cube(
+        var_name="rsut",
+        standard_name="toa_outgoing_shortwave_flux",
+        long_name="TOA Outgoing Shortwave Radiation",
+        units="W m-2",
+    )
     z_coord = get_air_pressure_coord()
     ta_cube = get_simple_3d_cube(
         z_coord,
@@ -45,7 +57,7 @@ def cubes() -> CubeList:
         long_name="Air Temperature",
         units="K",
     )
-    return CubeList([tas_cube, pr_cube, ta_cube])
+    return CubeList([tas_cube, pr_cube, rsdt_cube, rsut_cube, ta_cube])
 
 
 @pytest.fixture
@@ -55,7 +67,7 @@ def data_information() -> DataSourceInformation:
 
 def test_simple_diagnostics(
     sample_data_root_dir: Path,
-    cubes: CubeList,
+    data: CubeList,
     data_information: DataSourceInformation,
 ) -> None:
     suite = Suite(
@@ -67,7 +79,7 @@ def test_simple_diagnostics(
         },
     )
 
-    con = suite.get_database(cubes, data_information)
+    con = suite.get_database(data, data_information)
     table_names = get_all_table_names(con)
 
     expected_diagnostics = ("AnnualCycle", "AnnualMeanTimeSeries")
@@ -360,7 +372,7 @@ def test_simple_diagnostics(
 
 def test_simple_diagnostics_no_reference(
     sample_data_root_dir: Path,
-    cubes: CubeList,
+    data: CubeList,
     data_information: DataSourceInformation,
 ) -> None:
     suite = Suite(
@@ -372,7 +384,7 @@ def test_simple_diagnostics_no_reference(
         },
     )
 
-    con = suite.get_database(cubes, data_information)
+    con = suite.get_database(data, data_information)
     table_names = get_all_table_names(con)
 
     assert ("AnnualCycle", "data_sources") in table_names
@@ -403,28 +415,31 @@ def test_simple_diagnostics_no_reference(
     expected_variables = ibis.memtable(
         pd.DataFrame(
             {
-                "id": pd.Series(["tas"], dtype="str"),
-                "var_name": pd.Series(["tas"], dtype="str"),
-                "frequency": pd.Series(["mon"], dtype="str"),
-                "vertical_level": pd.Series([""], dtype="str"),
-                "min_lat": pd.Series([-90.0], dtype="float64"),
-                "max_lat": pd.Series([90.0], dtype="float64"),
-                "min_lon": pd.Series([0.0], dtype="float64"),
-                "max_lon": pd.Series([360.0], dtype="float64"),
-                "landsea_mask": pd.Series(["*"], dtype="str"),
-                "ar6_regions_mask": pd.Series([""], dtype="str"),
-                "timerange": pd.Series(["*"], dtype="str"),
-                "units": pd.Series(["K"], dtype="str"),
-                "anomaly": pd.Series([""], dtype="str"),
-                "diagnostic_kwargs": pd.Series(["a=1 b=2"], dtype="str"),
-                "additional_preprocessors": pd.Series([""], dtype="str"),
-                "coordinates": pd.Series(["time lat lon"], dtype="str"),
-                "derived": pd.Series([False], dtype="bool"),
-                "long_name": pd.Series(["Near-Surface Air Temperature"], dtype="str"),
-                "realm": pd.Series(["atmos"], dtype="str"),
-                "standard_name": pd.Series(["air_temperature"], dtype="str"),
-                "cmip6_table_id": pd.Series(["Amon"], dtype="str"),
-                "ndim": pd.Series([3], dtype="int"),
+                "id": pd.Series(["tas", "asr"], dtype="str"),
+                "var_name": pd.Series(["tas", "asr"], dtype="str"),
+                "frequency": pd.Series(["mon", "mon"], dtype="str"),
+                "vertical_level": pd.Series(["", ""], dtype="str"),
+                "min_lat": pd.Series([-90.0, -90.0], dtype="float64"),
+                "max_lat": pd.Series([90.0, 90.0], dtype="float64"),
+                "min_lon": pd.Series([0.0, 0.0], dtype="float64"),
+                "max_lon": pd.Series([360.0, 360.0], dtype="float64"),
+                "landsea_mask": pd.Series(["*", "*"], dtype="str"),
+                "ar6_regions_mask": pd.Series(["", ""], dtype="str"),
+                "timerange": pd.Series(["*", "*"], dtype="str"),
+                "units": pd.Series(["K", "W m-2"], dtype="str"),
+                "anomaly": pd.Series(["", ""], dtype="str"),
+                "diagnostic_kwargs": pd.Series(["a=1 b=2", ""], dtype="str"),
+                "additional_preprocessors": pd.Series(["", ""], dtype="str"),
+                "coordinates": pd.Series(["time lat lon", "time lat lon"], dtype="str"),
+                "derived": pd.Series([False, True], dtype="bool"),
+                "long_name": pd.Series(
+                    ["Near-Surface Air Temperature", "Absorbed shortwave radiation"],
+                    dtype="str",
+                ),
+                "realm": pd.Series(["atmos", "atmos"], dtype="str"),
+                "standard_name": pd.Series(["air_temperature", ""], dtype="str"),
+                "cmip6_table_id": pd.Series(["Amon", "Amon"], dtype="str"),
+                "ndim": pd.Series([3, 3], dtype="int"),
             },
         ),
     )
@@ -440,6 +455,7 @@ def test_simple_diagnostics_no_reference(
                 "data_id": pd.Series(["C_N_E_V"] * 2, dtype="str"),
                 "data_type": pd.Series(["to_benchmark"] * 2, dtype="str"),
                 "month_number": pd.Series([1.0, 2.0], dtype="float32"),
+                "asr": pd.Series([0.0, 0.0], dtype="float32"),
                 "tas": pd.Series([5.5, 14.5], dtype="float32"),
             },
         ),
@@ -452,7 +468,7 @@ def test_simple_diagnostics_no_reference(
 
 def test_histogram(
     sample_data_root_dir: Path,
-    cubes: CubeList,
+    data: CubeList,
     data_information: DataSourceInformation,
 ) -> None:
     suite = Suite(
@@ -464,7 +480,7 @@ def test_histogram(
         },
     )
 
-    con = suite.get_database(cubes, data_information)
+    con = suite.get_database(data, data_information)
     table_names = get_all_table_names(con)
 
     assert ("Histogram", "data_sources") in table_names

@@ -1,12 +1,27 @@
-import re
+from __future__ import annotations
 
+import re
+from typing import TYPE_CHECKING
+
+import numpy as np
 import pytest
 from iris.coords import AuxCoord, DimCoord
 from iris.cube import Cube
 
 from climateeval import Coordinate, Variable
-from climateeval._utils import _run_additional_preprocessors, check_coordinates
-from climateeval.exceptions import CoordinateError
+from climateeval._utils import (
+    _apply_masks,
+    _check_data,
+    _run_additional_preprocessors,
+    check_coordinates,
+    get_prepared_cube,
+)
+from climateeval.exceptions import CoordinateError, MissingDataError
+from tests._utils import assert_masked_array_allclose
+
+if TYPE_CHECKING:
+    import xarray as xr
+    from iris.cube import CubeList
 
 
 @pytest.fixture
@@ -34,14 +49,14 @@ def lon_coord_2d() -> AuxCoord:
     return AuxCoord([[0.0]], standard_name="longitude")
 
 
-@pytest.fixture(params=["air_pressure", "altitude"])
+@pytest.fixture(params=[("plev", "air_pressure"), ("alt", "altitude")])
 def alevel_coord_1d(request: pytest.FixtureRequest) -> DimCoord:
-    return DimCoord([0.0], standard_name=request.param)
+    return DimCoord([0.0], var_name=request.param[0], standard_name=request.param[1])
 
 
-@pytest.fixture(params=["air_pressure", "altitude"])
+@pytest.fixture(params=[("plev", "air_pressure"), ("alt", "altitude")])
 def alevel_coord_2d(request: pytest.FixtureRequest) -> AuxCoord:
-    return AuxCoord([[0.0]], standard_name=request.param)
+    return AuxCoord([[0.0]], var_name=request.param[0], standard_name=request.param[1])
 
 
 def test_check_coordinates_1d(
@@ -260,3 +275,83 @@ def test__run_additional_preprocessors_calculation_error_fail(cube_2d: Cube) -> 
     )
     with pytest.raises(ValueError, match=re.escape(msg)):
         _run_additional_preprocessors(cube_2d, variable)
+
+
+def test_get_prepared_cube_landsea_mask(cubes: CubeList) -> None:
+    variable = Variable("tas", "tas", "mon", landsea_mask="land_only")
+    cube = get_prepared_cube(cubes, variable)
+    expected_data = np.ma.masked_invalid(
+        [
+            [[np.nan, np.nan], [np.nan, 3.0], [np.nan, 5.0]],
+            [[np.nan, np.nan], [np.nan, 9.0], [np.nan, 11.0]],
+            [[np.nan, np.nan], [np.nan, 15.0], [np.nan, 17.0]],
+        ],
+    )
+    assert_masked_array_allclose(cube.data, expected_data)
+
+
+def test_get_prepared_cube_ar6_regions_mask(cubes: CubeList) -> None:
+    variable = Variable("tas", "tas", "mon", ar6_regions_mask=("E.Asia",))
+    cube = get_prepared_cube(cubes, variable)
+    expected_data = np.ma.masked_invalid(
+        [
+            [[np.nan, np.nan], [np.nan, np.nan], [np.nan, 5.0]],
+            [[np.nan, np.nan], [np.nan, np.nan], [np.nan, 11.0]],
+            [[np.nan, np.nan], [np.nan, np.nan], [np.nan, 17.0]],
+        ],
+    )
+    assert_masked_array_allclose(cube.data, expected_data)
+
+
+def test_get_prepared_cube_cubes(cubes: CubeList, variable_tas: Variable) -> None:
+    cube = get_prepared_cube(cubes, variable_tas)
+    assert cube.var_name == "tas"
+    assert cube.shape == (3, 3, 2)
+
+
+def test_get_prepared_cube_xarray_dataset(
+    xarray_ds: xr.Dataset,
+    variable_tas: Variable,
+) -> None:
+    cube = get_prepared_cube(xarray_ds, variable_tas)
+    assert cube.var_name == "tas"
+    assert cube.shape == (3, 3, 2)
+
+
+def test__apply_masks_invalid_landsea_mask_fail(
+    cube_2d: Cube,
+) -> None:
+    variable = Variable("tas", "tas", "mon", landsea_mask="invalid")
+    msg = (
+        r"Expected one of ('*', 'land_only', 'sea_only') for option 'landsea_mask' "
+        r"of variable Variable(id='tas'), got 'invalid'"
+    )
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        _apply_masks(cube_2d, variable)
+
+
+def test_check_data_scalar() -> None:
+    cube = Cube(0, var_name="ecs")
+    variable = Variable("ecs", "ecs", "fx")
+    new_cube = _check_data(cube, variable)
+    assert new_cube == cube
+
+
+def test_check_data_invalid_min_year_fail(cube_2d: Cube) -> None:
+    variable = Variable("tas", "tas", "mon", timerange="19600101/19710101")
+    msg = (
+        r"Selected timerange is 19600101/19710101, but data starts in year 1970 "
+        r"for Variable(id='tas')"
+    )
+    with pytest.raises(MissingDataError, match=re.escape(msg)):
+        _check_data(cube_2d, variable)
+
+
+def test_check_data_invalid_max_year_fail(cube_2d: Cube) -> None:
+    variable = Variable("tas", "tas", "mon", timerange="19700101/19800101")
+    msg = (
+        r"Selected timerange is 19700101/19800101, but data ends in year 1972 "
+        r"for Variable(id='tas')"
+    )
+    with pytest.raises(MissingDataError, match=re.escape(msg)):
+        _check_data(cube_2d, variable)

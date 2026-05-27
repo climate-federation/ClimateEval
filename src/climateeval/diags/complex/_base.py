@@ -37,7 +37,7 @@ class ComplexDiagnostic(Diagnostic):
     def __init__(
         self,
         *,
-        data_root_dir: Path | None = None,
+        data_root_dir: Path | str | None = None,
         fail_on_missing_data: bool = False,
         download_missing_data: bool = True,
         **kwargs: Any,

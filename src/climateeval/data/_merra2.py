@@ -52,7 +52,7 @@ class MERRA2(ESMValToolCMORizerDataSource):
     SUPPORTED_VAR_NAMES = tuple(VAR_TO_FILE.keys())
     TIER = 3
 
-    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:
         """Download data.
 
         Note
@@ -72,6 +72,8 @@ class MERRA2(ESMValToolCMORizerDataSource):
         An account can be registered at https://urs.earthdata.nasa.gov/.
 
         """
+        data_root_dir = Path(data_root_dir)
+
         self._check_supported_variables(variable)
 
         # Raw downloaded data by ESMValTool will be stored in temporary

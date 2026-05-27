@@ -4,10 +4,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
     import ibis
+
+
+def assert_masked_array_allclose(
+    array_1: np.ma.MaskedArray,
+    array_2: np.ma.MaskedArray,
+) -> None:
+    np.testing.assert_allclose(array_1, array_2)
+    np.testing.assert_equal(array_1.mask, array_2.mask)
 
 
 def assert_table_equal(

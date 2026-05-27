@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class MockDataSource(DataSource):
-    def download(self, _variable: Variable, _data_root_dir: Path) -> list[Path]:
+    def download(self, _variable: Variable, _data_root_dir: Path | str) -> list[Path]:
         return []
 
 
