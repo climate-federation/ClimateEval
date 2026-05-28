@@ -96,16 +96,17 @@ class Suite:
                 if required_key not in diag_definition:
                     msg = (
                         f"Expected key '{required_key}' in diagnostic located "
-                        f"at index {diag_index} in suite {self._suite_definition_file}"
+                        f"at index {diag_index} in suite '{self.name}'"
                     )
                     raise KeyError(msg)
             diag_name = diag_definition["name"]
             diag_cls = str_to_object(diag_definition["diagnostic"])
+            diag_settings: dict[str, Any]
             if issubclass(diag_cls, SimpleDiagnostic):
                 if "variables" not in diag_definition:
                     msg = (
                         f"Expected key 'variables' in simple diagnostic "
-                        f"'{diag_name}' of suite {self._suite_definition_file}"
+                        f"'{diag_name}' of suite '{self.name}'"
                     )
                     raise KeyError(msg)
                 diag_settings = diag_definition["variables"]
@@ -113,8 +114,7 @@ class Suite:
                 if "additional_diagnostic_kwargs" not in diag_definition:
                     msg = (
                         f"Expected key 'additional_diagnostic_kwargs' in complex "
-                        f"diagnostic '{diag_name}' of suite "
-                        f"{self._suite_definition_file}"
+                        f"diagnostic '{diag_name}' of suite '{self.name}'"
                     )
                     raise KeyError(msg)
                 diag_settings = diag_definition["additional_diagnostic_kwargs"]
