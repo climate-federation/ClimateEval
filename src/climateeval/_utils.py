@@ -28,6 +28,7 @@ from climateeval._config import (
     setup_esmvaltool_config_and_logging,
     setup_iris_combine_policy,
 )
+from climateeval._variable import VARIABLES
 from climateeval.exceptions import CoordinateError, MissingDataError
 
 if TYPE_CHECKING:
@@ -281,9 +282,9 @@ def _get_derived_cube(cubes: CubeList, variable: Variable) -> Cube:
     return derive(
         cubes_for_derivation,
         short_name=variable.var_name,
-        long_name=variable.long_name,
-        units=variable.units,
-        standard_name=variable.standard_name,
+        long_name=VARIABLES[variable.var_name]["long_name"],
+        units=VARIABLES[variable.var_name]["units"],
+        standard_name=VARIABLES[variable.var_name]["standard_name"],
     )
 
 
