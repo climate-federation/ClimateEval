@@ -18,7 +18,7 @@ def test_empty_suite() -> None:
     assert suite._suite_definition == []
     assert suite._diagnostic_kwargs == {}
     assert suite._variable_kwargs == {}
-    assert suite._get_diagnostics() == []
+    assert suite._get_diagnostics() == {}
 
 
 def test_missing_name_fail() -> None:
@@ -91,4 +91,20 @@ def test_invalid_diagnostic_fail() -> None:
         r"climateeval.diags.copmlex.ComplexDiagnostic"
     )
     with pytest.raises(TypeError, match=re.escape(msg)):
+        suite._get_diagnostics()
+
+
+def test_non_unique_diagnostic_names_fail() -> None:
+    suite = Suite(SUITES_YML_DIR / "non_unique_diagnostic_names.yml")
+    assert suite.name == "non_unique_diagnostic_names"
+    assert suite._suite_definition_file == (
+        SUITES_YML_DIR / "non_unique_diagnostic_names.yml"
+    )
+    assert suite._diagnostic_kwargs == {}
+    assert suite._variable_kwargs == {}
+    msg = (
+        r"Diagnostic names must be unique for suite 'non_unique_diagnostic_names', "
+        r"got multiple diagnostics named 'annual_cycle'"
+    )
+    with pytest.raises(ValueError, match=re.escape(msg)):
         suite._get_diagnostics()

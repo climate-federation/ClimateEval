@@ -24,3 +24,4 @@ def test_suite(suite: Suite) -> None:
         assert suite._suite_definition == yaml.safe_load(file)
     assert suite._diagnostic_kwargs == {}
     assert suite._variable_kwargs == {}
+    assert list(suite._get_diagnostics()) == ["ecs"]

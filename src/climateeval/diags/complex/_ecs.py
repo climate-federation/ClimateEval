@@ -77,6 +77,7 @@ class ECS(ComplexDiagnostic):
 
     def __init__(
         self,
+        name: str,
         *,
         data_root_dir: Path | str | None = None,
         fail_on_missing_data: bool = False,
@@ -84,6 +85,7 @@ class ECS(ComplexDiagnostic):
     ) -> None:
         """Initialize class instance."""
         super().__init__(
+            name,
             data_root_dir=data_root_dir,
             fail_on_missing_data=fail_on_missing_data,
             **kwargs,
