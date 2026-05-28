@@ -53,7 +53,7 @@
     - id: prw
       var_name: prw
       frequency: mon
-      reference_data: climateeval.data.MERRA2
+      reference_data: climateeval.data.ERA5Monthly
       other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: rlut
       var_name: rlut

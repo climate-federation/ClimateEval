@@ -4,7 +4,7 @@
     - id: air_mass_anomaly
       var_name: ps
       frequency: mon
-      long_name: Global Air Mass Anomaly
+      long_name: Global Total Air Mass Anomaly
       units: "%"
       additional_preprocessors:
         esmvalcore.preprocessor.regrid:
@@ -17,9 +17,9 @@
           relative: true
       reference_data: climateeval.data.ERA5Monthly
     - id: water_vapour_anomaly
-      var_name: ps
+      var_name: prw
       frequency: mon
-      long_name: Global Air Mass Anomaly
+      long_name: Global Total Water Vapor Anomaly
       units: "%"
       additional_preprocessors:
         esmvalcore.preprocessor.regrid:
