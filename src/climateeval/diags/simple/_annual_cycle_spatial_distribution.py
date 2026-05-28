@@ -31,11 +31,6 @@ class AnnualCycleSpatialDistribution(SimpleDiagnostic):
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
-            cube = regrid(
-                cube,
-                DEFAULT_GRID,
-                "linear",
-                cache_weights=True,
-            )
+            cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
             cube = climate_statistics(cube, "mean", "month")
         return cube  # noqa: RET504
