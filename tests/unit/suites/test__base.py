@@ -56,8 +56,8 @@ def test_missing_variables_fail() -> None:
     assert suite._diagnostic_kwargs == {}
     assert suite._variable_kwargs == {}
     msg = (
-        r"Expected key 'variables' in simple diagnostic 'annual_cycle' of suite "
-        r"'missing_variables'"
+        r"Expected key 'variables' in suite definition of simple diagnostic "
+        r"'annual_cycle'"
     )
     with pytest.raises(KeyError, match=re.escape(msg)):
         suite._get_diagnostics()
@@ -72,8 +72,8 @@ def test_missing_additional_diagnostic_kwargs_fail() -> None:
     assert suite._diagnostic_kwargs == {}
     assert suite._variable_kwargs == {}
     msg = (
-        r"Expected key 'additional_diagnostic_kwargs' in complex diagnostic "
-        r"'ecs' of suite 'missing_additional_diagnostic_kwargs'"
+        r"Expected key 'additional_diagnostic_kwargs' in suite definition of "
+        r"complex diagnostic 'ecs'"
     )
     with pytest.raises(KeyError, match=re.escape(msg)):
         suite._get_diagnostics()

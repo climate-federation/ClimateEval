@@ -81,7 +81,7 @@ class Diagnostic(ABC):
     def from_suite_dict(
         cls,
         name: str,
-        suite_settings: Any,  # type specified in subclasses
+        suite_settings: dict[str, Any],
         additional_variable_kwargs: dict[str, Any],
         **additional_diagnostic_kwargs: Any,
     ) -> Self:
