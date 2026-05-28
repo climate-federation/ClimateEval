@@ -68,6 +68,7 @@ VARIABLE_MAPPING: dict[str, str] = {
     "hus": "specific_humidity",
     "lwp": "total_column_cloud_liquid_water",
     "pr": "total_precipitation",
+    "ps": "surface_pressure",
     "rlut": "top_net_thermal_radiation",
     "rlutcs": "top_net_thermal_radiation_clear_sky",
     "ta": "temperature",
