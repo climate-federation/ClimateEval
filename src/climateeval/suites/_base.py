@@ -64,32 +64,32 @@ class Suite:
 
         connection = ibis.connect(database_resource, **database_kwargs)
 
-        for diagnostic in self._get_diagnostics():
+        for diag_name, diag in self._get_diagnostics().items():
             logger.info(
-                f"Processing diagnostic '{diagnostic.name}' within suite '{self.name}'",
+                f"Processing diagnostic '{diag_name}' within suite '{self.name}'",
             )
-            output = diagnostic.get_output(data, data_information)
-            connection.create_database(diagnostic.name)
+            output = diag.get_output(data, data_information)
+            connection.create_database(diag_name)
             for output_field in fields(output):
                 table_name = output_field.name
                 table = getattr(output, table_name)
                 if table is None:
                     logger.debug(
-                        f"Table '{table_name}' of diagnostic '{diagnostic.name}' "
+                        f"Table '{table_name}' of diagnostic '{diag_name}' "
                         f"within suite '{self.name}' contains no data",
                     )
                     continue
-                connection.create_table(table_name, table, database=diagnostic.name)
+                connection.create_table(table_name, table, database=diag_name)
             logger.info(
-                f"Created database for diagnostic '{diagnostic.name}' within suite "
+                f"Created database for diagnostic '{diag_name}' within suite "
                 f"'{self.name}' at {database_resource}",
             )
 
         return connection
 
-    def _get_diagnostics(self) -> list[Diagnostic]:
+    def _get_diagnostics(self) -> dict[str, Diagnostic]:
         """Get diagnostics to run."""
-        diagnostics: list[Diagnostic] = []
+        diagnostics: dict[str, Diagnostic] = {}
         for diag_index, diag_definition in enumerate(self._suite_definition):
             general_required_keys = ("name", "diagnostic")
             for required_key in general_required_keys:
@@ -131,7 +131,7 @@ class Suite:
                 self._variable_kwargs,
                 **self._diagnostic_kwargs,
             )
-            diagnostics.append(diag)
+            diagnostics[diag_name] = diag
         return diagnostics
 
     def _get_suite_defintion(self) -> list[dict[str, Any]]:

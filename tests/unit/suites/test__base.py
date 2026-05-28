@@ -18,7 +18,7 @@ def test_empty_suite() -> None:
     assert suite._suite_definition == []
     assert suite._diagnostic_kwargs == {}
     assert suite._variable_kwargs == {}
-    assert suite._get_diagnostics() == []
+    assert suite._get_diagnostics() == {}
 
 
 def test_missing_name_fail() -> None:
