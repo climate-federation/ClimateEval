@@ -32,4 +32,3 @@ climateeval.diags.simple.AnnualMeanTimeSeries:
     other_data: [climateeval.data.ERA5Monthly]
     timerange: 19710101/19721231
     units: g m-2 s-1
-    anomaly: full
