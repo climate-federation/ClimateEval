@@ -71,7 +71,7 @@ def test_tas() -> None:
         "diagnostic_kwargs": {},
         "additional_preprocessors": {},
     }
-    assert var.settings == settings
+    assert var.get_preprocessing_settings() == settings
     for key, val in settings.items():
         assert getattr(var, key) == val
 
@@ -108,7 +108,7 @@ def test_ta() -> None:
         "diagnostic_kwargs": {},
         "additional_preprocessors": {},
     }
-    assert var.settings == settings
+    assert var.get_preprocessing_settings() == settings
     for key, val in settings.items():
         assert getattr(var, key) == val
 
@@ -146,7 +146,7 @@ def test_lwcre() -> None:
         "diagnostic_kwargs": {},
         "additional_preprocessors": {},
     }
-    assert var.settings == settings
+    assert var.get_preprocessing_settings() == settings
     for key, val in settings.items():
         assert getattr(var, key) == val
 
@@ -211,7 +211,7 @@ def test_settings(
     expected_settings: dict[str, Any],
 ) -> None:
     var = Variable("my_lwcre", "lwcre", "mon", **variable_kwargs)
-    assert var.settings == expected_settings
+    assert var.get_preprocessing_settings() == expected_settings
 
 
 def test_get_required_variables_derived() -> None:

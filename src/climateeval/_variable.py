@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -104,8 +104,7 @@ class Variable:
     var_name: str = field(repr=False)
     frequency: str = field(repr=False)
 
-    # Custom user settings
-    settings: dict[str, Any] = field(init=False, repr=False, compare=False)
+    # Custom preprocessing settings
     vertical_level: VerticalLevel = field(default=NO_LEVEL, repr=False, kw_only=True)
     min_lat: float = field(default=-90.0, repr=False, kw_only=True)
     max_lat: float = field(default=90.0, repr=False, kw_only=True)
@@ -160,7 +159,6 @@ class Variable:
             if key == "units" and self.units != "":
                 continue
             object.__setattr__(self, key, val)
-        object.__setattr__(self, "settings", self._get_settings())
         object.__setattr__(self, "cmip6_table_id", self._get_cmip6_table_id())
         object.__setattr__(self, "ndim", len(self.coordinates))
 
@@ -175,7 +173,7 @@ class Variable:
                 v["short_name"],
                 v["short_name"],
                 self.frequency,
-                **self.settings,
+                **self.get_preprocessing_settings(),
             )
             for v in required_facets
         )
@@ -218,13 +216,25 @@ class Variable:
         logger.warning(msg)
         return ""
 
-    def _get_settings(self) -> dict[str, Any]:
-        """Get settings."""
-        settings: dict[str, Any] = {}
-        for field_ in fields(self):
-            if field_.init and field_.kw_only:
-                settings[field_.name] = getattr(self, field_.name)
-        return settings
+    def get_preprocessing_settings(self) -> dict[str, Any]:
+        """Get preprocessing settings."""
+        preprocessing_attributes = (
+            "vertical_level",
+            "min_lat",
+            "max_lat",
+            "min_lon",
+            "max_lon",
+            "landsea_mask",
+            "ar6_regions_mask",
+            "timerange",
+            "units",
+            "diagnostic_kwargs",
+            "additional_preprocessors",
+        )
+        preprocessing_settings: dict[str, Any] = {}
+        for attribute in preprocessing_attributes:
+            preprocessing_settings[attribute] = getattr(self, attribute)
+        return preprocessing_settings
 
 
 def _read_coordinates() -> dict[str, dict[str, str | list[str]]]:
