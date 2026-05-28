@@ -66,6 +66,7 @@ def main() -> None:
         "clivi",
         "clt",
         "clwvi",
+        "evspsbl",
         "hfls",
         "hfss",
         "hus",

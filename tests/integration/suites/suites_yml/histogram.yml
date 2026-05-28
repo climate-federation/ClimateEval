@@ -1,7 +1,7 @@
 - name: histogram
   diagnostic: climateeval.diags.simple.Histogram
   variables:
-    tas:
+    - id: tas
       var_name: tas
       frequency: mon
       diagnostic_kwargs:

@@ -1,10 +1,12 @@
 - name: timeseries
   diagnostic: climateeval.diags.simple.TimeSeriesNoPreprocessing
+  diagnostic_kwargs:
+    calculate_metrics: false
   variables:
-    air_mass_anomaly:
+    - id: air_mass_anomaly
       var_name: ps
       frequency: mon
-      long_name: Global Air Mass Anomaly
+      long_name: Global Total Air Mass Anomaly
       units: "%"
       additional_preprocessors:
         esmvalcore.preprocessor.regrid:
@@ -12,7 +14,52 @@
           scheme: area_weighted
         esmvalcore.preprocessor.area_statistics:
           operator: sum
+        esmvalcore.preprocessor.annual_statistics:
+          operator: sum
+        esmvalcore.preprocessor.regrid_time:
+          frequency: yr
+          calendar: standard
+          units: days since 1970-01-01 00:00:00
         esmvalcore.preprocessor.anomalies:
           period: full
           relative: true
+      reference_data: climateeval.data.ERA5Monthly
+    - id: water_vapour_anomaly
+      var_name: prw
+      frequency: mon
+      long_name: Global Total Water Vapor Anomaly
+      units: "%"
+      additional_preprocessors:
+        esmvalcore.preprocessor.regrid:
+          target_grid: 2x2
+          scheme: area_weighted
+        esmvalcore.preprocessor.area_statistics:
+          operator: sum
+        esmvalcore.preprocessor.annual_statistics:
+          operator: sum
+        esmvalcore.preprocessor.regrid_time:
+          frequency: yr
+          calendar: standard
+          units: days since 1970-01-01 00:00:00
+        esmvalcore.preprocessor.anomalies:
+          period: full
+          relative: true
+      reference_data: climateeval.data.ERA5Monthly
+    - id: moisture_flux
+      var_name: qep
+      frequency: mon
+      long_name: Global Total Moisture Flux into Atmosphere
+      units: Pg s-1
+      additional_preprocessors:
+        esmvalcore.preprocessor.regrid:
+          target_grid: 2x2
+          scheme: area_weighted
+        esmvalcore.preprocessor.area_statistics:
+          operator: sum
+        esmvalcore.preprocessor.annual_statistics:
+          operator: sum
+        esmvalcore.preprocessor.regrid_time:
+          frequency: yr
+          calendar: standard
+          units: days since 1970-01-01 00:00:00
       reference_data: climateeval.data.ERA5Monthly

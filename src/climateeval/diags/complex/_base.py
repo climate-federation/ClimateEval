@@ -55,14 +55,21 @@ class ComplexDiagnostic(Diagnostic):
     def from_suite_dict(
         cls,
         name: str,
-        suite_settings: dict[str, Any] | None,
+        suite_settings: dict[str, Any],
         additional_variable_kwargs: dict[str, Any],  # noqa: ARG003
         **additional_diagnostic_kwargs: Any,
     ) -> Self:
         """Load complex diagnostic from suite dictionary (given by YAML file)."""
-        if suite_settings is None:
-            suite_settings = {}
-        all_diagnostic_kwargs = {**suite_settings, **additional_diagnostic_kwargs}
+        if "additional_diagnostic_kwargs" not in suite_settings:
+            msg = (
+                f"Expected key 'additional_diagnostic_kwargs' in suite definition "
+                f"of complex diagnostic '{name}'"
+            )
+            raise KeyError(msg)
+        all_diagnostic_kwargs = {
+            **suite_settings["additional_diagnostic_kwargs"],
+            **additional_diagnostic_kwargs,
+        }
         return cls(name, **all_diagnostic_kwargs)
 
     def get_output(

@@ -269,6 +269,13 @@ netcre:
   realm: atmos
   standard_name: ""
   units: W m-2
+qep:
+  coordinates: [time, lat, lon]
+  derived: true
+  long_name: Net moisture flux into atmosphere
+  realm: atmos
+  standard_name: ""
+  units: kg m-2 s-1
 rtnt:
   coordinates: [time, lat, lon]
   derived: true

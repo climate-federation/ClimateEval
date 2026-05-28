@@ -12,15 +12,13 @@ import yaml
 from loguru import logger
 
 from climateeval._utils import str_to_object
-from climateeval.diags.complex import ComplexDiagnostic
-from climateeval.diags.simple import SimpleDiagnostic
+from climateeval.diags._base import Diagnostic
 
 if TYPE_CHECKING:
     from iris.cube import CubeList
     from xarray import Dataset
 
     from climateeval.data import DataSourceInformation
-    from climateeval.diags._base import Diagnostic
 
 logger = logger.opt(colors=True)
 
@@ -90,7 +88,8 @@ class Suite:
     def _get_diagnostics(self) -> dict[str, Diagnostic]:
         """Get diagnostics to run."""
         diagnostics: dict[str, Diagnostic] = {}
-        for diag_index, diag_definition in enumerate(self._suite_definition):
+        for diag_index, diag_definition_ in enumerate(self._suite_definition):
+            diag_definition = dict(diag_definition_)
             general_required_keys = ("name", "diagnostic")
             for required_key in general_required_keys:
                 if required_key not in diag_definition:
@@ -100,8 +99,8 @@ class Suite:
                     )
                     raise KeyError(msg)
 
-            diag_name = diag_definition["name"]
-            diag_cls = str_to_object(diag_definition["diagnostic"])
+            diag_name = diag_definition.pop("name")
+            diag_cls = str_to_object(diag_definition.pop("diagnostic"))
 
             if diag_name in diagnostics:
                 msg = (
@@ -110,24 +109,7 @@ class Suite:
                 )
                 raise ValueError(msg)
 
-            diag_settings: dict[str, Any]
-            if issubclass(diag_cls, SimpleDiagnostic):
-                if "variables" not in diag_definition:
-                    msg = (
-                        f"Expected key 'variables' in simple diagnostic "
-                        f"'{diag_name}' of suite '{self.name}'"
-                    )
-                    raise KeyError(msg)
-                diag_settings = diag_definition["variables"]
-            elif issubclass(diag_cls, ComplexDiagnostic):
-                if "additional_diagnostic_kwargs" not in diag_definition:
-                    msg = (
-                        f"Expected key 'additional_diagnostic_kwargs' in complex "
-                        f"diagnostic '{diag_name}' of suite '{self.name}'"
-                    )
-                    raise KeyError(msg)
-                diag_settings = diag_definition["additional_diagnostic_kwargs"]
-            else:
+            if not issubclass(diag_cls, Diagnostic):
                 msg = (
                     f"Diagnostic '{diag_name}' is not a valid diagnostic; should "
                     f"be a subclass of climateeval.diags.simple.SimpleDiagnostic or "
@@ -137,7 +119,7 @@ class Suite:
 
             diag = diag_cls.from_suite_dict(
                 diag_name,
-                diag_settings,
+                diag_definition,
                 self._variable_kwargs,
                 **self._diagnostic_kwargs,
             )

@@ -1,7 +1,7 @@
 - name: diurnal_cycle
   diagnostic: climateeval.diags.simple.DiurnalCycle
   variables:
-    pr:
+    - id: pr
       var_name: pr
       frequency: 1hr
       reference_data: climateeval.data.ERA5Hourly
@@ -9,14 +9,14 @@
 - name: histogram
   diagnostic: climateeval.diags.simple.Histogram
   variables:
-    pr_global:
+    - id: pr_global
       var_name: pr
       frequency: 1hr
       units: mm day-1
       diagnostic_kwargs:
         bin_range: [0.0, 15.0]
       reference_data: climateeval.data.ERA5Hourly
-    pr_tropics:
+    - id: pr_tropics
       var_name: pr
       frequency: 1hr
       min_lon: 0.0

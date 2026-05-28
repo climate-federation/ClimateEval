@@ -63,12 +63,11 @@ class SimpleDiagnostic(Diagnostic):
         fail_on_missing_data: bool = False,
         download_missing_data: bool = True,
         fail_on_metric_error: bool = True,
+        calculate_metrics: bool | None = None,
     ) -> None:
         """Initialize class instance."""
         self._name = name
         logger.debug(f"Initializing simple diagnostic '{self.name}'")
-
-        self._data_root_dir = self._get_data_root_dir(data_root_dir)
 
         if not variables_and_data:
             msg = "At least a single variable must be given."
@@ -104,9 +103,14 @@ class SimpleDiagnostic(Diagnostic):
                     other_data_sources.append(data_source_cls())
             self._other_data[variable] = tuple(other_data_sources)
 
+        self._data_root_dir = self._get_data_root_dir(data_root_dir)
         self._fail_on_missing_data = fail_on_missing_data
         self._download_missing_data = download_missing_data
         self._fail_on_metric_error = fail_on_metric_error
+        if calculate_metrics is None:
+            self._calculate_metrics = self._OUTPUT_METRICS_TABLE
+        else:
+            self._calculate_metrics = calculate_metrics
 
     @property
     def _final_coordinate_names(self) -> tuple[str, ...]:
@@ -117,15 +121,20 @@ class SimpleDiagnostic(Diagnostic):
     def from_suite_dict(
         cls,
         name: str,
-        suite_settings: dict[str, Any] | None,
+        suite_settings: dict[str, Any],
         additional_variable_kwargs: dict[str, Any],
         **additional_diagnostic_kwargs: Any,
     ) -> Self:
         """Load simple diagnostic from suite dictionary (given by YAML file)."""
-        if suite_settings is None:
-            suite_settings = {}
+        if "variables" not in suite_settings:
+            msg = (
+                f"Expected key 'variables' in suite definition of simple diagnostic "
+                f"'{name}'"
+            )
+            raise KeyError(msg)
+
         variables_and_data: dict[Variable, SimpleDiagnosticInputData] = {}
-        for variable_id, variable_kwargs_ in suite_settings.items():
+        for variable_kwargs_ in suite_settings["variables"]:
             variable_kwargs = dict(variable_kwargs_)
             given_reference_data = variable_kwargs.pop("reference_data", None)
             reference_data: type[DataSource] | None
@@ -145,12 +154,16 @@ class SimpleDiagnostic(Diagnostic):
                     variable_kwargs["ar6_regions_mask"],
                 )
             variable_kwargs.update(additional_variable_kwargs)
-            variable = Variable(variable_id, **variable_kwargs)
+            variable = Variable(**variable_kwargs)
             variables_and_data[variable] = SimpleDiagnosticInputData(
                 reference=reference_data,
                 other=other_data,
             )
-        return cls(name, variables_and_data, **additional_diagnostic_kwargs)
+
+        diagnostic_kwargs = dict(suite_settings.get("diagnostic_kwargs", {}))
+        diagnostic_kwargs.update(additional_diagnostic_kwargs)
+
+        return cls(name, variables_and_data, **diagnostic_kwargs)
 
     def get_output(
         self,
@@ -333,7 +346,7 @@ class SimpleDiagnostic(Diagnostic):
                     )
 
                 # Expand metrics
-                if not (self._OUTPUT_METRICS_TABLE and variable in reference_cubes):
+                if not (self._calculate_metrics and variable in reference_cubes):
                     continue
                 try:
                     metrics_tables.append(
@@ -413,7 +426,7 @@ class SimpleDiagnostic(Diagnostic):
                 )
 
             # Expand metrics
-            if not self._OUTPUT_METRICS_TABLE:
+            if not self._calculate_metrics:
                 continue
             if variable not in reference_cubes:
                 logger.warning(
