@@ -12,13 +12,15 @@ import yaml
 from loguru import logger
 
 from climateeval._utils import str_to_object
-from climateeval.diags._base import Diagnostic
+from climateeval.diags.complex import ComplexDiagnostic
+from climateeval.diags.simple import SimpleDiagnostic
 
 if TYPE_CHECKING:
     from iris.cube import CubeList
     from xarray import Dataset
 
     from climateeval.data import DataSourceInformation
+    from climateeval.diags._base import Diagnostic
 
 logger = logger.opt(colors=True)
 
@@ -36,7 +38,7 @@ class Suite:
         """Initialize class instance."""
         self._suite_definition_file = self._get_suite_defintion_file(suite_definition)
         self._suite_definition = self._get_suite_defintion()
-        logger.info(f"Initializing evaluation suite {self.name}")
+        logger.info(f"Initializing evaluation suite '{self.name}'")
         if diagnostic_kwargs is None:
             diagnostic_kwargs = {}
         if variable_kwargs is None:
@@ -64,7 +66,7 @@ class Suite:
 
         for diagnostic in self._get_diagnostics():
             logger.info(
-                f"Processing diagnostic {diagnostic.name} within suite {self.name}",
+                f"Processing diagnostic '{diagnostic.name}' within suite '{self.name}'",
             )
             output = diagnostic.get_output(data, data_information)
             connection.create_database(diagnostic.name)
@@ -73,14 +75,14 @@ class Suite:
                 table = getattr(output, table_name)
                 if table is None:
                     logger.debug(
-                        f"Table '{table_name}' of diagnostic {diagnostic.name} "
-                        f"within suite {self.name} contains no data",
+                        f"Table '{table_name}' of diagnostic '{diagnostic.name}' "
+                        f"within suite '{self.name}' contains no data",
                     )
                     continue
                 connection.create_table(table_name, table, database=diagnostic.name)
             logger.info(
-                f"Created database for diagnostic {diagnostic.name} within suite "
-                f"{self.name} at {database_resource}",
+                f"Created database for diagnostic '{diagnostic.name}' within suite "
+                f"'{self.name}' at {database_resource}",
             )
 
         return connection
@@ -88,16 +90,43 @@ class Suite:
     def _get_diagnostics(self) -> list[Diagnostic]:
         """Get diagnostics to run."""
         diagnostics: list[Diagnostic] = []
-        for diag_str, diag_settings in self._suite_definition.items():
-            diag_cls = str_to_object(diag_str)
-            if not issubclass(diag_cls, Diagnostic):
+        for diag_index, diag_definition in enumerate(self._suite_definition):
+            general_required_keys = ("name", "diagnostic")
+            for required_key in general_required_keys:
+                if required_key not in diag_definition:
+                    msg = (
+                        f"Expected key '{required_key}' in diagnostic located "
+                        f"at index {diag_index} in suite '{self.name}'"
+                    )
+                    raise KeyError(msg)
+            diag_name = diag_definition["name"]
+            diag_cls = str_to_object(diag_definition["diagnostic"])
+            diag_settings: dict[str, Any]
+            if issubclass(diag_cls, SimpleDiagnostic):
+                if "variables" not in diag_definition:
+                    msg = (
+                        f"Expected key 'variables' in simple diagnostic "
+                        f"'{diag_name}' of suite '{self.name}'"
+                    )
+                    raise KeyError(msg)
+                diag_settings = diag_definition["variables"]
+            elif issubclass(diag_cls, ComplexDiagnostic):
+                if "additional_diagnostic_kwargs" not in diag_definition:
+                    msg = (
+                        f"Expected key 'additional_diagnostic_kwargs' in complex "
+                        f"diagnostic '{diag_name}' of suite '{self.name}'"
+                    )
+                    raise KeyError(msg)
+                diag_settings = diag_definition["additional_diagnostic_kwargs"]
+            else:
                 msg = (
-                    f"Diagnostic '{diag_str}' is not a valid diagnostic; should "
+                    f"Diagnostic '{diag_name}' is not a valid diagnostic; should "
                     f"be a subclass of climateeval.diags.simple.SimpleDiagnostic or "
                     f"climateeval.diags.copmlex.ComplexDiagnostic"
                 )
                 raise TypeError(msg)
             diag = diag_cls.from_suite_dict(
+                diag_name,
                 diag_settings,
                 self._variable_kwargs,
                 **self._diagnostic_kwargs,
@@ -105,7 +134,7 @@ class Suite:
             diagnostics.append(diag)
         return diagnostics
 
-    def _get_suite_defintion(self) -> dict[str, dict[str, Any] | None]:
+    def _get_suite_defintion(self) -> list[dict[str, Any]]:
         """Get suite definition."""
         with self._suite_definition_file.open("r", encoding="utf-8") as file:
             return yaml.safe_load(file)

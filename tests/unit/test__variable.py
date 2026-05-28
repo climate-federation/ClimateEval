@@ -68,7 +68,6 @@ def test_tas() -> None:
         "ar6_regions_mask": (),
         "timerange": "*",
         "units": "K",
-        "anomaly": "",
         "diagnostic_kwargs": {},
         "additional_preprocessors": {},
     }
@@ -106,7 +105,6 @@ def test_ta() -> None:
         "ar6_regions_mask": (),
         "timerange": "*",
         "units": "K",
-        "anomaly": "",
         "diagnostic_kwargs": {},
         "additional_preprocessors": {},
     }
@@ -145,7 +143,6 @@ def test_lwcre() -> None:
         "ar6_regions_mask": (),
         "timerange": "*",
         "units": "W m-2",
-        "anomaly": "",
         "diagnostic_kwargs": {},
         "additional_preprocessors": {},
     }
@@ -181,7 +178,6 @@ def test_lwcre() -> None:
                 "ar6_regions_mask": (),
                 "timerange": "*",
                 "units": "W m-2",
-                "anomaly": "",
                 "diagnostic_kwargs": {},
                 "additional_preprocessors": {},
             },
@@ -204,7 +200,6 @@ def test_lwcre() -> None:
                 "ar6_regions_mask": ("Caribbean", "E.Europe"),
                 "timerange": "*",
                 "units": "kW w-2",
-                "anomaly": "",
                 "diagnostic_kwargs": {"test": 1},
                 "additional_preprocessors": {"func": {"kwarg": 1}},
             },

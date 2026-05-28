@@ -82,7 +82,7 @@ def test_simple_diagnostics(
     con = suite.get_database(data, data_information)
     table_names = get_all_table_names(con)
 
-    expected_diagnostics = ("AnnualCycle", "AnnualMeanTimeSeries")
+    expected_diagnostics = ("annual_cycle", "annual_mean_timeseries")
     for diagnostic in expected_diagnostics:
         assert (diagnostic, "data_sources") in table_names
         assert (diagnostic, "metrics") in table_names
@@ -142,7 +142,6 @@ def test_simple_diagnostics(
                 "ar6_regions_mask": pd.Series(["", ""], dtype="str"),
                 "timerange": pd.Series(["*", "19700101/19701231"], dtype="str"),
                 "units": pd.Series(["K", "g m-2 s-1"], dtype="str"),
-                "anomaly": pd.Series(["", ""], dtype="str"),
                 "diagnostic_kwargs": pd.Series(["", ""], dtype="str"),
                 "additional_preprocessors": pd.Series(["", ""], dtype="str"),
                 "coordinates": pd.Series(["time lat lon", "time lat lon"], dtype="str"),
@@ -162,7 +161,7 @@ def test_simple_diagnostics(
         ),
     )
     assert_table_equal(
-        con.table("variables", database="AnnualCycle"),
+        con.table("variables", database="annual_cycle"),
         expected_variables_annual_cycle,
     )
     expected_variables_timeseries = ibis.memtable(
@@ -186,7 +185,6 @@ def test_simple_diagnostics(
                     dtype="str",
                 ),
                 "units": pd.Series(["K", "g m-2 s-1"], dtype="str"),
-                "anomaly": pd.Series(["", "full"], dtype="str"),
                 "diagnostic_kwargs": pd.Series(["", ""], dtype="str"),
                 "additional_preprocessors": pd.Series(["", ""], dtype="str"),
                 "coordinates": pd.Series(
@@ -209,7 +207,7 @@ def test_simple_diagnostics(
         ),
     )
     assert_table_equal(
-        con.table("variables", database="AnnualMeanTimeSeries"),
+        con.table("variables", database="annual_mean_timeseries"),
         expected_variables_timeseries,
     )
 
@@ -251,7 +249,7 @@ def test_simple_diagnostics(
         ),
     )
     assert_table_equal(
-        con.table("raw_output", database="AnnualCycle"),
+        con.table("raw_output", database="annual_cycle"),
         expected_raw_output_annual_cycle,
     )
     expected_raw_output_timeseries = ibis.memtable(
@@ -285,14 +283,14 @@ def test_simple_diagnostics(
                 "mypr": pd.Series(
                     [
                         np.nan,
-                        -2900.0,
-                        3100.0,
+                        8500.0,
+                        14500.0,
                         np.nan,
                         np.nan,
-                        -5800.0,
-                        6200.0,
-                        -2900.0,
-                        3100.0,
+                        17000.0,
+                        29000.0,
+                        8500.0,
+                        14500.0,
                     ],
                     dtype="float32",
                 ),
@@ -307,7 +305,7 @@ def test_simple_diagnostics(
         time="timestamp(6)",
     )
     assert_table_equal(
-        con.table("raw_output", database="AnnualMeanTimeSeries"),
+        con.table("raw_output", database="annual_mean_timeseries"),
         expected_raw_output_timeseries,
     )
 
@@ -337,7 +335,7 @@ def test_simple_diagnostics(
         ),
     )
     assert_table_equal(
-        con.table("metrics", database="AnnualCycle"),
+        con.table("metrics", database="annual_cycle"),
         expected_metrics_annual_cycle,
     )
     expected_metrics_timeseries = ibis.memtable(
@@ -353,19 +351,19 @@ def test_simple_diagnostics(
                 ),
                 "var_id": pd.Series(["ta1000", "mypr", "mypr"], dtype="str"),
                 "weighted_rmse": pd.Series(
-                    [10.404326, 3001.802979, 3001.802979],
+                    [10.404326, 11888.835, 11888.835],
                     dtype="float32",
                 ),
                 "weighted_pearsonr": pd.Series([1.0, 1.0, 1.0], dtype="float32"),
                 "weighted_emd": pd.Series(
-                    [8.3475, 2940.082, 2940.082],
+                    [8.3475, 11381.566, 11381.566],
                     dtype="float32",
                 ),
             },
         ),
     )
     assert_table_equal(
-        con.table("metrics", database="AnnualMeanTimeSeries"),
+        con.table("metrics", database="annual_mean_timeseries"),
         expected_metrics_timeseries,
     )
 
@@ -387,10 +385,10 @@ def test_simple_diagnostics_no_reference(
     con = suite.get_database(data, data_information)
     table_names = get_all_table_names(con)
 
-    assert ("AnnualCycle", "data_sources") in table_names
-    assert ("AnnualCycle", "metrics") not in table_names
-    assert ("AnnualCycle", "raw_output") in table_names
-    assert ("AnnualCycle", "variables") in table_names
+    assert ("annual_cycle", "data_sources") in table_names
+    assert ("annual_cycle", "metrics") not in table_names
+    assert ("annual_cycle", "raw_output") in table_names
+    assert ("annual_cycle", "variables") in table_names
 
     # Check data sources
     expected_data_sources = ibis.memtable(
@@ -407,7 +405,7 @@ def test_simple_diagnostics_no_reference(
         ),
     )
     assert_table_equal(
-        con.table("data_sources", database="AnnualCycle"),
+        con.table("data_sources", database="annual_cycle"),
         expected_data_sources,
     )
 
@@ -427,7 +425,6 @@ def test_simple_diagnostics_no_reference(
                 "ar6_regions_mask": pd.Series(["", ""], dtype="str"),
                 "timerange": pd.Series(["*", "*"], dtype="str"),
                 "units": pd.Series(["K", "W m-2"], dtype="str"),
-                "anomaly": pd.Series(["", ""], dtype="str"),
                 "diagnostic_kwargs": pd.Series(["a=1 b=2", ""], dtype="str"),
                 "additional_preprocessors": pd.Series(["", ""], dtype="str"),
                 "coordinates": pd.Series(["time lat lon", "time lat lon"], dtype="str"),
@@ -444,7 +441,7 @@ def test_simple_diagnostics_no_reference(
         ),
     )
     assert_table_equal(
-        con.table("variables", database="AnnualCycle"),
+        con.table("variables", database="annual_cycle"),
         expected_variables,
     )
 
@@ -461,7 +458,7 @@ def test_simple_diagnostics_no_reference(
         ),
     )
     assert_table_equal(
-        con.table("raw_output", database="AnnualCycle"),
+        con.table("raw_output", database="annual_cycle"),
         expected_raw_output,
     )
 
@@ -483,10 +480,10 @@ def test_histogram(
     con = suite.get_database(data, data_information)
     table_names = get_all_table_names(con)
 
-    assert ("Histogram", "data_sources") in table_names
-    assert ("Histogram", "metrics") not in table_names
-    assert ("Histogram", "raw_output") in table_names
-    assert ("Histogram", "variables") in table_names
+    assert ("histogram", "data_sources") in table_names
+    assert ("histogram", "metrics") not in table_names
+    assert ("histogram", "raw_output") in table_names
+    assert ("histogram", "variables") in table_names
 
     # Check data sources
     expected_data_sources = ibis.memtable(
@@ -511,7 +508,7 @@ def test_histogram(
         ),
     )
     assert_table_equal(
-        con.table("data_sources", database="Histogram"),
+        con.table("data_sources", database="histogram"),
         expected_data_sources,
     )
 
@@ -531,7 +528,6 @@ def test_histogram(
                 "ar6_regions_mask": pd.Series([""], dtype="str"),
                 "timerange": pd.Series(["*"], dtype="str"),
                 "units": pd.Series(["K"], dtype="str"),
-                "anomaly": pd.Series([""], dtype="str"),
                 "diagnostic_kwargs": pd.Series(
                     ["bins=3 bin_range=[0.0, 30.0]"],
                     dtype="str",
@@ -554,7 +550,7 @@ def test_histogram(
         ),
     )
     assert_table_equal(
-        con.table("variables", database="Histogram"),
+        con.table("variables", database="histogram"),
         expected_variables,
     )
 
@@ -579,6 +575,6 @@ def test_histogram(
         ),
     )
     assert_table_equal(
-        con.table("raw_output", database="Histogram"),
+        con.table("raw_output", database="histogram"),
         expected_raw_output,
     )

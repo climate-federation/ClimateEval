@@ -17,7 +17,11 @@ if TYPE_CHECKING:
 def diagnostic(
     variables_and_data_3d: dict[Variable, SimpleDiagnosticInputData],
 ) -> ZonalProfileAirPressure:
-    return ZonalProfileAirPressure(variables_and_data_3d)
+    return ZonalProfileAirPressure("diagnostic", variables_and_data_3d)
+
+
+def test_name(diagnostic: ZonalProfileAirPressure) -> None:
+    assert diagnostic.name == "diagnostic"
 
 
 def test__safely_preprocess(

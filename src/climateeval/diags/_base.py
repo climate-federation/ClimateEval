@@ -66,6 +66,9 @@ class Diagnostic(ABC):
     _fail_on_missing_data: bool
     """Fail on missing data."""
 
+    _name: str
+    """Diagnostic name."""
+
     @property
     def data_root_dir(self) -> Path:
         """Get path to data root directory."""
@@ -74,12 +77,13 @@ class Diagnostic(ABC):
     @property
     def name(self) -> str:
         """Get diagnostic name."""
-        return self.__class__.__name__
+        return self._name
 
     @classmethod
     @abstractmethod
     def from_suite_dict(
         cls,
+        name: str,
         suite_settings: dict[str, Any] | None,
         additional_variable_kwargs: dict[str, Any],
         **additional_diagnostic_kwargs: Any,

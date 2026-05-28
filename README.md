@@ -36,7 +36,7 @@ can be then explored through an interactive HTML file.
 
    if you prefer to connect to the repository over SSH
 
-1. Install Pixi as described in their [installation
+1. Install [Pixi](https://pixi.prefix.dev/) as described in their [installation
    instructions](https://pixi.prefix.dev/latest/installation/).
 
 1. Install ClimateEval:
@@ -46,8 +46,18 @@ can be then explored through an interactive HTML file.
    pixi install
    ```
 
-Now you can use `pixi shell` to launch a shell in your pixi environment or
-`pixi run ...` to run commands in your pixi environment.
+   or
+
+   ```bash
+   cd ClimateEval
+   pixi install --frozen
+   ```
+
+   for a faster installation with slightly outdated dependencies.
+
+Now you can use `pixi shell`/`pixi shell --frozen` to launch a shell in your
+pixi environment or `pixi run ...`/`pixi run --frozen ...` to run commands in
+your pixi environment.
 
 ## Known limitations
 
