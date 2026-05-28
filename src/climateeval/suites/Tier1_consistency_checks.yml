@@ -1,5 +1,7 @@
 - name: timeseries
   diagnostic: climateeval.diags.simple.TimeSeriesNoPreprocessing
+  diagnostic_kwargs:
+    calculate_metrics: false
   variables:
     - id: air_mass_anomaly
       var_name: ps
@@ -12,6 +14,12 @@
           scheme: area_weighted
         esmvalcore.preprocessor.area_statistics:
           operator: sum
+        esmvalcore.preprocessor.annual_statistics:
+          operator: sum
+        esmvalcore.preprocessor.regrid_time:
+          frequency: yr
+          calendar: standard
+          units: days since 1970-01-01 00:00:00
         esmvalcore.preprocessor.anomalies:
           period: full
           relative: true
@@ -27,6 +35,12 @@
           scheme: area_weighted
         esmvalcore.preprocessor.area_statistics:
           operator: sum
+        esmvalcore.preprocessor.annual_statistics:
+          operator: sum
+        esmvalcore.preprocessor.regrid_time:
+          frequency: yr
+          calendar: standard
+          units: days since 1970-01-01 00:00:00
         esmvalcore.preprocessor.anomalies:
           period: full
           relative: true
@@ -42,4 +56,10 @@
           scheme: area_weighted
         esmvalcore.preprocessor.area_statistics:
           operator: sum
+        esmvalcore.preprocessor.annual_statistics:
+          operator: sum
+        esmvalcore.preprocessor.regrid_time:
+          frequency: yr
+          calendar: standard
+          units: days since 1970-01-01 00:00:00
       reference_data: climateeval.data.ERA5Monthly
