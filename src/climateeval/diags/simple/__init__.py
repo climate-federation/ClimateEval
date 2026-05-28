@@ -17,7 +17,10 @@ from climateeval.diags.simple._base import SimpleDiagnostic
 from climateeval.diags.simple._diurnal_cycle import DiurnalCycle
 from climateeval.diags.simple._histogram import Histogram
 from climateeval.diags.simple._map import Map
-from climateeval.diags.simple._timeseries import AnnualMeanTimeSeries
+from climateeval.diags.simple._timeseries import (
+    AnnualMeanTimeSeries,
+    TimeSeriesNoPreprocessing,
+)
 from climateeval.diags.simple._utils import SimpleDiagnosticInputData
 from climateeval.diags.simple._zonal_line import ZonalLine
 from climateeval.diags.simple._zonal_profile import ZonalProfileAirPressure
@@ -31,6 +34,7 @@ __all__ = [
     "Map",
     "SimpleDiagnostic",
     "SimpleDiagnosticInputData",
+    "TimeSeriesNoPreprocessing",
     "ZonalLine",
     "ZonalProfileAirPressure",
 ]
