@@ -1,0 +1,17 @@
+- name: timeseries
+  diagnostic: climateeval.diags.simple.TimeSeriesNoPreprocessing
+  variables:
+    air_mass_anomaly:
+      var_name: ps
+      frequency: mon
+      units: "%"
+      additional_preprocessors:
+        esmvalcore.preprocessor.regrid:
+          target_grid: 2x2
+          scheme: area_weighted
+        esmvalcore.preprocessor.area_statistics:
+          operator: sum
+        esmvalcore.preprocessor.anomalies:
+          period: full
+          relative: true
+      reference_data: climateeval.data.ERA5Monthly

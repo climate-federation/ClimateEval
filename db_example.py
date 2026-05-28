@@ -10,10 +10,11 @@ import ibis
 def main() -> None:
     """Run example script."""
     root = Path.home() / "ClimateEval"
-    # db_path = root / "Tier1.ddb"
+    # db_path = root / "Tier1_ecs.ddb"
+    db_path = root / "Tier1_consistency_checks.ddb"
     # db_path = root / "Tier2_atmosphere_monthly.ddb"
     # db_path = root / "Tier2_atmosphere_subdaily.ddb"
-    db_path = root / "Tier2_ocean_monthly.ddb"
+    # db_path = root / "Tier2_ocean_monthly.ddb"
     con = ibis.duckdb.connect(db_path)
 
     for catalog_name in con.list_catalogs():
@@ -27,10 +28,10 @@ def main() -> None:
                 #     continue
                 print(full_name)
                 # print(table)
-                print(table.schema())
+                # print(table.schema())
                 # print(table.count().to_pandas())
                 # print((table.count().to_pandas(), len(table.schema())))
-                # print(table.to_pandas())
+                print(table.to_pandas())
                 # html_path = root / f"{full_name}.html"
                 # print(table.to_pandas().to_html(html_path))
                 # print(f"Wrote {html_path}")

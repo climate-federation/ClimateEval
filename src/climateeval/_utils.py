@@ -134,8 +134,8 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
         cube = _extract_time_and_region(cube, variable)
         if variable.vertical_level is not NO_LEVEL:
             cube = _extract_level(cube, variable.vertical_level)
-        cube = convert_units(cube, variable.units)
         cube = _run_additional_preprocessors(cube, variable)
+        cube = convert_units(cube, variable.units)
 
     return cube  # noqa: RET504
 

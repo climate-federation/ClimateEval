@@ -58,7 +58,7 @@ def main() -> None:
         picontrol_cubes = iris.load(picontrol_paths)
         abrupt4xco2_cubes = iris.load(abrupt4xco2_paths)
 
-    suite_name = "Tier1"
+    suite_name = "Tier1_ecs"
     db_path = Path(f"{suite_name}.ddb")
     if db_path.is_file():
         db_path.unlink()

@@ -53,7 +53,7 @@ class Suite:
 
     def get_database(
         self,
-        data: CubeList | Dataset,
+        data: dict[str, CubeList | Dataset] | CubeList | Dataset,
         data_information: DataSourceInformation,
         *,
         database_resource: str = "duckdb://",
