@@ -113,23 +113,23 @@
       reference_data: climateeval.data.ERA5Monthly
 
 - name: performance_metrics
-  diagnostics: climateeval.diags.simple.AnnualCycleSpatialDistribution
+  diagnostic: climateeval.diags.simple.AnnualCycleSpatialDistribution
   variables: *2d_variables
 
 - name: annual_mean_timeseries
-  diagnostics: climateeval.diags.simple.AnnualMeanTimeSeries
+  diagnostic: climateeval.diags.simple.AnnualMeanTimeSeries
   variables: *2d_variables
 
 - name: map
-  diagnostics: climateeval.diags.simple.Map
+  diagnostic: climateeval.diags.simple.Map
   variables: *2d_variables
 
 - name: zonal_line
-  diagnostics: climateeval.diags.simple.ZonalLine
+  diagnostic: climateeval.diags.simple.ZonalLine
   variables: *2d_variables
 
 - name: zonal_profile
-  diagnostics: climateeval.diags.simple.ZonalProfileAirPressure
+  diagnostic: climateeval.diags.simple.ZonalProfileAirPressure
   variables:
     hus:
       var_name: hus
