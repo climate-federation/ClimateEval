@@ -99,8 +99,17 @@ class Suite:
                         f"at index {diag_index} in suite '{self.name}'"
                     )
                     raise KeyError(msg)
+
             diag_name = diag_definition["name"]
             diag_cls = str_to_object(diag_definition["diagnostic"])
+
+            if diag_name in diagnostics:
+                msg = (
+                    f"Diagnostic names must be unique for suite '{self.name}', "
+                    f"got multiple diagnostics named '{diag_name}'"
+                )
+                raise ValueError(msg)
+
             diag_settings: dict[str, Any]
             if issubclass(diag_cls, SimpleDiagnostic):
                 if "variables" not in diag_definition:
@@ -125,6 +134,7 @@ class Suite:
                     f"climateeval.diags.copmlex.ComplexDiagnostic"
                 )
                 raise TypeError(msg)
+
             diag = diag_cls.from_suite_dict(
                 diag_name,
                 diag_settings,
@@ -132,6 +142,7 @@ class Suite:
                 **self._diagnostic_kwargs,
             )
             diagnostics[diag_name] = diag
+
         return diagnostics
 
     def _get_suite_defintion(self) -> list[dict[str, Any]]:
