@@ -147,7 +147,6 @@ class Diagnostic(ABC):
     def _get_variables_table(self, variables: Iterable[Variable]) -> ibis.Table:
         """Get variables table."""
         df = pd.DataFrame(sorted(set(variables)))
-        df = df.drop("settings", axis=1)
         df["coordinates"] = df["coordinates"].map(
             lambda r: " ".join(c["var_name"] for c in r),
         )

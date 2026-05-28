@@ -4,6 +4,7 @@
     air_mass_anomaly:
       var_name: ps
       frequency: mon
+      long_name: Global Air Mass Anomaly
       units: "%"
       additional_preprocessors:
         esmvalcore.preprocessor.regrid:

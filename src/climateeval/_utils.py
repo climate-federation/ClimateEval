@@ -95,7 +95,8 @@ def check_coordinates(cube: Cube, expected_coordinates: Iterable[Coordinate]) ->
 def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     """Get prepared data.
 
-    This performs preprocessing according to `variable.settings`.
+    This performs preprocessing according to
+    meth:`Variable.get_preprocessing_settings`.
 
     Parameters
     ----------
