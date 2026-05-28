@@ -71,6 +71,7 @@ def main() -> None:
         "hus",
         "pr",
         "prw",
+        "ps",
         "rlut",
         "rlutcs",
         "rsdt",
@@ -95,6 +96,20 @@ def main() -> None:
         diagnostic_kwargs={
             "fail_on_missing_data": False,
             "download_missing_data": False,
+        },
+        variable_kwargs={
+            "timerange": "20000101/20011231",
+        },
+    )
+    print(con)
+
+    con = run_suite(
+        "Tier1_consistency_checks",
+        atmosphere_monthly_cubes,
+        data_info,
+        diagnostic_kwargs={
+            "fail_on_missing_data": True,
+            "download_missing_data": True,
         },
         variable_kwargs={
             "timerange": "20000101/20011231",
