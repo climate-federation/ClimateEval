@@ -93,7 +93,7 @@ class Diagnostic(ABC):
     @abstractmethod
     def get_output(
         self,
-        data: dict[str, CubeList | Dataset],
+        data: dict[str, CubeList | Dataset] | CubeList | Dataset,
         data_information: DataSourceInformation,
     ) -> DiagnosticOutput:
         """Get diagnostic output."""

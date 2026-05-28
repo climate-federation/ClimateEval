@@ -10,7 +10,7 @@ import ibis
 def main() -> None:
     """Run example script."""
     root = Path.home() / "ClimateEval"
-    # db_path = root / "Tier1.ddb"
+    # db_path = root / "Tier1_ecs.ddb"
     # db_path = root / "Tier2_atmosphere_monthly.ddb"
     # db_path = root / "Tier2_atmosphere_subdaily.ddb"
     db_path = root / "Tier2_ocean_monthly.ddb"
