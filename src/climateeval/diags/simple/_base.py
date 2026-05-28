@@ -117,15 +117,15 @@ class SimpleDiagnostic(Diagnostic):
     def from_suite_dict(
         cls,
         name: str,
-        suite_settings: dict[str, Any] | None,
+        suite_settings: list[dict[str, Any]] | None,
         additional_variable_kwargs: dict[str, Any],
         **additional_diagnostic_kwargs: Any,
     ) -> Self:
         """Load simple diagnostic from suite dictionary (given by YAML file)."""
         if suite_settings is None:
-            suite_settings = {}
+            suite_settings = []
         variables_and_data: dict[Variable, SimpleDiagnosticInputData] = {}
-        for variable_id, variable_kwargs_ in suite_settings.items():
+        for variable_kwargs_ in suite_settings:
             variable_kwargs = dict(variable_kwargs_)
             given_reference_data = variable_kwargs.pop("reference_data", None)
             reference_data: type[DataSource] | None
@@ -145,7 +145,7 @@ class SimpleDiagnostic(Diagnostic):
                     variable_kwargs["ar6_regions_mask"],
                 )
             variable_kwargs.update(additional_variable_kwargs)
-            variable = Variable(variable_id, **variable_kwargs)
+            variable = Variable(**variable_kwargs)
             variables_and_data[variable] = SimpleDiagnosticInputData(
                 reference=reference_data,
                 other=other_data,

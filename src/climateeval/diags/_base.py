@@ -26,9 +26,6 @@ if TYPE_CHECKING:
     from climateeval.data import DataSourceInformation
 
 if TYPE_CHECKING:
-    from iris.cube import CubeList
-    from xarray import Dataset
-
     from climateeval.data import DataSourceInformation
 
 logger = logger.opt(colors=True)
@@ -84,7 +81,7 @@ class Diagnostic(ABC):
     def from_suite_dict(
         cls,
         name: str,
-        suite_settings: dict[str, Any] | None,
+        suite_settings: Any,  # type specified in subclasses
         additional_variable_kwargs: dict[str, Any],
         **additional_diagnostic_kwargs: Any,
     ) -> Self:
@@ -93,7 +90,7 @@ class Diagnostic(ABC):
     @abstractmethod
     def get_output(
         self,
-        data: dict[str, CubeList | Dataset] | CubeList | Dataset,
+        data: Any,  # type specified in subclasses
         data_information: DataSourceInformation,
     ) -> DiagnosticOutput:
         """Get diagnostic output."""

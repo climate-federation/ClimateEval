@@ -1,11 +1,11 @@
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.AnnualCycle
   variables:
-    tas:
+    - id: tas
       var_name: tas
       frequency: mon
       reference_data: climateeval.data.ERA5Monthly
-    mypr:
+    - id: mypr
       var_name: pr
       frequency: mon
       reference_data: climateeval.data.GPCP
@@ -20,7 +20,7 @@
 - name: annual_mean_timeseries
   diagnostic: climateeval.diags.simple.AnnualMeanTimeSeries
   variables:
-    ta1000:
+    - id: ta1000
       var_name: ta
       frequency: mon
       reference_data: climateeval.data.ERA5Monthly
@@ -29,7 +29,7 @@
         units: hPa
         value: 1000.0
       timerange: 19700101/19711231
-    mypr:
+    - id: mypr
       var_name: pr
       frequency: mon
       reference_data: climateeval.data.GPCP

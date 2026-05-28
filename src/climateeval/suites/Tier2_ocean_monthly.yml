@@ -1,7 +1,7 @@
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.AnnualCycle
   variables: &2d_variables
-    chl:
+    - id: chl
       var_name: chl
       frequency: mon
       reference_data: climateeval.data.ESACCIOC
