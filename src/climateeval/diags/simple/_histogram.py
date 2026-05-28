@@ -42,7 +42,7 @@ class Histogram(SimpleDiagnostic):
             if "bin_range" not in variable.diagnostic_kwargs:
                 msg = (
                     f"Expected diagnostic keyword argument 'bin_range' for {variable} "
-                    f"(required by diagnostic {self.name})"
+                    f"(required by diagnostic '{self.name}')"
                 )
                 raise ValueError(msg)
 
@@ -98,7 +98,7 @@ class Histogram(SimpleDiagnostic):
         if cube.ndim != 1 or not cube.coords(dim_coords=True):
             msg = (
                 f"Expected 1D data with a single dimensional coordinate after "
-                f"preprocessing {variable} in diagnostic {self.name}, got "
+                f"preprocessing {variable} in diagnostic '{self.name}', got "
                 f"{cube.ndim}D cube {cube.summary(shorten=True)}"
             )
             raise CoordinateError(msg)
@@ -106,7 +106,7 @@ class Histogram(SimpleDiagnostic):
         if dim_coord.var_name != variable.var_name:
             msg = (
                 f"Expected single dimensional coordinate '{variable.var_name}' "
-                f"in cube after preprocessing {variable} in diagnostic {self.name}, "
+                f"in cube after preprocessing {variable} in diagnostic '{self.name}', "
                 f"got coordinate '{dim_coord.var_name}'"
             )
             raise CoordinateError(msg)

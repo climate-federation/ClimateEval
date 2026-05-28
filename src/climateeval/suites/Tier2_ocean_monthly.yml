@@ -1,18 +1,28 @@
-climateeval.diags.simple.AnnualCycle: &2d_variables
-  chl:
-    var_name: chl
-    frequency: mon
-    reference_data: climateeval.data.ESACCIOC
-    vertical_level:
-      coordinate_name: depth
-      units: m
-      value: 0.0
-      extrapolate: true
+- name: annual_cycle
+  diagnostic: climateeval.diags.simple.AnnualCycle
+  variables: &2d_variables
+    chl:
+      var_name: chl
+      frequency: mon
+      reference_data: climateeval.data.ESACCIOC
+      vertical_level:
+        coordinate_name: depth
+        units: m
+        value: 0.0
+        extrapolate: true
 
-climateeval.diags.simple.AnnualCycleSpatialDistribution: *2d_variables
+- name: performance_metrics
+  diagnostics: climateeval.diags.simple.AnnualCycleSpatialDistribution
+  variables: *2d_variables
 
-climateeval.diags.simple.AnnualMeanTimeSeries: *2d_variables
+- name: annual_mean_timeseries
+  diagnostics: climateeval.diags.simple.AnnualMeanTimeSeries
+  variables: *2d_variables
 
-climateeval.diags.simple.Map: *2d_variables
+- name: map
+  diagnostics: climateeval.diags.simple.Map
+  variables: *2d_variables
 
-climateeval.diags.simple.ZonalLine: *2d_variables
+- name: zonal_line
+  diagnostics: climateeval.diags.simple.ZonalLine
+  variables: *2d_variables

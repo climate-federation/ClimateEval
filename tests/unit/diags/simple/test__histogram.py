@@ -17,7 +17,11 @@ if TYPE_CHECKING:
 def diagnostic(
     variables_and_data_2d: dict[Variable, SimpleDiagnosticInputData],
 ) -> Histogram:
-    return Histogram(variables_and_data_2d)
+    return Histogram("diagnostic", variables_and_data_2d)
+
+
+def test_name(diagnostic: Histogram) -> None:
+    assert diagnostic.name == "diagnostic"
 
 
 def test__safely_preprocess(

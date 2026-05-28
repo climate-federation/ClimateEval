@@ -30,13 +30,13 @@ class MockDiagnostic(SimpleDiagnostic):
 def diagnostic(
     variables_and_data_2d_with_other: dict[Variable, SimpleDiagnosticInputData],
 ) -> MockDiagnostic:
-    return MockDiagnostic(variables_and_data_2d_with_other)
+    return MockDiagnostic("mock_diagnostic", variables_and_data_2d_with_other)
 
 
 def test___init__(diagnostic: MockDiagnostic, temporary_data_root_dir: Path) -> None:
     assert diagnostic.data_root_dir == temporary_data_root_dir
     assert diagnostic._final_coordinate_names == ("latitude",)
-    assert diagnostic.name == "MockDiagnostic"
+    assert diagnostic.name == "mock_diagnostic"
 
     expected_variable = Variable("my_tas", "tas", "mon")
     assert diagnostic._variables == (expected_variable,)
@@ -56,7 +56,8 @@ def test_non_unique_variables_fail() -> None:
     data = SimpleDiagnosticInputData(reference=HadCRUT5)
     variables_and_data = {var_1: data, var_2: data}
     msg = (
-        r"Variable IDs must be unique for diagnostic MockDiagnostic, got ['tas', 'tas']"
+        r"Variable IDs must be unique for diagnostic 'mock_diagnostic', got "
+        r"['tas', 'tas']"
     )
     with pytest.raises(ValueError, match=re.escape(msg)):
-        MockDiagnostic(variables_and_data)
+        MockDiagnostic("mock_diagnostic", variables_and_data)

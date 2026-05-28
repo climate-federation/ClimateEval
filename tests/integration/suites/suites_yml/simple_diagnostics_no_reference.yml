@@ -1,10 +1,12 @@
-climateeval.diags.simple.AnnualCycle:
-  tas:
-    var_name: tas
-    frequency: mon
-    diagnostic_kwargs:
-      a: 1
-      b: 2
-  asr:
-    var_name: asr
-    frequency: mon
+- name: annual_cycle
+  diagnostic: climateeval.diags.simple.AnnualCycle
+  variables:
+    tas:
+      var_name: tas
+      frequency: mon
+      diagnostic_kwargs:
+        a: 1
+        b: 2
+    asr:
+      var_name: asr
+      frequency: mon

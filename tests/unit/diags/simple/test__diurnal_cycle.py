@@ -17,7 +17,11 @@ if TYPE_CHECKING:
 def diagnostic(
     variables_and_data_2d: dict[Variable, SimpleDiagnosticInputData],
 ) -> DiurnalCycle:
-    return DiurnalCycle(variables_and_data_2d)
+    return DiurnalCycle("diagnostic", variables_and_data_2d)
+
+
+def test_name(diagnostic: DiurnalCycle) -> None:
+    assert diagnostic.name == "diagnostic"
 
 
 def test__safely_preprocess(

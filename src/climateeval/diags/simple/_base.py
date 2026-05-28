@@ -54,8 +54,9 @@ class SimpleDiagnostic(Diagnostic):
     _FINAL_COORDINATES: ClassVar[tuple[Coordinate, ...]] = ()
     """Coordinates of preprocessed output."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
+        name: str,
         variables_and_data: dict[Variable, SimpleDiagnosticInputData],
         *,
         data_root_dir: Path | str | None = None,
@@ -64,7 +65,8 @@ class SimpleDiagnostic(Diagnostic):
         fail_on_metric_error: bool = True,
     ) -> None:
         """Initialize class instance."""
-        logger.debug(f"Initializing simple diagnostic {self.name}")
+        self._name = name
+        logger.debug(f"Initializing simple diagnostic '{self.name}'")
 
         self._data_root_dir = self._get_data_root_dir(data_root_dir)
 
@@ -83,7 +85,7 @@ class SimpleDiagnostic(Diagnostic):
         variable_ids = [v.id for v in self._variables]
         if len(set(variable_ids)) != len(variable_ids):
             msg = (
-                f"Variable IDs must be unique for diagnostic {self.name}, got "
+                f"Variable IDs must be unique for diagnostic '{self.name}', got "
                 f"{variable_ids}"
             )
             raise ValueError(msg)
@@ -114,6 +116,7 @@ class SimpleDiagnostic(Diagnostic):
     @classmethod
     def from_suite_dict(
         cls,
+        name: str,
         suite_settings: dict[str, Any] | None,
         additional_variable_kwargs: dict[str, Any],
         **additional_diagnostic_kwargs: Any,
@@ -147,7 +150,7 @@ class SimpleDiagnostic(Diagnostic):
                 reference=reference_data,
                 other=other_data,
             )
-        return cls(variables_and_data, **additional_diagnostic_kwargs)
+        return cls(name, variables_and_data, **additional_diagnostic_kwargs)
 
     def get_output(
         self,
@@ -288,7 +291,7 @@ class SimpleDiagnostic(Diagnostic):
                     except Exception as exc:
                         msg = (
                             f"Calculation of metric '{metric}' of diagnostic "
-                            f"{self.name} for cube {cube.summary(shorten=True)} "
+                            f"'{self.name}' for cube {cube.summary(shorten=True)} "
                             f"failed: {exc}"
                         )
                         raise ValueError(msg) from exc

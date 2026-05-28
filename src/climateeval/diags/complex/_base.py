@@ -36,6 +36,7 @@ class ComplexDiagnostic(Diagnostic):
 
     def __init__(
         self,
+        name: str,
         *,
         data_root_dir: Path | str | None = None,
         fail_on_missing_data: bool = False,
@@ -43,7 +44,8 @@ class ComplexDiagnostic(Diagnostic):
         **kwargs: Any,
     ) -> None:
         """Initialize class instance."""
-        logger.debug(f"Initializing complex diagnostic {self.name}")
+        self._name = name
+        logger.debug(f"Initializing complex diagnostic '{self.name}'")
         self._data_root_dir = self._get_data_root_dir(data_root_dir)
         self._fail_on_missing_data = fail_on_missing_data
         self._download_missing_data = download_missing_data
@@ -52,6 +54,7 @@ class ComplexDiagnostic(Diagnostic):
     @classmethod
     def from_suite_dict(
         cls,
+        name: str,
         suite_settings: dict[str, Any] | None,
         additional_variable_kwargs: dict[str, Any],  # noqa: ARG003
         **additional_diagnostic_kwargs: Any,
@@ -60,7 +63,7 @@ class ComplexDiagnostic(Diagnostic):
         if suite_settings is None:
             suite_settings = {}
         all_diagnostic_kwargs = {**suite_settings, **additional_diagnostic_kwargs}
-        return cls(**all_diagnostic_kwargs)
+        return cls(name, **all_diagnostic_kwargs)
 
     def get_output(
         self,
@@ -144,7 +147,7 @@ class ComplexDiagnostic(Diagnostic):
 
     def _get_other_data(self) -> Generator[ComplexDataSource]:
         """Get other data."""
-        logger.debug(f"No other data for complex diagnostic {self.name} available")
+        logger.debug(f"No other data for complex diagnostic '{self.name}' available")
         yield from ()
 
     def _get_raw_output_tables(
@@ -165,5 +168,5 @@ class ComplexDiagnostic(Diagnostic):
 
     def _postprocess_output(self, output: DiagnosticOutput) -> DiagnosticOutput:
         """Postprocess diagnostic output."""
-        logger.debug(f"No postprocessing of output in diagnostic {self.name} defined")
+        logger.debug(f"No postprocessing of output in diagnostic '{self.name}' defined")
         return output

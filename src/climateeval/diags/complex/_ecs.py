@@ -157,7 +157,7 @@ class ECS(ComplexDiagnostic):
 
     def _get_other_data(self) -> Generator[ComplexDataSource]:
         """Get other data."""
-        logger.debug(f"Retrieving other data for compley diagnostic {self.name}")
+        logger.debug(f"Retrieving other data for compley diagnostic '{self.name}'")
         variables = (self._RLUT, self._RSDT, self._RSUT, self._TAS)
         generators = [CMIP6PiControlR1I1P1F1().generate(var) for var in variables] + [
             CMIP6Abrupt4xCO2R1I1P1F1().generate(var) for var in variables

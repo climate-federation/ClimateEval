@@ -17,7 +17,11 @@ if TYPE_CHECKING:
 def diagnostic(
     variables_and_data_2d: dict[Variable, SimpleDiagnosticInputData],
 ) -> Map:
-    return Map(variables_and_data_2d)
+    return Map("diagnostic", variables_and_data_2d)
+
+
+def test_name(diagnostic: Map) -> None:
+    assert diagnostic.name == "diagnostic"
 
 
 def test__safely_preprocess(
