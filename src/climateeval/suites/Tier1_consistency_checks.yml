@@ -31,3 +31,15 @@
           period: full
           relative: true
       reference_data: climateeval.data.ERA5Monthly
+    - id: moisture_flux
+      var_name: qep
+      frequency: mon
+      long_name: Global Total Moisture Flux into Atmosphere
+      units: Pg s-1
+      additional_preprocessors:
+        esmvalcore.preprocessor.regrid:
+          target_grid: 2x2
+          scheme: area_weighted
+        esmvalcore.preprocessor.area_statistics:
+          operator: sum
+      reference_data: climateeval.data.ERA5Monthly
