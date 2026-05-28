@@ -88,6 +88,47 @@ def test_tas() -> None:
     assert var.ndim == 3
 
 
+def test_tas_custom_metadata() -> None:
+    var = Variable(
+        "my_tas",
+        "tas",
+        "mon",
+        long_name="TAS",
+        units="degC",
+        cmip6_table_id="AERmon",
+        coordinates=(Coordinate("time"),),
+    )
+
+    assert var.id == "my_tas"
+    assert var.var_name == "tas"
+    assert var.frequency == "mon"
+
+    settings = {
+        "vertical_level": NO_LEVEL,
+        "min_lat": -90.0,
+        "max_lat": 90.0,
+        "min_lon": 0.0,
+        "max_lon": 360.0,
+        "landsea_mask": "*",
+        "ar6_regions_mask": (),
+        "timerange": "*",
+        "units": "degC",
+        "diagnostic_kwargs": {},
+        "additional_preprocessors": {},
+    }
+    assert var.get_preprocessing_settings() == settings
+    for key, val in settings.items():
+        assert getattr(var, key) == val
+
+    assert var.coordinates == (Coordinate("time"),)
+    assert var.derived is False
+    assert var.long_name == "TAS"
+    assert var.realm == "atmos"
+    assert var.standard_name == "air_temperature"
+    assert var.cmip6_table_id == "AERmon"
+    assert var.ndim == 1
+
+
 def test_ta() -> None:
     var = Variable("my_ta", "ta", "mon")
 

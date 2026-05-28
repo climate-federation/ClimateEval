@@ -131,13 +131,17 @@ class Variable:
         compare=False,
     )
 
-    # Automatically filled fields (additional metadata)
-    coordinates: tuple[Coordinate] = field(init=False, repr=False, compare=False)
-    derived: bool = field(default=False, init=False, repr=False, compare=False)
-    long_name: str = field(init=False, repr=False, compare=False)
-    realm: str = field(init=False, repr=False, compare=False)
-    standard_name: str = field(init=False, repr=False, compare=False)
-    cmip6_table_id: str = field(init=False, repr=False, compare=False)
+    # Fields that can be filled automatically if not set (additional metadata)
+    coordinates: tuple[Coordinate] = field(  # type: ignore[assignment]
+        default_factory=tuple,
+        repr=False,
+        compare=False,
+    )
+    derived: bool = field(default=False, repr=False, compare=False)
+    long_name: str = field(default="", repr=False, compare=False)
+    realm: str = field(default="", repr=False, compare=False)
+    standard_name: str = field(default="", repr=False, compare=False)
+    cmip6_table_id: str = field(default="", repr=False, compare=False)
     ndim: int = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -148,18 +152,20 @@ class Variable:
         var_info = VARIABLES[self.var_name]
 
         # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
-        object.__setattr__(
-            self,
-            "coordinates",
-            tuple(Coordinate(c) for c in var_info["coordinates"]),
-        )
+        if not self.coordinates:
+            object.__setattr__(
+                self,
+                "coordinates",
+                tuple(Coordinate(c) for c in var_info["coordinates"]),
+            )
         for key, val in var_info.items():
+            if getattr(self, key):  # allow manually settings these
+                continue
             if key == "coordinates":
                 continue
-            if key == "units" and self.units != "":
-                continue
             object.__setattr__(self, key, val)
-        object.__setattr__(self, "cmip6_table_id", self._get_cmip6_table_id())
+        if not self.cmip6_table_id:
+            object.__setattr__(self, "cmip6_table_id", self._get_cmip6_table_id())
         object.__setattr__(self, "ndim", len(self.coordinates))
 
     def get_required_variables(self) -> tuple[Variable, ...]:
