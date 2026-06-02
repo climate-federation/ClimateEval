@@ -144,6 +144,8 @@ def test_simple_diagnostics(
                 "units": pd.Series(["K", "g m-2 s-1"], dtype="str"),
                 "diagnostic_kwargs": pd.Series(["", ""], dtype="str"),
                 "additional_preprocessors": pd.Series(["", ""], dtype="str"),
+                "reasonable_min": pd.Series([np.nan, np.nan], dtype="float64"),
+                "reasonable_max": pd.Series([np.nan, np.nan], dtype="float64"),
                 "coordinates": pd.Series(["time lat lon", "time lat lon"], dtype="str"),
                 "derived": pd.Series([False, False], dtype="bool"),
                 "long_name": pd.Series(
@@ -187,6 +189,8 @@ def test_simple_diagnostics(
                 "units": pd.Series(["K", "g m-2 s-1"], dtype="str"),
                 "diagnostic_kwargs": pd.Series(["", ""], dtype="str"),
                 "additional_preprocessors": pd.Series(["", ""], dtype="str"),
+                "reasonable_min": pd.Series([np.nan, np.nan], dtype="float64"),
+                "reasonable_max": pd.Series([np.nan, np.nan], dtype="float64"),
                 "coordinates": pd.Series(
                     ["time alevel lat lon", "time lat lon"],
                     dtype="str",
@@ -427,6 +431,8 @@ def test_simple_diagnostics_no_reference(
                 "units": pd.Series(["K", "W m-2"], dtype="str"),
                 "diagnostic_kwargs": pd.Series(["a=1 b=2", ""], dtype="str"),
                 "additional_preprocessors": pd.Series(["", ""], dtype="str"),
+                "reasonable_min": pd.Series([np.nan, np.nan], dtype="float64"),
+                "reasonable_max": pd.Series([np.nan, np.nan], dtype="float64"),
                 "coordinates": pd.Series(["time lat lon", "time lat lon"], dtype="str"),
                 "derived": pd.Series([False, True], dtype="bool"),
                 "long_name": pd.Series(
@@ -539,6 +545,8 @@ def test_histogram(
                     ],
                     dtype="str",
                 ),
+                "reasonable_min": pd.Series([np.nan], dtype="float64"),
+                "reasonable_max": pd.Series([np.nan], dtype="float64"),
                 "coordinates": pd.Series(["time lat lon"], dtype="str"),
                 "derived": pd.Series([False], dtype="bool"),
                 "long_name": pd.Series(["Near-Surface Air Temperature"], dtype="str"),

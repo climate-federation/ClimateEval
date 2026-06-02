@@ -1,6 +1,7 @@
 import re
 from typing import Any
 
+import numpy as np
 import pytest
 
 from climateeval import (
@@ -75,6 +76,9 @@ def test_tas() -> None:
     for key, val in settings.items():
         assert getattr(var, key) == val
 
+    assert np.isnan(var.reasonable_min)
+    assert np.isnan(var.reasonable_max)
+
     assert var.coordinates == (
         Coordinate("time"),
         Coordinate("lat"),
@@ -120,6 +124,9 @@ def test_tas_custom_metadata() -> None:
     for key, val in settings.items():
         assert getattr(var, key) == val
 
+    assert np.isnan(var.reasonable_min)
+    assert np.isnan(var.reasonable_max)
+
     assert var.coordinates == (Coordinate("time"),)
     assert var.derived is False
     assert var.long_name == "TAS"
@@ -152,6 +159,9 @@ def test_ta() -> None:
     assert var.get_preprocessing_settings() == settings
     for key, val in settings.items():
         assert getattr(var, key) == val
+
+    assert np.isnan(var.reasonable_min)
+    assert np.isnan(var.reasonable_max)
 
     assert var.coordinates == (
         Coordinate("time"),
@@ -190,6 +200,9 @@ def test_lwcre() -> None:
     assert var.get_preprocessing_settings() == settings
     for key, val in settings.items():
         assert getattr(var, key) == val
+
+    assert np.isnan(var.reasonable_min)
+    assert np.isnan(var.reasonable_max)
 
     assert var.coordinates == (
         Coordinate("time"),

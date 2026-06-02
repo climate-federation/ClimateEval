@@ -131,6 +131,10 @@ class Variable:
         compare=False,
     )
 
+    # Reasonable values that can be used downstream code (like plotting)
+    reasonable_min: float = field(default=np.nan, repr=False, kw_only=True)
+    reasonable_max: float = field(default=np.nan, repr=False, kw_only=True)
+
     # Fields that can be filled automatically if not set (additional metadata)
     coordinates: tuple[Coordinate] = field(  # type: ignore[assignment]
         default_factory=tuple,
