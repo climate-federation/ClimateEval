@@ -19,6 +19,7 @@ from climateeval.diags.simple._histogram import Histogram
 from climateeval.diags.simple._map import Map
 from climateeval.diags.simple._timeseries import (
     AnnualMeanTimeSeries,
+    MeanTimeSeries,
     TimeSeriesNoPreprocessing,
 )
 from climateeval.diags.simple._utils import SimpleDiagnosticInputData
@@ -32,6 +33,7 @@ __all__ = [
     "DiurnalCycle",
     "Histogram",
     "Map",
+    "MeanTimeSeries",
     "SimpleDiagnostic",
     "SimpleDiagnosticInputData",
     "TimeSeriesNoPreprocessing",

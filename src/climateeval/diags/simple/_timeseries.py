@@ -48,6 +48,24 @@ class AnnualMeanTimeSeries(SimpleDiagnostic):
         return cube  # noqa: RET504
 
 
+class MeanTimeSeries(SimpleDiagnostic):
+    """Manage mean timeseries diagnostics."""
+
+    _FINAL_COORDINATES = (Coordinate("time"),)
+
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
+        """Preprocess data."""
+        with setup_esmvaltool_config_and_logging():
+            cube = regrid(
+                cube,
+                DEFAULT_GRID,
+                "linear",
+                cache_weights=True,
+            )  # to ensure we are on a regular grid
+            cube = area_statistics(cube, "mean")
+        return cube  # noqa: RET504
+
+
 class TimeSeriesNoPreprocessing(SimpleDiagnostic):
     """Manage timeseries diagnostics without preprocessing."""
 
