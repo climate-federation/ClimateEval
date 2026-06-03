@@ -7,12 +7,17 @@ import numpy as np
 import pytest
 from iris.coords import AuxCoord, DimCoord
 from iris.cube import Cube
+from iris.exceptions import ConstraintMismatchError
 
-from climateeval import Coordinate, Variable
+import climateeval._utils
+from climateeval import Coordinate, Variable, VerticalLevel
 from climateeval._utils import (
     _apply_masks,
     _check_data,
+    _extract_level,
+    _extract_time_and_region,
     _run_additional_preprocessors,
+    _set_lon_to_0_360,
     check_coordinates,
     get_prepared_cube,
 )
@@ -22,6 +27,7 @@ from tests._utils import assert_masked_array_allclose
 if TYPE_CHECKING:
     import xarray as xr
     from iris.cube import CubeList
+    from pytest_mock import MockerFixture
 
 
 @pytest.fixture
@@ -318,6 +324,13 @@ def test_get_prepared_cube_xarray_dataset(
     assert cube.shape == (3, 3, 2)
 
 
+def test_get_prepared_cube_no_data_fail(cubes: CubeList) -> None:
+    variable = Variable("tauu", "tauu", "mon")
+    msg = r"Got 0 cubes for constraint NameConstraint(var_name='tauu'), expecting 1."
+    with pytest.raises(ConstraintMismatchError, match=re.escape(msg)):
+        get_prepared_cube(cubes, variable)
+
+
 def test__apply_masks_invalid_landsea_mask_fail(
     cube_2d: Cube,
 ) -> None:
@@ -355,3 +368,99 @@ def test_check_data_invalid_max_year_fail(cube_2d: Cube) -> None:
     )
     with pytest.raises(MissingDataError, match=re.escape(msg)):
         _check_data(cube_2d, variable)
+
+
+def test__extract_level_squeeze_cube(cube_3d: Cube, mocker: MockerFixture) -> None:
+    cube_3d = cube_3d[:, [0], ...]
+    z_coord = cube_3d.coord(axis="Z")
+    mocker.patch.object(
+        climateeval._utils,
+        "extract_levels",
+        autospec=True,
+        return_value=cube_3d,
+    )
+    vertical_level = VerticalLevel(z_coord.name(), z_coord.units, z_coord.points[0])
+
+    cube = _extract_level(cube_3d, vertical_level)
+
+    assert cube.shape == (3, 3, 2)
+    assert not cube.coords(z_coord.name(), dim_coords=True)
+    assert cube.coords(z_coord.name(), dim_coords=False)
+
+
+def test__extract_time_and_region_special_region_extraction(
+    cube_2d: Cube,
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch.object(
+        climateeval._utils,
+        "extract_region",
+        autospec=True,
+        side_effect=ValueError("error"),
+    )
+    variable = Variable(
+        "tas",
+        "tas",
+        "mon",
+        min_lat=-10.0,
+        max_lat=10.0,
+        min_lon=40.0,
+        max_lon=60.0,
+    )
+
+    new_cube = _extract_time_and_region(cube_2d, variable)
+
+    assert new_cube != cube_2d
+    assert new_cube.shape == (3,)
+    lat = new_cube.coord("latitude")
+    lon = new_cube.coord("longitude")
+    assert lat.shape == (1,)
+    assert lon.shape == (1,)
+    np.testing.assert_allclose(lat.points, [0.0])
+    np.testing.assert_allclose(lat.bounds, [[-15.0, 15.0]])
+    np.testing.assert_allclose(lon.points, [50.0])
+    np.testing.assert_allclose(lon.bounds, [[25.0, 75.0]])
+
+
+def test__set_lon_to_0_360_curvilinear_grid() -> None:
+    lon_coord = AuxCoord(
+        [[-10.0, 10.0, 380.0]],
+        standard_name="longitude",
+        units="degrees_east",
+    )
+    cube = Cube([[1.0, 2.0, 3.0]], aux_coords_and_dims=[(lon_coord, (0, 1))])
+
+    new_cube = _set_lon_to_0_360(cube)
+
+    assert new_cube is not cube
+
+    expected_lon_coord = AuxCoord(
+        [[350.0, 10.0, 20.0]],
+        standard_name="longitude",
+        units="degrees_east",
+    )
+    assert new_cube.coord("longitude") == expected_lon_coord
+    assert cube.coord("longitude") == lon_coord
+
+
+def test__set_lon_to_0_360_1_bound() -> None:
+    lon_coord = AuxCoord(
+        [-10.0, 10.0, 380.0],
+        bounds=[[-5.0], [15.0], [385.0]],
+        standard_name="longitude",
+        units="degrees_east",
+    )
+    cube = Cube([1.0, 2.0, 3.0], aux_coords_and_dims=[(lon_coord, 0)])
+
+    new_cube = _set_lon_to_0_360(cube)
+
+    assert new_cube is not cube
+
+    expected_lon_coord = AuxCoord(
+        [350.0, 10.0, 20.0],
+        bounds=[[355.0], [15.0], [25.0]],
+        standard_name="longitude",
+        units="degrees_east",
+    )
+    assert new_cube.coord("longitude") == expected_lon_coord
+    assert cube.coord("longitude") == lon_coord
