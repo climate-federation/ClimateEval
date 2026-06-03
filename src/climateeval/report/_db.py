@@ -68,7 +68,7 @@ def detect_diag_type(columns: list[str]) -> str:
     if "latitude" in cols:
         return "ZonalLine"
     if "time" in cols:
-        return "AnnualMeanTimeSeries"
+        return "TimeSeries"
     if "month_number" in cols:
         return "AnnualCycle"
     if "hour" in cols:

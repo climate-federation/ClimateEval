@@ -210,6 +210,18 @@ def _base_layout(**kwargs: Any) -> dict:
     return base
 
 
+def _plot_hlines(figure: go.Figure, variables_df: pd.DataFrame, var_id: str) -> None:
+    """Plot horizontal lines."""
+    variables_row = variables_df[variables_df["id"] == var_id]
+    for col in ("reasonable_min", "reasonable_max"):
+        if col not in variables_row:
+            continue
+        val = variables_row[col].array[0]
+        if np.isnan(val):
+            continue
+        figure.add_hline(y=val, line_dash="dash")
+
+
 # ---------------------------------------------------------------------------
 # Figure builders
 # ---------------------------------------------------------------------------
@@ -551,7 +563,7 @@ def build_map_figures(
     return figures
 
 
-def build_annual_mean_timeseries_figures(
+def build_timeseries_figures(
     data_df: pd.DataFrame,
     variables_df: pd.DataFrame,
     metrics_df: pd.DataFrame | None = None,
@@ -595,6 +607,8 @@ def build_annual_mean_timeseries_figures(
             )
         else:
             fig = go.Figure()
+
+        _plot_hlines(fig, variables_df, var_id)
 
         # Use markers when there are too few points for a visible line.
         n_times = data_df["time"].nunique()
@@ -764,6 +778,8 @@ def build_annual_cycle_figures(
         else:
             fig = go.Figure()
 
+        _plot_hlines(fig, variables_df, var_id)
+
         color_idx = 0
         for dataset in all_datasets:
             series = _series_for(dataset, var_id)
@@ -928,6 +944,8 @@ def build_diurnal_cycle_figures(
             )
         else:
             fig = go.Figure()
+
+        _plot_hlines(fig, variables_df, var_id)
 
         color_idx = 0
         for dataset in all_datasets:
@@ -1097,6 +1115,8 @@ def build_zonal_line_figures(
             )
         else:
             fig = go.Figure()
+
+        _plot_hlines(fig, variables_df, var_id)
 
         color_idx = 0
         for dataset in all_datasets:
@@ -1699,7 +1719,7 @@ def build_histogram_figures(
 
 _FIGURE_BUILDERS = {
     "Map": build_map_figures,
-    "AnnualMeanTimeSeries": build_annual_mean_timeseries_figures,
+    "TimeSeries": build_timeseries_figures,
     "AnnualCycle": build_annual_cycle_figures,
     "DiurnalCycle": build_diurnal_cycle_figures,
     "ZonalLine": build_zonal_line_figures,
@@ -1710,7 +1730,7 @@ _FIGURE_BUILDERS = {
 
 _DIAG_LABELS = {
     "Map": "Map",
-    "AnnualMeanTimeSeries": "Time Series",
+    "TimeSeries": "Time Series",
     "AnnualCycle": "Annual Cycle",
     "DiurnalCycle": "Diurnal Cycle",
     "ZonalLine": "Zonal Mean",
@@ -1721,7 +1741,7 @@ _DIAG_LABELS = {
 
 _DIAG_ICONS = {
     "Map": "🗺",
-    "AnnualMeanTimeSeries": "📈",
+    "TimeSeries": "📈",
     "AnnualCycle": "📅",
     "DiurnalCycle": "🌅",
     "ZonalLine": "〰",
