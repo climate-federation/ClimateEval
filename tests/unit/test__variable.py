@@ -1,22 +1,50 @@
-import re
-from typing import Any
+from __future__ import annotations
 
+import re
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
 import pytest
 
 from climateeval import (
     NO_LEVEL,
     Coordinate,
     Variable,
+    VerticalLevel,
 )
-from climateeval._variable import COORDINATES, VARIABLES
+from climateeval._variable import (
+    COORDINATES,
+    VARIABLES,
+    _read_coordinates,
+    _read_variables,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_variables() -> None:
     assert VARIABLES
 
 
+def test_external_variables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    var_file = tmp_path / "variables.yml"
+    var_file.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("CLIMATEEVAL_VARIABLES_FILE", str(var_file))
+    variables = _read_variables()
+    assert variables == {}
+
+
 def test_coordinates() -> None:
     assert COORDINATES
+
+
+def test_external_coordinates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    coord_file = tmp_path / "coordinates.yml"
+    coord_file.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("CLIMATEEVAL_COORDINATES_FILE", str(coord_file))
+    coordinates = _read_coordinates()
+    assert coordinates == {}
 
 
 def test_lat() -> None:
@@ -39,6 +67,22 @@ def test_alevel() -> None:
     assert coord.allowed_coordinates == (Coordinate("alt"), Coordinate("plev"))
 
 
+def test_custom_coordinate() -> None:
+    coord = Coordinate(
+        "lat",
+        long_name="LAT",
+        standard_name="longitude",
+        units="kg",
+        allowed_coordinates=(Coordinate("time"),),
+    )
+
+    assert coord.var_name == "lat"
+    assert coord.long_name == "LAT"
+    assert coord.standard_name == "longitude"
+    assert coord.units == "kg"
+    assert coord.allowed_coordinates == (Coordinate("time"),)
+
+
 @pytest.mark.parametrize(
     ("coord", "name"),
     [
@@ -49,6 +93,29 @@ def test_alevel() -> None:
 )
 def test_coordinate_name(coord: str, name: str) -> None:
     assert Coordinate(coord).name() == name
+
+
+def test_coordinate_name_long_name() -> None:
+    coord = Coordinate("lat")
+    # Remove standard_name (see
+    # https://docs.python.org/3/library/dataclasses.html#frozen-instances)
+    object.__setattr__(coord, "standard_name", "")
+    assert coord.name() == "Latitude"
+
+
+def test_coordinate_name_var_name() -> None:
+    coord = Coordinate("lat")
+    # Remove standard_name and long_name (see
+    # https://docs.python.org/3/library/dataclasses.html#frozen-instances)
+    object.__setattr__(coord, "standard_name", "")
+    object.__setattr__(coord, "long_name", "")
+    assert coord.name() == "lat"
+
+
+def test_invalid_coordinate() -> None:
+    msg = r"Coordinate 'invalid_coordinate' not supported yet"
+    with pytest.raises(NotImplementedError, match=re.escape(msg)):
+        Coordinate("invalid_coordinate")
 
 
 def test_tas() -> None:
@@ -74,6 +141,9 @@ def test_tas() -> None:
     assert var.get_preprocessing_settings() == settings
     for key, val in settings.items():
         assert getattr(var, key) == val
+
+    assert np.isnan(var.reasonable_min)
+    assert np.isnan(var.reasonable_max)
 
     assert var.coordinates == (
         Coordinate("time"),
@@ -120,6 +190,9 @@ def test_tas_custom_metadata() -> None:
     for key, val in settings.items():
         assert getattr(var, key) == val
 
+    assert np.isnan(var.reasonable_min)
+    assert np.isnan(var.reasonable_max)
+
     assert var.coordinates == (Coordinate("time"),)
     assert var.derived is False
     assert var.long_name == "TAS"
@@ -152,6 +225,9 @@ def test_ta() -> None:
     assert var.get_preprocessing_settings() == settings
     for key, val in settings.items():
         assert getattr(var, key) == val
+
+    assert np.isnan(var.reasonable_min)
+    assert np.isnan(var.reasonable_max)
 
     assert var.coordinates == (
         Coordinate("time"),
@@ -191,6 +267,9 @@ def test_lwcre() -> None:
     for key, val in settings.items():
         assert getattr(var, key) == val
 
+    assert np.isnan(var.reasonable_min)
+    assert np.isnan(var.reasonable_max)
+
     assert var.coordinates == (
         Coordinate("time"),
         Coordinate("lat"),
@@ -202,6 +281,12 @@ def test_lwcre() -> None:
     assert var.standard_name == ""
     assert var.cmip6_table_id == "Amon"
     assert var.ndim == 3
+
+
+def test_invalid_variable_fail() -> None:
+    msg = r"Variable 'invalid_variable' not supported yet"
+    with pytest.raises(NotImplementedError, match=re.escape(msg)):
+        Variable("my_var", "invalid_variable", "mon")
 
 
 @pytest.mark.parametrize(
@@ -273,6 +358,7 @@ def test_get_required_variables_not_derived() -> None:
 @pytest.mark.parametrize(
     ("var_name", "frequency", "cmip6_table_id"),
     [
+        ("gpp", "mon", "Lmon"),
         ("pr", "yr", ""),
         ("pr", "mon", "Amon"),
         ("pr", "day", "day"),
@@ -295,7 +381,6 @@ def test_cmip6_table_id(var_name: str, frequency: str, cmip6_table_id: str) -> N
     assert var.cmip6_table_id == cmip6_table_id
 
 
-def test_var_not_implemented_fail() -> None:
-    msg = r"Variable 'var' not supported yet"
-    with pytest.raises(NotImplementedError, match=re.escape(msg)):
-        Variable("my_var", "var", "mon")
+def test_vertical_level_str() -> None:
+    vertical_level = VerticalLevel("air_pressure", "hPa", 850.0)
+    assert str(vertical_level) == "air_pressure = 850.0 hPa"

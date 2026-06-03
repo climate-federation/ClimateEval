@@ -1,0 +1,7 @@
+,data_id,data_type,month_number,mypr,tas
+0,C_N_E_V,to_benchmark,1,3476.613525390625,5.5
+1,C_N_E_V,to_benchmark,2,,14.5
+2,observation_GPCP,reference,1,6953.22705078125,
+3,reanalysis_ERA5,other,1,3476.613525390625,
+4,reanalysis_ERA5,reference,1,,11
+5,reanalysis_ERA5,reference,2,,29

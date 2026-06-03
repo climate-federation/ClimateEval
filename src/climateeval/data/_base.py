@@ -29,14 +29,14 @@ logger = logger.opt(colors=True)
 class DataSource(ABC):
     """Manage data source."""
 
-    _INFORMATION: ClassVar[DataSourceInformation]
+    _information: ClassVar[DataSourceInformation]
 
     def __getattr__(self, name: str) -> Any:
         """Access attributes."""
-        if name == "_INFORMATION" and name not in self.__dict__:
+        if name == "_information" and name not in self.__dict__:
             msg = (
                 "Child classes of 'DataSource' should define the class variable "
-                "'_INFORMATION'"
+                "'_information'"
             )
             raise TypeError(msg)
         return super().__getattribute__(name)
@@ -49,7 +49,7 @@ class DataSource(ABC):
     @property
     def information(self) -> DataSourceInformation:
         """Get data source information."""
-        return self._INFORMATION
+        return self._information
 
     @property
     def name(self) -> str:

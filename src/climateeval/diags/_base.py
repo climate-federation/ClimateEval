@@ -37,19 +37,19 @@ _DEFAULT_DATA_ROOT_DIR: Path = Path.home() / ".climateeval" / "data"
 class Diagnostic(ABC):
     """Manage diagnostics."""
 
-    _DATA_ID_COLUMN: ClassVar[str] = "data_id"
+    _data_id_column: ClassVar[str] = "data_id"
     """Name of table column containing data ID."""
 
-    _REFERENCE_DATA_ID_COLUMN: ClassVar[str] = "reference_data_id"
+    _reference_data_id_column: ClassVar[str] = "reference_data_id"
     """Name of table column containing reference data ID."""
 
-    _DATA_TYPE_COLUMN: ClassVar[str] = "data_type"
+    _data_type_column: ClassVar[str] = "data_type"
     """Name of table column containing data type."""
 
-    _DTYPE: ClassVar[ibis.DataType] = "float32"
+    _dtype: ClassVar[ibis.DataType] = "float32"
     """Dtype of numerical values."""
 
-    _VARIABLE_ID_COLUMN: ClassVar[str] = "var_id"
+    _variable_id_column: ClassVar[str] = "var_id"
     """Name of table column containing variable ID."""
 
     # Attributes that subclass instances need to define
@@ -128,16 +128,16 @@ class Diagnostic(ABC):
             df["time"] = df["time"].astype(str)
         raw_output_table = ibis.memtable(df)
         cast_operations = {
-            c: {"time": "timestamp(6)"}.get(c, self._DTYPE)
+            c: {"time": "timestamp(6)"}.get(c, self._dtype)
             for c in raw_output_table.columns
         }
         raw_output_table = raw_output_table.cast(**cast_operations)
         raw_output_table = raw_output_table.rename(**{variable.id: cube.name()})
         raw_output_table = raw_output_table.mutate(
-            **{self._DATA_ID_COLUMN: ibis.literal(data_id)},
+            **{self._data_id_column: ibis.literal(data_id)},
         )
         raw_output_table = raw_output_table.mutate(
-            **{self._DATA_TYPE_COLUMN: ibis.literal(data_type)},
+            **{self._data_type_column: ibis.literal(data_type)},
         )
         return raw_output_table  # noqa: RET504
 

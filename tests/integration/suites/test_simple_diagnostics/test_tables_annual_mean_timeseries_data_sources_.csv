@@ -1,0 +1,4 @@
+,id,name,category,institute,exp,variant,references
+0,C_N_E_V,N,C,,E,V,
+1,observation_GPCP,GPCP,observation,NASA-GSFC,,,https://doi.org/10.5067/MEASURES/GPCP/DATA306 https://doi.org/10.5067/MEASURES/GPCP/DATA307
+2,reanalysis_ERA5,ERA5,reanalysis,ECMWF,,,https://doi.org/10.24381/cds.f17050d7 https://doi.org/10.24381/cds.6860a573 https://doi.org/10.24381/cds.adbb2d47

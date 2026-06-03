@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 class MockDiagnostic(SimpleDiagnostic):
-    _FINAL_COORDINATES = (Coordinate("lat"),)
+    _final_coordinates = (Coordinate("lat"),)
 
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess cube."""

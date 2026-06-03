@@ -31,7 +31,7 @@ logger = logger.opt(colors=True)
 class ComplexDiagnostic(Diagnostic):
     """Manage complex diagnostics."""
 
-    _REQUIRED_DATA_KEYS: ClassVar[tuple[str, ...]] = ()
+    _required_data_keys: ClassVar[tuple[str, ...]] = ()
     """Dictionary keys required for multi-data input."""
 
     def __init__(
@@ -145,9 +145,9 @@ class ComplexDiagnostic(Diagnostic):
 
     def _check_required_dict_keys(self, dict_: dict[str, Any], dict_name: str) -> None:
         """Check if required dictionary keys are present."""
-        if set(dict_) != set(self._REQUIRED_DATA_KEYS):
+        if set(dict_) != set(self._required_data_keys):
             msg = (
-                f"Expected keys {self._REQUIRED_DATA_KEYS} for {dict_name} dictionary, "
+                f"Expected keys {self._required_data_keys} for {dict_name} dictionary, "
                 f"got {tuple(dict_)}"
             )
             raise ValueError(msg)

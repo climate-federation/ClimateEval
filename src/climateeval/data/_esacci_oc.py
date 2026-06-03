@@ -9,11 +9,11 @@ from climateeval.data._utils import DataSourceInformation
 class ESACCIOC(ESMValToolCMORizerDataSource):
     """Manage ESACCI-OC data."""
 
-    _INFORMATION = DataSourceInformation(
+    _information = DataSourceInformation(
         name="ESACCI-OC",
         category="observation",
         institute="ESA",
         references=("http://doi.org/10.5285/1dbe7a109c0244aaad713e078fd3059a",),
     )
 
-    SUPPORTED_VAR_NAMES = ("chl",)
+    _supported_var_names = ("chl",)

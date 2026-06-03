@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class DiurnalCycle(SimpleDiagnostic):
     """Manage diurnal cycle diagnostics."""
 
-    _FINAL_COORDINATES = (Coordinate("hour"),)
+    _final_coordinates = (Coordinate("hour"),)
 
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""

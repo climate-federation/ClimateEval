@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 class Map(SimpleDiagnostic):
     """Manage map diagnostics."""
 
-    _FINAL_COORDINATES = (Coordinate("lat"), Coordinate("lon"))
+    _final_coordinates = (Coordinate("lat"), Coordinate("lon"))
 
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
