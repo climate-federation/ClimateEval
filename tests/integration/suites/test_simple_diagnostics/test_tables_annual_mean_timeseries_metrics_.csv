@@ -1,0 +1,4 @@
+,data_id,reference_data_id,var_id,weighted_rmse,weighted_pearsonr,weighted_emd
+0,C_N_E_V,observation_GPCP,mypr,11888.8349609375,1,11381.56640625
+1,C_N_E_V,reanalysis_ERA5,ta1000,10.404326438903809,1,8.3474998474121094
+2,reanalysis_ERA5,observation_GPCP,mypr,11888.8349609375,1,11381.56640625

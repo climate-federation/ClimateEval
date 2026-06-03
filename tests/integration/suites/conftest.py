@@ -13,7 +13,7 @@ from tests.sample_data.create_sample_data_sources import (
 )
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def data() -> CubeList:
     tas_cube = get_simple_2d_cube(
         var_name="tas",
@@ -50,6 +50,6 @@ def data() -> CubeList:
     return CubeList([tas_cube, pr_cube, rsdt_cube, rsut_cube, ta_cube])
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def data_information() -> DataSourceInformation:
     return DataSourceInformation(name="N", category="C", exp="E", variant="V")

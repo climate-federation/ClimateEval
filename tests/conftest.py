@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from importlib import resources
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -16,17 +14,14 @@ from tests.sample_data.create_sample_data_sources import (
 )
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from iris.cube import Cube
 
 
 pytest.register_assert_rewrite("tests._utils")
 pytest.register_assert_rewrite("tests.integration")
 pytest.register_assert_rewrite("tests.unit")
-
-
-@pytest.fixture
-def sample_data_root_dir() -> Path:
-    return Path(str(resources.files("tests"))) / "sample_data" / "data_sources"
 
 
 @pytest.fixture(autouse=True)

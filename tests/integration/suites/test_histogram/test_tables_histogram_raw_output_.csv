@@ -1,0 +1,7 @@
+,data_id,data_type,tas,density_tas
+0,C_N_E_V,to_benchmark,5,0.066666692495346069
+1,C_N_E_V,to_benchmark,15,0.03333330899477005
+2,C_N_E_V,to_benchmark,25,0
+3,reanalysis_ERA5,reference,5,0.033333383500576019
+4,reanalysis_ERA5,reference,15,0.03333330899477005
+5,reanalysis_ERA5,reference,25,0.03333330899477005
