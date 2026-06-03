@@ -213,4 +213,5 @@ __marimo__/
 
 # Output files
 /*.ddb
+/*.ddb.wal
 /*.html
