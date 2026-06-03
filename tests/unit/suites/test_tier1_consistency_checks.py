@@ -11,15 +11,14 @@ from climateeval.suites import Suite
 
 @pytest.fixture
 def suite() -> Suite:
-    return Suite("Tier1_consistency_checks")
+    return Suite("Tier1_sanity_checks")
 
 
 def test_suite(suite: Suite) -> None:
-    assert suite.name == "Tier1_consistency_checks"
+    assert suite.name == "Tier1_sanity_checks"
     assert (
         suite._suite_definition_file
-        == Path(str(resources.files("climateeval.suites")))
-        / "Tier1_consistency_checks.yml"
+        == Path(str(resources.files("climateeval.suites"))) / "Tier1_sanity_checks.yml"
     )
     with suite._suite_definition_file.open("r", encoding="utf-8") as file:
         assert suite._suite_definition == yaml.safe_load(file)

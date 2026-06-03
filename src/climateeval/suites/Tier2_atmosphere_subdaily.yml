@@ -4,6 +4,7 @@
     - id: pr
       var_name: pr
       frequency: 1hr
+      units: mm day-1
       reference_data: climateeval.data.ERA5Hourly
 
 - name: histogram
@@ -19,11 +20,11 @@
     - id: pr_tropics
       var_name: pr
       frequency: 1hr
+      units: mm day-1
       min_lon: 0.0
       max_lon: 360.0
       min_lat: -30.0
       max_lat: 30.0
-      units: mm day-1
       diagnostic_kwargs:
         bin_range: [0.0, 15.0]
       reference_data: climateeval.data.ERA5Hourly
