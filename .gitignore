@@ -123,7 +123,7 @@ ipython_config.py
 #pixi.lock
 #   Pixi creates a virtual environment in the .pixi directory, just like venv module creates one
 #   in the .venv directory. It is recommended not to include this directory in version control.
-.pixi
+# .pixi
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
 __pypackages__/
@@ -210,3 +210,7 @@ __marimo__/
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+# Output files
+/*.ddb
+/*.html
