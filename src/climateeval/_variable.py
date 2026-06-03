@@ -58,12 +58,13 @@ class Coordinate:
     """Manage coordinates."""
 
     var_name: str
-    long_name: str = field(default="", init=False, repr=False, compare=False)
-    standard_name: str = field(default="", init=False, repr=False, compare=False)
-    units: str = field(default="", init=False, repr=False, compare=False)
+
+    # Fields that can be filled automatically if not set (additional metadata)
+    long_name: str = field(default="", repr=False, compare=False)
+    standard_name: str = field(default="", repr=False, compare=False)
+    units: str = field(default="", repr=False, compare=False)
     allowed_coordinates: tuple[Coordinate, ...] = field(
         default_factory=tuple,
-        init=False,
         repr=False,
         compare=False,
     )
@@ -77,10 +78,12 @@ class Coordinate:
         # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
         coord_info = COORDINATES[self.var_name]
         for key, val in coord_info.items():
+            if getattr(self, key):  # allow manually settings these
+                continue
             if key == "allowed_coordinates":
                 continue
             object.__setattr__(self, key, val)
-        if "allowed_coordinates" in coord_info:
+        if "allowed_coordinates" in coord_info and not self.allowed_coordinates:
             object.__setattr__(
                 self,
                 "allowed_coordinates",

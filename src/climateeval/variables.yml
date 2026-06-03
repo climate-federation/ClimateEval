@@ -187,6 +187,15 @@ zg:
   standard_name: geopotential_height
   units: m
 
+# Land
+# Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_land.json
+gpp:
+  coordinates: [time, lat, lon]
+  long_name: Carbon Mass Flux out of Atmosphere Due to Gross Primary Production on Land [kgC m-2 s-1]
+  realm: land
+  standard_name: gross_primary_productivity_of_biomass_expressed_as_carbon
+  units: kg m-2 s-1
+
 # Ocean
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_ocean.json
 so:
