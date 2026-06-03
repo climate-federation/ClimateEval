@@ -80,6 +80,7 @@ def main() -> None:
         "rsutcs",
         "ta",
         "tas",
+        "tauu",
         "ua",
     )
     atmosphere_monthly_paths = [
@@ -106,6 +107,20 @@ def main() -> None:
 
     con = run_suite(
         "Tier1_consistency_checks",
+        atmosphere_monthly_cubes,
+        data_info,
+        diagnostic_kwargs={
+            "fail_on_missing_data": True,
+            "download_missing_data": True,
+        },
+        variable_kwargs={
+            "timerange": "20000101/20011231",
+        },
+    )
+    print(con)
+
+    con = run_suite(
+        "Tier1_sanity_checks",
         atmosphere_monthly_cubes,
         data_info,
         diagnostic_kwargs={
