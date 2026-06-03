@@ -25,7 +25,7 @@ class MockDataSource(DataSource):
             "information",
             TypeError,
             r"Child classes of 'DataSource' should define the class variable "
-            r"'_INFORMATION'",
+            r"'_information'",
         ),
         (
             "invalid_attribute",

@@ -27,13 +27,13 @@ logger = logger.opt(colors=True)
 class ESMValToolCMORizerDataSource(DataSource):
     """Manage ESMValTool CMORizer data source."""
 
-    SUPPORTED_VAR_NAMES: ClassVar[tuple[str, ...] | None] = None
-    """Supported variable names."""
-
-    _FILE_PREFIX_PATTERN: ClassVar[str] = "*"
+    _file_prefix_pattern: ClassVar[str] = "*"
     """Prefix to only select specific files."""
 
-    _TIER: ClassVar[int] = 2
+    _supported_var_names: ClassVar[tuple[str, ...] | None] = None
+    """Supported variable names."""
+
+    _tier: ClassVar[int] = 2
     """Tier of data set."""
 
     def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:
@@ -66,8 +66,8 @@ class ESMValToolCMORizerDataSource(DataSource):
     def _check_supported_variables(self, variable: Variable) -> None:
         """Raise an error if a variable is not supported."""
         if (
-            self.SUPPORTED_VAR_NAMES is not None
-            and variable.var_name not in self.SUPPORTED_VAR_NAMES
+            self._supported_var_names is not None
+            and variable.var_name not in self._supported_var_names
         ):
             msg = f"{self.id} does not provide variable '{variable.var_name}'"
             raise NotImplementedError(msg)
@@ -97,11 +97,11 @@ class ESMValToolCMORizerDataSource(DataSource):
 
         latest_esmvaltool_output_dir = (
             sorted(tmp_dir.glob("data_formatting_*"))[-1]
-            / f"Tier{self._TIER}"
+            / f"Tier{self._tier}"
             / self.name
         )
         raw_files = latest_esmvaltool_output_dir.glob(
-            f"{self._FILE_PREFIX_PATTERN}.nc",
+            f"{self._file_prefix_pattern}.nc",
         )
 
         # Save all downloaded variables (there might be more than the one

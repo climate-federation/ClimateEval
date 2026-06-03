@@ -22,13 +22,13 @@ if TYPE_CHECKING:
             "information",
             TypeError,
             r"Child classes of 'DataSource' should define the class variable "
-            r"'_INFORMATION'",
+            r"'_information'",
         ),
         (
-            "ESMVALTOOL_DATASET_FACETS",
+            "esmvaltool_dataset_facets",
             TypeError,
             r"Child classes of 'ESMValToolIntakeDataSource' should define the class "
-            r"variable 'ESMVALTOOL_DATASET_FACETS'",
+            r"variable 'esmvaltool_dataset_facets'",
         ),
         (
             "invalid_attribute",
@@ -51,10 +51,10 @@ def test_data_source_attribute_access_fail(
     ("attribute", "exception_cls", "error_msg"),
     [
         (
-            "ESMVALTOOL_DATASET_FACETS",
+            "esmvaltool_dataset_facets",
             TypeError,
             r"Child classes of 'ESMValToolIntakeDataSourceGenerator' should define "
-            r"the class variable 'ESMVALTOOL_DATASET_FACETS'",
+            r"the class variable 'esmvaltool_dataset_facets'",
         ),
         (
             "invalid_attribute",
@@ -91,11 +91,11 @@ def generators() -> tuple[Generator[ESMValToolIntakeDataSource], ...]:
         {"dataset": "F"},
     ]
     generator_1 = (
-        type("CLS", (ESMValToolIntakeDataSource,), {"ESMVALTOOL_DATASET_FACETS": f})()
+        type("CLS", (ESMValToolIntakeDataSource,), {"esmvaltool_dataset_facets": f})()
         for f in data_source_facets_1
     )
     generator_2 = (
-        type("CLS", (ESMValToolIntakeDataSource,), {"ESMVALTOOL_DATASET_FACETS": f})()
+        type("CLS", (ESMValToolIntakeDataSource,), {"esmvaltool_dataset_facets": f})()
         for f in data_source_facets_2
     )
     return (generator_1, generator_2)
@@ -214,7 +214,7 @@ def test_filter_intake_data_sources(
     for group, data_sources in filtered_data_sources.items():
         assert group in filtered_facets
         actual_facets = {
-            frozenset(f.ESMVALTOOL_DATASET_FACETS.items()) for f in data_sources
+            frozenset(f.esmvaltool_dataset_facets.items()) for f in data_sources
         }
         expected_facets = {frozenset(f.items()) for f in filtered_facets[group]}
         assert actual_facets == expected_facets

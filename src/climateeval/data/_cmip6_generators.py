@@ -24,7 +24,7 @@ class CMIP6DataSourceGenerator(ESMValToolIntakeDataSourceGenerator):
 class CMIP6Abrupt4xCO2R1I1P1F1(CMIP6DataSourceGenerator):
     """Generate data sources from CMIP6 abrupt-4xCO2 simulations (r1i1p1f1)."""
 
-    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
         "project": "CMIP6",
         "exp": "abrupt-4xCO2",
         "dataset": "*",
@@ -37,7 +37,7 @@ class CMIP6Abrupt4xCO2R1I1P1F1(CMIP6DataSourceGenerator):
 class CMIP6PiControlR1I1P1F1(CMIP6DataSourceGenerator):
     """Generate data sources from CMIP6 piControl simulations (r1i1p1f1)."""
 
-    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
         "project": "CMIP6",
         "exp": "piControl",
         "dataset": "*",
@@ -50,7 +50,7 @@ class CMIP6PiControlR1I1P1F1(CMIP6DataSourceGenerator):
 class CMIP6HistoricalR1I1P1F1(CMIP6DataSourceGenerator):
     """Generate data sources from CMIP6 historical simulations (r1i1p1f1)."""
 
-    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
         "project": "CMIP6",
         "exp": "historical",
         "dataset": "*",

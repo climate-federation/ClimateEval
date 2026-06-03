@@ -83,7 +83,7 @@ VARIABLE_MAPPING: dict[str, str] = {
 class ERA5(DataSource):
     """Manage ERA5 data."""
 
-    _INFORMATION = DataSourceInformation(
+    _information = DataSourceInformation(
         name="ERA5",
         category="reanalysis",
         institute="ECMWF",

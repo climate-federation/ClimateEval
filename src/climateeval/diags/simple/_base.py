@@ -45,13 +45,13 @@ class _IntermediateDiagnosticOutput:
 class SimpleDiagnostic(Diagnostic):
     """Manage simple diagnostics."""
 
-    _OUTPUT_DATA_TABLE: ClassVar[bool] = True
+    _output_data_table: ClassVar[bool] = True
     """Output diagnostic data when creating database."""
 
-    _OUTPUT_METRICS_TABLE: ClassVar[bool] = True
+    _output_metrics_table: ClassVar[bool] = True
     """Output metrics data when creating database."""
 
-    _FINAL_COORDINATES: ClassVar[tuple[Coordinate, ...]] = ()
+    _final_coordinates: ClassVar[tuple[Coordinate, ...]] = ()
     """Coordinates of preprocessed output."""
 
     def __init__(  # noqa: PLR0913
@@ -108,14 +108,14 @@ class SimpleDiagnostic(Diagnostic):
         self._download_missing_data = download_missing_data
         self._fail_on_metric_error = fail_on_metric_error
         if calculate_metrics is None:
-            self._calculate_metrics = self._OUTPUT_METRICS_TABLE
+            self._calculate_metrics = self._output_metrics_table
         else:
             self._calculate_metrics = calculate_metrics
 
     @property
     def _final_coordinate_names(self) -> tuple[str, ...]:
         """Get names of final coordinate."""
-        return tuple(c.name() for c in self._FINAL_COORDINATES)
+        return tuple(c.name() for c in self._final_coordinates)
 
     @classmethod
     def from_suite_dict(
@@ -246,8 +246,8 @@ class SimpleDiagnostic(Diagnostic):
             return None
         raw_output_table = union(*raw_output_tables)
         unique_columns = (
-            self._DATA_ID_COLUMN,
-            self._DATA_TYPE_COLUMN,
+            self._data_id_column,
+            self._data_type_column,
             *self._final_coordinate_names,
         )
         raw_output_table = self._remove_superfluous_rows(
@@ -269,9 +269,9 @@ class SimpleDiagnostic(Diagnostic):
         return ibis.memtable(
             pd.DataFrame(
                 {
-                    self._DATA_ID_COLUMN: data_id,
-                    self._REFERENCE_DATA_ID_COLUMN: self._reference_data[variable].id,
-                    self._VARIABLE_ID_COLUMN: variable.id,
+                    self._data_id_column: data_id,
+                    self._reference_data_id_column: self._reference_data[variable].id,
+                    self._variable_id_column: variable.id,
                     **self._get_metrics(cube, reference_cube),
                 },
                 index=[0],
@@ -308,7 +308,7 @@ class SimpleDiagnostic(Diagnostic):
                             f"failed: {exc}"
                         )
                         raise ValueError(msg) from exc
-                    metrics[metric] = pd.Series(metric_cube.data, dtype=self._DTYPE)
+                    metrics[metric] = pd.Series(metric_cube.data, dtype=self._dtype)
         return metrics
 
     def _get_output_of_other_data(
@@ -335,7 +335,7 @@ class SimpleDiagnostic(Diagnostic):
                     continue
 
                 # Expand raw output
-                if self._OUTPUT_DATA_TABLE:
+                if self._output_data_table:
                     raw_output_tables.append(
                         self._get_raw_output_table(
                             other_cube,
@@ -373,7 +373,7 @@ class SimpleDiagnostic(Diagnostic):
         raw_output_tables: list[ibis.Table] = []
         metrics_tables: list[ibis.Table] = []
 
-        if not self._OUTPUT_DATA_TABLE:
+        if not self._output_data_table:
             return _IntermediateDiagnosticOutput(
                 raw_output=raw_output_tables,
                 metrics=metrics_tables,
@@ -415,7 +415,7 @@ class SimpleDiagnostic(Diagnostic):
                 continue
 
             # Expand raw output
-            if self._OUTPUT_DATA_TABLE:
+            if self._output_data_table:
                 raw_output_tables.append(
                     self._get_raw_output_table(
                         cube,
@@ -493,13 +493,13 @@ class SimpleDiagnostic(Diagnostic):
     def _safely_preprocess(self, cube: Cube, variable: Variable) -> Cube:
         """Safely preprocess cube."""
         cube = self._preprocess(cube, variable)
-        return check_coordinates(cube, self._FINAL_COORDINATES)
+        return check_coordinates(cube, self._final_coordinates)
 
     def _sort_raw_output_columns(self, raw_output_table: ibis.Table) -> ibis.Table:
         """Sort columns of raw output table."""
         new_column_order = (
-            self._DATA_ID_COLUMN,
-            self._DATA_TYPE_COLUMN,
+            self._data_id_column,
+            self._data_type_column,
             *self._final_coordinate_names,
             *sorted(v.id for v in self._variables),
         )

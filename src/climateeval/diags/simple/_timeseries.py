@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 class AnnualMeanTimeSeries(SimpleDiagnostic):
     """Manage annual mean timeseries diagnostics."""
 
-    _FINAL_COORDINATES = (Coordinate("time"),)
+    _final_coordinates = (Coordinate("time"),)
 
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
@@ -51,7 +51,7 @@ class AnnualMeanTimeSeries(SimpleDiagnostic):
 class MeanTimeSeries(SimpleDiagnostic):
     """Manage mean timeseries diagnostics."""
 
-    _FINAL_COORDINATES = (Coordinate("time"),)
+    _final_coordinates = (Coordinate("time"),)
 
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
@@ -69,7 +69,7 @@ class MeanTimeSeries(SimpleDiagnostic):
 class TimeSeriesNoPreprocessing(SimpleDiagnostic):
     """Manage timeseries diagnostics without preprocessing."""
 
-    _FINAL_COORDINATES = (Coordinate("time"),)
+    _final_coordinates = (Coordinate("time"),)
 
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""

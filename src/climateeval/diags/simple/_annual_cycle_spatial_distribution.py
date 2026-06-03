@@ -20,13 +20,13 @@ if TYPE_CHECKING:
 class AnnualCycleSpatialDistribution(SimpleDiagnostic):
     """Manage annual cycle spatial distribution diagnostics."""
 
-    _FINAL_COORDINATES = (
+    _final_coordinates = (
         Coordinate("month_number"),
         Coordinate("lat"),
         Coordinate("lon"),
     )
 
-    _OUTPUT_DATA_TABLE = False
+    _output_data_table = False
 
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""

@@ -34,7 +34,7 @@ class Histogram(SimpleDiagnostic):
 
     """
 
-    _OUTPUT_METRICS_TABLE = False
+    _output_metrics_table = False
 
     def _check_variables(self) -> None:
         """Check variables."""
@@ -54,7 +54,7 @@ class Histogram(SimpleDiagnostic):
         if not raw_output_tables:
             return None
         raw_output_table = union(*raw_output_tables)
-        new_column_order = [self._DATA_ID_COLUMN, self._DATA_TYPE_COLUMN]
+        new_column_order = [self._data_id_column, self._data_type_column]
         for variable in sorted(self._variables):
             new_column_order.extend([variable.id, f"density_{variable.id}"])
         return raw_output_table.select(new_column_order)

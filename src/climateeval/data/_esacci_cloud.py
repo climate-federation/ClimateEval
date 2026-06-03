@@ -9,14 +9,15 @@ from climateeval.data._utils import DataSourceInformation
 class ESACCICloud(ESMValToolCMORizerDataSource):
     """Manage ESACCI-CLOUD data."""
 
-    _INFORMATION = DataSourceInformation(
+    _information = DataSourceInformation(
         name="ESACCI-CLOUD",
         category="observation",
         institute="DWD",
         references=("https://doi.org/10.5676/DWD/ESA_Cloud_cci/AVHRR-PM/V003",),
     )
 
-    SUPPORTED_VAR_NAMES = (
+    _file_prefix_pattern = "*_v3.0-AVHRR-AMPM_*"
+    _supported_var_names = (
         "clivi",
         "clt",
         "cltStderr",
@@ -31,4 +32,3 @@ class ESACCICloud(ESMValToolCMORizerDataSource):
         "rsus",
         "rsuscs",
     )
-    _FILE_PREFIX_PATTERN = "*_v3.0-AVHRR-AMPM_*"
