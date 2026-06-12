@@ -87,6 +87,7 @@ def main() -> None:
         diagnostic_kwargs={
             "data_root_dir": Path("/work/bd1179/b309141/climateeval_input"),
             "fail_on_missing_data": False,
+            "fail_on_metric_error": False,
             "download_missing_data": False,
         },
     )

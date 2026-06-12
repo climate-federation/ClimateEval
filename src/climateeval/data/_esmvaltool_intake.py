@@ -154,7 +154,16 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
             f"Intake-ESGF facets\n{pformat(facets)}",
         )
 
-        for dataset in Dataset(**facets).from_files():
+        try:
+            discovered = list(Dataset(**facets).from_files())
+        except Exception as exc:
+            logger.warning(
+                f"Could not discover local datasets for {variable} "
+                f"({self.__class__.__name__}): {exc}"
+            )
+            return
+
+        for dataset in discovered:
             new_esmvaltool_dataset_facets = dict(dataset.facets)
             references = self._get_references(**new_esmvaltool_dataset_facets)
             new_data_source_information = DataSourceInformation(

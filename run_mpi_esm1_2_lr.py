@@ -1,11 +1,13 @@
-"""Run all MPI-ESM1-2-LR Tier2 suites and serve them together.
+"""Run all MPI-ESM1-2-LR tier suites and serve them together.
 
 Computes (or reuses) the following databases:
-  Tier2_ocean_monthly.ddb  — chl + siconc NH/SH vs. ESA CCI OC / no ice ref
-  Tier2_dynamics.ddb       — Hovmöller (pr, rlut, tos) + QBO (ua)
+  Tier1_sanity_checks.ddb      — reasonable-range checks (Amon)
+  Tier1_consistency_checks.ddb — air-mass / water-vapour vs ERA5 (Amon)
+  Tier2_ocean_monthly.ddb      — chl + siconc NH/SH vs ESA CCI OC (Omon + SImon)
+  Tier2_dynamics.ddb           — Hovmöller (daily) + QBO vs ERA5 (Amon)
 
 Then serves those together with any other Tier*.ddb files already present
-in the working directory (e.g. Tier1_*.ddb, Tier2_atmosphere_monthly.ddb).
+in the working directory (e.g. Tier2_atmosphere_monthly.ddb).
 
 Usage
 -----
@@ -57,23 +59,53 @@ _DATA_INFO = DataSourceInformation(
     ),
 )
 
-# Files needed per suite
+# Amon 1990-2009: one file per variable, covers Tier1 + Tier2_atmosphere_monthly
+_AMON_DIR = Path(f"{_BASE}/Amon")
+_AMON_PERIOD = "199001-200912"
+
+# Ocean + sea ice (Tier2_ocean_monthly)
 _OCEAN_FILES = [
-    f"{_BASE}/Omon/chl/gn/{_V}/chl_Omon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc",
-    f"{_BASE}/SImon/siconc/gn/{_V}/siconc_SImon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc",
+    f"{_BASE}/Omon/chl/gn/{_V}/chl_Omon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_{_AMON_PERIOD}.nc",
+    f"{_BASE}/SImon/siconc/gn/{_V}/siconc_SImon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_{_AMON_PERIOD}.nc",
 ]
 
+# Daily atmosphere + ocean + monthly ua (Tier2_dynamics)
 _DYNAMICS_FILES = {
     "pr_day":   f"{_BASE}/day/pr/gn/{_V}/pr_day_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_19900101-20091231.nc",
     "rlut_day": f"{_BASE}/day/rlut/gn/{_V}/rlut_day_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_19900101-20091231.nc",
     "tos_day":  f"{_BASE}/Oday/tos/gn/{_V}/tos_Oday_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_19900101-20091231.nc",
-    "ua_mon":   f"{_BASE}/Amon/ua/gn/{_V}/ua_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc",
+    "ua_mon":   f"{_BASE}/Amon/ua/gn/{_V}/ua_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_{_AMON_PERIOD}.nc",
+}
+
+_DIAG_KWARGS = {
+    "data_root_dir": DATA_ROOT,
+    "fail_on_missing_data": False,
+    "fail_on_metric_error": False,
+    "download_missing_data": False,
 }
 # ---------------------------------------------------------------------------
 
 
+def _load_amon() -> CubeList:
+    """Load the 1990-2009 Amon file for every available variable."""
+    cubes: CubeList = CubeList([])
+    for var_dir in sorted(_AMON_DIR.iterdir()):
+        nc_files = sorted(
+            (var_dir / "gn" / _V).glob(f"*{_AMON_PERIOD}.nc")
+            if (var_dir / "gn" / _V).is_dir()
+            else []
+        )
+        for nc in nc_files:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                loaded = iris.load(str(nc))
+            cubes.extend(loaded)
+    logger.info("Loaded {} Amon cube(s) for period {}", len(cubes), _AMON_PERIOD)
+    return cubes
+
+
 def _load(paths: list[str] | dict[str, str]) -> CubeList:
-    items = paths.items() if isinstance(paths, dict) else [(p, p) for p in paths]
+    items = list(paths.items()) if isinstance(paths, dict) else [(Path(p).name, p) for p in paths]
     cubes: CubeList = CubeList([])
     for label, path in items:
         nc = Path(path)
@@ -82,7 +114,7 @@ def _load(paths: list[str] | dict[str, str]) -> CubeList:
                 warnings.simplefilter("ignore")
                 loaded = iris.load(str(nc))
             cubes.extend(loaded)
-            logger.info("Loaded {}: {} cube(s)", label if isinstance(paths, dict) else nc.name, len(loaded))
+            logger.info("Loaded {}: {} cube(s)", label, len(loaded))
         else:
             logger.warning("File not found — skipping: {}", path)
     return cubes
@@ -94,16 +126,14 @@ def _run_suite(
     cubes: CubeList,
     *,
     skip_existing: bool,
-    diagnostic_kwargs: dict,
 ) -> None:
     if skip_existing and db_path.is_file():
-        logger.info("Reusing existing database: {}", db_path)
+        logger.info("Reusing existing: {}", db_path)
         return
     if db_path.is_file():
         db_path.unlink()
     Path(str(db_path) + ".wal").unlink(missing_ok=True)
-
-    suite = Suite(suite_name, diagnostic_kwargs=diagnostic_kwargs)
+    suite = Suite(suite_name, diagnostic_kwargs=_DIAG_KWARGS)
     logger.info("Running {} → {}", suite_name, db_path)
     suite.get_database(cubes, _DATA_INFO, database_resource=f"duckdb://{db_path}")
     logger.info("Written: {}", db_path)
@@ -118,45 +148,26 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # ── Tier1: sanity + consistency checks (Amon) ───────────────────────────
+    amon_cubes = _load_amon()
+    _run_suite("Tier1_sanity_checks", Path("Tier1_sanity_checks.ddb"), amon_cubes, skip_existing=args.skip_existing)
+    _run_suite("Tier1_consistency_checks", Path("Tier1_consistency_checks.ddb"), amon_cubes, skip_existing=args.skip_existing)
+
     # ── Tier2_ocean_monthly (chl + siconc NH/SH) ────────────────────────────
     ocean_cubes = _load(_OCEAN_FILES)
-    _run_suite(
-        "Tier2_ocean_monthly",
-        Path("Tier2_ocean_monthly.ddb"),
-        ocean_cubes,
-        skip_existing=args.skip_existing,
-        diagnostic_kwargs={
-            "data_root_dir": DATA_ROOT,
-            "fail_on_missing_data": False,
-            "download_missing_data": False,
-        },
-    )
+    _run_suite("Tier2_ocean_monthly", Path("Tier2_ocean_monthly.ddb"), ocean_cubes, skip_existing=args.skip_existing)
 
     # ── Tier2_dynamics (Hovmöller + QBO) ────────────────────────────────────
     dynamics_cubes = _load(_DYNAMICS_FILES)
-    _run_suite(
-        "Tier2_dynamics",
-        Path("Tier2_dynamics.ddb"),
-        dynamics_cubes,
-        skip_existing=args.skip_existing,
-        diagnostic_kwargs={
-            "data_root_dir": DATA_ROOT,
-            "fail_on_missing_data": False,
-            "download_missing_data": False,
-        },
-    )
+    _run_suite("Tier2_dynamics", Path("Tier2_dynamics.ddb"), dynamics_cubes, skip_existing=args.skip_existing)
 
-    # ── Serve all Tier*.ddb files present in the working directory ───────────
+    # ── Serve all Tier*.ddb files in the working directory ───────────────────
     db_paths = sorted(Path(".").glob("Tier*.ddb"))
     if not db_paths:
         logger.error("No Tier*.ddb files found — nothing to serve")
         sys.exit(1)
 
-    logger.info(
-        "Serving {} tier(s): {}",
-        len(db_paths),
-        [p.stem for p in db_paths],
-    )
+    logger.info("Serving {} tier(s): {}", len(db_paths), [p.stem for p in db_paths])
     logger.info("http://127.0.0.1:{} — Ctrl-C to stop", PORT)
     serve(
         db_paths=db_paths,
