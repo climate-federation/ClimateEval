@@ -1726,11 +1726,16 @@ def build_hovmoller_figures(
     """Hovmöller diagrams: longitude × time heatmaps of meridional-mean anomalies.
 
     One figure per variable; one heatmap per dataset (stacked vertically).
-    x-axis = longitude, y-axis = time (newest at the bottom).
-    Colorscale is always diverging and symmetric around zero.
+    Default: x-axis = longitude, y-axis = time.
+    An axis-swap toggle button is embedded in the figure.
     """
     figures: dict[str, go.Figure] = {}
     all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+
+    lon_ticks = {
+        "tickvals": [0, 60, 120, 180, 240, 300, 360],
+        "ticktext": ["0°", "60°E", "120°E", "180°", "120°W", "60°W", "360°"],
+    }
 
     for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
@@ -1749,10 +1754,9 @@ def build_hovmoller_figures(
         def _pivot_for(dataset: str, _vid: str = var_id) -> pd.DataFrame | None:
             sub = data_df[data_df["data_id"] == dataset].dropna(subset=[_vid])
             try:
-                # rows = time, columns = longitude
                 p = sub.pivot_table(
-                    index="time",
-                    columns="longitude",
+                    index="time",       # rows = time
+                    columns="longitude",  # columns = longitude
                     values=_vid,
                     aggfunc="mean",
                 )
@@ -1762,15 +1766,21 @@ def build_hovmoller_figures(
                 return None
             return p if not p.empty else None
 
-        # Symmetric colour range across all datasets
-        all_vals: list[float] = []
+        # Collect pivot tables in dataset order
+        pivots: list[pd.DataFrame] = []
+        ds_order: list[str] = []
         for ds in valid_datasets:
             pv = _pivot_for(ds)
             if pv is not None:
-                v = pv.values[np.isfinite(pv.values)]
-                all_vals.extend(v.tolist())
-        if not all_vals:
+                pivots.append(pv)
+                ds_order.append(ds)
+        if not pivots:
             continue
+
+        all_vals: list[float] = []
+        for pv in pivots:
+            v = pv.values[np.isfinite(pv.values)]
+            all_vals.extend(v.tolist())
         arr = np.array(all_vals)
         abs_max = float(
             max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98))))
@@ -1779,29 +1789,22 @@ def build_hovmoller_figures(
             abs_max = 1.0
         zmin, zmax = -abs_max, abs_max
 
-        lon_ticks = {
-            "tickvals": [0, 60, 120, 180, 240, 300, 360],
-            "ticktext": ["0°", "60°E", "120°E", "180°", "120°W", "60°W", "360°"],
-        }
-
-        nrows = len(valid_datasets)
+        nrows = len(pivots)
+        # Do NOT share x-axes so the transpose button can update each trace's
+        # x/y independently.
         fig = make_subplots(
             rows=nrows,
             cols=1,
-            shared_xaxes=True,
+            shared_xaxes=False,
             vertical_spacing=0.06,
-            subplot_titles=[str(ds) for ds in valid_datasets],
+            subplot_titles=[str(ds) for ds in ds_order],
         )
 
-        for row_i, dataset in enumerate(valid_datasets, start=1):
-            pv = _pivot_for(dataset)
-            if pv is None:
-                continue
-
+        for row_i, (dataset, pv) in enumerate(zip(ds_order, pivots), start=1):
             fig.add_trace(
                 go.Heatmap(
-                    x=pv.columns.tolist(),   # longitude
-                    y=pv.index.tolist(),     # time strings
+                    x=pv.columns.tolist(),   # longitude (default)
+                    y=pv.index.tolist(),     # time strings (default)
                     z=pv.values.tolist(),
                     colorscale=cs,
                     zmin=zmin,
@@ -1825,11 +1828,53 @@ def build_hovmoller_figures(
             )
             fig.update_yaxes(
                 title_text="Time",
-                autorange="reversed",  # newest date at the bottom
+                autorange="reversed",
                 **_AXIS_STYLE,
                 row=row_i,
                 col=1,
             )
+            fig.update_xaxes(
+                title_text="Longitude" if row_i == nrows else "",
+                **lon_ticks,
+                **_AXIS_STYLE,
+                row=row_i,
+                col=1,
+            )
+
+        # ---- Axis-swap toggle button ------------------------------------
+        # Axis layout keys: row 1 → "xaxis"/"yaxis", row 2 → "xaxis2"/"yaxis2", …
+        def _ax(prefix: str, i: int) -> str:
+            return prefix if i == 0 else f"{prefix}{i + 1}"
+
+        # Trace-data args for each orientation
+        lon_x_trace = {
+            "x": [pv.columns.tolist() for pv in pivots],
+            "y": [pv.index.tolist() for pv in pivots],
+            "z": [pv.values.tolist() for pv in pivots],
+            "hovertemplate": [
+                f"lon: %{{x:.1f}}°<br>time: %{{y}}<br>{var_id}: %{{z:.4g}} {units}<extra>{ds}</extra>"
+                for ds in ds_order
+            ],
+        }
+        time_x_trace = {
+            "x": [pv.index.tolist() for pv in pivots],
+            "y": [pv.columns.tolist() for pv in pivots],
+            "z": [pv.values.T.tolist() for pv in pivots],
+            "hovertemplate": [
+                f"time: %{{x}}<br>lon: %{{y:.1f}}°<br>{var_id}: %{{z:.4g}} {units}<extra>{ds}</extra>"
+                for ds in ds_order
+            ],
+        }
+
+        # Layout args for each orientation
+        lon_x_layout: dict[str, Any] = {}
+        time_x_layout: dict[str, Any] = {}
+        for i in range(nrows):
+            xa, ya = _ax("xaxis", i), _ax("yaxis", i)
+            lon_x_layout[xa] = {"title": {"text": "Longitude"}, **lon_ticks, **_AXIS_STYLE}
+            lon_x_layout[ya] = {"title": {"text": "Time"}, "autorange": "reversed", **_AXIS_STYLE}
+            time_x_layout[xa] = {"title": {"text": "Time"}, "autorange": True, **_AXIS_STYLE}
+            time_x_layout[ya] = {"title": {"text": "Longitude"}, **lon_ticks, **_AXIS_STYLE}
 
         title_str = (
             f"<b>{long_name}</b> — Hovmöller (meridional-mean anomaly)"
@@ -1838,22 +1883,35 @@ def build_hovmoller_figures(
         panel_height = max(400, 320 * nrows)
         fig.update_layout(
             **_base_layout(
-                title={
-                    "text": title_str,
-                    "font": {"size": 14},
-                    "x": 0.02,
-                    "xanchor": "left",
-                },
-                margin={"t": 80, "b": 60, "l": 90, "r": 90},
+                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
+                margin={"t": 100, "b": 60, "l": 90, "r": 90},
                 height=panel_height,
             ),
-        )
-        fig.update_xaxes(
-            title_text="Longitude",
-            **lon_ticks,
-            **_AXIS_STYLE,
-            row=nrows,
-            col=1,
+            updatemenus=[{
+                "type": "buttons",
+                "direction": "left",
+                "x": 0.0,
+                "xanchor": "left",
+                "y": 1.0,
+                "yanchor": "bottom",
+                "pad": {"t": 8, "b": 4},
+                "bgcolor": "#eef3fa",
+                "bordercolor": "#aab8cc",
+                "borderwidth": 1,
+                "font": {"size": 11, "color": "#1e2535"},
+                "buttons": [
+                    {
+                        "label": " Lon × Time ",
+                        "method": "update",
+                        "args": [lon_x_trace, lon_x_layout],
+                    },
+                    {
+                        "label": " Time × Lon ",
+                        "method": "update",
+                        "args": [time_x_trace, time_x_layout],
+                    },
+                ],
+            }],
         )
         figures[var_id] = fig
 
