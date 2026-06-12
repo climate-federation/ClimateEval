@@ -72,6 +72,11 @@ _DIVERGING_VARS: set[str] = {
     "ua",
     "ua200",
     "ua800",
+    # TEM diagnostics — all symmetric around zero
+    "psi_star",
+    "v_star",
+    "w_star",
+    "w_dia",
 }
 
 # Per-variable override for the bias (model − reference) colormap. Falls back

@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from climateeval.diags.complex._base import ComplexDiagnostic
 from climateeval.diags.complex._ecs import ECS
+from climateeval.diags.complex._tem import TEMDiagnostic
 
 __all__ = [
-    "ECS",
     "ComplexDiagnostic",
+    "ECS",
+    "TEMDiagnostic",
 ]
