@@ -1918,6 +1918,299 @@ def build_hovmoller_figures(
     return figures
 
 
+def build_qbo_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,  # noqa: ARG001
+) -> dict[str, go.Figure]:
+    """QBO: equatorial stratospheric ua on a time × pressure heatmap.
+
+    Layout (per variable):
+      Left 80%:  QBO heatmap — x = time, y = pressure (log, 100 → 1 hPa), one row per dataset
+      Right 20%: QBO amplitude profile — std(ua) vs pressure, all datasets overlaid
+      Bottom:    QBO index — ua at ~50 hPa vs time, all datasets overlaid
+    """
+    figures: dict[str, go.Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+
+    # Pressure axis ticks in hPa
+    plev_ticks_hpa = [100, 70, 50, 30, 20, 10, 5, 1]
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+        cs = _colorscale_for(var_id)  # ua → "PuOr" (diverging)
+
+        valid_datasets = [
+            ds for ds in all_datasets
+            if not data_df[data_df["data_id"] == ds][var_id].isna().all()
+        ]
+        if not valid_datasets:
+            continue
+
+        # Symmetric colour range across all datasets
+        all_vals = data_df[var_id].dropna().tolist()
+        arr = np.array(all_vals)
+        abs_max = float(max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98)))))
+        if abs_max == 0:
+            abs_max = 1.0
+        zmin, zmax = -abs_max, abs_max
+
+        # Build pivot: index = air_pressure (Pa→hPa), columns = time → heatmap z
+        def _pivot_for(ds: str, _vid: str = var_id) -> pd.DataFrame | None:
+            sub = data_df[data_df["data_id"] == ds].dropna(subset=[_vid])
+            if sub.empty:
+                return None
+            try:
+                p = sub.pivot_table(
+                    index="air_pressure",
+                    columns="time",
+                    values=_vid,
+                    aggfunc="mean",
+                )
+                p = p.dropna(how="all").dropna(axis=1, how="all")
+                p.index = (p.index / 100).round(1)              # Pa → hPa
+                p.columns = p.columns.astype(str).str[:7]       # YYYY-MM
+            except Exception:
+                return None
+            return p if not p.empty else None
+
+        pivots = []
+        ds_order = []
+        for ds in valid_datasets:
+            pv = _pivot_for(ds)
+            if pv is not None:
+                pivots.append(pv)
+                ds_order.append(ds)
+        if not pivots:
+            continue
+
+        n_ds = len(ds_order)
+        nrows = n_ds + 1   # n_ds heatmap rows + 1 QBO-index row
+        ncols = 2
+
+        # specs: right col spans all heatmap rows; bottom row spans both cols
+        specs: list[list] = []
+        for i in range(n_ds):
+            right = {"rowspan": n_ds} if i == 0 else None
+            specs.append([{"type": "heatmap"}, right])
+        specs.append([{"colspan": 2}, None])
+
+        heatmap_frac = 0.65
+        row_heights = [heatmap_frac / n_ds] * n_ds + [1.0 - heatmap_frac]
+
+        fig = make_subplots(
+            rows=nrows,
+            cols=ncols,
+            specs=specs,
+            column_widths=[0.80, 0.20],
+            row_heights=row_heights,
+            vertical_spacing=0.05,
+            horizontal_spacing=0.04,
+        )
+
+        # ---- QBO heatmaps (left column) ------------------------------------
+        for row_i, (ds, pv) in enumerate(zip(ds_order, pivots), start=1):
+            show_cb = row_i == 1
+            fig.add_trace(
+                go.Heatmap(
+                    x=pv.columns.tolist(),   # time (YYYY-MM)
+                    y=pv.index.tolist(),     # pressure (hPa)
+                    z=pv.values.tolist(),
+                    colorscale=cs,
+                    zmin=zmin,
+                    zmax=zmax,
+                    showscale=show_cb,
+                    colorbar={
+                        "title": {"text": units or var_id, "side": "right"},
+                        "len": heatmap_frac,
+                        "y": 1.0 - heatmap_frac / 2,
+                        "yanchor": "middle",
+                        "thickness": 14,
+                        "tickfont": {"size": 10},
+                        "outlinewidth": 0,
+                    },
+                    hovertemplate=(
+                        f"time: %{{x}}<br>pressure: %{{y:.0f}} hPa<br>"
+                        f"{var_id}: %{{z:.3g}} {units}<extra>{ds}</extra>"
+                    ),
+                ),
+                row=row_i,
+                col=1,
+            )
+            fig.update_yaxes(
+                type="log",
+                autorange="reversed",
+                tickvals=plev_ticks_hpa,
+                ticktext=[str(p) for p in plev_ticks_hpa],
+                title_text="Pressure (hPa)" if row_i == 1 else "",
+                **_AXIS_STYLE,
+                row=row_i,
+                col=1,
+            )
+            fig.update_xaxes(
+                title_text="" if row_i < n_ds else "Date",
+                **_AXIS_STYLE,
+                row=row_i,
+                col=1,
+            )
+            # Dataset label annotation
+            fig.add_annotation(
+                text=f"<b>{ds}</b>",
+                xref="x domain",
+                yref="y domain",
+                x=0.5,
+                y=1.04,
+                xanchor="center",
+                yanchor="bottom",
+                showarrow=False,
+                font={"size": 11, "color": "#333"},
+                row=row_i,
+                col=1,
+            )
+
+        # ---- Amplitude profile (right column, spans all heatmap rows) ------
+        color_idx = 0
+        for ds in ds_order:
+            sub = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
+            dtype = sub["data_type"].iloc[0]
+            std_profile = (
+                sub.assign(plev_hpa=lambda df: (df["air_pressure"] / 100).round(1))
+                .groupby("plev_hpa")[var_id]
+                .std()
+                .sort_index()
+            )
+            if std_profile.empty:
+                continue
+            lp = _get_line_properties(dtype, color_idx)
+            fig.add_trace(
+                go.Scatter(
+                    x=std_profile.values.tolist(),
+                    y=std_profile.index.tolist(),
+                    mode="lines",
+                    name=str(ds),
+                    legendgroup=str(ds),
+                    showlegend=False,
+                    line=lp["line"],
+                    hovertemplate=(
+                        f"<b>{ds}</b><br>pressure: %{{y:.0f}} hPa<br>"
+                        f"σ({var_id}): %{{x:.3g}} {units}<extra></extra>"
+                    ),
+                ),
+                row=1,
+                col=2,
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+        fig.update_yaxes(
+            type="log",
+            autorange="reversed",
+            tickvals=plev_ticks_hpa,
+            ticktext=[str(p) for p in plev_ticks_hpa],
+            title_text="",
+            **_AXIS_STYLE,
+            row=1,
+            col=2,
+        )
+        fig.update_xaxes(
+            title_text=f"σ [{units}]",
+            rangemode="tozero",
+            **_AXIS_STYLE,
+            row=1,
+            col=2,
+        )
+        fig.add_annotation(
+            text="<b>Amplitude</b>",
+            xref="x domain",
+            yref="y domain",
+            x=0.5,
+            y=1.04,
+            xanchor="center",
+            yanchor="bottom",
+            showarrow=False,
+            font={"size": 10, "color": "#555"},
+            row=1,
+            col=2,
+        )
+
+        # ---- QBO index: ua at ~50 hPa vs time (bottom full-width row) ------
+        color_idx = 0
+        _50hpa_pa = 5000.0
+        for ds in ds_order:
+            sub = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
+            dtype = sub["data_type"].iloc[0]
+            avail = sub["air_pressure"].unique()
+            target = avail[int(np.argmin(np.abs(avail - _50hpa_pa)))]
+            idx_sub = (
+                sub[sub["air_pressure"] == target][["time", var_id]]
+                .sort_values("time")
+            )
+            if idx_sub.empty:
+                continue
+            label_hpa = round(target / 100)
+            lp = _get_line_properties(dtype, color_idx)
+            fig.add_trace(
+                go.Scatter(
+                    x=idx_sub["time"].astype(str).str[:7].tolist(),
+                    y=idx_sub[var_id].tolist(),
+                    mode="lines",
+                    name=str(ds),
+                    legendgroup=str(ds),
+                    showlegend=True,
+                    line=lp["line"],
+                    hovertemplate=(
+                        f"<b>{ds}</b><br>%{{x}}<br>"
+                        f"{var_id} @ {label_hpa} hPa: %{{y:.3g}} {units}<extra></extra>"
+                    ),
+                ),
+                row=nrows,
+                col=1,
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+        fig.add_hline(
+            y=0,
+            line={"color": "rgba(0,0,0,0.40)", "width": 1, "dash": "dot"},
+            row=nrows,
+            col=1,
+        )
+        fig.update_xaxes(title_text="Date", **_AXIS_STYLE, row=nrows, col=1)
+        fig.update_yaxes(
+            title_text=f"{var_id} @ 50 hPa [{units}]",
+            **_AXIS_STYLE,
+            row=nrows,
+            col=1,
+        )
+
+        title_str = (
+            f"<b>{long_name}</b> — QBO (equatorial zonal mean)"
+            + (f"  [{units}]" if units else "")
+        )
+        panel_height = max(600, 280 * n_ds + 220)
+        fig.update_layout(
+            **_base_layout(
+                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
+                margin={"t": 80, "b": 60, "l": 80, "r": 90},
+                height=panel_height,
+                legend={
+                    "orientation": "h",
+                    "yanchor": "bottom",
+                    "y": -0.15,
+                    "xanchor": "center",
+                    "x": 0.4,
+                    "bgcolor": "rgba(255,255,255,0.85)",
+                    "bordercolor": "#ddd",
+                    "borderwidth": 1,
+                    "font": {"size": 11},
+                },
+            ),
+        )
+        figures[var_id] = fig
+
+    return figures
+
+
 _FIGURE_BUILDERS = {
     "Map": build_map_figures,
     "TimeSeries": build_timeseries_figures,
@@ -1926,6 +2219,7 @@ _FIGURE_BUILDERS = {
     "ZonalLine": build_zonal_line_figures,
     "ZonalProfile": build_zonal_profile_figures,
     "Hovmoller": build_hovmoller_figures,
+    "QBO": build_qbo_figures,
     "Histogram": build_histogram_figures,
     "Scalar": build_bar_figures,
 }
@@ -1938,6 +2232,7 @@ _DIAG_LABELS = {
     "ZonalLine": "Zonal Mean",
     "ZonalProfile": "Zonal Profile",
     "Hovmoller": "Hovmöller",
+    "QBO": "QBO",
     "Histogram": "Histogram",
     "Scalar": "Scalar",
 }
@@ -1950,6 +2245,7 @@ _DIAG_ICONS = {
     "ZonalLine": "〰",
     "ZonalProfile": "🌡",
     "Hovmoller": "🌊",
+    "QBO": "🌀",
     "Histogram": "📊",
     "Scalar": "📊",
 }

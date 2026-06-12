@@ -18,6 +18,7 @@ from climateeval.diags.simple._diurnal_cycle import DiurnalCycle
 from climateeval.diags.simple._histogram import Histogram
 from climateeval.diags.simple._hovmoller import Hovmoller
 from climateeval.diags.simple._map import Map
+from climateeval.diags.simple._qbo import QBO
 from climateeval.diags.simple._timeseries import (
     AnnualMeanTimeSeries,
     MeanTimeSeries,
@@ -35,6 +36,7 @@ __all__ = [
     "Histogram",
     "Hovmoller",
     "Map",
+    "QBO",
     "MeanTimeSeries",
     "SimpleDiagnostic",
     "SimpleDiagnosticInputData",

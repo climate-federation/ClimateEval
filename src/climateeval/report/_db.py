@@ -67,6 +67,8 @@ def detect_diag_type(columns: list[str]) -> str:
         return "ZonalProfile"
     if "time" in cols and "longitude" in cols:
         return "Hovmoller"
+    if "time" in cols and "air_pressure" in cols:
+        return "QBO"
     if "latitude" in cols:
         return "ZonalLine"
     if "time" in cols:
