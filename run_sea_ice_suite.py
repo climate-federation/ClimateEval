@@ -45,7 +45,7 @@ _NC_FILES = [
     f"{_BASE}/{_V}/siconc_SImon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc",
 ]
 
-DB_PATH = Path("sea_ice_suite.ddb")
+DB_PATH = Path("Tier2_sea_ice_monthly.ddb")
 PORT = 8769
 # ---------------------------------------------------------------------------
 

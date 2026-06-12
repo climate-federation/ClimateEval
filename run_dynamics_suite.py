@@ -52,7 +52,7 @@ _NC_FILES = {
     "ua_mon":   f"{_ATMOS}/Amon/ua/gn/{_V}/ua_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc",
 }
 
-DB_PATH = Path("dynamics_suite.ddb")
+DB_PATH = Path("Tier2_dynamics.ddb")
 PORT = 8768
 
 # ---------------------------------------------------------------------------
