@@ -1,6 +1,6 @@
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.AnnualCycle
-  variables: &2d_variables
+  variables: &ocean_variables
     - id: chl
       var_name: chl
       frequency: mon
@@ -10,19 +10,29 @@
         units: m
         value: 0.0
         extrapolate: true
+    - id: siconc_nh
+      var_name: siconc
+      frequency: mon
+      min_lat: 0.0
+      max_lat: 90.0
+    - id: siconc_sh
+      var_name: siconc
+      frequency: mon
+      min_lat: -90.0
+      max_lat: 0.0
 
 - name: performance_metrics
   diagnostic: climateeval.diags.simple.AnnualCycleSpatialDistribution
-  variables: *2d_variables
+  variables: *ocean_variables
 
 - name: annual_mean_timeseries
   diagnostic: climateeval.diags.simple.AnnualMeanTimeSeries
-  variables: *2d_variables
+  variables: *ocean_variables
 
 - name: map
   diagnostic: climateeval.diags.simple.Map
-  variables: *2d_variables
+  variables: *ocean_variables
 
 - name: zonal_line
   diagnostic: climateeval.diags.simple.ZonalLine
-  variables: *2d_variables
+  variables: *ocean_variables
