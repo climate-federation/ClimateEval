@@ -89,8 +89,19 @@ _DEFAULT_COLORSCALE = "RdBu_r"
 _DEFAULT_BIAS_COLORSCALE = "RdBu_r"
 
 
+_HOVMOLLER_COLORSCALE: dict[str, str] = {
+    "pr": "BrBG",    # wet (green) / dry (brown) anomaly
+    "rlut": "RdBu",  # warm (red) / cold (blue) OLR anomaly
+}
+_DEFAULT_HOVMOLLER_COLORSCALE = "RdBu_r"
+
+
 def _colorscale_for(var_id: str) -> str:
     return _VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE)
+
+
+def _hovmoller_colorscale_for(var_id: str) -> str:
+    return _HOVMOLLER_COLORSCALE.get(var_id, _DEFAULT_HOVMOLLER_COLORSCALE)
 
 
 def _bias_colorscale_for(var_id: str) -> str:

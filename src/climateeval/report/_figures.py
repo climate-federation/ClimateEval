@@ -17,6 +17,7 @@ from climateeval.report._style import (
     _SEABORN_COLORS,
     _bias_colorscale_for,
     _colorscale_for,
+    _hovmoller_colorscale_for,
 )
 
 # ---------------------------------------------------------------------------
@@ -1717,6 +1718,148 @@ def build_histogram_figures(
     return figures
 
 
+def build_hovmoller_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, go.Figure]:
+    """Hovmöller diagrams: longitude × time heatmaps of meridional-mean anomalies.
+
+    One figure per variable; one heatmap per dataset (stacked vertically).
+    x-axis = longitude, y-axis = time (newest at the bottom).
+    Colorscale is always diverging and symmetric around zero.
+    """
+    figures: dict[str, go.Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+        cs = _hovmoller_colorscale_for(var_id)
+
+        valid_datasets = [
+            ds
+            for ds in all_datasets
+            if not data_df[data_df["data_id"] == ds][var_id].isna().all()
+        ]
+        if not valid_datasets:
+            continue
+
+        def _pivot_for(dataset: str, _vid: str = var_id) -> pd.DataFrame | None:
+            sub = data_df[data_df["data_id"] == dataset].dropna(subset=[_vid])
+            try:
+                # rows = time, columns = longitude
+                p = sub.pivot_table(
+                    index="time",
+                    columns="longitude",
+                    values=_vid,
+                    aggfunc="mean",
+                )
+                p = p.dropna(how="all").dropna(axis=1, how="all")
+                p.index = p.index.astype(str).str[:10]  # YYYY-MM-DD
+            except Exception:
+                return None
+            return p if not p.empty else None
+
+        # Symmetric colour range across all datasets
+        all_vals: list[float] = []
+        for ds in valid_datasets:
+            pv = _pivot_for(ds)
+            if pv is not None:
+                v = pv.values[np.isfinite(pv.values)]
+                all_vals.extend(v.tolist())
+        if not all_vals:
+            continue
+        arr = np.array(all_vals)
+        abs_max = float(
+            max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98))))
+        )
+        if abs_max == 0:
+            abs_max = 1.0
+        zmin, zmax = -abs_max, abs_max
+
+        lon_ticks = {
+            "tickvals": [0, 60, 120, 180, 240, 300, 360],
+            "ticktext": ["0°", "60°E", "120°E", "180°", "120°W", "60°W", "360°"],
+        }
+
+        nrows = len(valid_datasets)
+        fig = make_subplots(
+            rows=nrows,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.06,
+            subplot_titles=[str(ds) for ds in valid_datasets],
+        )
+
+        for row_i, dataset in enumerate(valid_datasets, start=1):
+            pv = _pivot_for(dataset)
+            if pv is None:
+                continue
+
+            fig.add_trace(
+                go.Heatmap(
+                    x=pv.columns.tolist(),   # longitude
+                    y=pv.index.tolist(),     # time strings
+                    z=pv.values.tolist(),
+                    colorscale=cs,
+                    zmin=zmin,
+                    zmax=zmax,
+                    colorbar={
+                        "title": {"text": units or var_id, "side": "right"},
+                        "len": 1 / nrows,
+                        "y": 1 - (row_i - 0.5) / nrows,
+                        "yanchor": "middle",
+                        "thickness": 14,
+                        "tickfont": {"size": 10},
+                    },
+                    showscale=(row_i == 1),
+                    hovertemplate=(
+                        "lon: %{x:.1f}°<br>time: %{y}<br>"
+                        f"{var_id}: %{{z:.4g}} {units}<extra>{dataset}</extra>"
+                    ),
+                ),
+                row=row_i,
+                col=1,
+            )
+            fig.update_yaxes(
+                title_text="Time",
+                autorange="reversed",  # newest date at the bottom
+                **_AXIS_STYLE,
+                row=row_i,
+                col=1,
+            )
+
+        title_str = (
+            f"<b>{long_name}</b> — Hovmöller (meridional-mean anomaly)"
+            + (f"  [{units}]" if units else "")
+        )
+        panel_height = max(400, 320 * nrows)
+        fig.update_layout(
+            **_base_layout(
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
+                margin={"t": 80, "b": 60, "l": 90, "r": 90},
+                height=panel_height,
+            ),
+        )
+        fig.update_xaxes(
+            title_text="Longitude",
+            **lon_ticks,
+            **_AXIS_STYLE,
+            row=nrows,
+            col=1,
+        )
+        figures[var_id] = fig
+
+    return figures
+
+
 _FIGURE_BUILDERS = {
     "Map": build_map_figures,
     "TimeSeries": build_timeseries_figures,
@@ -1724,6 +1867,7 @@ _FIGURE_BUILDERS = {
     "DiurnalCycle": build_diurnal_cycle_figures,
     "ZonalLine": build_zonal_line_figures,
     "ZonalProfile": build_zonal_profile_figures,
+    "Hovmoller": build_hovmoller_figures,
     "Histogram": build_histogram_figures,
     "Scalar": build_bar_figures,
 }
@@ -1735,6 +1879,7 @@ _DIAG_LABELS = {
     "DiurnalCycle": "Diurnal Cycle",
     "ZonalLine": "Zonal Mean",
     "ZonalProfile": "Zonal Profile",
+    "Hovmoller": "Hovmöller",
     "Histogram": "Histogram",
     "Scalar": "Scalar",
 }
@@ -1746,6 +1891,7 @@ _DIAG_ICONS = {
     "DiurnalCycle": "🌅",
     "ZonalLine": "〰",
     "ZonalProfile": "🌡",
+    "Hovmoller": "🌊",
     "Histogram": "📊",
     "Scalar": "📊",
 }
