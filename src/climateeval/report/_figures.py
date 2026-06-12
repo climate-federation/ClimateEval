@@ -1866,16 +1866,32 @@ def build_hovmoller_figures(
             ],
         }
 
-        # Layout args for each orientation
-        lon_x_layout: dict[str, Any] = {}
-        time_x_layout: dict[str, Any] = {}
+        # Layout args for each (orientation × longitude-direction) combination.
+        # Each button is fully self-contained so no client-side state is needed.
+        lon_x_layout_we: dict[str, Any] = {}   # Lon × Time, W → E (default)
+        lon_x_layout_ew: dict[str, Any] = {}   # Lon × Time, E → W
+        time_x_layout_we: dict[str, Any] = {}  # Time × Lon, W → E
+        time_x_layout_ew: dict[str, Any] = {}  # Time × Lon, E → W
         for i in range(nrows):
             xa, ya = _ax("xaxis", i), _ax("yaxis", i)
-            lon_x_layout[xa] = {"title": {"text": "Longitude"}, **lon_ticks, **_AXIS_STYLE}
-            lon_x_layout[ya] = {"title": {"text": "Time"}, "autorange": "reversed", **_AXIS_STYLE}
-            time_x_layout[xa] = {"title": {"text": "Time"}, "autorange": True, **_AXIS_STYLE}
-            time_x_layout[ya] = {"title": {"text": "Longitude"}, **lon_ticks, **_AXIS_STYLE}
+            _lon_we  = {"title": {"text": "Longitude"}, **lon_ticks, **_AXIS_STYLE}
+            _lon_ew  = {"title": {"text": "Longitude"}, "autorange": "reversed", **lon_ticks, **_AXIS_STYLE}
+            _time_rv = {"title": {"text": "Time"}, "autorange": "reversed", **_AXIS_STYLE}
+            _time_fw = {"title": {"text": "Time"}, "autorange": True, **_AXIS_STYLE}
+            lon_x_layout_we[xa]  = _lon_we;  lon_x_layout_we[ya]  = _time_rv
+            lon_x_layout_ew[xa]  = _lon_ew;  lon_x_layout_ew[ya]  = _time_rv
+            time_x_layout_we[xa] = _time_fw; time_x_layout_we[ya] = _lon_we
+            time_x_layout_ew[xa] = _time_fw; time_x_layout_ew[ya] = _lon_ew
 
+        _btn_style = {
+            "type": "buttons",
+            "direction": "left",
+            "pad": {"t": 8, "b": 4},
+            "bgcolor": "#eef3fa",
+            "bordercolor": "#aab8cc",
+            "borderwidth": 1,
+            "font": {"size": 11, "color": "#1e2535"},
+        }
         title_str = (
             f"<b>{long_name}</b> — Hovmöller (meridional-mean anomaly)"
             + (f"  [{units}]" if units else "")
@@ -1884,34 +1900,33 @@ def build_hovmoller_figures(
         fig.update_layout(
             **_base_layout(
                 title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
-                margin={"t": 100, "b": 60, "l": 90, "r": 90},
+                margin={"t": 110, "b": 60, "l": 90, "r": 90},
                 height=panel_height,
             ),
-            updatemenus=[{
-                "type": "buttons",
-                "direction": "left",
-                "x": 0.0,
-                "xanchor": "left",
-                "y": 1.0,
-                "yanchor": "bottom",
-                "pad": {"t": 8, "b": 4},
-                "bgcolor": "#eef3fa",
-                "bordercolor": "#aab8cc",
-                "borderwidth": 1,
-                "font": {"size": 11, "color": "#1e2535"},
-                "buttons": [
-                    {
-                        "label": " Lon × Time ",
-                        "method": "update",
-                        "args": [lon_x_trace, lon_x_layout],
-                    },
-                    {
-                        "label": " Time × Lon ",
-                        "method": "update",
-                        "args": [time_x_trace, time_x_layout],
-                    },
-                ],
-            }],
+            updatemenus=[
+                {
+                    **_btn_style,
+                    "x": 0.0, "xanchor": "left",
+                    "y": 1.0, "yanchor": "bottom",
+                    "buttons": [
+                        {"label": " Lon × Time ", "method": "update",
+                         "args": [lon_x_trace, lon_x_layout_we]},
+                        {"label": " Lon × Time  E→W ", "method": "update",
+                         "args": [lon_x_trace, lon_x_layout_ew]},
+                    ],
+                },
+                {
+                    **_btn_style,
+                    "x": 0.55, "xanchor": "left",
+                    "y": 1.0, "yanchor": "bottom",
+                    "buttons": [
+                        {"label": " Time × Lon ", "method": "update",
+                         "args": [time_x_trace, time_x_layout_we]},
+                        {"label": " Time × Lon  E→W ", "method": "update",
+                         "args": [time_x_trace, time_x_layout_ew]},
+                    ],
+                },
+            ],
         )
         figures[var_id] = fig
 
