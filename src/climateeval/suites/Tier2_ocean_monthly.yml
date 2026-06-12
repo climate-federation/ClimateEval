@@ -15,11 +15,13 @@
       frequency: mon
       min_lat: 0.0
       max_lat: 90.0
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: siconc_sh
       var_name: siconc
       frequency: mon
       min_lat: -90.0
       max_lat: 0.0
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
 
 - name: performance_metrics
   diagnostic: climateeval.diags.simple.AnnualCycleSpatialDistribution

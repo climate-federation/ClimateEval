@@ -85,8 +85,9 @@ def main() -> None:
     suite = Suite(
         "Tier2_sea_ice_monthly",
         diagnostic_kwargs={
+            "data_root_dir": Path("/work/bd1179/b309141/climateeval_input"),
             "fail_on_missing_data": False,
-            "calculate_metrics": False,
+            "download_missing_data": False,
         },
     )
 

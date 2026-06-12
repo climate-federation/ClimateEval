@@ -140,8 +140,9 @@ def main() -> None:
         dynamics_cubes,
         skip_existing=args.skip_existing,
         diagnostic_kwargs={
+            "data_root_dir": DATA_ROOT,
             "fail_on_missing_data": False,
-            "calculate_metrics": False,
+            "download_missing_data": False,
         },
     )
 

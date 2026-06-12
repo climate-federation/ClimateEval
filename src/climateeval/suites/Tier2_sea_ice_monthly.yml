@@ -4,6 +4,7 @@
 # NH/SH separation is achieved by restricting the latitude range.
 # No observational reference data is included yet;
 # TODO: add ESA CCI Sea Ice or NSIDC Bootstrap when implemented in ClimateEval.
+# Other: one additional CMIP6 historical model for model-to-model comparison.
 
 - name: AnnualCycle
   diagnostic: climateeval.diags.simple.AnnualCycle
@@ -13,11 +14,13 @@
       frequency: mon
       min_lat: 0.0
       max_lat: 90.0
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: siconc_sh
       var_name: siconc
       frequency: mon
       min_lat: -90.0
       max_lat: 0.0
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
 
 - name: AnnualCycleSpatialDistribution
   diagnostic: climateeval.diags.simple.AnnualCycleSpatialDistribution

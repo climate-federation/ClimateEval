@@ -8,6 +8,7 @@
 # QBO: equatorial zonal-mean zonal wind (ua) on a pressure × time diagram
 #   for the stratospheric levels 100–1 hPa.  Requires ≥5 years of monthly data;
 #   longer records reveal more QBO cycles (period ≈ 28 months).
+#   Reference: ERA5 monthly ua.  Other: one additional CMIP6 historical model.
 
 - name: Hovmoller
   diagnostic: climateeval.diags.simple.Hovmoller
@@ -20,14 +21,17 @@
       var_name: pr
       frequency: day
       timerange: "20000101/20021231"
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: rlut
       var_name: rlut
       frequency: day
       timerange: "20000101/20021231"
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: tos
       var_name: tos
       frequency: day
       timerange: "20000101/20021231"
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
 
 - name: QBO
   diagnostic: climateeval.diags.simple.QBO
@@ -36,3 +40,5 @@
       var_name: ua
       frequency: mon
       timerange: "19900101/20091231"
+      reference_data: climateeval.data.ERA5Monthly
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]

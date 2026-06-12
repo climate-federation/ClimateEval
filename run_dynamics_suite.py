@@ -95,8 +95,9 @@ def main() -> None:
     suite = Suite(
         "Tier2_dynamics",
         diagnostic_kwargs={
-            "fail_on_missing_data": False,   # skip missing variables gracefully
-            "calculate_metrics": False,      # no reference data in this suite
+            "data_root_dir": Path("/work/bd1179/b309141/climateeval_input"),
+            "fail_on_missing_data": False,
+            "download_missing_data": False,
         },
     )
 
