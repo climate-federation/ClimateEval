@@ -232,6 +232,8 @@ class Variable:
             return f"O{self.frequency}"
         if self.realm == "land" and self.frequency == "mon":
             return "Lmon"
+        if self.realm == "sea_ice" and self.frequency in ("day", "fx", "mon", "yr"):
+            return f"SI{self.frequency}"
         msg = (
             f"Cannot determine CMIP6 table ID of {self}, this might be a problem "
             f"for some data sources"

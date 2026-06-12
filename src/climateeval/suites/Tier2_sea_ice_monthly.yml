@@ -1,0 +1,36 @@
+# Tier2_sea_ice_monthly.yml
+# Monthly sea-ice concentration (siconc) for Northern and Southern Hemisphere.
+#
+# NH/SH separation is achieved by restricting the latitude range.
+# No observational reference data is included yet;
+# TODO: add ESA CCI Sea Ice or NSIDC Bootstrap when implemented in ClimateEval.
+
+- name: AnnualCycle
+  diagnostic: climateeval.diags.simple.AnnualCycle
+  variables: &sea_ice_variables
+    - id: siconc_nh
+      var_name: siconc
+      frequency: mon
+      min_lat: 0.0
+      max_lat: 90.0
+    - id: siconc_sh
+      var_name: siconc
+      frequency: mon
+      min_lat: -90.0
+      max_lat: 0.0
+
+- name: AnnualCycleSpatialDistribution
+  diagnostic: climateeval.diags.simple.AnnualCycleSpatialDistribution
+  variables: *sea_ice_variables
+
+- name: AnnualMeanTimeSeries
+  diagnostic: climateeval.diags.simple.AnnualMeanTimeSeries
+  variables: *sea_ice_variables
+
+- name: Map
+  diagnostic: climateeval.diags.simple.Map
+  variables: *sea_ice_variables
+
+- name: ZonalLine
+  diagnostic: climateeval.diags.simple.ZonalLine
+  variables: *sea_ice_variables
