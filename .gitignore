@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Database files
+*.ddb
+
 # Distribution / packaging
 .Python
 build/
@@ -31,6 +34,12 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+
+# SLURM job files
+*.slurm
+*.sbatch    
+*.err
+*.out
 
 # Installer logs
 pip-log.txt
