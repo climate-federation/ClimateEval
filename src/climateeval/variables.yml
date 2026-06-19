@@ -204,6 +204,12 @@ so:
   realm: ocean
   standard_name: sea_water_salinity
   units: "1E-03"
+mlotst:
+  coordinates: [time, lat, lon]
+  long_name: Ocean Mixed Layer Thickness Defined by Sigma T
+  realm: ocean
+  standard_name: ocean_mixed_layer_thickness_defined_by_sigma_t
+  units: m
 phcint:
   coordinates: [time, olevel, lat, lon]
   long_name: Integrated Ocean Heat Content from Potential Temperature

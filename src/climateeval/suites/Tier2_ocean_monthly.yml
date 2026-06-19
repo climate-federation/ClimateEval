@@ -1,7 +1,9 @@
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.AnnualCycle
-  variables: &2d_variables
-    - id: chl
+  variables:
+    # Sea surface chlorophyll (surface level of 3-D chl field)
+    - &chl
+      id: chl
       var_name: chl
       frequency: mon
       reference_data: climateeval.data.ESACCIOC
@@ -10,19 +12,82 @@
         units: m
         value: 0.0
         extrapolate: true
+    # Mixed layer depth annual cycles for selected deep-convection regions.
+    # Reference ORAS5 is read via ESMValCore's native6 on-the-fly CMORizer
+    # (needs the ORAS5 fix from ESMValCore PR #2422, not in <=2.14) and requires
+    # the raw data + grid files to be staged (see climateeval.data.ORAS5).
+    # ORAS5 is on an irregular grid, so it is regridded to 2x2 with an
+    # area-weighted scheme before the (linear-regridding) diagnostic runs.
+    - &mlotst_regrid
+      id: mlotst_labrador_sea
+      var_name: mlotst
+      frequency: mon
+      min_lat: 46.0
+      max_lat: 66.0
+      min_lon: 293.0
+      max_lon: 318.0
+      reference_data: climateeval.data.ORAS5
+      # Regrid the irregular ORAS5 grid to 2x2 (area-weighted) and only then
+      # mask land (mask_landsea does not support irregular grids).
+      additional_preprocessors:
+        esmvalcore.preprocessor.regrid:
+          target_grid: 2x2
+          scheme: area_weighted
+        esmvalcore.preprocessor.mask_landsea:
+          mask_out: land
+    - <<: *mlotst_regrid
+      id: mlotst_weddell_sea
+      min_lat: -77.0
+      max_lat: -60.0
+      min_lon: 294.0
+      max_lon: 344.0
+    - <<: *mlotst_regrid
+      id: mlotst_southern_ocean
+      min_lat: -90.0
+      max_lat: 90.0
+      min_lon: 0.0
+      max_lon: 360.0
+      ar6_regions_mask: [Southern-Ocean]
 
 - name: performance_metrics
   diagnostic: climateeval.diags.simple.AnnualCycleSpatialDistribution
-  variables: *2d_variables
+  variables:
+    - *chl
 
 - name: annual_mean_timeseries
   diagnostic: climateeval.diags.simple.AnnualMeanTimeSeries
-  variables: *2d_variables
+  variables:
+    - *chl
+    # Sea surface temperature
+    - &tos
+      id: tos
+      var_name: tos
+      frequency: mon
+      reference_data: climateeval.data.ESACCISST
+      other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
 
 - name: map
   diagnostic: climateeval.diags.simple.Map
-  variables: *2d_variables
+  variables:
+    - *chl
+    - *tos
+    # Sea surface salinity (surface level of 3-D so field, g/kg over ocean)
+    - &sos
+      id: sos
+      var_name: so
+      frequency: mon
+      units: g kg-1
+      landsea_mask: sea_only
+      vertical_level:
+        coordinate_name: depth
+        units: m
+        value: 0.0
+        extrapolate: true
+      reference_data: climateeval.data.WOA
 
 - name: zonal_line
   diagnostic: climateeval.diags.simple.ZonalLine
-  variables: *2d_variables
+  variables:
+    - *chl
+    - *tos
+    - *sos
