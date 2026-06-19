@@ -65,6 +65,16 @@
       reference_data: climateeval.data.ESACCISST
       other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
 
+- name: nino34
+  diagnostic: climateeval.diags.simple.Nino34
+  variables:
+    # Oceanic Nino Index: SST anomalies over the Nino 3.4 region.
+    - id: tos_nino34
+      var_name: tos
+      frequency: mon
+      reference_data: climateeval.data.ESACCISST
+      other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
+
 - name: map
   diagnostic: climateeval.diags.simple.Map
   variables:
