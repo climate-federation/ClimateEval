@@ -13,11 +13,10 @@
         value: 0.0
         extrapolate: true
     # Mixed layer depth annual cycles for selected deep-convection regions.
-    # Reference ORAS5 is read via ESMValCore's native6 on-the-fly CMORizer
-    # (needs the ORAS5 fix from ESMValCore PR #2422, not in <=2.14) and requires
-    # the raw data + grid files to be staged (see climateeval.data.ORAS5).
-    # ORAS5 is on an irregular grid, so it is regridded to 2x2 with an
-    # area-weighted scheme before the (linear-regridding) diagnostic runs.
+    # Reference ORAS5 is read directly from the raw NEMO + grid files (see
+    # climateeval.data.ORAS5), which must be staged manually. ORAS5 is on an
+    # irregular grid, so it is regridded to 2x2 with an area-weighted scheme
+    # (then land is masked) before the (linear-regridding) diagnostic runs.
     - &mlotst_regrid
       id: mlotst_labrador_sea
       var_name: mlotst
