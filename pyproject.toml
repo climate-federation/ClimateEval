@@ -34,6 +34,7 @@ dependencies = [
     "ncdata",
     "numpy",
     "pandas>=3",
+    "plotly",  # required by climateeval.report
     "pyyaml",
     "scitools-iris",
     "tzdata",  # required by ibis-framework
@@ -177,6 +178,16 @@ future-annotations = true
 "*example.py" = [
     "ERA001",     # Found commented-out code
     "T201",       # `print` found
+]
+# The report module is grafted from the `ap/webserver_html` branch and is
+# maintained/linted there; relax style rules for it here so it can be used
+# unchanged.
+"src/climateeval/report/*.py" = [
+    "ARG001", "B007", "B023", "B905", "BLE001", "C408", "C901", "COM812",
+    "E501", "E702", "ERA001", "FBT001", "I001", "PD010", "PD011", "PD101",
+    "PERF401", "PLC0415", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+    "PLR2004", "PLW0603", "PLW2901", "RUF001", "RUF002", "RUF003", "RUF100",
+    "S110", "S112", "T201",
 ]
 "tests/**.py" = [
     "ARG001",     # Unused function arguments
