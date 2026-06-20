@@ -19,10 +19,12 @@ from esmvalcore.preprocessor import (
     axis_statistics,
     convert_units,
     regrid,
+    regrid_time,
 )
 
 from climateeval import Coordinate
 from climateeval._config import setup_esmvaltool_config_and_logging
+from climateeval._variable import COORDINATES
 from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.simple._base import SimpleDiagnostic
 
@@ -71,4 +73,12 @@ class OceanHeatContentTimeSeries(SimpleDiagnostic):
             cube = annual_statistics(cube, "mean")
             cube = anomalies(cube, period="full", reference=self._anomaly_reference)
             cube = convert_units(cube, self._units)
+            # Standardize the time coordinate so model and reference align when
+            # computing metrics.
+            cube = regrid_time(
+                cube,
+                frequency="yr",
+                calendar="standard",
+                units=COORDINATES["time"]["units"],
+            )
         return cube  # noqa: RET504
