@@ -173,7 +173,65 @@ class ORAS5(DataSource):
         return grid_dir / f"oras5_mesh_{grid}.nc"
 
     def _get_raw_files(self, variable: Variable) -> list[Path]:
-        """Get the raw ORAS5 input files for a variable (matched by raw name)."""
+        """Get the raw ORAS5 input files for a variable (matched by raw name).
+
+        The raw archive holds one file per month for the full ORAS5 period. We
+        restrict the files to the variable's ``timerange`` before loading, since
+        loading and concatenating the whole archive is prohibitively expensive
+        in time and memory.
+        """
         raw_name = self._RAW_VARIABLE_INFO[variable.var_name][0]
         raw_dir = Path(os.environ.get(self._RAW_DIR_ENV, self._DEFAULT_RAW_DIR))
-        return sorted(raw_dir.glob(f"{raw_name}_*.nc"))
+        files = sorted(raw_dir.glob(f"{raw_name}_*.nc"))
+        return self._filter_files_by_timerange(files, variable.timerange)
+
+    @staticmethod
+    def _file_year_month(path: Path) -> int | None:
+        """Extract the ``YYYYMM`` stamp from a raw ORAS5 file name.
+
+        Raw files are named e.g. ``somxl010_control_monthly_highres_2D_200001
+        _CONS_v0.1.nc``; the only six-digit numeric token is the year-month.
+        """
+        for token in path.stem.split("_"):
+            if len(token) == 6 and token.isdigit():  # noqa: PLR2004
+                return int(token)
+        return None
+
+    @staticmethod
+    def _parse_timerange_bound(part: str, *, is_start: bool) -> int | None:
+        """Convert one side of a ``timerange`` into a ``YYYYMM`` bound.
+
+        Returns ``None`` for an open bound (``*`` or no digits). Year-only
+        bounds expand to January (start) or December (end).
+        """
+        digits = "".join(c for c in part if c.isdigit())
+        if len(digits) >= 6:  # noqa: PLR2004
+            return int(digits[:6])
+        if len(digits) >= 4:  # noqa: PLR2004
+            return int(digits[:4]) * 100 + (1 if is_start else 12)
+        return None
+
+    def _filter_files_by_timerange(
+        self,
+        files: list[Path],
+        timerange: str,
+    ) -> list[Path]:
+        """Keep only raw files whose year-month falls within ``timerange``."""
+        if not timerange or timerange == "*":
+            return files
+        parts = timerange.split("/")
+        start_ym = self._parse_timerange_bound(parts[0], is_start=True)
+        end_ym = self._parse_timerange_bound(parts[-1], is_start=False)
+
+        selected: list[Path] = []
+        for file in files:
+            year_month = self._file_year_month(file)
+            if year_month is None:  # cannot determine; keep to be safe
+                selected.append(file)
+                continue
+            if start_ym is not None and year_month < start_ym:
+                continue
+            if end_ym is not None and year_month > end_ym:
+                continue
+            selected.append(file)
+        return selected

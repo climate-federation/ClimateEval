@@ -80,13 +80,15 @@
   variables:
     - *chl
     - *tos
-    # Sea surface salinity (surface level of 3-D so field, g/kg over ocean)
+    # Sea surface salinity (surface level of 3-D so field, g/kg over ocean).
+    # `so` is only defined over the ocean, and `mask_landsea` (sea_only) does
+    # not support the curvilinear ocean grids many models use, so no land-sea
+    # mask is applied here.
     - &sos
       id: sos
       var_name: so
       frequency: mon
       units: g kg-1
-      landsea_mask: sea_only
       vertical_level:
         coordinate_name: depth
         units: m
