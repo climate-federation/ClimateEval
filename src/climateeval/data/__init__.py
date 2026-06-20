@@ -29,6 +29,7 @@ from climateeval.data._noaa_ersstv5 import NOAAERSSTv5
 from climateeval.data._nsidc_g02202_sh import NSIDCG02202SH
 from climateeval.data._oras5 import ORAS5
 from climateeval.data._osi450 import OSI450NH, OSI450SH
+from climateeval.data._rapid import RAPID
 from climateeval.data._utils import DataSourceInformation
 from climateeval.data._woa import WOA
 
@@ -44,6 +45,7 @@ __all__ = [
     "ORAS5",
     "OSI450NH",
     "OSI450SH",
+    "RAPID",
     "WOA",
     "CMIP6Abrupt4xCO2R1I1P1F1",
     "CMIP6DataSourceGenerator",
