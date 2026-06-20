@@ -210,8 +210,23 @@ mlotst:
   realm: ocean
   standard_name: ocean_mixed_layer_thickness_defined_by_sigma_t
   units: m
+# msftmz/msftyz are inputs for the derived `amoc` variable (CMIP6 provides one
+# or the other depending on the model's ocean grid).
+msftmz:
+  coordinates: [time, basin, olevel, lat]
+  long_name: Ocean Meridional Overturning Mass Streamfunction
+  realm: ocean
+  standard_name: ocean_meridional_overturning_mass_streamfunction
+  units: kg s-1
+msftyz:
+  coordinates: [time, basin, olevel, lat]
+  long_name: Ocean Y Overturning Mass Streamfunction
+  realm: ocean
+  standard_name: ocean_y_overturning_mass_streamfunction
+  units: kg s-1
 phcint:
   coordinates: [time, olevel, lat, lon]
+  derived: true
   long_name: Integrated Ocean Heat Content from Potential Temperature
   realm: ocean
   standard_name: integral_wrt_depth_of_sea_water_potential_temperature_expressed_as_heat_content

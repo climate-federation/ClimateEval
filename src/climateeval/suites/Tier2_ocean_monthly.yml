@@ -75,6 +75,44 @@
       reference_data: climateeval.data.ESACCISST
       other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
 
+- name: amoc
+  diagnostic: climateeval.diags.simple.AMOCTimeSeries
+  variables:
+    # AMOC at the RAPID array (26.5N). Derived (by ESMValTool) from the
+    # meridional overturning mass streamfunction (msftmz/msftyz). The RAPID
+    # observational reference needs a dedicated loader and is not set yet.
+    - id: amoc
+      var_name: amoc
+      frequency: mon
+
+- name: ohc
+  diagnostic: climateeval.diags.simple.OceanHeatContentTimeSeries
+  variables:
+    # Global ocean heat content anomaly, derived from potential temperature
+    # (phcint). Anomalies are relative to the diagnostic's fixed reference
+    # period, so the input data must cover it. EN4/IAP provide the reference
+    # potential temperature from which phcint is derived.
+    - &ohc
+      id: phcint_total
+      var_name: phcint
+      frequency: mon
+      reference_data: climateeval.data.EN4
+      other_data: [climateeval.data.IAP]
+    - <<: *ohc
+      id: phcint_300m
+      additional_preprocessors:
+        esmvalcore.preprocessor.extract_volume:
+          z_min: 0.0
+          z_max: 300.0
+          interval_bounds: left_closed
+    - <<: *ohc
+      id: phcint_2000m
+      additional_preprocessors:
+        esmvalcore.preprocessor.extract_volume:
+          z_min: 0.0
+          z_max: 2000.0
+          interval_bounds: left_closed
+
 - name: map
   diagnostic: climateeval.diags.simple.Map
   variables:

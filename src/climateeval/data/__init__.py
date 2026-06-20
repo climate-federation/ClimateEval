@@ -10,6 +10,7 @@ from climateeval.data._cmip6_generators import (
     CMIP6HistoricalR1I1P1F1,
     CMIP6PiControlR1I1P1F1,
 )
+from climateeval.data._en4 import EN4
 from climateeval.data._era5 import ERA5Hourly, ERA5Monthly
 from climateeval.data._esacci_cloud import ESACCICloud
 from climateeval.data._esacci_oc import ESACCIOC
@@ -22,6 +23,7 @@ from climateeval.data._esmvaltool_intake import (
 from climateeval.data._gpcp import GPCP
 from climateeval.data._hadcrut5 import HadCRUT5
 from climateeval.data._hadisst import HadISST
+from climateeval.data._iap import IAP
 from climateeval.data._merra2 import MERRA2
 from climateeval.data._noaa_ersstv5 import NOAAERSSTv5
 from climateeval.data._nsidc_g02202_sh import NSIDCG02202SH
@@ -32,9 +34,11 @@ from climateeval.data._woa import WOA
 
 __all__ = [
     "CERESEBAF",
+    "EN4",
     "ESACCIOC",
     "ESACCISST",
     "GPCP",
+    "IAP",
     "MERRA2",
     "NSIDCG02202SH",
     "ORAS5",
