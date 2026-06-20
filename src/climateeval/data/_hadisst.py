@@ -16,4 +16,4 @@ class HadISST(ESMValToolCMORizerDataSource):
         references=("https://doi.org/10.1029/2002JD002670",),
     )
 
-    _supported_var_names = ("tos",)
+    _supported_var_names = ("tos", "siconc")

@@ -18,6 +18,10 @@ from climateeval.diags.simple._diurnal_cycle import DiurnalCycle
 from climateeval.diags.simple._histogram import Histogram
 from climateeval.diags.simple._map import Map
 from climateeval.diags.simple._nino34 import Nino34
+from climateeval.diags.simple._sea_ice import (
+    SeaIceAreaAnnualCycle,
+    SeaIceAreaTimeSeries,
+)
 from climateeval.diags.simple._timeseries import (
     AnnualMeanTimeSeries,
     MeanTimeSeries,
@@ -36,6 +40,8 @@ __all__ = [
     "Map",
     "MeanTimeSeries",
     "Nino34",
+    "SeaIceAreaAnnualCycle",
+    "SeaIceAreaTimeSeries",
     "SimpleDiagnostic",
     "SimpleDiagnosticInputData",
     "TimeSeriesNoPreprocessing",
