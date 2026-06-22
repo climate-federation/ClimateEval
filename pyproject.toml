@@ -178,6 +178,12 @@ future-annotations = true
     "ERA001",     # Found commented-out code
     "T201",       # `print` found
 ]
+# Standalone example runners (not part of the importable package).
+"examples/**.py" = [
+    "ERA001",     # Found commented-out code
+    "INP001",     # File is part of an implicit namespace package
+    "T201",       # `print` found
+]
 "tests/**.py" = [
     "ARG001",     # Unused function arguments
     "D100",       # Missing docstring in public module
