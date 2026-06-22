@@ -6,16 +6,19 @@ model, edit the ``MODEL`` block below (the data directory and the
 
     python run_ocean_diagnostics.py
 
-It produces three result databases (``seaice.ddb``, ``ocean_ohc.ddb``,
-``ocean_sst.ddb``) and a single self-contained ``report.html``.
+It produces four result databases (``seaice.ddb``, ``ocean_ohc.ddb``,
+``ocean_sst.ddb``, ``ocean_amoc.ddb``) and a single self-contained
+``report.html``.
 
-Three separate runs are used because ClimateEval applies one time range to all
-datasets, and each observational reference covers a different period:
+Separate runs are used because ClimateEval applies one time range to all
+datasets, and each observational reference covers a different period (a
+reference that does not cover the requested start year is dropped):
 
 * sea ice (1997-2009): OSI-450, HadISST, NSIDC-G02202
 * ocean heat content (1979-1989): EN4, IAP (covers the 1979-1988 OHC baseline)
-* SST / salinity / chlorophyll / AMOC (1997-2009): ESACCI-SST, NOAA-ERSSTv5,
-  HadISST, WOA, ESACCI-OC, RAPID (AMOC, via the 2004-2009 overlap)
+* SST / salinity / chlorophyll (1997-2009): ESACCI-SST, NOAA-ERSSTv5, HadISST,
+  WOA, ESACCI-OC
+* AMOC (2004-2014): RAPID (which only starts in 2004, hence its own window)
 
 See README.md for the full setup (installing, staging the references, env vars).
 """
@@ -30,7 +33,6 @@ import iris
 from iris.util import equalise_attributes, unify_time_units
 
 from climateeval.data import DataSourceInformation
-from climateeval.report import generate_portable_html
 from climateeval.suites import Suite
 
 # ---------------------------------------------------------------------------
@@ -70,8 +72,9 @@ MODEL_INFO = DataSourceInformation(
 )
 
 # ---------------------------------------------------------------------------
-# The three runs (suite, [(variable, MIP table)], timerange, output database).
-# The variables must all exist for the chosen variant.
+# The runs (suite, [(variable, MIP table)], timerange, output database).
+# The variables must all exist for the chosen variant. AMOC gets its own run
+# because its reference (RAPID) only starts in 2004.
 # ---------------------------------------------------------------------------
 RUNS = (
     (
@@ -92,11 +95,16 @@ RUNS = (
             ("chl", "Omon"),
             ("tos", "Omon"),
             ("so", "Omon"),
-            ("msftmz", "Omon"),
             ("mlotst", "Omon"),
         ),
         "19970101/20091231",
         "ocean_sst.ddb",
+    ),
+    (
+        "Tier2_ocean_monthly",
+        (("msftmz", "Omon"),),
+        "20040101/20141231",
+        "ocean_amoc.ddb",
     ),
 )
 
@@ -143,19 +151,28 @@ def run(suite_name: str, variables: tuple, timerange: str, db: str) -> Path:
     return db_path
 
 
+def build_report(db_paths: list[Path]) -> None:
+    """Build the HTML report if the (optional) report module is available."""
+    try:
+        from climateeval.report import generate_portable_html  # noqa: PLC0415
+    except ImportError:
+        print(
+            "climateeval.report is not installed (it lives on the "
+            "'kd/ocean-diag-report' branch); skipping the HTML report. "
+            f"Result databases are in {RESULTS_DIR}.",
+        )
+        return
+    html = generate_portable_html(db_paths, offline=True, model_name=MODEL_INFO.name)
+    report = RESULTS_DIR / "report.html"
+    report.write_text(html)
+    print(f"WROTE {report}  (open in a browser)")
+
+
 def main() -> None:
     """Run every suite and build the HTML report."""
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     db_paths = [run(*spec) for spec in RUNS]
-
-    html = generate_portable_html(
-        db_paths,
-        offline=True,
-        model_name=MODEL_INFO.name,
-    )
-    report = RESULTS_DIR / "report.html"
-    report.write_text(html)
-    print(f"WROTE {report}  (open in a browser)")
+    build_report(db_paths)
 
 
 if __name__ == "__main__":
