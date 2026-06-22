@@ -27,6 +27,7 @@ import warnings
 from pathlib import Path
 
 import iris
+from iris.util import equalise_attributes, unify_time_units
 
 from climateeval.data import DataSourceInformation
 from climateeval.report import generate_portable_html
@@ -117,6 +118,14 @@ def run(suite_name: str, variables: tuple, timerange: str, db: str) -> Path:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         cubes = iris.load(paths)
+        # CMIP6 output is split into per-decade files: concatenate the time
+        # chunks back into one cube per variable (the per-file global
+        # attributes and time units must be reconciled first, otherwise the
+        # chunks stay separate and the single-cube extraction would reject
+        # them).
+        equalise_attributes(cubes)
+        unify_time_units(cubes)
+        cubes = cubes.concatenate()
 
     db_path = RESULTS_DIR / db
     if db_path.is_file():
