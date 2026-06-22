@@ -66,18 +66,48 @@ export CLIMATEEVAL_RESULTS_DIR=~/ocean_results
 python run_ocean_diagnostics.py
 ```
 
-This writes three databases and the report into `CLIMATEEVAL_RESULTS_DIR`:
+This writes four databases and the report into `CLIMATEEVAL_RESULTS_DIR`:
 
 ```
 seaice.ddb
 ocean_ohc.ddb
 ocean_sst.ddb
+ocean_amoc.ddb
 report.html      # self-contained — open in any browser
 ```
+
+The runs use different time ranges on purpose: ClimateEval applies one time
+range to every dataset, and each reference covers a different period, so the
+ranges are chosen so each reference overlaps the model (a reference that does
+not cover the requested start year is dropped). AMOC gets its own run because
+its reference, RAPID, only starts in 2004.
 
 The diagnostics regrid and preprocess on the fly, so a full run uses a fair
 amount of memory. On Levante, submit it to the **compute** partition (an
 exclusive node) rather than a login node — see `run.slurm` for a template.
+
+## Generating the report
+
+`run_ocean_diagnostics.py` builds `report.html` automatically at the end, by
+calling `climateeval.report.generate_portable_html()` on the result databases.
+
+That requires the **`climateeval.report`** module, which currently lives on the
+`kd/ocean-diag-report` branch. On a checkout without it the diagnostics still
+run and write the `.ddb` files — only the HTML step is skipped (with a note).
+
+To (re)build the report from existing databases without re-running the
+diagnostics:
+
+```python
+from pathlib import Path
+from climateeval.report import generate_portable_html
+
+results = Path("~/ocean_results").expanduser()
+dbs = [results / f for f in ("seaice.ddb", "ocean_ohc.ddb",
+                             "ocean_sst.ddb", "ocean_amoc.ddb")]
+html = generate_portable_html(dbs, offline=True, model_name="MPI-ESM1-2-LR")
+(results / "report.html").write_text(html)
+```
 
 ## 4. Evaluate a different model
 
@@ -98,9 +128,6 @@ step 3 — staging and references stay the same.
 
 ### Notes
 
-- The three runs use different time ranges on purpose: ClimateEval applies one
-  time range to every dataset, and each reference covers a different period, so
-  the ranges are chosen so each reference overlaps the model.
 - AMOC derivation accepts either `msftmz` or `msftyz` (both optional inputs).
 - Missing references are skipped, not fatal (`fail_on_missing_data=False`), so a
   partial setup still produces a report for whatever is available.
