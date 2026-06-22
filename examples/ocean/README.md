@@ -20,7 +20,7 @@ references are already available (no downloads needed).
 Follow the main [README](../../README.md). In short:
 
 ```bash
-git clone https://github.com/EyringMLClimateGroup/ClimateEval.git
+git clone https://github.com/climate-federation/ClimateEval.git
 cd ClimateEval
 pixi install
 ```
