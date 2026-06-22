@@ -179,6 +179,12 @@ future-annotations = true
     "ERA001",     # Found commented-out code
     "T201",       # `print` found
 ]
+# Standalone example runners (not part of the importable package).
+"examples/**.py" = [
+    "ERA001",     # Found commented-out code
+    "INP001",     # File is part of an implicit namespace package
+    "T201",       # `print` found
+]
 # The report module is grafted from the `ap/webserver_html` branch and is
 # maintained/linted there; relax style rules for it here so it can be used
 # unchanged.

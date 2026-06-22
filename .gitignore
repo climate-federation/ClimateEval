@@ -37,8 +37,10 @@ MANIFEST
 
 # SLURM job files
 *.slurm
-*.sbatch    
+*.sbatch
 *.err
+# ...but keep the committed example submission template
+!examples/ocean/run.slurm
 *.out
 
 # Installer logs
