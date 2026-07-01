@@ -59,13 +59,16 @@ DATA_ROOT = Path("/work/bd1179/b309141/climateeval_input")
 OUTDIR = Path(__file__).resolve().parent.parent / "showcase_output"
 PORT = 8771
 
-# One time range per tier. Monthly tiers use a long window for a good
-# climatology; the daily/sub-daily tiers use shorter windows to bound the data
-# volume (they still cover enough cycles for the diagnostics).
-MON_RANGE = "19790101/20141231"
+# One time range per tier. ClimateEval drops any reference that does not cover
+# the requested start year, so the monthly window starts in 2001 -- after the
+# latest-starting atmosphere reference (CERES-EBAF begins in 2000) -- so ERA5/
+# obs comparisons and metrics are actually produced. (A few later references,
+# e.g. RAPID/AMOC from 2004, may still be dropped; narrow the window per tier if
+# you need them.) The daily/sub-daily tiers use shorter windows to bound volume.
+MON_RANGE = "20010101/20141231"
 DYN_RANGE = "20050101/20141231"
 SUB_RANGE = "20130101/20141231"
-_MON_YEARS = (1979, 2014)
+_MON_YEARS = (2001, 2014)
 _DYN_YEARS = (2005, 2014)
 _SUB_YEARS = (2013, 2014)
 _ECS_YEARS = (1850, 2009)  # ~150 yr of abrupt-4xCO2 / piControl for the Gregory fit
