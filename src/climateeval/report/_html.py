@@ -18,7 +18,7 @@ from climateeval.report._leaderboard import (
     build_leaderboard_data,
     build_scoreboard_figure,
 )
-from climateeval.report._style import _CSS, _JS
+from climateeval.report._style import _CSS, _JS, _tier_accent
 
 if TYPE_CHECKING:
     import plotly.graph_objects as go
@@ -513,10 +513,11 @@ def generate_portable_html(
         "<div class='sidebar-section-label'>Tiers</div>"
     )
     for tier_id, label, *_ in tiers:
+        accent, badge = _tier_accent(label)
         sidebar_items += (
             f"<div class='sidebar-item' data-section='{tier_id}' "
             f"onclick='sidebarNav(\"{tier_id}\")'>"
-            f"<span class='sidebar-icon'>📂</span>"
+            f"<span class='tier-badge' style='background:{accent};'>{badge}</span>"
             f"{html_module.escape(label)}"
             f"</div>"
         )
@@ -649,10 +650,11 @@ def build_html_shell(
     for tier in tiers:
         tid = tier["id"]
         tlabel = html_module.escape(tier["label"])
+        accent, badge = _tier_accent(tier["label"])
         sidebar_items += (
             f"<div class='sidebar-item' data-section='{tid}' "
             f"onclick='sidebarNav(\"{tid}\")'>"
-            f"<span class='sidebar-icon'>📂</span>{tlabel}"
+            f"<span class='tier-badge' style='background:{accent};'>{badge}</span>{tlabel}"
             f"</div>"
         )
 
