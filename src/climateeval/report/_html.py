@@ -11,7 +11,13 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from climateeval.report._db import detect_diag_type, read_database
-from climateeval.report._figures import _DIAG_ICONS, _DIAG_LABELS, _FIGURE_BUILDERS
+from climateeval.report._figures import (
+    _CATEGORY_ORDER,
+    _DIAG_ICONS,
+    _DIAG_LABELS,
+    _FIGURE_BUILDERS,
+    _diag_category,
+)
 from climateeval.report._leaderboard import (
     _render_detail_table,
     _render_summary_table,
@@ -380,6 +386,44 @@ def _build_figures_for_tier(
     return diag_sections, tier_metrics, diag_types
 
 
+def _grouped_diag_sections(
+    diag_names: list[str],
+    diag_types: dict[str, str],
+) -> list[tuple[str | None, list[str]]]:
+    """Group diagnostics by plot-type category in a fixed order.
+
+    Returns ``[(category_label_or_None, [diag_name, ...]), ...]``. The label is
+    ``None`` when only one category is present, so no header gets rendered.
+    """
+    buckets: dict[str, list[str]] = {cat: [] for cat in _CATEGORY_ORDER}
+    for dname in diag_names:
+        buckets[_diag_category(diag_types.get(dname, ""))].append(dname)
+    groups = [(cat, buckets[cat]) for cat in _CATEGORY_ORDER if buckets[cat]]
+    show = len(groups) >= 2
+    return [(cat if show else None, names) for cat, names in groups]
+
+
+def _wrap_sections_by_category(
+    section_html_by_diag: dict[str, str],
+    diag_types: dict[str, str],
+) -> str:
+    """Concatenate per-diagnostic section HTML grouped into category wrappers.
+
+    Diagnostics are reordered into plot-type category groups; each group is a
+    ``.diag-category`` wrapper with an optional ``.diag-category-header``.
+    """
+    out = ""
+    for category, names in _grouped_diag_sections(list(section_html_by_diag), diag_types):
+        header = (
+            f"<div class='diag-category-header'>{html_module.escape(category)}</div>"
+            if category
+            else ""
+        )
+        inner = "".join(section_html_by_diag[name] for name in names)
+        out += f"<div class='diag-category'>{header}{inner}</div>"
+    return out
+
+
 def _render_tier_panel(
     tier_id: str,
     db_path: Path,
@@ -431,12 +475,12 @@ def _render_tier_panel(
         f"</div>"
     )
 
-    # Panel: stacked diagnostic sections
-    sections_html = ""
+    # Panel: diagnostic sections grouped by plot-type category
+    section_html_by_diag: dict[str, str] = {}
     for dname, (content, _) in diag_sections.items():
         label = _label(dname)
         icon = _icon(dname)
-        sections_html += (
+        section_html_by_diag[dname] = (
             f"<div class='diag-section' data-diag='{dname}' id='diag-sec-{tier_id}-{dname}'>"
             f"<div class='diag-section-header'>"
             f"<span class='diag-section-icon'>{icon}</span>"
@@ -445,6 +489,7 @@ def _render_tier_panel(
             f"{content}"
             f"</div>"
         )
+    sections_html = _wrap_sections_by_category(section_html_by_diag, diag_types)
 
     panel_html = (
         f"<div class='content-panel' id='panel-{tier_id}' data-type='tier'>"
@@ -748,7 +793,7 @@ def build_html_shell(
 
         # Collect diagnostics with variables
         diags_for_toolbar: list[tuple[str, str]] = []  # (diag_name, dtype)
-        sections_html = ""
+        section_html_by_diag: dict[str, str] = {}
 
         for diag_name, tables in db_data.items():
             if "raw_output" not in tables:
@@ -771,7 +816,7 @@ def build_html_shell(
             label = _diag_label(diag_name, dtype)
             icon = _diag_icon(diag_name, dtype)
             content = _render_shell_diagnostic(tier_id, diag_name, dtype, variables)
-            sections_html += (
+            section_html_by_diag[diag_name] = (
                 f"<div class='diag-section' data-diag='{diag_name}' "
                 f"id='diag-sec-{tier_id}-{diag_name}'>"
                 f"<div class='diag-section-header'>"
@@ -781,6 +826,7 @@ def build_html_shell(
                 f"{content}"
                 f"</div>"
             )
+        sections_html = _wrap_sections_by_category(section_html_by_diag, diag_types)
 
         # Toolbar
         filter_btns = (

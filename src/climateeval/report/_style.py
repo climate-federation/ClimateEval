@@ -353,6 +353,18 @@ html, body {
 .diag-section { margin-bottom: 48px; }
 .diag-section.hidden { display: none; }
 
+/* ── Plot-type category grouping ── */
+.diag-category + .diag-category { margin-top: 14px; }
+/* auto-hide a category (incl. its header) when a filter leaves it with no
+   visible sections; search only dims sections, so headers stay during search */
+.diag-category:not(:has(.diag-section:not(.hidden))) { display: none; }
+.diag-category-header {
+  margin: 4px 0 22px; padding-bottom: 8px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--navy-light);
+  border-bottom: 1px solid var(--border);
+}
+
 .diag-section-header {
   display: flex; align-items: center; gap: 10px;
   margin-bottom: 18px; padding-bottom: 12px;

@@ -2303,3 +2303,24 @@ _DIAG_ICONS = {
     "Histogram": "📊",
     "Scalar": "📊",
 }
+
+# Plot-type categories — group diagnostics by the kind of view they present, so
+# related plots cluster together in the report (issue #17).
+_DIAG_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Spatial maps & profiles", ("Map", "ZonalProfile", "ZonalLine")),
+    (
+        "Time series & cycles",
+        ("TimeSeries", "AnnualCycle", "DiurnalCycle", "Hovmoller", "QBO"),
+    ),
+    ("Distributions", ("Histogram",)),
+    ("Scalar metrics", ("Scalar",)),
+)
+_CATEGORY_ORDER: tuple[str, ...] = (*(name for name, _ in _DIAG_CATEGORIES), "Other")
+_DTYPE_TO_CATEGORY: dict[str, str] = {
+    dtype: name for name, dtypes in _DIAG_CATEGORIES for dtype in dtypes
+}
+
+
+def _diag_category(dtype: str) -> str:
+    """Return the plot-type category label for a diagnostic type."""
+    return _DTYPE_TO_CATEGORY.get(dtype, "Other")
