@@ -49,8 +49,7 @@ def main() -> None:
         logger.info("  wap not found – w_star and w_dia will be NaN")
 
     data_info = DataSourceInformation(
-        name="legoESM-1-0",xit
-        
+        name="legoESM-1-0",
         category="legoESM",
         institute="CU",
         exp="amip",
