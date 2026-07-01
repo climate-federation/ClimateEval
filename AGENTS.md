@@ -40,6 +40,9 @@ pixi run pytest --cov=climateeval --cov-report=html
 # Lint (ruff + mypy + more, via pre-commit; enforced in CI)
 pixi run pre-commit run --all-files
 
+# Benchmark a model vs ERA5 + CMIP6 and write an HTML report (quickest start)
+pixi run python benchmark.py /path/to/model/cmor/Amon --name MyModel
+
 # Run the quickstart example and inspect its output database
 pixi run python examples/quickstart/example.py
 pixi run python examples/quickstart/db_example.py
