@@ -1,3 +1,4 @@
+# Tier 3 | Variability & processes: sub-daily precipitation (diurnal cycle, intensity histograms).
 - name: diurnal_cycle
   diagnostic: climateeval.diags.simple.DiurnalCycle
   variables:

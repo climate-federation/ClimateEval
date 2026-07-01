@@ -94,16 +94,38 @@ A common trick — benchmark against observations only by stripping the CMIP6
 
 ## Shipped suites
 
+The suites are organised into **tiers of increasing complexity** — run them in
+order to diagnose a model from the basics upward:
+
+- **Tier 1 — does it run sanely and conserve?** Fast, cheap checks with little or
+  no reference data. Run these first on any new model.
+- **Tier 2 — does it get the mean climate right?** Climatological mean state
+  benchmarked against observations (and CMIP6), realm by realm. The workhorse.
+- **Tier 3 — does it capture variability, processes and feedbacks?** Higher-order
+  behaviour that needs more (or special) data and experiments.
+
+### Tier 1 — sanity & consistency
+
 | Suite | Focus |
 |---|---|
-| `Tier1_sanity_checks` | Fast sanity checks on the model output. |
-| `Tier1_consistency_checks` | Internal consistency checks. |
-| `Tier1_ecs` | Effective climate sensitivity (needs abrupt-4xCO2 / piControl runs). |
-| `Tier2_atmosphere_monthly` | 2-D atmospheric fields + 3-D humidity/temperature/wind profiles across annual-cycle, spatial, map, time-series and zonal diagnostics. |
-| `Tier2_atmosphere_subdaily` | Sub-daily atmospheric diagnostics (e.g. diurnal cycle). |
-| `Tier2_dynamics` | Atmospheric dynamics diagnostics. |
-| `Tier2_ocean_monthly` | Ocean fields (SST, salinity, chlorophyll, MLD, AMOC, OHC). |
-| `Tier2_sea_ice_monthly` | Sea-ice area (annual cycle and time series). |
+| `Tier1_sanity_checks` | Global-mean fluxes and state within physically reasonable ranges. |
+| `Tier1_consistency_checks` | Conservation of dry-air mass, water vapour and moisture flux. |
+
+### Tier 2 — mean state vs observations
+
+| Suite | Focus |
+|---|---|
+| `Tier2_atmosphere_monthly` | Atmospheric climatology (annual cycle, maps, zonal means/profiles, time series) vs ERA5/GPCP/CERES-EBAF + CMIP6. |
+| `Tier2_ocean_monthly` | Ocean climatology: SST, salinity, chlorophyll, mixed-layer depth, Niño 3.4, AMOC, ocean heat content. |
+| `Tier2_sea_ice_monthly` | Sea-ice area: annual cycle, seasonal minimum (NH September / SH February), maps. |
+
+### Tier 3 — variability, processes & feedbacks
+
+| Suite | Focus |
+|---|---|
+| `Tier3_dynamics` | Tropical convection (Hovmöller / MJO) and the stratospheric QBO. |
+| `Tier3_atmosphere_subdaily` | Sub-daily precipitation: diurnal cycle and intensity histograms. |
+| `Tier3_ecs` | Effective climate sensitivity from abrupt-4xCO2 / piControl experiments. |
 
 Open the corresponding file in
 [`src/climateeval/suites/`](../src/climateeval/suites/) to see the exact
