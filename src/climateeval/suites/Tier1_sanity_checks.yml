@@ -1,3 +1,4 @@
+# Tier 1 | Sanity: global-mean fluxes and state within physically reasonable ranges.
 # Reasonable ranges are defined in Table 2 of
 # https://doi.org/10.5194/egusphere-2026-2288
 # Note: these values have been calculated for monthly-mean data

@@ -1,6 +1,6 @@
 """Showcase suite: tropical convection (Hovmöller) + stratospheric QBO.
 
-Runs the Tier2_dynamics suite on MPI-ESM1-2-LR historical data and serves
+Runs the Tier3_dynamics suite on MPI-ESM1-2-LR historical data and serves
 the result at http://127.0.0.1:8768.
 
 Data loaded:
@@ -52,7 +52,7 @@ _NC_FILES = {
     "ua_mon":   f"{_ATMOS}/Amon/ua/gn/{_V}/ua_Amon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_199001-200912.nc",
 }
 
-DB_PATH = Path("Tier2_dynamics.ddb")
+DB_PATH = Path("Tier3_dynamics.ddb")
 PORT = 8768
 
 # ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ def main() -> None:
     Path(str(DB_PATH) + ".wal").unlink(missing_ok=True)
 
     suite = Suite(
-        "Tier2_dynamics",
+        "Tier3_dynamics",
         diagnostic_kwargs={
             "data_root_dir": Path("/work/bd1179/b309141/climateeval_input"),
             "fail_on_missing_data": False,
@@ -102,7 +102,7 @@ def main() -> None:
         },
     )
 
-    logger.info("Running Tier2_dynamics suite → {}", DB_PATH)
+    logger.info("Running Tier3_dynamics suite → {}", DB_PATH)
     suite.get_database(
         cubes,
         data_info,

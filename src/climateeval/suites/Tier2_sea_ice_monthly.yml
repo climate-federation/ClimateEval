@@ -1,3 +1,4 @@
+# Tier 2 | Mean state vs observations: sea-ice area (annual cycle, seasonal minimum, maps).
 # Sea-ice evaluation suite (ported from ICONEval recipe_sea_ice_*).
 #
 # Evaluates sea-ice area concentration (siconc) per hemisphere:

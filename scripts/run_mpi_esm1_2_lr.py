@@ -4,7 +4,7 @@ Computes (or reuses) the following databases:
   Tier1_sanity_checks.ddb      — reasonable-range checks (Amon)
   Tier1_consistency_checks.ddb — air-mass / water-vapour vs ERA5 (Amon)
   Tier2_ocean_monthly.ddb      — chl + siconc NH/SH vs ESA CCI OC (Omon + SImon)
-  Tier2_dynamics.ddb           — Hovmöller (daily) + QBO vs ERA5 (Amon)
+  Tier3_dynamics.ddb           — Hovmöller (daily) + QBO vs ERA5 (Amon)
 
 Then serves those together with any other Tier*.ddb files already present
 in the working directory (e.g. Tier2_atmosphere_monthly.ddb).
@@ -69,7 +69,7 @@ _OCEAN_FILES = [
     f"{_BASE}/SImon/siconc/gn/{_V}/siconc_SImon_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_{_AMON_PERIOD}.nc",
 ]
 
-# Daily atmosphere + ocean + monthly ua (Tier2_dynamics)
+# Daily atmosphere + ocean + monthly ua (Tier3_dynamics)
 _DYNAMICS_FILES = {
     "pr_day":   f"{_BASE}/day/pr/gn/{_V}/pr_day_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_19900101-20091231.nc",
     "rlut_day": f"{_BASE}/day/rlut/gn/{_V}/rlut_day_MPI-ESM1-2-LR_historical_r1i1p1f1_gn_19900101-20091231.nc",
@@ -157,9 +157,9 @@ def main() -> None:
     ocean_cubes = _load(_OCEAN_FILES)
     _run_suite("Tier2_ocean_monthly", Path("Tier2_ocean_monthly.ddb"), ocean_cubes, skip_existing=args.skip_existing)
 
-    # ── Tier2_dynamics (Hovmöller + QBO) ────────────────────────────────────
+    # ── Tier3_dynamics (Hovmöller + QBO) ────────────────────────────────────
     dynamics_cubes = _load(_DYNAMICS_FILES)
-    _run_suite("Tier2_dynamics", Path("Tier2_dynamics.ddb"), dynamics_cubes, skip_existing=args.skip_existing)
+    _run_suite("Tier3_dynamics", Path("Tier3_dynamics.ddb"), dynamics_cubes, skip_existing=args.skip_existing)
 
     # ── Serve all Tier*.ddb files in the working directory ───────────────────
     db_paths = sorted(Path(".").glob("Tier*.ddb"))
