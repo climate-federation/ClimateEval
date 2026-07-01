@@ -209,3 +209,12 @@ convention = "numpy"
 
 [tool.codespell]
 ignore-words-list = "vas"
+
+
+[tool.mypy]
+
+# report/_figures.py has dense array code where mypy cannot prove non-None
+# narrowing; scope the relaxation to that module.
+[[tool.mypy.overrides]]
+module = ["climateeval.report._figures"]
+disable_error_code = ["union-attr", "assignment"]

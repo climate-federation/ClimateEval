@@ -90,7 +90,7 @@ _DEFAULT_BIAS_COLORSCALE = "RdBu_r"
 
 
 _HOVMOLLER_COLORSCALE: dict[str, str] = {
-    "pr": "BrBG",    # wet (green) / dry (brown) anomaly
+    "pr": "BrBG",  # wet (green) / dry (brown) anomaly
     "rlut": "RdBu",  # warm (red) / cold (blue) OLR anomaly
 }
 _DEFAULT_HOVMOLLER_COLORSCALE = "RdBu_r"

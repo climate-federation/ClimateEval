@@ -139,11 +139,16 @@ def _build_diag_figures(tier_id: str, diag_name: str) -> None:
     try:
         figures = builder(data_df, variables_df, metrics_df)
     except Exception as exc:
-        print(f"[warn] figure build failed for {tier_id}/{diag_name}: {exc}", file=sys.stderr)
+        print(
+            f"[warn] figure build failed for {tier_id}/{diag_name}: {exc}",
+            file=sys.stderr,
+        )
         return
     with _fig_cache_lock:
         for vid, fig in figures.items():
-            _STATE["fig_cache"].setdefault((tier_id, diag_name, vid), fig.to_json().encode())
+            _STATE["fig_cache"].setdefault(
+                (tier_id, diag_name, vid), fig.to_json().encode()
+            )
 
 
 def _get_figure_json(tier_id: str, diag_name: str, var_id: str) -> bytes | None:
@@ -165,8 +170,7 @@ def _prebuild_all_figures() -> None:
         for diag_name in tier["db_data"]:
             with _fig_cache_lock:
                 already_built = any(
-                    k[0] == tier_id and k[1] == diag_name
-                    for k in _STATE["fig_cache"]
+                    k[0] == tier_id and k[1] == diag_name for k in _STATE["fig_cache"]
                 )
             if not already_built:
                 _build_diag_figures(tier_id, diag_name)
@@ -381,7 +385,9 @@ def serve(
     print("Press Ctrl-C to stop.\n", flush=True)  # noqa: T201
 
     # Pre-build all figures in background so the first click hits the cache.
-    threading.Thread(target=_prebuild_all_figures, daemon=True, name="fig-prebuild").start()
+    threading.Thread(
+        target=_prebuild_all_figures, daemon=True, name="fig-prebuild"
+    ).start()
 
     if open_browser:
         threading.Timer(0.5, webbrowser.open, args=(url,)).start()

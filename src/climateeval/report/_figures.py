@@ -531,7 +531,7 @@ def build_map_figures(
         _panel_w = 440  # px per column
         _panel_h = 260  # px per row  (440/2 + room for axis labels)
         _h_margin = 130  # t=80 + b=50
-        _w_margin = (260 if has_bias else 180)  # l + r + colorbars
+        _w_margin = 260 if has_bias else 180  # l + r + colorbars
         fig.update_layout(
             **_base_layout(
                 title={
@@ -1755,7 +1755,7 @@ def build_hovmoller_figures(
             sub = data_df[data_df["data_id"] == dataset].dropna(subset=[_vid])
             try:
                 p = sub.pivot_table(
-                    index="time",       # rows = time
+                    index="time",  # rows = time
                     columns="longitude",  # columns = longitude
                     values=_vid,
                     aggfunc="mean",
@@ -1803,8 +1803,8 @@ def build_hovmoller_figures(
         for row_i, (dataset, pv) in enumerate(zip(ds_order, pivots), start=1):
             fig.add_trace(
                 go.Heatmap(
-                    x=pv.columns.tolist(),   # longitude (default)
-                    y=pv.index.tolist(),     # time strings (default)
+                    x=pv.columns.tolist(),  # longitude (default)
+                    y=pv.index.tolist(),  # time strings (default)
                     z=pv.values.tolist(),
                     colorscale=cs,
                     zmin=zmin,
@@ -1868,20 +1868,33 @@ def build_hovmoller_figures(
 
         # Layout args for each (orientation × longitude-direction) combination.
         # Each button is fully self-contained so no client-side state is needed.
-        lon_x_layout_we: dict[str, Any] = {}   # Lon × Time, W → E (default)
-        lon_x_layout_ew: dict[str, Any] = {}   # Lon × Time, E → W
+        lon_x_layout_we: dict[str, Any] = {}  # Lon × Time, W → E (default)
+        lon_x_layout_ew: dict[str, Any] = {}  # Lon × Time, E → W
         time_x_layout_we: dict[str, Any] = {}  # Time × Lon, W → E
         time_x_layout_ew: dict[str, Any] = {}  # Time × Lon, E → W
         for i in range(nrows):
             xa, ya = _ax("xaxis", i), _ax("yaxis", i)
-            _lon_we  = {"title": {"text": "Longitude"}, **lon_ticks, **_AXIS_STYLE}
-            _lon_ew  = {"title": {"text": "Longitude"}, "autorange": "reversed", **lon_ticks, **_AXIS_STYLE}
-            _time_rv = {"title": {"text": "Time"}, "autorange": "reversed", **_AXIS_STYLE}
+            _lon_we = {"title": {"text": "Longitude"}, **lon_ticks, **_AXIS_STYLE}
+            _lon_ew = {
+                "title": {"text": "Longitude"},
+                "autorange": "reversed",
+                **lon_ticks,
+                **_AXIS_STYLE,
+            }
+            _time_rv = {
+                "title": {"text": "Time"},
+                "autorange": "reversed",
+                **_AXIS_STYLE,
+            }
             _time_fw = {"title": {"text": "Time"}, "autorange": True, **_AXIS_STYLE}
-            lon_x_layout_we[xa]  = _lon_we;  lon_x_layout_we[ya]  = _time_rv
-            lon_x_layout_ew[xa]  = _lon_ew;  lon_x_layout_ew[ya]  = _time_rv
-            time_x_layout_we[xa] = _time_fw; time_x_layout_we[ya] = _lon_we
-            time_x_layout_ew[xa] = _time_fw; time_x_layout_ew[ya] = _lon_ew
+            lon_x_layout_we[xa] = _lon_we
+            lon_x_layout_we[ya] = _time_rv
+            lon_x_layout_ew[xa] = _lon_ew
+            lon_x_layout_ew[ya] = _time_rv
+            time_x_layout_we[xa] = _time_fw
+            time_x_layout_we[ya] = _lon_we
+            time_x_layout_ew[xa] = _time_fw
+            time_x_layout_ew[ya] = _lon_ew
 
         _btn_style = {
             "type": "buttons",
@@ -1892,38 +1905,58 @@ def build_hovmoller_figures(
             "borderwidth": 1,
             "font": {"size": 11, "color": "#1e2535"},
         }
-        title_str = (
-            f"<b>{long_name}</b> — Hovmöller (meridional-mean anomaly)"
-            + (f"  [{units}]" if units else "")
+        title_str = f"<b>{long_name}</b> — Hovmöller (meridional-mean anomaly)" + (
+            f"  [{units}]" if units else ""
         )
         panel_height = max(400, 320 * nrows)
         fig.update_layout(
             **_base_layout(
-                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
                 margin={"t": 110, "b": 60, "l": 90, "r": 90},
                 height=panel_height,
             ),
             updatemenus=[
                 {
                     **_btn_style,
-                    "x": 0.0, "xanchor": "left",
-                    "y": 1.0, "yanchor": "bottom",
+                    "x": 0.0,
+                    "xanchor": "left",
+                    "y": 1.0,
+                    "yanchor": "bottom",
                     "buttons": [
-                        {"label": " Lon × Time ", "method": "update",
-                         "args": [lon_x_trace, lon_x_layout_we]},
-                        {"label": " Lon × Time  E→W ", "method": "update",
-                         "args": [lon_x_trace, lon_x_layout_ew]},
+                        {
+                            "label": " Lon × Time ",
+                            "method": "update",
+                            "args": [lon_x_trace, lon_x_layout_we],
+                        },
+                        {
+                            "label": " Lon × Time  E→W ",
+                            "method": "update",
+                            "args": [lon_x_trace, lon_x_layout_ew],
+                        },
                     ],
                 },
                 {
                     **_btn_style,
-                    "x": 0.55, "xanchor": "left",
-                    "y": 1.0, "yanchor": "bottom",
+                    "x": 0.55,
+                    "xanchor": "left",
+                    "y": 1.0,
+                    "yanchor": "bottom",
                     "buttons": [
-                        {"label": " Time × Lon ", "method": "update",
-                         "args": [time_x_trace, time_x_layout_we]},
-                        {"label": " Time × Lon  E→W ", "method": "update",
-                         "args": [time_x_trace, time_x_layout_ew]},
+                        {
+                            "label": " Time × Lon ",
+                            "method": "update",
+                            "args": [time_x_trace, time_x_layout_we],
+                        },
+                        {
+                            "label": " Time × Lon  E→W ",
+                            "method": "update",
+                            "args": [time_x_trace, time_x_layout_ew],
+                        },
                     ],
                 },
             ],
@@ -1958,7 +1991,8 @@ def build_qbo_figures(
         cs = _colorscale_for(var_id)  # ua → "PuOr" (diverging)
 
         valid_datasets = [
-            ds for ds in all_datasets
+            ds
+            for ds in all_datasets
             if not data_df[data_df["data_id"] == ds][var_id].isna().all()
         ]
         if not valid_datasets:
@@ -1967,7 +2001,9 @@ def build_qbo_figures(
         # Symmetric colour range across all datasets
         all_vals = data_df[var_id].dropna().tolist()
         arr = np.array(all_vals)
-        abs_max = float(max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98)))))
+        abs_max = float(
+            max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98))))
+        )
         if abs_max == 0:
             abs_max = 1.0
         zmin, zmax = -abs_max, abs_max
@@ -1985,8 +2021,8 @@ def build_qbo_figures(
                     aggfunc="mean",
                 )
                 p = p.dropna(how="all").dropna(axis=1, how="all")
-                p.index = (p.index / 100).round(1)              # Pa → hPa
-                p.columns = p.columns.astype(str).str[:7]       # YYYY-MM
+                p.index = (p.index / 100).round(1)  # Pa → hPa
+                p.columns = p.columns.astype(str).str[:7]  # YYYY-MM
             except Exception:
                 return None
             return p if not p.empty else None
@@ -2002,7 +2038,7 @@ def build_qbo_figures(
             continue
 
         n_ds = len(ds_order)
-        nrows = n_ds + 1   # n_ds heatmap rows + 1 QBO-index row
+        nrows = n_ds + 1  # n_ds heatmap rows + 1 QBO-index row
         ncols = 2
 
         # specs: right col spans all heatmap rows; bottom row spans both cols
@@ -2030,8 +2066,8 @@ def build_qbo_figures(
             show_cb = row_i == 1
             fig.add_trace(
                 go.Heatmap(
-                    x=pv.columns.tolist(),   # time (YYYY-MM)
-                    y=pv.index.tolist(),     # pressure (hPa)
+                    x=pv.columns.tolist(),  # time (YYYY-MM)
+                    y=pv.index.tolist(),  # pressure (hPa)
                     z=pv.values.tolist(),
                     colorscale=cs,
                     zmin=zmin,
@@ -2157,9 +2193,8 @@ def build_qbo_figures(
             dtype = sub["data_type"].iloc[0]
             avail = sub["air_pressure"].unique()
             target = avail[int(np.argmin(np.abs(avail - _50hpa_pa)))]
-            idx_sub = (
-                sub[sub["air_pressure"] == target][["time", var_id]]
-                .sort_values("time")
+            idx_sub = sub[sub["air_pressure"] == target][["time", var_id]].sort_values(
+                "time"
             )
             if idx_sub.empty:
                 continue
@@ -2198,14 +2233,18 @@ def build_qbo_figures(
             col=1,
         )
 
-        title_str = (
-            f"<b>{long_name}</b> — QBO (equatorial zonal mean)"
-            + (f"  [{units}]" if units else "")
+        title_str = f"<b>{long_name}</b> — QBO (equatorial zonal mean)" + (
+            f"  [{units}]" if units else ""
         )
         panel_height = max(600, 280 * n_ds + 220)
         fig.update_layout(
             **_base_layout(
-                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
                 margin={"t": 80, "b": 60, "l": 80, "r": 90},
                 height=panel_height,
                 legend={
