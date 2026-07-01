@@ -25,14 +25,18 @@ w_dia : Diabatic vertical velocity inferred from thermodynamic residual [Pa s⁻
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 import numpy as np
-from esmvalcore.preprocessor import climate_statistics, extract_levels, regrid, zonal_statistics
+from esmvalcore.preprocessor import (
+    climate_statistics,
+    extract_levels,
+    regrid,
+    zonal_statistics,
+)
+from iris import NameConstraint
 from iris.coords import DimCoord
 from iris.cube import Cube, CubeList
-from iris.exceptions import ConstraintMismatchError
-from iris import NameConstraint
 from loguru import logger
 from scipy.integrate import cumulative_trapezoid
 
@@ -43,18 +47,15 @@ from climateeval.data import ComplexDataSource
 from climateeval.diags._utils import DEFAULT_GRID, PLEV19_LEVELS
 from climateeval.diags.complex._base import ComplexDiagnostic
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 logger = logger.opt(colors=True)
 
 # Physical constants
-_R_DRY = 287.058    # J kg⁻¹ K⁻¹
-_CP = 1004.709      # J kg⁻¹ K⁻¹
+_R_DRY = 287.058  # J kg⁻¹ K⁻¹
+_CP = 1004.709  # J kg⁻¹ K⁻¹
 _KAPPA = _R_DRY / _CP
-_P0 = 100000.0      # Pa
-_EARTH_RADIUS = 6.371e6   # m
-_G = 9.80665        # m s⁻²
+_P0 = 100000.0  # Pa
+_EARTH_RADIUS = 6.371e6  # m
+_G = 9.80665  # m s⁻²
 _TWO_PI = 2.0 * np.pi
 
 
@@ -137,10 +138,10 @@ class TEMDiagnostic(ComplexDiagnostic):
 
         # --- Preprocess inputs to (plev, lat) climatological zonal means -----
         va_cube = _preprocess_to_zonal_clim(
-            get_prepared_cube(cubelist, self._va)
+            get_prepared_cube(cubelist, self._va),
         )
         ta_cube = _preprocess_to_zonal_clim(
-            get_prepared_cube(cubelist, self._ta)
+            get_prepared_cube(cubelist, self._ta),
         )
 
         has_wap = self._has_variable(cubelist, self._wap)
@@ -159,22 +160,26 @@ class TEMDiagnostic(ComplexDiagnostic):
 
         if not has_wap:
             logger.warning(
-                "wap not found: w_star and w_dia will be set to NaN"
+                "wap not found: w_star and w_dia will be set to NaN",
             )
 
         # --- Extract numpy arrays ----------------------------------------
-        p = va_cube.coord("air_pressure").points.astype(float)     # (nlev,)
-        lat_deg = va_cube.coord("latitude").points.astype(float)   # (nlat,)
-        phi = np.deg2rad(lat_deg)                                  # (nlat,)
-        cos_phi = np.cos(phi)                                      # (nlat,)
+        p = va_cube.coord("air_pressure").points.astype(float)  # (nlev,)
+        lat_deg = va_cube.coord("latitude").points.astype(float)  # (nlat,)
+        phi = np.deg2rad(lat_deg)  # (nlat,)
+        cos_phi = np.cos(phi)  # (nlat,)
 
-        va_bar = va_cube.data.astype(float)    # (nlev, nlat)
-        ta_bar = ta_cube.data.astype(float)    # (nlev, nlat)
-        wap_bar = wap_cube.data.astype(float) if has_wap else np.full_like(va_bar, np.nan)
+        va_bar = va_cube.data.astype(float)  # (nlev, nlat)
+        ta_bar = ta_cube.data.astype(float)  # (nlev, nlat)
+        wap_bar = (
+            wap_cube.data.astype(float) if has_wap else np.full_like(va_bar, np.nan)
+        )
         vt_bar = vt_cube.data.astype(float) if has_vt else None
 
         # --- Potential temperature θ̄ = T̄ (p₀/p)^κ -------------------------
-        kappa_factor = (_P0 / p[:, np.newaxis]) ** _KAPPA  # (nlev, 1) broadcast → (nlev, nlat)
+        kappa_factor = (
+            _P0 / p[:, np.newaxis]
+        ) ** _KAPPA  # (nlev, 1) broadcast → (nlev, nlat)
         theta_bar = ta_bar * kappa_factor
 
         # --- ∂θ̄/∂p using finite differences --------------------------------
@@ -192,21 +197,22 @@ class TEMDiagnostic(ComplexDiagnostic):
         # --- Eddy flux term: v′θ′ / (∂θ̄/∂p) --------------------------------
         if vt_bar is not None:
             # Convert v′T′ → v′θ′ via the Exner factor
-            vprime_thetaprime = vt_bar * kappa_factor   # K m s⁻¹ → (θ-scaled)
+            vprime_thetaprime = vt_bar * kappa_factor  # K m s⁻¹ → (θ-scaled)
             eddy_ratio = vprime_thetaprime / safe_dtheta_dp  # m s⁻¹
             logger.debug("TEMDiagnostic: using v′T′ for full TEM correction")
         else:
             eddy_ratio = np.zeros_like(va_bar)
-            logger.debug("TEMDiagnostic: vt absent, returning Eulerian-mean circulation")
+            logger.debug(
+                "TEMDiagnostic: vt absent, returning Eulerian-mean circulation",
+            )
 
         # --- Residual velocities -------------------------------------------
         # v* = v̄ + ∂(eddy_ratio)/∂p
         v_star = va_bar + np.gradient(eddy_ratio, p, axis=0)
 
         # ω* = ω̄ − (1/(a cosφ)) ∂(cosφ eddy_ratio)/∂φ
-        cos_eddy = cos_phi[np.newaxis, :] * eddy_ratio          # (nlev, nlat)
-        dphi = np.gradient(phi)                                  # (nlat,) step in radians
-        d_cos_eddy_dphi = np.gradient(cos_eddy, phi, axis=1)   # ∂/∂φ
+        cos_eddy = cos_phi[np.newaxis, :] * eddy_ratio  # (nlev, nlat)
+        d_cos_eddy_dphi = np.gradient(cos_eddy, phi, axis=1)  # ∂/∂φ
         with np.errstate(invalid="ignore", divide="ignore"):
             w_star = wap_bar - d_cos_eddy_dphi / (
                 _EARTH_RADIUS * cos_phi[np.newaxis, :]
@@ -219,7 +225,7 @@ class TEMDiagnostic(ComplexDiagnostic):
         # Integrate from small p (top) to each p level (downward).
         # PLEV19 levels run from p[0]=100000 (bottom) to p[-1]=100 (top),
         # so we reverse to ascending-p order, integrate, then reverse back.
-        idx_asc = np.argsort(p)        # 100 Pa first (top)
+        idx_asc = np.argsort(p)  # 100 Pa first (top)
         p_asc = p[idx_asc]
         v_asc = v_star[idx_asc, :]
         # cumulative_trapezoid(initial=0) → shape (nlev, nlat)
@@ -235,11 +241,8 @@ class TEMDiagnostic(ComplexDiagnostic):
         # --- Diabatic omega (thermodynamic residual) ----------------------
         # In annual-mean steady state: Q_θ = v̄ ∂θ̄/(a∂φ) + ω̄ ∂θ̄/∂p
         # Cross-isentropic velocity: ω_dia = Q_θ / (∂θ̄/∂p)
-        dtheta_dphi = np.gradient(theta_bar, phi, axis=1)         # ∂θ̄/∂φ
-        Q_theta = (
-            va_bar * dtheta_dphi / _EARTH_RADIUS
-            + wap_bar * dtheta_dp
-        )
+        dtheta_dphi = np.gradient(theta_bar, phi, axis=1)  # ∂θ̄/∂φ
+        Q_theta = va_bar * dtheta_dphi / _EARTH_RADIUS + wap_bar * dtheta_dp
         with np.errstate(invalid="ignore", divide="ignore"):
             w_dia = Q_theta / safe_dtheta_dp
         # Mask where stability is too weak (unphysical)

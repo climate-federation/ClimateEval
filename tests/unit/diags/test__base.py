@@ -84,9 +84,7 @@ def test_remove_superfluous_rows_backfills_missing_variable() -> None:
 
     # 'chl' is requested but entirely absent from the table.
     result = _remove(table, ["data_id", "data_type", "latitude"], ["chl", "tos"])
-    result_df = (
-        result.to_pandas().sort_values("latitude").reset_index(drop=True)
-    )
+    result_df = result.to_pandas().sort_values("latitude").reset_index(drop=True)
 
     assert "chl" in result_df.columns
     assert result_df["chl"].isna().all()

@@ -192,6 +192,18 @@ future-annotations = true
     "PLR2004", "PLW0603", "PLW2901", "RUF001", "RUF002", "RUF003", "RUF100",
     "S110", "S112", "T201",
 ]
+# Numerically dense diagnostics: intentional Unicode math notation in
+# docstrings/comments plus scientific-code patterns ruff flags as pedantic.
+"src/climateeval/diags/complex/_tem.py" = [
+    "ANN001", "ANN202", "N806", "PLC0415", "PLR0915", "PLR2004",
+    "RET504", "RUF001", "RUF002", "RUF003", "TC001", "TC002", "TRY300",
+]
+"src/climateeval/diags/simple/_hovmoller.py" = [
+    "ANN001", "ANN003", "PLR2004", "RET504", "RUF002",
+]
+"src/climateeval/diags/simple/_qbo.py" = [
+    "RET504", "RUF002",
+]
 "tests/**.py" = [
     "ARG001",     # Unused function arguments
     "D100",       # Missing docstring in public module
@@ -211,6 +223,18 @@ future-annotations = true
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+
+[tool.mypy]
+
+# report/_figures.py and the TEM diagnostic contain dense array code where mypy
+# cannot prove non-None narrowing; scope the relaxation to those modules.
+[[tool.mypy.overrides]]
+module = [
+    "climateeval.report._figures",
+    "climateeval.diags.complex._tem",
+]
+disable_error_code = ["union-attr", "assignment"]
 
 
 [tool.codespell]
