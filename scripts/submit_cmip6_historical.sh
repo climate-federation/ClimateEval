@@ -13,6 +13,8 @@
 
 set -euo pipefail
 
+# Submit from the repository root so WORKDIR (and thus .pixi) resolves there:
+#   sbatch scripts/submit_cmip6_historical.sh
 WORKDIR="${WORKDIR:-${SLURM_SUBMIT_DIR:-$PWD}}"
 mkdir -p "${WORKDIR}/logs"
 
@@ -22,6 +24,6 @@ eval "$("${WORKDIR}/.pixi/bin/pixi" shell-hook)"
 
 echo "Job ${SLURM_ARRAY_JOB_ID}, task ${SLURM_ARRAY_TASK_ID} started on $(hostname) at $(date)"
 
-pixi run python run_cmip6_historical_all_models.py --model-index "${SLURM_ARRAY_TASK_ID}"
+pixi run python scripts/run_cmip6_historical_all_models.py --model-index "${SLURM_ARRAY_TASK_ID}"
 
 echo "Task ${SLURM_ARRAY_TASK_ID} finished at $(date)"
