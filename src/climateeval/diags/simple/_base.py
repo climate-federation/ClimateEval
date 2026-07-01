@@ -499,11 +499,9 @@ class SimpleDiagnostic(Diagnostic):
         """Sort columns of raw output table."""
         present = set(raw_output_table.columns)
         missing = [v.id for v in self._variables if v.id not in present]
-        if missing:
-            if self._fail_on_missing_data:
-                raise MissingDataError(
-                    f"Missing variable columns in raw output: {missing}"
-                )
+        if missing and self._fail_on_missing_data:
+            msg = f"Missing variable columns in raw output: {missing}"
+            raise MissingDataError(msg)
         new_column_order = (
             self._data_id_column,
             self._data_type_column,
