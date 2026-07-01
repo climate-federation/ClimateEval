@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import intake_esgf
 import iris
 import yaml
-from esmvalcore.config import CFG
+from esmvalcore.config import CFG, Config
 from esmvalcore.dataset import Dataset
 from loguru import logger
 
@@ -154,7 +154,28 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
             f"Intake-ESGF facets\n{pformat(facets)}",
         )
 
-        for dataset in Dataset(**facets).from_files():
+        try:
+            discovered = list(Dataset(**facets).from_files())
+        except Exception:
+            # The ambient ESMValTool config may have been reset to package
+            # defaults (empty data sources) by a surrounding context manager.
+            # Reload the user config from ~/.config/esmvaltool/ and retry.
+            import warnings as _warnings
+            with _warnings.catch_warnings():
+                _warnings.filterwarnings("ignore", category=UserWarning)
+                user_cfg = Config()
+            user_cfg.load_from_dirs([Path.home() / ".config" / "esmvaltool"])
+            try:
+                with CFG.context(user_cfg):
+                    discovered = list(Dataset(**facets).from_files())
+            except Exception as exc:
+                logger.warning(
+                    f"Could not discover local datasets for {variable} "
+                    f"({self.__class__.__name__}): {exc}"
+                )
+                return
+
+        for dataset in discovered:
             new_esmvaltool_dataset_facets = dict(dataset.facets)
             references = self._get_references(**new_esmvaltool_dataset_facets)
             new_data_source_information = DataSourceInformation(
