@@ -29,6 +29,7 @@ from climateeval.diags.simple._zonal_line import ZonalLine
 from climateeval.diags.simple._zonal_profile import ZonalProfileAirPressure
 
 __all__ = [
+    "QBO",
     "AnnualCycle",
     "AnnualCycleSpatialDistribution",
     "AnnualMeanTimeSeries",
@@ -36,7 +37,6 @@ __all__ = [
     "Histogram",
     "Hovmoller",
     "Map",
-    "QBO",
     "MeanTimeSeries",
     "SimpleDiagnostic",
     "SimpleDiagnosticInputData",

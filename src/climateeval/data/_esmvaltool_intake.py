@@ -156,11 +156,12 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
 
         try:
             discovered = list(Dataset(**facets).from_files())
-        except Exception:
+        except Exception:  # noqa: BLE001
             # The ambient ESMValTool config may have been reset to package
             # defaults (empty data sources) by a surrounding context manager.
             # Reload the user config from ~/.config/esmvaltool/ and retry.
-            import warnings as _warnings
+            import warnings as _warnings  # noqa: PLC0415
+
             with _warnings.catch_warnings():
                 _warnings.filterwarnings("ignore", category=UserWarning)
                 user_cfg = Config()
@@ -168,10 +169,10 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
             try:
                 with CFG.context(user_cfg):
                     discovered = list(Dataset(**facets).from_files())
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.warning(
                     f"Could not discover local datasets for {variable} "
-                    f"({self.__class__.__name__}): {exc}"
+                    f"({self.__class__.__name__}): {exc}",
                 )
                 return
 

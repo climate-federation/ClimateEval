@@ -12,7 +12,7 @@ from climateeval.diags.complex._ecs import ECS
 from climateeval.diags.complex._tem import TEMDiagnostic
 
 __all__ = [
-    "ComplexDiagnostic",
     "ECS",
+    "ComplexDiagnostic",
     "TEMDiagnostic",
 ]

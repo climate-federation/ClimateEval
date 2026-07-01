@@ -194,6 +194,18 @@ future-annotations = true
     "INP001",     # File is part of an implicit namespace package.
     "T201",       # `print` found
 ]
+# Numerically dense diagnostics: intentional Unicode math notation in
+# docstrings/comments plus scientific-code patterns ruff flags as pedantic.
+"src/climateeval/diags/complex/_tem.py" = [
+    "ANN001", "ANN202", "N806", "PLC0415", "PLR0915", "PLR2004",
+    "RET504", "RUF001", "RUF002", "RUF003", "TC001", "TC002", "TRY300",
+]
+"src/climateeval/diags/simple/_hovmoller.py" = [
+    "ANN001", "ANN003", "PLR2004", "RET504", "RUF002",
+]
+"src/climateeval/diags/simple/_qbo.py" = [
+    "RET504", "RUF002",
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
@@ -201,3 +213,12 @@ convention = "numpy"
 
 [tool.codespell]
 ignore-words-list = "vas"
+
+
+[tool.mypy]
+
+# The TEM diagnostic contains dense array code where mypy cannot prove non-None
+# narrowing; scope the relaxation to that module.
+[[tool.mypy.overrides]]
+module = ["climateeval.diags.complex._tem"]
+disable_error_code = ["union-attr", "assignment"]

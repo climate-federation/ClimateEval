@@ -37,17 +37,17 @@ logger = logger.opt(colors=True)
 # Stratospheric pressure levels: 100 → 1 hPa (in Pa)
 _QBO_PLEV_LEVELS: list[float] = [
     10000.0,  # 100 hPa
-    7000.0,   #  70 hPa
-    5000.0,   #  50 hPa
-    3000.0,   #  30 hPa
-    2000.0,   #  20 hPa
-    1000.0,   #  10 hPa
-    500.0,    #   5 hPa
-    100.0,    #   1 hPa
+    7000.0,  #  70 hPa
+    5000.0,  #  50 hPa
+    3000.0,  #  30 hPa
+    2000.0,  #  20 hPa
+    1000.0,  #  10 hPa
+    500.0,  #   5 hPa
+    100.0,  #   1 hPa
 ]
 
-_LAT_BAND = 5.0       # ±degrees for equatorial average
-_MIN_YEARS = 5.0      # minimum simulation length to compute QBO
+_LAT_BAND = 5.0  # ±degrees for equatorial average
+_MIN_YEARS = 5.0  # minimum simulation length to compute QBO
 
 
 class QBO(SimpleDiagnostic):
