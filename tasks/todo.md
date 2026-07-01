@@ -7,16 +7,15 @@ verification steps. Tasks are vertical slices; **⏸** marks review checkpoints.
 Order: A0 → A1 → A2 → (checkpoint) → A3 → A4 → A5 → A6. Each lands in **both**
 server + portable modes and is verified by regenerating a report from a `.ddb`.
 
-- [ ] **A0 — Unify render paths** — one shared tier/diagnostic renderer used by
-  `build_html_shell` + `generate_portable_html`.
-  *Done when*: both modes emit identical structural DOM; existing JS still works.
-- [ ] **A1 — Tier identity** — per-tier accent color + "T1/T2/T3" badge on sidebar
-  item, panel header, toolbar; color never the only cue.
-  *Done when*: tiers visually distinct at a glance, badge+label present, AA contrast.
-- [ ] **A2 — Plot-type category grouping** — `.diag-category-header` grouping
-  diag-sections into Spatial / Temporal / Distributions / Scalars.
-  *Done when*: related plots cluster under labeled headers; filter+search still work.
-- [ ] **⏸ Checkpoint 1** — review both-mode screenshots (headline separation done).
+- [x] **A0 — Unify render paths** — *folded*: A1 is CSS-only (no DOM dup) and A2
+  uses a shared `_wrap_sections_by_category` helper for both paths, so a separate
+  refactor wasn't needed.
+- [x] **A1 — Tier identity** — teal/indigo/amber accent + "T1/T2/T3" badge parsed
+  from the panel label, both render paths (commit `4fa7d82`). Verified in demo.
+- [x] **A2 — Plot-type category grouping** — shared `_wrap_sections_by_category`
+  groups diag-sections into Spatial / Temporal / Distributions / Scalars; `:has()`
+  auto-hides empty category headers on filter (commit `a8f4b44`). Verified.
+- [x] **⏸ Checkpoint 1** — `~/report_a2_demo.html` (A1 badges + A2 grouping). ← review
 - [ ] **A3 — Spacing / dividers / card polish** — 8 px scale, bigger gaps, clearer
   dividers, plot-type icon + category chip on cards.
   *Done when*: noticeably less crowded, consistent rhythm, no regressions.
