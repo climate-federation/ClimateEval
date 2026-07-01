@@ -1,8 +1,3 @@
-# Database files
-*.ddb
-*.out
-*.err
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -10,6 +5,9 @@ __pycache__/
 
 # C extensions
 *.so
+
+# Database files
+*.ddb
 
 # Distribution / packaging
 .Python
@@ -36,6 +34,14 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+
+# SLURM job files
+*.slurm
+*.sbatch
+*.err
+# ...but keep the committed example submission template
+!examples/ocean/run.slurm
+*.out
 
 # Installer logs
 pip-log.txt

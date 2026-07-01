@@ -59,6 +59,13 @@ Now you can use `pixi shell`/`pixi shell --frozen` to launch a shell in your
 pixi environment or `pixi run ...`/`pixi run --frozen ...` to run commands in
 your pixi environment.
 
+## Examples
+
+- [`examples/ocean`](examples/ocean/README.md) — run the ocean and sea-ice
+  diagnostics on a CMIP6 model and produce an interactive HTML report (staging
+  the observational references, running the suites, and switching to a different
+  model).
+
 ## Known limitations
 
 - Data source generators do not work yet with derived variables (see <https://github.com/ESMValGroup/ESMValCore/issues/2769>).

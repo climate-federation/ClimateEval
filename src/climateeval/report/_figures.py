@@ -1783,7 +1783,7 @@ def build_hovmoller_figures(
             all_vals.extend(v.tolist())
         arr = np.array(all_vals)
         abs_max = float(
-            max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98))))
+            max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98)))),
         )
         if abs_max == 0:
             abs_max = 1.0

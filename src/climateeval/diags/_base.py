@@ -201,15 +201,17 @@ class Diagnostic(ABC):
 
         """
         variable_columns = tuple(variable_columns)
-        missing = [v for v in variable_columns if v not in table.columns]
-        if missing:
-            if self._fail_on_missing_data:
-                raise MissingDataError(
-                    f"Missing variable columns in table: {missing}"
-                )
-            variable_columns = tuple(v for v in variable_columns if v in table.columns)
-        if not variable_columns:
-            return table
+
+        # A variable may produce no data at all (e.g. the benchmarked dataset
+        # lacks it and its reference is unavailable). In that case the column is
+        # missing from the combined table; add it (filled with NaNs) so the
+        # output still has one column per variable.
+        missing_columns = tuple(c for c in variable_columns if c not in table.columns)
+        if missing_columns:
+            table = table.mutate(
+                **{c: ibis.literal(None).cast("float64") for c in missing_columns},
+            )
+
         table = table.group_by(unique_columns).aggregate(
             **{v: _[v].first() for v in variable_columns},
         )

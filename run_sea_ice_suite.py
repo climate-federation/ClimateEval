@@ -4,11 +4,14 @@ Runs the Tier2_sea_ice_monthly suite on MPI-ESM1-2-LR historical SImon data
 and serves the result at http://127.0.0.1:8769.
 
 Diagnostics run:
-  - AnnualCycle         (monthly climatology per hemisphere)
-  - AnnualCycleSpatialDistribution (spatial monthly metrics — no reference → skipped)
-  - AnnualMeanTimeSeries (annual mean time series per hemisphere)
-  - Map                 (climatological mean map per hemisphere)
-  - ZonalLine           (zonal-mean profile per hemisphere)
+  - annual_cycle          (annual cycle of total hemispheric sea-ice area,
+                           ref: OSI-450, other: HadISST/NSIDC-G02202)
+  - annual_mean_timeseries (annual time series of the seasonal sea-ice
+                           minimum: NH September, SH February)
+  - map                   (climatological maps of siconc: full, Feb, Sep)
+
+References (OSI-450, HadISST, NSIDC-G02202) must be staged locally; if
+missing, the corresponding metrics are skipped (fail_on_missing_data=False).
 
 Port: 8769
 """
