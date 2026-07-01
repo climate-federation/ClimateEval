@@ -74,6 +74,21 @@ Now you can use `pixi shell`/`pixi shell --frozen` to launch a shell in your
 pixi environment or `pixi run ...`/`pixi run --frozen ...` to run commands in
 your pixi environment.
 
+## Quick start
+
+Benchmark your model against ERA5, GPCP, CERES-EBAF and CMIP6 historical models
+and build a self-contained interactive HTML report in one command:
+
+```bash
+python benchmark.py /path/to/model/cmor/Amon --name MyModel
+# → writes MyModel_benchmark.html
+```
+
+Point `benchmark.py` at a directory of your model's CMOR-compliant NetCDF files.
+Use `--data-root DIR` for staged references, `--download` to fetch missing ones,
+or `--serve` to open an interactive server instead of a file. See
+[docs/usage.md](docs/usage.md) for all options.
+
 ## Examples
 
 - [`examples/quickstart`](examples/quickstart/README.md) — the minimal loop: run
