@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-r"""Quickly benchmark a model against observations and CMIP6, and build a report.
+"""Quickly benchmark a model against observations and CMIP6, and build a report.
 
 Point this at a directory of CMOR-compliant NetCDF files from your model. It runs
 an evaluation suite (by default ``Tier2_atmosphere_monthly``, which compares
@@ -14,8 +14,7 @@ Compare your model against ERA5 + CMIP6 and write ``MyModel_benchmark.html``::
 
 Use staged references and open an interactive server instead of a file::
 
-    python benchmark.py /path/to/model/cmor/Amon --name MyModel \\
-        --data-root ~/climateeval_input --serve
+    python benchmark.py /path/to/model/cmor/Amon --name MyModel --data-root DIR --serve
 
 Download any missing references automatically (ERA5 needs ``~/.cdsapirc``)::
 
