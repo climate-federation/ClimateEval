@@ -42,11 +42,11 @@ python example.py
 python db.py
 
 # Serve an interactive benchmarking report (recommended for large databases)
-python serve.py output.ddb [output2.ddb ...] --model MPI-ESM1-2-LR
+python report.py output.ddb [output2.ddb ...] --model MPI-ESM1-2-LR
 # → opens http://127.0.0.1:8765 in the browser
 
 # Export a portable single-file HTML report (offline, no server needed)
-python generate_html.py output.ddb [output2.ddb ...] -o report.html
+python report.py output.ddb [output2.ddb ...] --model MPI-ESM1-2-LR --save-portable-html-output report.html --no-browser
 ```
 
 ## Visualization Scripts
