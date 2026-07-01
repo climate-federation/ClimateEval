@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=climateeval_cmip6
-#SBATCH --account=bd1083
+#SBATCH --account=YOUR_ACCOUNT
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -8,12 +8,12 @@
 #SBATCH --mem=64G
 #SBATCH --time=04:00:00
 #SBATCH --array=0-51
-#SBATCH --output=/work/bd1083/b309178/diffESM/ClimateEval/logs/cmip6_historical_%A_%a.out
-#SBATCH --error=/work/bd1083/b309178/diffESM/ClimateEval/logs/cmip6_historical_%A_%a.err
+#SBATCH --output=logs/cmip6_historical_%A_%a.out
+#SBATCH --error=logs/cmip6_historical_%A_%a.err
 
 set -euo pipefail
 
-WORKDIR=/work/bd1083/b309178/diffESM/ClimateEval
+WORKDIR="${WORKDIR:-${SLURM_SUBMIT_DIR:-$PWD}}"
 mkdir -p "${WORKDIR}/logs"
 
 cd "${WORKDIR}"
