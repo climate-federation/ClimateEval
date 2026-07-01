@@ -14,6 +14,7 @@ from climateeval.report import serve
 
 
 def main() -> None:
+    """Parse command-line arguments and serve the benchmarking report."""
     parser = argparse.ArgumentParser(
         description=(
             "Generate and serve a ClimateEval benchmarking report. "
