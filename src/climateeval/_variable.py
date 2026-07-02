@@ -201,7 +201,7 @@ class Variable:
             for v in required_facets
         )
 
-    def _get_cmip6_table_id(self) -> str:  # noqa: PLR0911
+    def _get_cmip6_table_id(self) -> str:  # noqa: C901, PLR0911
         """Get CMIP6 table ID.
 
         Note
@@ -232,6 +232,8 @@ class Variable:
             return f"O{self.frequency}"
         if self.realm == "land" and self.frequency == "mon":
             return "Lmon"
+        if self.realm == "sea_ice" and self.frequency == "mon":
+            return "SImon"
         msg = (
             f"Cannot determine CMIP6 table ID of {self}, this might be a problem "
             f"for some data sources"
