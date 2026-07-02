@@ -474,6 +474,12 @@ details > summary:hover { opacity: 0.75; }
 .plot-title-text {
   font-size: 0.88rem; font-weight: 600; color: var(--navy-mid);
 }
+.var-id-chip {
+  display: inline-block; padding: 1px 7px; margin-left: 6px;
+  border-radius: 6px; font-size: 0.7rem; font-weight: 600;
+  background: #eef2f7; color: #51637f; border: 1px solid var(--border);
+}
+.plot-title-units { color: var(--muted); font-weight: 500; }
 
 /* ── Dataset detail box ── */
 .plot-detail-footer {
