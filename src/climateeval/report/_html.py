@@ -17,6 +17,7 @@ from climateeval.report._figures import (
     _DIAG_LABELS,
     _FIGURE_BUILDERS,
     _diag_category,
+    _var_label,
 )
 from climateeval.report._leaderboard import (
     _render_detail_table,
@@ -37,6 +38,26 @@ if TYPE_CHECKING:
 def _stem_to_label(stem: str) -> str:
     s = re.sub(r"([a-zA-Z])(\d)", r"\1 \2", stem)
     return s.replace("_", " ").replace("-", " ").title()
+
+
+def _var_title(vid: str, long_name: str, units: str) -> tuple[str, str]:
+    """Return (tooltip text, title-bar inner HTML) for a variable.
+
+    Pills keep the compact short name; the long name goes into the pill
+    tooltip and the plot title bar (with the short name as a small chip).
+    """
+    has_long_name = bool(long_name) and long_name != vid
+    tooltip = long_name if has_long_name else vid
+    if units:
+        tooltip += f" [{units}]"
+    title_html = html_module.escape(long_name if has_long_name else vid)
+    if has_long_name:
+        title_html += f" <span class='var-id-chip'>{html_module.escape(vid)}</span>"
+    if units:
+        title_html += (
+            f" <span class='plot-title-units'>[{html_module.escape(units)}]</span>"
+        )
+    return tooltip, title_html
 
 
 def _plotly_js_tag(offline: bool) -> str:
@@ -202,9 +223,20 @@ def render_diagnostic_section(
                 terms.append(str(row.get("standard_name", pd.Series([""])).values[0]))
         return " ".join(terms).lower()
 
+    def _title_parts(v: str) -> tuple[str, str]:
+        long_name, units = (
+            _var_label(v, variables_df)
+            if variables_df is not None and not variables_df.empty
+            else (v, "")
+        )
+        return _var_title(v, long_name, units)
+
+    title_parts = {v: _title_parts(v) for v in var_cols}
+
     var_buttons = "".join(
         f"<button class='var-pill {'active' if v == first_var else ''}' "
-        f"data-var='{html_module.escape(v)}' title='{html_module.escape(v)}' "
+        f"data-var='{html_module.escape(v)}' "
+        f"title='{html_module.escape(title_parts[v][0])}' "
         f'onclick=\'showVarPanel("{scope_id}", "{v}")\'>'
         f"{html_module.escape(_btn_label(v))}</button>"
         for v in var_cols
@@ -239,7 +271,7 @@ def render_diagnostic_section(
         height = fig.layout.height or 440
         active_cls = "active" if var_id == first_var else ""
         search_key = html_module.escape(_search_terms(var_id))
-        btn_label = html_module.escape(_btn_label(var_id))
+        title_html = title_parts[var_id][1]
 
         detail_html = _build_detail_html(
             var_id,
@@ -263,7 +295,7 @@ def render_diagnostic_section(
             f"<div class='plot-panel {active_cls}' id='{panel_id}' "
             f"data-graph='{graph_id}' data-search='{search_key}'>"
             f"<div class='plot-title-bar'>"
-            f"<span class='plot-title-text'>{btn_label}</span>"
+            f"<span class='plot-title-text'>{title_html}</span>"
             f"</div>"
             f"<div id='{graph_id}' style='height:{height}px;width:100%;'></div>"
             f"<script type='application/json' id='figdata-{graph_id}'>{fig.to_json()}</script>"
@@ -413,7 +445,9 @@ def _wrap_sections_by_category(
     ``.diag-category`` wrapper with an optional ``.diag-category-header``.
     """
     out = ""
-    for category, names in _grouped_diag_sections(list(section_html_by_diag), diag_types):
+    for category, names in _grouped_diag_sections(
+        list(section_html_by_diag), diag_types
+    ):
         header = (
             f"<div class='diag-category-header'>{html_module.escape(category)}</div>"
             if category
@@ -678,7 +712,6 @@ def build_html_shell(
         Full HTML string for the shell page served at GET /.
     """
     from climateeval.report._db import get_var_cols
-    from climateeval.report._figures import _var_label
 
     now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -750,11 +783,16 @@ def build_html_shell(
         def _btn_label(v: dict) -> str:
             return v["id"]
 
+        title_parts = {
+            v["id"]: _var_title(v["id"], v["long_name"], v["units"]) for v in variables
+        }
+
         var_buttons = "".join(
-            "<button class='var-pill {active}' data-var='{vid}' title='{vid}' "
+            "<button class='var-pill {active}' data-var='{vid}' title='{tooltip}' "
             'onclick=\'showVarPanel("{scope}", "{vid}")\'>{label}</button>'.format(
                 active="active" if v["id"] == first_var else "",
                 vid=html_module.escape(v["id"]),
+                tooltip=html_module.escape(title_parts[v["id"]][0]),
                 scope=scope_id,
                 label=html_module.escape(_btn_label(v)),
             )
@@ -768,11 +806,12 @@ def build_html_shell(
             graph_id = f"graph-{scope_id}-{vid}"
             api_url = f"/api/figure/{tier_id}/{diag_name}/{vid}"
             active = "active" if vid == first_var else ""
+            search_key = html_module.escape(f"{vid} {v['long_name']}".lower())
             panels += (
                 f"<div class='plot-panel {active}' id='{panel_id}' "
-                f"data-graph='{graph_id}' data-search='{html_module.escape(vid.lower())}'>"
+                f"data-graph='{graph_id}' data-search='{search_key}'>"
                 f"<div class='plot-title-bar'>"
-                f"<span class='plot-title-text'>{html_module.escape(_btn_label(v))}</span>"
+                f"<span class='plot-title-text'>{title_parts[vid][1]}</span>"
                 f"</div>"
                 f"<div id='{graph_id}' style='height:{height}px;width:100%;' "
                 f"data-api-url='{html_module.escape(api_url)}'></div>"
