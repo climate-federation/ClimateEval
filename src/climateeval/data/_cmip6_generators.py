@@ -59,3 +59,16 @@ class CMIP6HistoricalR1I1P1F1(CMIP6DataSourceGenerator):
         "grid": "*",
         "timerange": "19790101/20141231",
     }
+
+
+class CMIP6SSP245R1I1P1F1(CMIP6DataSourceGenerator):
+    """Generate data sources from CMIP6 SSP2-4.5 simulations (r1i1p1f1)."""
+
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
+        "project": "CMIP6",
+        "exp": "ssp245",
+        "dataset": "*",
+        "institute": "*",
+        "ensemble": "r1i1p1f1",
+        "grid": "*",
+    }

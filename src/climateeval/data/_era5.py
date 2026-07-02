@@ -210,6 +210,41 @@ class ERA5Monthly(ERA5):
         }
 
 
+class ERA5Daily(ERA5):
+    """Manage daily ERA5 data."""
+
+    def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:
+        """Download data.
+
+        Note
+        ----
+        This requires a valid API key in ``~/.cdsapirc``. See section "Setup
+        the CDS Api key" at https://cds.climate.copernicus.eu/how-to-api for
+        details.
+
+        """
+        msg = "Downloading daily ERA5 data is not supported at the moment"
+        raise NotImplementedError(msg)
+
+    def _get_cds_client_retrieve_kwargs(
+        self,
+        variable: Variable,
+    ) -> tuple[str, dict[str, Any]]:
+        """Get arguments for :meth:`cds.Client.retrieve`."""
+        msg = "Downloading daily ERA5 data is not supported at the moment"
+        raise NotImplementedError(msg)
+
+    def _get_esmvaltool_facets(self, variable: Variable) -> dict[str, Any]:
+        """Get ESMValTool facets."""
+        return {
+            "short_name": variable.var_name,
+            "project": "native6",
+            "dataset": "ERA5",
+            "mip": "day",
+            "frequency": "day",
+        }
+
+
 class ERA5Hourly(ERA5):
     """Manage hourly ERA5 data."""
 
