@@ -40,13 +40,13 @@ environments and troubleshooting. In short:
 1. Clone the ClimateEval repository:
 
    ```bash
-   git clone https://github.com/EyringMLClimateGroup/ClimateEval.git
+   git clone https://github.com/climate-federation/ClimateEval.git
    ```
 
    or
 
    ```bash
-   git clone git@github.com:EyringMLClimateGroup/ClimateEval.git
+   git clone git@github.com:climate-federation/ClimateEval.git
    ```
 
    if you prefer to connect to the repository over SSH

@@ -22,7 +22,7 @@ conda-forge work.
 ## Install from source
 
 ```bash
-git clone https://github.com/EyringMLClimateGroup/ClimateEval.git
+git clone https://github.com/climate-federation/ClimateEval.git
 cd ClimateEval
 pixi install            # resolve and install everything
 # or: pixi install --frozen   # faster; uses the committed pixi.lock as-is

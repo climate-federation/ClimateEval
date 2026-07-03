@@ -15,6 +15,8 @@ reproducibility, **not** as polished, portable examples.
 
 | Script | What it drives |
 |---|---|
+| `showcase_all_tiers.py` | **Showcase** — run *every* tier on MPI-ESM1-2-HR historical vs ERA5 + CMIP6 and build one combined report. Exercises all diagnostics/figure types; fail-soft per tier. For developing/verifying the visualizations. Driven by `submit_showcase.sh`. |
+| `submit_showcase.sh` | SLURM job (compute partition) wrapping the showcase. Submit from the repo root: `sbatch scripts/submit_showcase.sh`. |
 | `run_cmip6_historical_all_models.py` | Benchmark 50+ CMIP6 historical models through `Tier2_atmosphere_monthly` (one `.ddb` per model). Driven by `submit_cmip6_historical.sh`. |
 | `submit_cmip6_historical.sh` | SLURM array job wrapping the script above. Submit from the repository root: `sbatch scripts/submit_cmip6_historical.sh`. |
 | `run_cmip6_historical_benchmarks.py` | Alternative CMIP6 historical benchmarking driver. |
