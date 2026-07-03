@@ -262,6 +262,13 @@ siconc:
   standard_name: sea_ice_area_fraction
   units: "%"
 
+vt:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Northward Heat Flux
+  realm: atmos
+  standard_name: northward_air_temperature_transport
+  units: K m s-1
+
 # ESMValTool derived variables
 # Source: https://github.com/ESMValGroup/ESMValCore/blob/main/esmvalcore/cmor/tables/cmip6-custom/CMIP6_custom.json
 amoc:
@@ -364,3 +371,29 @@ r2:
   realm: ""
   standard_name: ""
   units: "1"
+
+# TEM diagnostic output variables
+psi_star:
+  coordinates: [plev, lat]
+  long_name: TEM Residual Mass Streamfunction
+  realm: atmos
+  standard_name: ""
+  units: "kg s-1"
+v_star:
+  coordinates: [plev, lat]
+  long_name: TEM Residual Meridional Velocity
+  realm: atmos
+  standard_name: ""
+  units: "m s-1"
+w_star:
+  coordinates: [plev, lat]
+  long_name: TEM Residual Vertical Velocity (omega)
+  realm: atmos
+  standard_name: ""
+  units: "Pa s-1"
+w_dia:
+  coordinates: [plev, lat]
+  long_name: Diabatic Vertical Velocity (thermodynamic residual)
+  realm: atmos
+  standard_name: ""
+  units: "Pa s-1"

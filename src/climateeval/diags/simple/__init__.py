@@ -17,9 +17,11 @@ from climateeval.diags.simple._annual_cycle_spatial_distribution import (
 from climateeval.diags.simple._base import SimpleDiagnostic
 from climateeval.diags.simple._diurnal_cycle import DiurnalCycle
 from climateeval.diags.simple._histogram import Histogram
+from climateeval.diags.simple._hovmoller import Hovmoller
 from climateeval.diags.simple._map import Map
 from climateeval.diags.simple._nino34 import Nino34
 from climateeval.diags.simple._ohc import OceanHeatContentTimeSeries
+from climateeval.diags.simple._qbo import QBO
 from climateeval.diags.simple._sea_ice import (
     SeaIceAreaAnnualCycle,
     SeaIceAreaTimeSeries,
@@ -34,12 +36,14 @@ from climateeval.diags.simple._zonal_line import ZonalLine
 from climateeval.diags.simple._zonal_profile import ZonalProfileAirPressure
 
 __all__ = [
+    "QBO",
     "AMOCTimeSeries",
     "AnnualCycle",
     "AnnualCycleSpatialDistribution",
     "AnnualMeanTimeSeries",
     "DiurnalCycle",
     "Histogram",
+    "Hovmoller",
     "Map",
     "MeanTimeSeries",
     "Nino34",
