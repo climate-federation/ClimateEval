@@ -1,3 +1,4 @@
+# Tier 2 | Mean state vs observations: ocean climatology (SST, salinity, chl, MLD, Nino3.4, AMOC, OHC).
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.AnnualCycle
   variables:

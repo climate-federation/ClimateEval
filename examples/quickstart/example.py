@@ -164,7 +164,7 @@ def main() -> None:
         warnings.simplefilter("ignore")
         atmosphere_subdaily_cubes = iris.load(atmosphere_subdaily_paths)
     con = run_suite(
-        "Tier2_atmosphere_subdaily",
+        "Tier3_atmosphere_subdaily",
         atmosphere_subdaily_cubes,
         data_info,
         diagnostic_kwargs={

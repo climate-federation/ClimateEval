@@ -11,7 +11,7 @@ pixi environment — `pixi shell`, or prefix each command with `pixi run`.
 
 Loads MPI-ESM1-2-LR CMIP6 output with Iris and runs it through several suites
 (`Tier2_atmosphere_monthly`, `Tier1_consistency_checks`, `Tier1_sanity_checks`,
-`Tier2_ocean_monthly`, `Tier2_atmosphere_subdaily`), writing one `.ddb` file per
+`Tier2_ocean_monthly`, `Tier3_atmosphere_subdaily`), writing one `.ddb` file per
 suite:
 
 ```bash

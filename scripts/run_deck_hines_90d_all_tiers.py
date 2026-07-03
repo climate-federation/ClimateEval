@@ -9,8 +9,8 @@ Feasible suites (monthly Amon output available):
   - Tier2_atmosphere_monthly  : full set of 2-D/3-D atmosphere diagnostics vs ERA5
 
 Skipped suites:
-  - Tier1_ecs                : needs abrupt-4xCO2 experiment
-  - Tier2_atmosphere_subdaily: needs 1-hourly data (only daily available)
+  - Tier3_ecs                : needs abrupt-4xCO2 experiment
+  - Tier3_atmosphere_subdaily: needs 1-hourly data (only daily available)
   - Tier2_ocean_monthly      : needs ocean variables (atm-only run)
 
 Each suite writes its own .ddb file; a combined portable HTML is written at the end.
