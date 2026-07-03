@@ -20,7 +20,22 @@ results (raw output and metrics calculated relative to the reference data) are
 stored in a database (either in-memory or on disk for post-hoc analyses), which
 can be then explored through an interactive HTML file.
 
+## Documentation
+
+Full documentation is in [`docs/`](docs/README.md):
+
+- [Installation](docs/installation.md) — requirements, Pixi, HPC notes, troubleshooting
+- [Usage](docs/usage.md) — run a suite and inspect the results
+- [Suites](docs/suites.md) and [Variables & coordinates](docs/variables.md)
+- [Data sources](docs/data-sources.md) and [Output schema](docs/output-schema.md)
+- [Reporting](docs/reporting.md) — the interactive / portable HTML report
+- [Benchmarking your own model (legoESM)](docs/benchmarking-legoesm.md)
+- [Contributing](docs/contributing.md)
+
 ## Installation from source
+
+See [docs/installation.md](docs/installation.md) for requirements, Pixi
+environments and troubleshooting. In short:
 
 1. Clone the ClimateEval repository:
 
@@ -61,6 +76,10 @@ your pixi environment.
 
 ## Examples
 
+- [`examples/quickstart`](examples/quickstart/README.md) — the minimal loop: run
+  a suite on a model and inspect the results database.
+- [`examples/legoesm`](examples/legoesm/README.md) — benchmark an external
+  (non-CMIP archive) model against observations and build a report.
 - [`examples/ocean`](examples/ocean/README.md) — run the ocean and sea-ice
   diagnostics on a CMIP6 model and produce an interactive HTML report (staging
   the observational references, running the suites, and switching to a different

@@ -3,7 +3,8 @@
 ---
 exclude: |
   (?x)^(
-    pixi.lock
+    pixi.lock|
+    scripts/.*
   )$
 
 repos:
