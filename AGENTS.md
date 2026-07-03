@@ -40,7 +40,48 @@ pre-commit run --all
 # Run the example suite and inspect the output database
 python example.py
 python db.py
+
+# Serve an interactive benchmarking report (recommended for large databases)
+python report.py output.ddb [output2.ddb ...] --model MPI-ESM1-2-LR
+# → opens http://127.0.0.1:8765 in the browser
+
+# Export a portable single-file HTML report (offline, no server needed)
+python report.py output.ddb [output2.ddb ...] --model MPI-ESM1-2-LR \
+    --save-portable-html-output report.html --no-browser
 ```
+
+## Visualization: `report.py`
+
+By default, starts a local HTTP server that reads one or more DuckDB files and
+serves Plotly figure JSON on demand. The browser receives a thin HTML shell
+and fetches each plot only when the user selects a tab — fast regardless of
+how many models or variables are in the database. Pass
+`--save-portable-html-output` to also (or instead, with `--no-browser`) write
+a single self-contained HTML file with all figures embedded, useful for
+sharing a report without a running server (can be several hundred MB for
+large databases with many models).
+
+API endpoints exposed by the server:
+
+| Endpoint | Description |
+|---|---|
+| `GET /` | HTML shell (sidebar + empty panels) |
+| `GET /api/structure` | Tier / diagnostic / variable metadata |
+| `GET /api/figure/<tier>/<diag>/<var>` | Plotly figure JSON (lazily built + cached) |
+| `GET /api/leaderboard` | Scoreboard heatmap + summary table |
+| `GET /plotly.js` | Bundled Plotly.js for offline use |
+
+Figure-building logic lives in `climateeval/report/_figures.py`
+(`build_*_figures` functions) and supports the following diagnostic types:
+
+| Detected type | Plot style | Coordinate columns |
+|---|---|---|
+| `Map` | 2-D heatmap + coastlines | `latitude`, `longitude` |
+| `ZonalProfile` | 2-D pressure × latitude heatmap | `air_pressure`, `latitude` |
+| `ZonalLine` | 1-D line (zonal mean) | `latitude` |
+| `AnnualMeanTimeSeries` | 1-D line (annual mean) | `time` |
+| `AnnualCycle` | 1-D line (monthly climatology) | `month_number` |
+| `Scalar` | Horizontal bar chart (0-D) | *(none)* |
 
 When inspecting databases, use `ibis`.
 
