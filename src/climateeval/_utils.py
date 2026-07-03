@@ -15,6 +15,7 @@ from esmvalcore.preprocessor import (
     extract_shape,
     mask_landsea,
 )
+from esmvalcore.preprocessor._derive import get_required
 from iris import Constraint, NameConstraint
 from iris.coords import CoordExtent
 from iris.cube import CubeList
@@ -272,13 +273,31 @@ def _extract_time_and_region(cube: Cube, variable: Variable) -> Cube:
 def _get_derived_cube(cubes: CubeList, variable: Variable) -> Cube:
     """Derive variable."""
     logger.debug(f"Deriving {variable}")
+
+    # Some derivations accept alternative inputs marked as optional (e.g. amoc
+    # can be derived from msftmz or msftyz). Skip optional inputs that are not
+    # available and let the derivation use whatever is present.
+    optional_var_names = {
+        facet["short_name"]
+        for facet in get_required(variable.var_name, "CMIP6")
+        if facet.get("optional", False)
+    }
+
     cubes_for_derivation: CubeList = CubeList([])
     for required_variable in variable.get_required_variables():
-        cubes_for_derivation.append(
-            cubes.extract_cube(
+        try:
+            cube = cubes.extract_cube(
                 NameConstraint(var_name=required_variable.var_name),
-            ).copy(),
-        )
+            ).copy()
+        except ConstraintMismatchError:
+            if required_variable.var_name in optional_var_names:
+                logger.debug(
+                    f"Optional variable '{required_variable.var_name}' not "
+                    f"available for deriving {variable}",
+                )
+                continue
+            raise
+        cubes_for_derivation.append(cube)
     return derive(
         cubes_for_derivation,
         short_name=variable.var_name,
