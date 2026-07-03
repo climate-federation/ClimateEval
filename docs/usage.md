@@ -13,6 +13,32 @@ A complete, runnable version of this is
 everything from inside the Pixi environment (`pixi shell`, or prefix with
 `pixi run`).
 
+## Quickest path: the `benchmark.py` CLI
+
+To benchmark a model against ERA5/observations and CMIP6 without writing any
+code, use the root-level [`benchmark.py`](../benchmark.py):
+
+```bash
+python benchmark.py /path/to/model/cmor/Amon --name MyModel
+# writes MyModel_benchmark.html
+```
+
+It loads your model's CMOR-compliant NetCDF files, runs a suite (default
+`Tier2_atmosphere_monthly`, which compares against ERA5/GPCP/CERES-EBAF
+references and CMIP6 historical models), and writes a self-contained HTML report.
+
+| Option | Meaning |
+|---|---|
+| `--name NAME` | Model name shown in the report. |
+| `--suite NAME` | Suite name or YAML path (default `Tier2_atmosphere_monthly`). |
+| `--timerange A/B` | ISO time range applied to every dataset. |
+| `--data-root DIR` | Directory with staged reference datasets. |
+| `--download` | Download missing references (ERA5 needs `~/.cdsapirc`). |
+| `-o, --output PATH` | HTML report path (default `<name>_benchmark.html`). |
+| `--serve [--port N]` | Open an interactive server instead of writing a file. |
+
+The rest of this page shows the underlying Python API that `benchmark.py` uses.
+
 ## Run a suite
 
 ```python
