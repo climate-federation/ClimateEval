@@ -1,7 +1,9 @@
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.AnnualCycle
-  variables: &2d_variables
-    - id: chl
+  variables:
+    # Sea surface chlorophyll (surface level of 3-D chl field)
+    - &chl
+      id: chl
       var_name: chl
       frequency: mon
       reference_data: climateeval.data.ESACCIOC
@@ -10,19 +12,132 @@
         units: m
         value: 0.0
         extrapolate: true
+    # Mixed layer depth annual cycles for selected deep-convection regions.
+    # Reference ORAS5 is read directly from the raw NEMO + grid files (see
+    # climateeval.data.ORAS5), which must be staged manually. ORAS5 is on an
+    # irregular grid, so it is regridded to 2x2 with an area-weighted scheme
+    # (then land is masked) before the (linear-regridding) diagnostic runs.
+    - &mlotst_regrid
+      id: mlotst_labrador_sea
+      var_name: mlotst
+      frequency: mon
+      min_lat: 46.0
+      max_lat: 66.0
+      min_lon: 293.0
+      max_lon: 318.0
+      reference_data: climateeval.data.ORAS5
+      # Regrid the irregular ORAS5 grid to 2x2 (area-weighted) and only then
+      # mask land (mask_landsea does not support irregular grids).
+      additional_preprocessors:
+        esmvalcore.preprocessor.regrid:
+          target_grid: 2x2
+          scheme: area_weighted
+        esmvalcore.preprocessor.mask_landsea:
+          mask_out: land
+    - <<: *mlotst_regrid
+      id: mlotst_weddell_sea
+      min_lat: -77.0
+      max_lat: -60.0
+      min_lon: 294.0
+      max_lon: 344.0
+    - <<: *mlotst_regrid
+      id: mlotst_southern_ocean
+      min_lat: -90.0
+      max_lat: 90.0
+      min_lon: 0.0
+      max_lon: 360.0
+      ar6_regions_mask: [Southern-Ocean]
 
 - name: performance_metrics
   diagnostic: climateeval.diags.simple.AnnualCycleSpatialDistribution
-  variables: *2d_variables
+  variables:
+    - *chl
 
 - name: annual_mean_timeseries
   diagnostic: climateeval.diags.simple.AnnualMeanTimeSeries
-  variables: *2d_variables
+  variables:
+    - *chl
+    # Sea surface temperature
+    - &tos
+      id: tos
+      var_name: tos
+      frequency: mon
+      reference_data: climateeval.data.ESACCISST
+      other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
+
+- name: nino34
+  diagnostic: climateeval.diags.simple.Nino34
+  variables:
+    # Oceanic Nino Index: SST anomalies over the Nino 3.4 region.
+    - id: tos_nino34
+      var_name: tos
+      frequency: mon
+      reference_data: climateeval.data.ESACCISST
+      other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
+
+- name: amoc
+  diagnostic: climateeval.diags.simple.AMOCTimeSeries
+  variables:
+    # AMOC at the RAPID array (26.5N). Derived (by ESMValTool) from the
+    # meridional overturning mass streamfunction (msftmz/msftyz) for models;
+    # the RAPID array provides the observed amoc directly as the reference.
+    - id: amoc
+      var_name: amoc
+      frequency: mon
+      reference_data: climateeval.data.RAPID
+
+- name: ohc
+  diagnostic: climateeval.diags.simple.OceanHeatContentTimeSeries
+  variables:
+    # Global ocean heat content anomaly, derived from potential temperature
+    # (phcint). Anomalies are relative to the diagnostic's fixed reference
+    # period, so the input data must cover it. EN4/IAP provide the reference
+    # potential temperature from which phcint is derived.
+    - &ohc
+      id: phcint_total
+      var_name: phcint
+      frequency: mon
+      reference_data: climateeval.data.EN4
+      other_data: [climateeval.data.IAP]
+    - <<: *ohc
+      id: phcint_300m
+      additional_preprocessors:
+        esmvalcore.preprocessor.extract_volume:
+          z_min: 0.0
+          z_max: 300.0
+          interval_bounds: left_closed
+    - <<: *ohc
+      id: phcint_2000m
+      additional_preprocessors:
+        esmvalcore.preprocessor.extract_volume:
+          z_min: 0.0
+          z_max: 2000.0
+          interval_bounds: left_closed
 
 - name: map
   diagnostic: climateeval.diags.simple.Map
-  variables: *2d_variables
+  variables:
+    - *chl
+    - *tos
+    # Sea surface salinity (surface level of 3-D so field, g/kg over ocean).
+    # `so` is only defined over the ocean, and `mask_landsea` (sea_only) does
+    # not support the curvilinear ocean grids many models use, so no land-sea
+    # mask is applied here.
+    - &sos
+      id: sos
+      var_name: so
+      frequency: mon
+      units: g kg-1
+      vertical_level:
+        coordinate_name: depth
+        units: m
+        value: 0.0
+        extrapolate: true
+      reference_data: climateeval.data.WOA
 
 - name: zonal_line
   diagnostic: climateeval.diags.simple.ZonalLine
-  variables: *2d_variables
+  variables:
+    - *chl
+    - *tos
+    - *sos

@@ -13,6 +13,7 @@ DataTypeValue = Literal["to_benchmark", "reference", "other"]
 """Allowed values for data type."""
 
 DEFAULT_GRID: str = "2x2"
+SEA_ICE_GRID: str = "1x1"  # finer grid for sea ice, matching ICONEval recipes
 PLEV19_LEVELS: list[float] = [
     100000.0,
     92500.0,

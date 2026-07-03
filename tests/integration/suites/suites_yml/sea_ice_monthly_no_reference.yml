@@ -1,0 +1,27 @@
+- name: annual_cycle
+  diagnostic: climateeval.diags.simple.AnnualCycle
+  variables:
+    - id: siconc_nh
+      var_name: siconc
+      frequency: mon
+      min_lat: 0.0
+      max_lat: 90.0
+    - id: siconc_sh
+      var_name: siconc
+      frequency: mon
+      min_lat: -90.0
+      max_lat: 0.0
+
+- name: annual_mean_timeseries
+  diagnostic: climateeval.diags.simple.AnnualMeanTimeSeries
+  variables:
+    - id: siconc_nh
+      var_name: siconc
+      frequency: mon
+      min_lat: 0.0
+      max_lat: 90.0
+    - id: siconc_sh
+      var_name: siconc
+      frequency: mon
+      min_lat: -90.0
+      max_lat: 0.0
