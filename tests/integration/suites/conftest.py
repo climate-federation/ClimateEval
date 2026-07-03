@@ -47,7 +47,13 @@ def data() -> CubeList:
         long_name="Air Temperature",
         units="K",
     )
-    return CubeList([tas_cube, pr_cube, rsdt_cube, rsut_cube, ta_cube])
+    siconc_cube = get_simple_2d_cube(
+        var_name="siconc",
+        standard_name="sea_ice_area_fraction",
+        long_name="Sea-Ice Area Percentage (Ocean Grid)",
+        units="%",
+    )
+    return CubeList([tas_cube, pr_cube, rsdt_cube, rsut_cube, ta_cube, siconc_cube])
 
 
 @pytest.fixture(scope="module")

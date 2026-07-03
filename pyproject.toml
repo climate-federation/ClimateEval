@@ -179,6 +179,12 @@ future-annotations = true
     "ERA001",     # Found commented-out code
     "T201",       # `print` found
 ]
+# Standalone example runners (not part of the importable package).
+"examples/**.py" = [
+    "ERA001",     # Found commented-out code
+    "INP001",     # File is part of an implicit namespace package
+    "T201",       # `print` found
+]
 "src/climateeval/report/*.py" = [
     "ARG001", "B007", "B023", "B905", "BLE001", "C408", "C901", "COM812",
     "E501", "E702", "ERA001", "FBT001", "I001", "PD010", "PD011", "PD101",

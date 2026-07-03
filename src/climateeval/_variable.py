@@ -201,7 +201,7 @@ class Variable:
             for v in required_facets
         )
 
-    def _get_cmip6_table_id(self) -> str:  # noqa: PLR0911
+    def _get_cmip6_table_id(self) -> str:
         """Get CMIP6 table ID.
 
         Note
@@ -213,30 +213,43 @@ class Variable:
         """
         if self.realm == "":
             return ""
+
         if self.realm == "atmos":
-            if self.frequency == "1hr":
-                if self.var_name in ("pr", "prc"):
-                    return "E1hr"
-                if self.var_name in ("ps", "tas"):
-                    return "AERhr"
-            if self.frequency in ("3hr", "day", "fx"):
-                return self.frequency
-            if self.frequency == "mon":
-                return "Amon"
-        if self.realm in ("ocean", "ocnBgchem") and self.frequency in (
-            "day",
-            "fx",
-            "mon",
-            "yr",
-        ):
-            return f"O{self.frequency}"
-        if self.realm == "land" and self.frequency == "mon":
-            return "Lmon"
-        msg = (
+            table_id = self._get_atmos_cmip6_table_id()
+        else:
+            # Realms whose table ID is a fixed prefix plus the frequency, with
+            # the set of frequencies that actually have a table.
+            prefix_realms = {
+                "ocean": ("O", ("day", "fx", "mon", "yr")),
+                "ocnBgchem": ("O", ("day", "fx", "mon", "yr")),
+                "sea_ice": ("SI", ("day", "mon")),
+                "land": ("L", ("mon",)),
+            }
+            prefix, frequencies = prefix_realms.get(self.realm, ("", ()))
+            table_id = (
+                f"{prefix}{self.frequency}" if self.frequency in frequencies else ""
+            )
+
+        if table_id:
+            return table_id
+
+        logger.warning(
             f"Cannot determine CMIP6 table ID of {self}, this might be a problem "
-            f"for some data sources"
+            f"for some data sources",
         )
-        logger.warning(msg)
+        return ""
+
+    def _get_atmos_cmip6_table_id(self) -> str:
+        """Get CMIP6 table ID for atmospheric variables."""
+        if self.frequency == "1hr":
+            if self.var_name in ("pr", "prc"):
+                return "E1hr"
+            if self.var_name in ("ps", "tas"):
+                return "AERhr"
+        if self.frequency in ("3hr", "day", "fx"):
+            return self.frequency
+        if self.frequency == "mon":
+            return "Amon"
         return ""
 
     def get_preprocessing_settings(self) -> dict[str, Any]:
