@@ -387,7 +387,7 @@ def _build_figures_for_tier(
         variables_df = tables.get("variables", pd.DataFrame())
         data_sources_df = tables.get("data_sources", pd.DataFrame())
 
-        if has_raw_output and not data_df.empty:
+        if not metrics_df.empty:
             tier_metrics[diag_name] = metrics_df
 
         # Skip diagnostics without raw_output table (e.g., AnnualCycleSpatialDistribution)
