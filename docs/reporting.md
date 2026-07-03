@@ -95,5 +95,11 @@ The supported types (registered in
 | `Histogram` | 📊 Histogram | Distribution histogram. |
 | `Scalar` | 📊 Scalar | Horizontal bar chart (0-D values). |
 
+Multi-panel figures have linked zoom: box-zooming or panning one panel of a
+`Map`, `ZonalProfile`, or `QBO` figure applies the same view to its sibling
+panels (e.g. reference, model, and bias maps stay aligned), and double-click
+or "Reset axes" restores all panels together. Hovmöller panels stay
+independent because of their axis-swap buttons.
+
 The coordinate columns each diagnostic writes are listed in
 [Output schema](output-schema.md).

@@ -74,6 +74,16 @@ def _var_label(var_id: str, variables_df: pd.DataFrame) -> tuple[str, str]:
     return str(long_name), str(units)
 
 
+def _sync_subplot_axes(fig: go.Figure) -> None:
+    """Link all subplot axes so zoom, pan and reset apply to every panel.
+
+    Only valid for figures whose panels all share the same axis semantics
+    (e.g. the lon×lat map grid); the first subplot's axes are the targets.
+    """
+    fig.update_xaxes(matches="x")
+    fig.update_yaxes(matches="y")
+
+
 def _data_range(series: pd.Series, var_id: str) -> tuple[float, float]:
     """Return (vmin, vmax); symmetric around zero for diverging variables."""
     vmin, vmax = _vrange(series)
@@ -524,6 +534,8 @@ def build_map_figures(
                 )
                 _add_panel(piv, row, col, cs, vmin, vmax, cb, ds)
                 show_cb = False
+
+        _sync_subplot_axes(fig)
 
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         # Each map panel should be ~2:1 (width:height) to match 360°×180° lon/lat.
@@ -1482,6 +1494,8 @@ def build_zonal_profile_figures(
                 _add_panel(piv, row, col, cs, vmin, vmax, cb, ds)
                 show_cb = False
 
+        _sync_subplot_axes(fig)
+
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
@@ -1790,8 +1804,9 @@ def build_hovmoller_figures(
         zmin, zmax = -abs_max, abs_max
 
         nrows = len(pivots)
-        # Do NOT share x-axes so the transpose button can update each trace's
-        # x/y independently.
+        # Do NOT share or match axes here: the transpose buttons swap each
+        # panel's x/y between numeric (lon) and categorical (time), which a
+        # matched-axis group would break.
         fig = make_subplots(
             rows=nrows,
             cols=1,
@@ -2121,6 +2136,13 @@ def build_qbo_figures(
                 col=1,
             )
 
+        # Link the stacked heatmap rows so zoom/pan/reset applies to all
+        # datasets; the amplitude and index panels have different axis
+        # semantics and stay independent.
+        for row_i in range(2, n_ds + 1):
+            fig.update_xaxes(matches="x", row=row_i, col=1)
+            fig.update_yaxes(matches="y", row=row_i, col=1)
+
         # ---- Amplitude profile (right column, spans all heatmap rows) ------
         color_idx = 0
         for ds in ds_order:
@@ -2303,3 +2325,24 @@ _DIAG_ICONS = {
     "Histogram": "📊",
     "Scalar": "📊",
 }
+
+# Plot-type categories — group diagnostics by the kind of view they present, so
+# related plots cluster together in the report (issue #17).
+_DIAG_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Spatial maps & profiles", ("Map", "ZonalProfile", "ZonalLine")),
+    (
+        "Time series & cycles",
+        ("TimeSeries", "AnnualCycle", "DiurnalCycle", "Hovmoller", "QBO"),
+    ),
+    ("Distributions", ("Histogram",)),
+    ("Scalar metrics", ("Scalar",)),
+)
+_CATEGORY_ORDER: tuple[str, ...] = (*(name for name, _ in _DIAG_CATEGORIES), "Other")
+_DTYPE_TO_CATEGORY: dict[str, str] = {
+    dtype: name for name, dtypes in _DIAG_CATEGORIES for dtype in dtypes
+}
+
+
+def _diag_category(dtype: str) -> str:
+    """Return the plot-type category label for a diagnostic type."""
+    return _DTYPE_TO_CATEGORY.get(dtype, "Other")

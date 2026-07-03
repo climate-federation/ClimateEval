@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 # ---------------------------------------------------------------------------
 # Plot styling
 # ---------------------------------------------------------------------------
@@ -106,6 +108,31 @@ def _hovmoller_colorscale_for(var_id: str) -> str:
 
 def _bias_colorscale_for(var_id: str) -> str:
     return _VAR_BIAS_COLORSCALE.get(var_id, _DEFAULT_BIAS_COLORSCALE)
+
+
+# ---------------------------------------------------------------------------
+# Per-tier accent (visual separation of Tier 1/2/3 in the report)
+# ---------------------------------------------------------------------------
+
+# Modern, distinct, AA-contrast accents keyed by tier number (parsed from the
+# database/panel label). Panels of the same tier share a colour.
+_TIER_ACCENTS = {
+    1: "#0f766e",  # teal-700   — Tier 1 (sanity & consistency)
+    2: "#4338ca",  # indigo-700 — Tier 2 (mean state vs obs)
+    3: "#b45309",  # amber-700  — Tier 3 (variability / processes / feedbacks)
+    4: "#9333ea",  # purple-600
+}
+_TIER_ACCENT_FALLBACK = "#475569"  # slate-600 (label without a tier number)
+_TIER_RE = re.compile(r"tier\s*([0-9]+)", re.IGNORECASE)
+
+
+def _tier_accent(label: str) -> tuple[str, str]:
+    """Return (accent hex, short badge) for a tier panel, parsed from its label."""
+    match = _TIER_RE.search(label)
+    if match:
+        num = int(match.group(1))
+        return _TIER_ACCENTS.get(num, _TIER_ACCENT_FALLBACK), f"T{num}"
+    return _TIER_ACCENT_FALLBACK, "•"
 
 
 # ---------------------------------------------------------------------------
@@ -249,6 +276,12 @@ html, body {
   border-left-color: var(--accent); font-weight: 600;
 }
 .sidebar-item .sidebar-icon { font-size: 1rem; flex-shrink: 0; opacity: 0.8; }
+.tier-badge {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; height: 19px; padding: 0 6px;
+  border-radius: 6px; font-size: 0.68rem; font-weight: 800;
+  letter-spacing: .02em; color: #fff;
+}
 
 .sidebar-divider {
   height: 1px; background: rgba(255,255,255,0.07); margin: 8px 16px;
@@ -319,6 +352,18 @@ html, body {
 /* ── Diagnostic sections within a tier ── */
 .diag-section { margin-bottom: 48px; }
 .diag-section.hidden { display: none; }
+
+/* ── Plot-type category grouping ── */
+.diag-category + .diag-category { margin-top: 14px; }
+/* auto-hide a category (incl. its header) when a filter leaves it with no
+   visible sections; search only dims sections, so headers stay during search */
+.diag-category:not(:has(.diag-section:not(.hidden))) { display: none; }
+.diag-category-header {
+  margin: 4px 0 22px; padding-bottom: 8px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--navy-light);
+  border-bottom: 1px solid var(--border);
+}
 
 .diag-section-header {
   display: flex; align-items: center; gap: 10px;
@@ -429,6 +474,12 @@ details > summary:hover { opacity: 0.75; }
 .plot-title-text {
   font-size: 0.88rem; font-weight: 600; color: var(--navy-mid);
 }
+.var-id-chip {
+  display: inline-block; padding: 1px 7px; margin-left: 6px;
+  border-radius: 6px; font-size: 0.7rem; font-weight: 600;
+  background: #eef2f7; color: #51637f; border: 1px solid var(--border);
+}
+.plot-title-units { color: var(--muted); font-weight: 500; }
 
 /* ── Dataset detail box ── */
 .plot-detail-footer {
