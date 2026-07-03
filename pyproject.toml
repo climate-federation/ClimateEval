@@ -229,6 +229,25 @@ convention = "numpy"
 ignore-words-list = "vas"
 
 
+[tool.coverage.run]
+# The report layer (Plotly figure building, HTTP server, HTML generation) is
+# exercised end-to-end via the rendered report rather than unit-tested line by
+# line; exclude it so the coverage metric reflects the scientific core
+# (diagnostics, preprocessing, variables, data-source provenance, suites).
+omit = [
+    "src/climateeval/report/*",
+]
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@(typing\\.)?overload",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+
+
 [tool.mypy]
 
 # report/_figures.py and the TEM diagnostic contain dense array code where mypy
