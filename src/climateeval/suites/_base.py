@@ -55,19 +55,38 @@ class Suite:
         data_information: DataSourceInformation,
         *,
         database_resource: str = "duckdb://",
+        append: bool = False,
         **database_kwargs: Any,
     ) -> ibis.BaseBackend:
-        """Get database from evaluation suite."""
+        """Get database from evaluation suite.
+
+        Parameters
+        ----------
+        append:
+            If True, append results to an existing database instead of
+            failing when diagnostic schemas already exist.  Use this to
+            accumulate output from multiple model runs into one file.
+        """
         logger.debug(f"Using database {database_resource}")
 
         connection = ibis.connect(database_resource, **database_kwargs)
+        existing_schemas = set(connection.list_databases()) if append else set()
 
         for diag_name, diag in self._get_diagnostics().items():
             logger.info(
                 f"Processing diagnostic '{diag_name}' within suite '{self.name}'",
             )
             output = diag.get_output(data, data_information)
-            connection.create_database(diag_name)
+
+            if diag_name not in existing_schemas:
+                connection.create_database(diag_name)
+
+            existing_tables = (
+                set(connection.list_tables(database=diag_name))
+                if diag_name in existing_schemas
+                else set()
+            )
+
             for output_field in fields(output):
                 table_name = output_field.name
                 table = getattr(output, table_name)
@@ -77,7 +96,10 @@ class Suite:
                         f"within suite '{self.name}' contains no data",
                     )
                     continue
-                connection.create_table(table_name, table, database=diag_name)
+                if table_name in existing_tables:
+                    connection.insert(table_name, table, database=diag_name)
+                else:
+                    connection.create_table(table_name, table, database=diag_name)
             logger.info(
                 f"Created database for diagnostic '{diag_name}' within suite "
                 f"'{self.name}' at {database_resource}",
