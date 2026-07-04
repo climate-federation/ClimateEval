@@ -1060,6 +1060,77 @@ def build_static_zonal_profile_figures(
 
 
 # ---------------------------------------------------------------------------
+# Scalar builder
+# ---------------------------------------------------------------------------
+
+_SCALAR_TYPE_COLORS = {
+    "to_benchmark": "#4C72B0",
+    "reference": "#c0860a",
+    "other": "#aaaaaa",
+}
+
+
+def build_static_bar_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,  # noqa: ARG001
+) -> dict[str, Figure]:
+    """Horizontal bar chart for scalar (0-D) diagnostics, one per variable.
+
+    Mirrors the interactive Scalar figures: benchmarked dataset on top in
+    blue, references in gold, auxiliary datasets in light gray, values
+    annotated next to the bars.
+    """
+    figures: dict[str, Figure] = {}
+    type_order = {"to_benchmark": 0, "reference": 1, "other": 2}
+
+    for var_id in get_var_cols(data_df):
+        sub = data_df[["data_id", "data_type", var_id]].dropna(subset=[var_id]).copy()
+        if sub.empty:
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+
+        sub["_type_rank"] = sub["data_type"].map(type_order).fillna(3)
+        sub = sub.sort_values(["_type_rank", var_id], ascending=[True, True])
+
+        n = len(sub)
+        with sns.axes_style(_SEABORN_STYLE):
+            fig = Figure(
+                figsize=(7.0, max(2.5, 0.35 * n + 1.5)),
+                layout="constrained",
+            )
+            axes = fig.add_subplot(111)
+
+        # Plot bottom-up so to_benchmark ends on top
+        y_pos = range(n - 1, -1, -1)
+        values = sub[var_id].to_numpy(dtype=float)
+        colors = [_SCALAR_TYPE_COLORS.get(str(t), "#aaaaaa") for t in sub["data_type"]]
+        axes.barh(list(y_pos), values, color=colors, height=0.7)
+        axes.set_yticks(list(y_pos))
+        axes.set_yticklabels(
+            sub["data_id"].tolist(),
+            fontsize=_MAP_FONTSIZE,
+        )
+        for y, v in zip(y_pos, values, strict=True):
+            axes.annotate(
+                f"{v:.3g}",
+                xy=(v, y),
+                xytext=(3, 0),
+                textcoords="offset points",
+                va="center",
+                fontsize=_MAP_STATS_FONTSIZE,
+            )
+        axes.grid(visible=True, axis="x", **_GRIDLINE_KWARGS)
+        axes.set_axisbelow(True)
+        axes.margins(x=0.15)
+        axes.set_xlabel(f"{var_id} [{units}]" if units else var_id)
+        axes.set_title(long_name)
+        figures[var_id] = fig
+
+    return figures
+
+
+# ---------------------------------------------------------------------------
 # Hovmöller + QBO builders
 # ---------------------------------------------------------------------------
 
@@ -1333,6 +1404,7 @@ _STATIC_FIGURE_BUILDERS: dict[str, Callable] = {
     "Hovmoller": build_static_hovmoller_figures,
     "Map": build_static_map_figures,
     "QBO": build_static_qbo_figures,
+    "Scalar": build_static_bar_figures,
     "TimeSeries": build_static_timeseries_figures,
     "ZonalLine": build_static_zonal_line_figures,
     "ZonalProfile": build_static_zonal_profile_figures,

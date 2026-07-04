@@ -9,6 +9,7 @@ from climateeval.report._figures import _FIGURE_BUILDERS
 from climateeval.report._static_figures import (
     _STATIC_FIGURE_BUILDERS,
     build_static_annual_cycle_figures,
+    build_static_bar_figures,
     build_static_diurnal_cycle_figures,
     build_static_histogram_figures,
     build_static_hovmoller_figures,
@@ -353,5 +354,20 @@ def test_generate_static_plots_writes_requested_formats(tmp_path: Path) -> None:
         assert path.stat().st_size > 0
 
 
-def test_registry_keys_are_valid_diag_types() -> None:
-    assert set(_STATIC_FIGURE_BUILDERS) <= set(_FIGURE_BUILDERS)
+def test_scalar_bars_colored_by_data_type_with_benchmark_on_top() -> None:
+    rows = [
+        {"data_id": "MODEL", "data_type": "to_benchmark", "tas": 288.1},
+        {"data_id": "ERA5", "data_type": "reference", "tas": 287.9},
+        {"data_id": "CMIP6-X", "data_type": "other", "tas": 287.5},
+    ]
+    figures = build_static_bar_figures(pd.DataFrame(rows), VARIABLES_DF)
+    axes = figures["tas"].axes[0]
+    labels = [t.get_text() for t in axes.get_yticklabels()]
+    assert labels[0] == "MODEL"  # first y tick = top bar
+    assert len(axes.patches) == 3
+    annotations = [t.get_text() for t in axes.texts]
+    assert "288" in "".join(annotations)
+
+
+def test_registry_covers_all_interactive_figure_types() -> None:
+    assert set(_STATIC_FIGURE_BUILDERS) == set(_FIGURE_BUILDERS)
