@@ -5,8 +5,10 @@ from typing import TYPE_CHECKING
 import ibis
 import pandas as pd
 
+from climateeval.report._figures import _FIGURE_BUILDERS
 from climateeval.report._static_figures import (
     _STATIC_FIGURE_BUILDERS,
+    build_static_map_figures,
     build_static_timeseries_figures,
     generate_static_plots,
 )
@@ -84,6 +86,73 @@ def test_timeseries_few_points_use_markers() -> None:
     assert line.get_marker() == "o"
 
 
+def _map_df(datasets: dict[str, str]) -> pd.DataFrame:
+    """Lat/lon grid rows for each dataset; datasets maps data_id → data_type."""
+    rows = [
+        {
+            "latitude": lat,
+            "longitude": lon,
+            "tas": 280.0 + offset + lat / 10.0,
+            "data_id": ds,
+            "data_type": dtype,
+        }
+        for offset, (ds, dtype) in enumerate(datasets.items())
+        for lat in (-30.0, 0.0, 30.0)
+        for lon in (0.0, 90.0, 180.0, 270.0)
+    ]
+    return pd.DataFrame(rows)
+
+
+def test_map_single_model_uses_esmvaltool_three_panel_layout() -> None:
+    data_df = _map_df({"ERA5": "reference", "MODEL": "to_benchmark"})
+    metrics_df = pd.DataFrame(
+        [
+            {
+                "var_id": "tas",
+                "data_id": "MODEL",
+                "weighted_rmse": 1.23,
+                "weighted_pearsonr": 0.98,
+            },
+        ],
+    )
+    figures = build_static_map_figures(data_df, VARIABLES_DF, metrics_df)
+
+    fig = figures["tas"]
+    # 3 map panels + 1 common colorbar + 1 bias colorbar
+    map_axes = [ax for ax in fig.axes if hasattr(ax, "coastlines")]
+    assert len(map_axes) == 3
+    assert len(fig.axes) - len(map_axes) == 2
+    titles = {ax.get_title() for ax in map_axes}
+    assert titles == {"MODEL", "ERA5", "MODEL \u2212 ERA5"}
+    bias_ax = next(ax for ax in map_axes if "\u2212" in ax.get_title())
+    stats = [t.get_text() for t in bias_ax.texts]
+    assert any("RMSE=1.23" in s for s in stats)
+    # R² is computed from the gridded fields (multi_datasets.py definition)
+    assert any(s.startswith("R²=") for s in stats)
+
+
+def test_map_multi_model_grid_has_reference_and_bias_panels() -> None:
+    data_df = _map_df(
+        {"ERA5": "reference", "M1": "to_benchmark", "M2": "to_benchmark"},
+    )
+    figures = build_static_map_figures(data_df, VARIABLES_DF)
+    fig = figures["tas"]
+    map_axes = [ax for ax in fig.axes if hasattr(ax, "coastlines")]
+    titles = [ax.get_title() for ax in map_axes]
+    assert titles == ["ERA5", "M1", "M2"]
+    assert "bias vs ERA5" in fig.get_suptitle()
+
+
+def test_map_without_reference_renders_absolute_grid() -> None:
+    data_df = _map_df({"M1": "to_benchmark", "M2": "to_benchmark"})
+    figures = build_static_map_figures(data_df, VARIABLES_DF)
+    fig = figures["tas"]
+    map_axes = [ax for ax in fig.axes if hasattr(ax, "coastlines")]
+    assert [ax.get_title() for ax in map_axes] == ["M1", "M2"]
+    # single shared colorbar for the absolute panels
+    assert len(fig.axes) - len(map_axes) == 1
+
+
 def _write_sample_db(db_path: Path) -> None:
     """Create a minimal suite-shaped database with one TimeSeries diagnostic."""
     conn = ibis.duckdb.connect(db_path)
@@ -117,6 +186,4 @@ def test_generate_static_plots_writes_requested_formats(tmp_path: Path) -> None:
 
 
 def test_registry_keys_are_valid_diag_types() -> None:
-    from climateeval.report._figures import _FIGURE_BUILDERS
-
     assert set(_STATIC_FIGURE_BUILDERS) <= set(_FIGURE_BUILDERS)

@@ -64,6 +64,8 @@ _VAR_COLORSCALE: dict[str, str] = {
     "ua": "PuOr",
     "ua200": "PuOr",
     "ua800": "PuOr",
+    # Sea-ice concentration (ICONEval sea_ice_maps: Blues_r)
+    "siconc": "Blues_r",
 }
 
 # Variables whose fields should be displayed with a symmetric range around zero
@@ -98,16 +100,27 @@ _HOVMOLLER_COLORSCALE: dict[str, str] = {
 _DEFAULT_HOVMOLLER_COLORSCALE = "RdBu_r"
 
 
+def _base_var(var_id: str) -> str:
+    """Return the physical variable behind a composite id (siconc_nh_map → siconc)."""
+    return var_id.split("_", maxsplit=1)[0]
+
+
 def _colorscale_for(var_id: str) -> str:
-    return _VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE)
+    if var_id in _VAR_COLORSCALE:
+        return _VAR_COLORSCALE[var_id]
+    return _VAR_COLORSCALE.get(_base_var(var_id), _DEFAULT_COLORSCALE)
 
 
 def _hovmoller_colorscale_for(var_id: str) -> str:
-    return _HOVMOLLER_COLORSCALE.get(var_id, _DEFAULT_HOVMOLLER_COLORSCALE)
+    if var_id in _HOVMOLLER_COLORSCALE:
+        return _HOVMOLLER_COLORSCALE[var_id]
+    return _HOVMOLLER_COLORSCALE.get(_base_var(var_id), _DEFAULT_HOVMOLLER_COLORSCALE)
 
 
 def _bias_colorscale_for(var_id: str) -> str:
-    return _VAR_BIAS_COLORSCALE.get(var_id, _DEFAULT_BIAS_COLORSCALE)
+    if var_id in _VAR_BIAS_COLORSCALE:
+        return _VAR_BIAS_COLORSCALE[var_id]
+    return _VAR_BIAS_COLORSCALE.get(_base_var(var_id), _DEFAULT_BIAS_COLORSCALE)
 
 
 # ---------------------------------------------------------------------------
