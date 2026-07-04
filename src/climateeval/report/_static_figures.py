@@ -1056,6 +1056,266 @@ def build_static_zonal_profile_figures(
 
 
 # ---------------------------------------------------------------------------
+# Hovmöller + QBO builders
+# ---------------------------------------------------------------------------
+
+
+def build_static_hovmoller_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,  # noqa: ARG001
+) -> dict[str, Figure]:
+    """Hovmöller diagrams: longitude × time anomalies, one panel per dataset.
+
+    Stacked pcolormesh panels on a shared symmetric colour range (single
+    colorbar), time increasing downward like the interactive report.
+    """
+    from climateeval.report._style import _hovmoller_colorscale_for
+
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+        cmap = _mpl_cmap(_hovmoller_colorscale_for(var_id))
+
+        pivots: dict[str, pd.DataFrame] = {}
+        for ds in all_datasets:
+            sub = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
+            if sub.empty:
+                continue
+            p = sub.pivot_table(
+                index="time",
+                columns="longitude",
+                values=var_id,
+                aggfunc="mean",
+            )
+            p = p.dropna(how="all").dropna(axis=1, how="all")
+            if not p.empty:
+                pivots[ds] = p
+        if not pivots:
+            continue
+
+        all_vals = np.concatenate(
+            [p.to_numpy(dtype=float).ravel() for p in pivots.values()],
+        )
+        all_vals = all_vals[np.isfinite(all_vals)]
+        if all_vals.size:
+            vabs = max(
+                abs(float(np.percentile(all_vals, 2))),
+                abs(float(np.percentile(all_vals, 98))),
+            )
+        else:
+            vabs = 1.0
+        vabs = vabs or 1.0
+
+        nrows = len(pivots)
+        fig = Figure(figsize=(7.0, 2.0 + 2.2 * nrows), layout="constrained")
+        axes_list = []
+        mappable = None
+        for i, (ds, pivot) in enumerate(pivots.items()):
+            axes = fig.add_subplot(nrows, 1, i + 1)
+            mappable = axes.pcolormesh(
+                pivot.columns.to_numpy(dtype=float),
+                pivot.index.to_numpy(),
+                pivot.to_numpy(dtype=float),
+                cmap=cmap,
+                vmin=-vabs,
+                vmax=vabs,
+                rasterized=True,
+            )
+            axes.invert_yaxis()
+            axes.set_title(str(ds), fontsize=_MAP_FONTSIZE)
+            axes.set_ylabel("Time", fontsize=_MAP_FONTSIZE)
+            axes.tick_params(labelsize=_MAP_FONTSIZE)
+            if i == nrows - 1:
+                axes.set_xlabel("Longitude", fontsize=_MAP_FONTSIZE)
+            axes_list.append(axes)
+        if mappable is not None:
+            cbar = fig.colorbar(mappable, ax=axes_list, orientation="vertical")
+            cbar.set_label(
+                f"{var_id} [{units}]" if units else var_id,
+                fontsize=_MAP_FONTSIZE,
+            )
+            cbar.ax.tick_params(labelsize=_MAP_FONTSIZE)
+
+        fig.suptitle(long_name, fontsize=_MAP_FONTSIZE + 2)
+        figures[var_id] = fig
+
+    return figures
+
+
+def build_static_qbo_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, Figure]:
+    """QBO figures mirroring the interactive layout.
+
+    Left: stacked time × pressure heatmaps (one per dataset, shared symmetric
+    colour range). Right: amplitude profile (std vs pressure). Bottom: QBO
+    index (wind at ~50 hPa vs time).
+    """
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_datasets = _get_ref_datasets(data_df, metrics_df)
+    qbo_ticks = [100, 70, 50, 30, 20, 10, 5, 1]
+    index_plev_pa = 5000.0  # ~50 hPa
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+        cmap = _mpl_cmap(_colorscale_for(var_id))
+
+        pivots: dict[str, pd.DataFrame] = {}
+        for ds in all_datasets:
+            sub = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
+            if sub.empty:
+                continue
+            p = sub.pivot_table(
+                index="air_pressure",
+                columns="time",
+                values=var_id,
+                aggfunc="mean",
+            )
+            p = p.dropna(how="all").dropna(axis=1, how="all")
+            if not p.empty:
+                p.index = p.index / 100.0  # Pa → hPa
+                pivots[ds] = p
+        if not pivots:
+            continue
+
+        arr = data_df[var_id].dropna().to_numpy(dtype=float)
+        vabs = max(
+            abs(float(np.percentile(arr, 2))),
+            abs(float(np.percentile(arr, 98))),
+        )
+        vabs = vabs or 1.0
+
+        n_ds = len(pivots)
+        fig = Figure(figsize=(7.0, 1.8 * n_ds + 2.6), layout="constrained")
+        gridspec = fig.add_gridspec(
+            n_ds + 1,
+            5,
+            height_ratios=[1.8] * n_ds + [1.6],
+        )
+
+        # Stacked heatmaps (left 4/5 columns)
+        heatmap_axes = []
+        mappable = None
+        for i, (ds, pivot) in enumerate(pivots.items()):
+            axes = fig.add_subplot(gridspec[i, 0:4])
+            mappable = axes.pcolormesh(
+                pivot.columns.to_numpy(),
+                pivot.index.to_numpy(dtype=float),
+                pivot.to_numpy(dtype=float),
+                cmap=cmap,
+                vmin=-vabs,
+                vmax=vabs,
+                rasterized=True,
+            )
+            axes.set_yscale("log")
+            axes.set_ylim(float(pivot.index.max()), float(pivot.index.min()))
+            ticks = [
+                t for t in qbo_ticks if pivot.index.min() <= t <= pivot.index.max()
+            ]
+            axes.set_yticks(ticks)
+            axes.set_yticklabels([str(t) for t in ticks], fontsize=_MAP_FONTSIZE)
+            axes.minorticks_off()
+            axes.set_title(str(ds), fontsize=_MAP_FONTSIZE)
+            axes.set_ylabel("Pressure (hPa)", fontsize=_MAP_FONTSIZE)
+            axes.tick_params(labelsize=_MAP_FONTSIZE)
+            if i < n_ds - 1:
+                axes.set_xticklabels([])
+            heatmap_axes.append(axes)
+        if mappable is not None:
+            cbar = fig.colorbar(mappable, ax=heatmap_axes, orientation="vertical")
+            cbar.set_label(
+                f"{var_id} [{units}]" if units else var_id,
+                fontsize=_MAP_FONTSIZE,
+            )
+            cbar.ax.tick_params(labelsize=_MAP_FONTSIZE)
+
+        # Amplitude profile (right column, spans the heatmap rows)
+        ax_amp = fig.add_subplot(gridspec[0:n_ds, 4])
+        color_idx = 0
+        for ds in pivots:
+            grp = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
+            dtype = grp["data_type"].iloc[0]
+            std_profile = (
+                grp.assign(plev_hpa=grp["air_pressure"] / 100.0)
+                .groupby("plev_hpa")[var_id]
+                .std()
+                .sort_index()
+            )
+            if std_profile.empty:
+                continue
+            ref_idx = ref_datasets.index(ds) if ds in ref_datasets else 0
+            ax_amp.plot(
+                std_profile.values,
+                std_profile.index,
+                **_line_kwargs(dtype, color_idx, ref_idx),
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+        ax_amp.set_yscale("log")
+        ax_amp.invert_yaxis()
+        ax_amp.minorticks_off()
+        ax_amp.set_yticks([])
+        ax_amp.set_title("Amplitude", fontsize=_MAP_FONTSIZE)
+        ax_amp.set_xlabel(f"σ [{units}]", fontsize=_MAP_FONTSIZE)
+        ax_amp.xaxis.set_major_locator(MaxNLocator(nbins=3))
+        ax_amp.tick_params(labelsize=_MAP_FONTSIZE)
+        ax_amp.tick_params(axis="x", labelrotation=45)
+
+        # QBO index (bottom, full width)
+        ax_idx = fig.add_subplot(gridspec[n_ds, :])
+        color_idx = 0
+        for ds in pivots:
+            grp = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
+            dtype = grp["data_type"].iloc[0]
+            at_50 = grp[np.isclose(grp["air_pressure"], index_plev_pa)]
+            if at_50.empty:
+                continue
+            series = at_50.groupby("time")[var_id].mean().sort_index()
+            ref_idx = ref_datasets.index(ds) if ds in ref_datasets else 0
+            ax_idx.plot(
+                series.index,
+                series.values,
+                label=str(ds),
+                **_line_kwargs(dtype, color_idx, ref_idx),
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+        ax_idx.grid(visible=True, **_GRIDLINE_KWARGS)
+        ax_idx.set_axisbelow(True)
+        ax_idx.set_title("QBO index (~50 hPa)", fontsize=_MAP_FONTSIZE)
+        ax_idx.set_ylabel(
+            f"{var_id} [{units}]" if units else var_id,
+            fontsize=_MAP_FONTSIZE,
+        )
+        ax_idx.tick_params(labelsize=_MAP_FONTSIZE)
+        handles, labels = ax_idx.get_legend_handles_labels()
+        if handles:
+            ax_idx.legend(
+                handles,
+                labels,
+                fontsize=_MAP_FONTSIZE,
+                **_LEGEND_KWARGS,
+                bbox_to_anchor=(0.5, -0.25),
+                ncols=min(len(handles), 3),
+            )
+
+        fig.suptitle(long_name, fontsize=_MAP_FONTSIZE + 2)
+        figures[var_id] = fig
+
+    return figures
+
+
+# ---------------------------------------------------------------------------
 # Registry + export entry point
 # ---------------------------------------------------------------------------
 
@@ -1066,7 +1326,9 @@ _STATIC_FIGURE_BUILDERS: dict[str, Callable] = {
     "AnnualCycle": build_static_annual_cycle_figures,
     "DiurnalCycle": build_static_diurnal_cycle_figures,
     "Histogram": build_static_histogram_figures,
+    "Hovmoller": build_static_hovmoller_figures,
     "Map": build_static_map_figures,
+    "QBO": build_static_qbo_figures,
     "TimeSeries": build_static_timeseries_figures,
     "ZonalLine": build_static_zonal_line_figures,
     "ZonalProfile": build_static_zonal_profile_figures,

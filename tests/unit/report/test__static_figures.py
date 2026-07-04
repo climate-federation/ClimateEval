@@ -11,7 +11,9 @@ from climateeval.report._static_figures import (
     build_static_annual_cycle_figures,
     build_static_diurnal_cycle_figures,
     build_static_histogram_figures,
+    build_static_hovmoller_figures,
     build_static_map_figures,
+    build_static_qbo_figures,
     build_static_timeseries_figures,
     build_static_zonal_line_figures,
     build_static_zonal_profile_figures,
@@ -266,6 +268,57 @@ def test_histogram_bars_with_log_density_for_precip() -> None:
     assert len(axes.patches) == 8  # 4 bars x 2 datasets
     legend_labels = [t.get_text() for t in axes.get_legend().get_texts()]
     assert legend_labels == ["MODEL", "GPCP"]
+
+
+def test_hovmoller_stacked_panels_share_one_colorbar() -> None:
+    rows = [
+        {
+            "time": pd.Timestamp(f"2000-{m:02d}-15"),
+            "longitude": lon,
+            "pr": (m - 6.5) * (1 + off),
+            "data_id": ds,
+            "data_type": dt,
+        }
+        for off, (ds, dt) in enumerate(
+            {"GPCP": "reference", "MODEL": "to_benchmark"}.items(),
+        )
+        for m in range(1, 13)
+        for lon in (0.0, 90.0, 180.0, 270.0)
+    ]
+    figures = build_static_hovmoller_figures(pd.DataFrame(rows), VARIABLES_DF)
+    fig = figures["pr"]
+    panel_axes = [ax for ax in fig.axes if ax.get_title()]
+    assert [ax.get_title() for ax in panel_axes] == ["MODEL", "GPCP"]
+    assert len(fig.axes) - len(panel_axes) == 1  # one shared colorbar
+    for ax in panel_axes:
+        ymin, ymax = ax.get_ylim()
+        assert ymin > ymax  # time increases downward
+
+
+def test_qbo_layout_heatmaps_amplitude_and_index() -> None:
+    variables = pd.DataFrame(
+        [{"id": "ua", "long_name": "Eastward Wind", "units": "m s-1"}],
+    )
+    rows = [
+        {
+            "time": pd.Timestamp(f"200{y}-{m:02d}-15"),
+            "air_pressure": plev,
+            "ua": 10.0 * (1 if (m + y) % 2 else -1),
+            "data_id": ds,
+            "data_type": dt,
+        }
+        for ds, dt in {"ERA5": "reference", "MODEL": "to_benchmark"}.items()
+        for y in range(2)
+        for m in range(1, 13)
+        for plev in (10000.0, 5000.0, 1000.0)
+    ]
+    figures = build_static_qbo_figures(pd.DataFrame(rows), variables)
+    fig = figures["ua"]
+    titles = [ax.get_title() for ax in fig.axes if ax.get_title()]
+    assert "MODEL" in titles
+    assert "ERA5" in titles
+    assert "Amplitude" in titles
+    assert any("QBO index" in t for t in titles)
 
 
 def _write_sample_db(db_path: Path) -> None:
