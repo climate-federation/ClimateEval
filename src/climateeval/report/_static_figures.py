@@ -856,7 +856,11 @@ def build_static_zonal_profile_figures(
             values=var_id,
             aggfunc="mean",
         ).sort_index()
-        return p if not p.empty else None
+        if p.empty:
+            return None
+        if p.index.max() > 2000.0:  # noqa: PLR2004 - stored in Pa
+            p.index = p.index / 100.0  # Pa → hPa
+        return p
 
     def _draw_profile(
         axes: matplotlib.axes.Axes,
