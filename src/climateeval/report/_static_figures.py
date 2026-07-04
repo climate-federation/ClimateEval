@@ -1397,6 +1397,7 @@ def build_static_qbo_figures(
 
 def build_static_portrait_figure(
     metrics_frames: list[tuple[str, str, pd.DataFrame]],
+    exclude_datasets: set[str] | None = None,
 ) -> Figure | None:
     """Overall-evaluation portrait plot, ESMValTool portrait_plot.py style.
 
@@ -1409,6 +1410,8 @@ def build_static_portrait_figure(
     Args:
         metrics_frames: (tier_label, diagnostic_name, metrics_df) tuples
             collected from every rendered database.
+        exclude_datasets: data_ids to drop from the columns (reference
+            datasets — a portrait compares models, like portrait_plot.py).
 
     Returns
     -------
@@ -1439,6 +1442,10 @@ def build_static_portrait_figure(
     if not rows:
         return None
     df = pd.DataFrame(rows)
+    if exclude_datasets:
+        df = df[~df["data_id"].isin(exclude_datasets)]
+        if df.empty:
+            return None
 
     # Disambiguate variables appearing in several tiers
     dup_vars = df.groupby("var_id")["tier"].nunique()
@@ -1448,12 +1455,18 @@ def build_static_portrait_figure(
         for v, t in zip(df["var_id"], df["tier"], strict=True)
     ]
 
-    matrix = df.pivot_table(
-        index="row_label",
-        columns="data_id",
-        values="weighted_rmse",
-        aggfunc="mean",
-    ).sort_index()
+    matrix = (
+        df.pivot_table(
+            index="row_label",
+            columns="data_id",
+            values="weighted_rmse",
+            aggfunc="mean",
+        )
+        .dropna(how="all")
+        .sort_index()
+    )
+    if matrix.empty:
+        return None
 
     single_model = matrix.shape[1] < 2  # noqa: PLR2004
     if single_model:
@@ -1582,6 +1595,7 @@ def generate_static_plots(
     """
     written: list[Path] = []
     metrics_frames: list[tuple[str, str, pd.DataFrame]] = []
+    reference_ids: set[str] = set()
     for db_path in db_paths:
         db_data = read_database(db_path)
         if not db_data:
@@ -1595,6 +1609,13 @@ def generate_static_plots(
                 metrics_frames.append((db_path.stem, diag_name, metrics_df))
             if data_df.empty:
                 continue
+            if "data_type" in data_df.columns:
+                reference_ids.update(
+                    data_df.loc[
+                        data_df["data_type"] == "reference",
+                        "data_id",
+                    ].unique(),
+                )
             diag_type = detect_diag_type(data_df.columns.tolist())
             builder = _STATIC_FIGURE_BUILDERS.get(diag_type)
             if builder is None:
@@ -1613,7 +1634,7 @@ def generate_static_plots(
                 base = diag_dir / _safe_filename(var_id)
                 written.extend(_save_figure(fig, base, formats, dpi))
 
-    portrait = build_static_portrait_figure(metrics_frames)
+    portrait = build_static_portrait_figure(metrics_frames, reference_ids)
     if portrait is not None:
         out_dir.mkdir(parents=True, exist_ok=True)
         written.extend(_save_figure(portrait, out_dir / "portrait_plot", formats, dpi))

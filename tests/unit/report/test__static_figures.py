@@ -407,6 +407,19 @@ def test_portrait_single_model_annotates_raw_rmse() -> None:
     assert "single model" in axes.get_title()
 
 
+def test_portrait_excludes_reference_datasets_and_empty_rows() -> None:
+    frames = [
+        ("Tier2", "map", _metrics_df({"M1": 1.0, "M2": 2.0, "ERA5": 0.5})),
+        # row with metrics only for the excluded reference → dropped entirely
+        ("Tier2", "map", _metrics_df({"ERA5": 0.4}, "pr")),
+    ]
+    fig = build_static_portrait_figure(frames, exclude_datasets={"ERA5"})
+    assert fig is not None
+    axes = fig.axes[0]
+    assert [t.get_text() for t in axes.get_xticklabels()] == ["M1", "M2"]
+    assert [t.get_text() for t in axes.get_yticklabels()] == ["tas"]
+
+
 def test_portrait_returns_none_without_metrics() -> None:
     assert build_static_portrait_figure([]) is None
     assert (
