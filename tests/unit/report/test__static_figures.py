@@ -10,6 +10,8 @@ from climateeval.report._static_figures import (
     _STATIC_FIGURE_BUILDERS,
     build_static_map_figures,
     build_static_timeseries_figures,
+    build_static_zonal_line_figures,
+    build_static_zonal_profile_figures,
     generate_static_plots,
 )
 
@@ -151,6 +153,60 @@ def test_map_without_reference_renders_absolute_grid() -> None:
     assert [ax.get_title() for ax in map_axes] == ["M1", "M2"]
     # single shared colorbar for the absolute panels
     assert len(fig.axes) - len(map_axes) == 1
+
+
+def test_zonal_line_draws_one_line_per_dataset_vs_latitude() -> None:
+    rows = [
+        {
+            "latitude": lat,
+            "tas": 280.0 + off - abs(lat) / 3.0,
+            "data_id": ds,
+            "data_type": dt,
+        }
+        for off, (ds, dt) in enumerate(
+            {"ERA5": "reference", "MODEL": "to_benchmark"}.items(),
+        )
+        for lat in (-60.0, -30.0, 0.0, 30.0, 60.0)
+    ]
+    figures = build_static_zonal_line_figures(pd.DataFrame(rows), VARIABLES_DF)
+    axes = figures["tas"].axes[0]
+    assert len(axes.get_lines()) == 2
+    assert axes.get_xlabel() == "latitude [°N]"
+
+
+def _profile_df(datasets: dict[str, str]) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "latitude": lat,
+                "air_pressure": plev,
+                "ta": 220.0 + off + plev / 50.0,
+                "data_id": ds,
+                "data_type": dt,
+            }
+            for off, (ds, dt) in enumerate(datasets.items())
+            for lat in (-30.0, 0.0, 30.0)
+            for plev in (1000.0, 500.0, 100.0)
+        ],
+    )
+
+
+def test_zonal_profile_single_model_three_panels_log_pressure() -> None:
+    variables = pd.DataFrame(
+        [{"id": "ta", "long_name": "Air Temperature", "units": "K"}],
+    )
+    figures = build_static_zonal_profile_figures(
+        _profile_df({"ERA5": "reference", "MODEL": "to_benchmark"}),
+        variables,
+    )
+    fig = figures["ta"]
+    panel_axes = [ax for ax in fig.axes if ax.get_yscale() == "log"]
+    # 3 profile panels; colorbar axes are not log-scaled
+    assert len(panel_axes) == 3
+    assert len(fig.axes) - len(panel_axes) == 2
+    for ax in panel_axes:
+        ymin, ymax = ax.get_ylim()
+        assert ymin > ymax  # pressure decreases upward
 
 
 def _write_sample_db(db_path: Path) -> None:
