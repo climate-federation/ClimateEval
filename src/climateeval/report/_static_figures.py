@@ -631,6 +631,158 @@ def build_static_map_figures(
 
 
 # ---------------------------------------------------------------------------
+# AnnualCycle / DiurnalCycle / Histogram builders
+# ---------------------------------------------------------------------------
+
+
+def _build_static_cycle_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None,
+    *,
+    coord: str,
+    xlabel: str,
+    xticks: list[int],
+    xticklabels: list[str] | None = None,
+) -> dict[str, Figure]:
+    """Shared 1D-cycle line plot (multi_datasets.py annual/diurnal cycle)."""
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_datasets = _get_ref_datasets(data_df, metrics_df)
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+
+        fig, axes = _new_figure()
+        color_idx = 0
+        for dataset in all_datasets:
+            grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+            if grp.empty:
+                continue
+            series = grp.groupby(coord)[var_id].mean().sort_index()
+            dtype = grp["data_type"].iloc[0]
+            ref_idx = ref_datasets.index(dataset) if dataset in ref_datasets else 0
+            axes.plot(
+                series.index,
+                series.values,
+                label=None if dtype == "other" else str(dataset),
+                **_line_kwargs(dtype, color_idx, ref_idx),
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+
+        axes.set_xticks(xticks)
+        if xticklabels is not None:
+            axes.set_xticklabels(xticklabels)
+        axes.set_xlabel(xlabel)
+        ylabel = f"{var_id} [{units}]" if units else var_id
+        _finish_line_axes(axes, title=long_name, ylabel=ylabel)
+        figures[var_id] = fig
+
+    return figures
+
+
+def build_static_annual_cycle_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, Figure]:
+    """Annual cycle (Jan–Dec), multi_datasets.py "annual_cycle" style."""
+    return _build_static_cycle_figures(
+        data_df,
+        variables_df,
+        metrics_df,
+        coord="month_number",
+        xlabel="month",
+        xticks=list(range(1, 13)),
+        xticklabels=["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"],
+    )
+
+
+def build_static_diurnal_cycle_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, Figure]:
+    """Diurnal cycle (0–24 h), multi_datasets.py "diurnal_cycle" style."""
+    return _build_static_cycle_figures(
+        data_df,
+        variables_df,
+        metrics_df,
+        coord="hour",
+        xlabel="hour",
+        xticks=list(range(0, 25, 3)),
+    )
+
+
+def build_static_histogram_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, Figure]:
+    """Histograms, ESMValTool plot_histogram.py style.
+
+    Overlapping semi-transparent bars per dataset at the stored bin centres,
+    "Density" on y (log for precipitation, like the ICONEval histogram
+    recipes), reference black / benchmarked coloured.
+    """
+    from climateeval.report._db import get_density_cols
+    from climateeval.report._style import _base_var
+
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+
+    for density_col in get_density_cols(data_df):
+        var_id = density_col.replace("density_", "")
+        sub = data_df[["data_id", "data_type", var_id, density_col]].dropna(
+            subset=[density_col],
+        )
+        if sub.empty:
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+        log_y = _base_var(var_id) == "pr"
+
+        fig, axes = _new_figure()
+        color_idx = 0
+        for dataset in all_datasets:
+            ds_sub = sub[sub["data_id"] == dataset].sort_values(var_id)
+            if ds_sub.empty:
+                continue
+            dtype = ds_sub["data_type"].iloc[0]
+            kwargs = _line_kwargs(dtype, color_idx, 0)
+            centers = ds_sub[var_id].to_numpy(dtype=float)
+            heights = ds_sub[density_col].to_numpy(dtype=float)
+            if log_y:
+                heights = np.where(heights > 0, heights, 0.0)
+            if centers.size > 1:
+                widths = np.diff(centers, prepend=2 * centers[0] - centers[1])
+            else:
+                widths = np.array([1.0])
+            axes.bar(
+                centers,
+                heights,
+                width=widths,
+                alpha=0.5,
+                color=kwargs["color"],
+                label=None if dtype == "other" else str(dataset),
+                zorder=kwargs["zorder"],
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+
+        if log_y:
+            axes.set_yscale("log")
+        xlabel = f"{long_name} [{units}]" if units else long_name
+        axes.set_xlabel(xlabel)
+        _finish_line_axes(axes, title=long_name, ylabel="Density")
+        figures[var_id] = fig
+
+    return figures
+
+
+# ---------------------------------------------------------------------------
 # ZonalLine + ZonalProfile builders
 # ---------------------------------------------------------------------------
 
@@ -911,6 +1063,9 @@ def build_static_zonal_profile_figures(
 # _figures.py. Types without a static builder yet are skipped (with a log
 # message) by generate_static_plots().
 _STATIC_FIGURE_BUILDERS: dict[str, Callable] = {
+    "AnnualCycle": build_static_annual_cycle_figures,
+    "DiurnalCycle": build_static_diurnal_cycle_figures,
+    "Histogram": build_static_histogram_figures,
     "Map": build_static_map_figures,
     "TimeSeries": build_static_timeseries_figures,
     "ZonalLine": build_static_zonal_line_figures,

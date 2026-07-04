@@ -8,6 +8,9 @@ import pandas as pd
 from climateeval.report._figures import _FIGURE_BUILDERS
 from climateeval.report._static_figures import (
     _STATIC_FIGURE_BUILDERS,
+    build_static_annual_cycle_figures,
+    build_static_diurnal_cycle_figures,
+    build_static_histogram_figures,
     build_static_map_figures,
     build_static_timeseries_figures,
     build_static_zonal_line_figures,
@@ -207,6 +210,62 @@ def test_zonal_profile_single_model_three_panels_log_pressure() -> None:
     for ax in panel_axes:
         ymin, ymax = ax.get_ylim()
         assert ymin > ymax  # pressure decreases upward
+
+
+def test_annual_cycle_months_on_x_axis() -> None:
+    rows = [
+        {
+            "month_number": m,
+            "tas": 285.0 + off + m / 10.0,
+            "data_id": ds,
+            "data_type": dt,
+        }
+        for off, (ds, dt) in enumerate(
+            {"ERA5": "reference", "MODEL": "to_benchmark"}.items(),
+        )
+        for m in range(1, 13)
+    ]
+    figures = build_static_annual_cycle_figures(pd.DataFrame(rows), VARIABLES_DF)
+    axes = figures["tas"].axes[0]
+    assert len(axes.get_lines()) == 2
+    assert axes.get_xlabel() == "month"
+    assert [t.get_text() for t in axes.get_xticklabels()][:3] == ["J", "F", "M"]
+
+
+def test_diurnal_cycle_hours_on_x_axis() -> None:
+    rows = [
+        {
+            "hour": h,
+            "tas": 285.0 + h / 10.0,
+            "data_id": "MODEL",
+            "data_type": "to_benchmark",
+        }
+        for h in range(24)
+    ]
+    figures = build_static_diurnal_cycle_figures(pd.DataFrame(rows), VARIABLES_DF)
+    assert figures["tas"].axes[0].get_xlabel() == "hour"
+
+
+def test_histogram_bars_with_log_density_for_precip() -> None:
+    rows = [
+        {
+            "pr": center,
+            "density_pr": 10.0 ** (-center) + off,
+            "data_id": ds,
+            "data_type": dt,
+        }
+        for off, (ds, dt) in enumerate(
+            {"GPCP": "reference", "MODEL": "to_benchmark"}.items(),
+        )
+        for center in (0.5, 1.5, 2.5, 3.5)
+    ]
+    figures = build_static_histogram_figures(pd.DataFrame(rows), VARIABLES_DF)
+    axes = figures["pr"].axes[0]
+    assert axes.get_yscale() == "log"
+    assert axes.get_ylabel() == "Density"
+    assert len(axes.patches) == 8  # 4 bars x 2 datasets
+    legend_labels = [t.get_text() for t in axes.get_legend().get_texts()]
+    assert legend_labels == ["MODEL", "GPCP"]
 
 
 def _write_sample_db(db_path: Path) -> None:
