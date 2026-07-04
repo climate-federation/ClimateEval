@@ -1391,6 +1391,132 @@ def build_static_qbo_figures(
 
 
 # ---------------------------------------------------------------------------
+# Portrait plot (overall model evaluation summary)
+# ---------------------------------------------------------------------------
+
+
+def build_static_portrait_figure(
+    metrics_frames: list[tuple[str, str, pd.DataFrame]],
+) -> Figure | None:
+    """Overall-evaluation portrait plot, ESMValTool portrait_plot.py style.
+
+    Models on x, variables on y, cell colour = RMSE normalized with
+    ``centered_median`` across models ((rmse − median) / median), 11-step
+    RdYlBu_r at ±0.5 ("Relative RMSE"), NaN cells white. With a single
+    benchmarked model the centred normalization is meaningless, so the raw
+    RMSE values are annotated on neutral cells instead.
+
+    Args:
+        metrics_frames: (tier_label, diagnostic_name, metrics_df) tuples
+            collected from every rendered database.
+
+    Returns
+    -------
+        The figure, or None if no usable weighted_rmse metrics were found.
+    """
+    import matplotlib as mpl
+
+    rows = []
+    for tier, _diag, mdf in metrics_frames:
+        if (
+            mdf is None
+            or mdf.empty
+            or "weighted_rmse" not in mdf.columns
+            or "var_id" not in mdf.columns
+            or "data_id" not in mdf.columns
+        ):
+            continue
+        sub = mdf.dropna(subset=["weighted_rmse"])
+        for rec in sub.itertuples(index=False):
+            rows.append(
+                {
+                    "tier": tier,
+                    "var_id": rec.var_id,
+                    "data_id": rec.data_id,
+                    "weighted_rmse": float(rec.weighted_rmse),
+                },
+            )
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+
+    # Disambiguate variables appearing in several tiers
+    dup_vars = df.groupby("var_id")["tier"].nunique()
+    dup_vars = set(dup_vars[dup_vars > 1].index)
+    df["row_label"] = [
+        f"{v} ({t})" if v in dup_vars else str(v)
+        for v, t in zip(df["var_id"], df["tier"], strict=True)
+    ]
+
+    matrix = df.pivot_table(
+        index="row_label",
+        columns="data_id",
+        values="weighted_rmse",
+        aggfunc="mean",
+    ).sort_index()
+
+    single_model = matrix.shape[1] < 2  # noqa: PLR2004
+    if single_model:
+        rel = matrix * 0.0
+    else:
+        median = matrix.median(axis=1)
+        rel = matrix.sub(median, axis=0).div(median, axis=0)
+
+    n_models = matrix.shape[1]
+    n_vars = matrix.shape[0]
+    with sns.axes_style(_SEABORN_STYLE):
+        fig = Figure(
+            figsize=(max(7.0, 0.4 * n_models + 3.0), max(3.5, 0.3 * n_vars + 1.5)),
+            layout="constrained",
+        )
+        axes = fig.add_subplot(111)
+
+    cmap = mpl.colormaps["RdYlBu_r"].resampled(11)
+    cmap.set_bad("white")  # nan_color in portrait_plot.py
+    data = np.ma.masked_invalid(rel.to_numpy(dtype=float))
+    mappable = axes.imshow(
+        data,
+        cmap=cmap,
+        vmin=-0.5,
+        vmax=0.5,
+        aspect="auto",
+        interpolation="nearest",
+    )
+    axes.set_xticks(range(n_models))
+    axes.set_xticklabels(matrix.columns, rotation=90, fontsize=_MAP_STATS_FONTSIZE)
+    axes.set_yticks(range(n_vars))
+    axes.set_yticklabels(matrix.index, fontsize=_MAP_STATS_FONTSIZE)
+    # thin white grid between cells, like portrait_plot.py
+    axes.set_xticks(np.arange(-0.5, n_models), minor=True)
+    axes.set_yticks(np.arange(-0.5, n_vars), minor=True)
+    axes.grid(which="minor", color="white", linewidth=1.0)
+    axes.tick_params(which="minor", length=0)
+
+    if single_model:
+        for i in range(n_vars):
+            val = matrix.iloc[i, 0]
+            if np.isfinite(val):
+                axes.annotate(
+                    f"{val:.3g}",
+                    xy=(0, i),
+                    ha="center",
+                    va="center",
+                    fontsize=_MAP_STATS_FONTSIZE,
+                )
+        axes.set_title(
+            "Overall model evaluation — RMSE vs reference (single model)",
+            fontsize=_MAP_FONTSIZE + 2,
+        )
+    else:
+        cbar = fig.colorbar(mappable, ax=axes, extend="both")
+        cbar.set_label("Relative RMSE", fontsize=_MAP_FONTSIZE)
+        cbar.ax.tick_params(labelsize=_MAP_FONTSIZE)
+        axes.set_title("Overall model evaluation", fontsize=_MAP_FONTSIZE + 2)
+
+    return fig
+
+
+# ---------------------------------------------------------------------------
 # Registry + export entry point
 # ---------------------------------------------------------------------------
 
@@ -1440,8 +1566,9 @@ def generate_static_plots(
     """Render static figures from result databases into *out_dir*.
 
     One file per (database, diagnostic, variable, format) is written to
-    ``out_dir/<db_stem>/<diagnostic>/<var_id>.<format>``. Diagnostic types
-    without a static builder yet are skipped with a log message.
+    ``out_dir/<db_stem>/<diagnostic>/<var_id>.<format>``. When any diagnostic
+    recorded weighted_rmse metrics, an overall portrait plot is additionally
+    written to ``out_dir/portrait_plot.<format>``.
 
     Args:
         db_paths: Paths to one or more DuckDB .ddb files.
@@ -1454,6 +1581,7 @@ def generate_static_plots(
         The list of written file paths.
     """
     written: list[Path] = []
+    metrics_frames: list[tuple[str, str, pd.DataFrame]] = []
     for db_path in db_paths:
         db_data = read_database(db_path)
         if not db_data:
@@ -1463,6 +1591,8 @@ def generate_static_plots(
             data_df = tables.get("raw_output", pd.DataFrame())
             metrics_df = tables.get("metrics", pd.DataFrame())
             variables_df = tables.get("variables", pd.DataFrame())
+            if not metrics_df.empty:
+                metrics_frames.append((db_path.stem, diag_name, metrics_df))
             if data_df.empty:
                 continue
             diag_type = detect_diag_type(data_df.columns.tolist())
@@ -1482,5 +1612,11 @@ def generate_static_plots(
             for var_id, fig in figures.items():
                 base = diag_dir / _safe_filename(var_id)
                 written.extend(_save_figure(fig, base, formats, dpi))
+
+    portrait = build_static_portrait_figure(metrics_frames)
+    if portrait is not None:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        written.extend(_save_figure(portrait, out_dir / "portrait_plot", formats, dpi))
+
     logger.info("Wrote {} static figure file(s) to {}", len(written), out_dir)
     return written

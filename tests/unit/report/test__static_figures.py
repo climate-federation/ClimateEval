@@ -14,6 +14,7 @@ from climateeval.report._static_figures import (
     build_static_histogram_figures,
     build_static_hovmoller_figures,
     build_static_map_figures,
+    build_static_portrait_figure,
     build_static_qbo_figures,
     build_static_timeseries_figures,
     build_static_zonal_line_figures,
@@ -367,6 +368,50 @@ def test_scalar_bars_colored_by_data_type_with_benchmark_on_top() -> None:
     assert len(axes.patches) == 3
     annotations = [t.get_text() for t in axes.texts]
     assert "288" in "".join(annotations)
+
+
+def _metrics_df(models: dict[str, float], var_id: str = "tas") -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {"var_id": var_id, "data_id": m, "weighted_rmse": v}
+            for m, v in models.items()
+        ],
+    )
+
+
+def test_portrait_multi_model_centered_median_normalization() -> None:
+    frames = [
+        ("Tier2", "map", _metrics_df({"M1": 1.0, "M2": 2.0, "M3": 3.0})),
+        ("Tier2", "map", _metrics_df({"M1": 4.0, "M2": 5.0, "M3": 6.0}, "pr")),
+    ]
+    fig = build_static_portrait_figure(frames)
+    assert fig is not None
+    axes = fig.axes[0]
+    assert [t.get_text() for t in axes.get_xticklabels()] == ["M1", "M2", "M3"]
+    assert [t.get_text() for t in axes.get_yticklabels()] == ["pr", "tas"]
+    img = axes.get_images()[0]
+    data = img.get_array()
+    # centered_median: median model → 0
+    assert data[1, 1] == 0.0  # tas row, M2 = median
+    assert data[1, 0] == -0.5  # (1 - 2) / 2
+    assert img.get_clim() == (-0.5, 0.5)
+
+
+def test_portrait_single_model_annotates_raw_rmse() -> None:
+    fig = build_static_portrait_figure(
+        [("Tier2", "map", _metrics_df({"MODEL": 1.23}))],
+    )
+    assert fig is not None
+    axes = fig.axes[0]
+    assert any("1.23" in t.get_text() for t in axes.texts)
+    assert "single model" in axes.get_title()
+
+
+def test_portrait_returns_none_without_metrics() -> None:
+    assert build_static_portrait_figure([]) is None
+    assert (
+        build_static_portrait_figure([("T", "d", pd.DataFrame({"other": [1]}))]) is None
+    )
 
 
 def test_registry_covers_all_interactive_figure_types() -> None:

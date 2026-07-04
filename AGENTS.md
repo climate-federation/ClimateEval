@@ -95,13 +95,16 @@ tests/                        # unit/ + integration/ + sample_data/
 
 ### Report (`src/climateeval/report/`)
 
-Turns result databases into an interactive report. `report.py` (repo root) is a
-thin CLI over `climateeval.report.serve`.
+Turns result databases into an interactive report or static figures.
+`report.py` (repo root) is a thin CLI over `climateeval.report.serve` and
+`generate_static_plots`.
 
 - `_server.py` - `serve()`: threaded HTTP server, lazy figure building + caching, API endpoints (`/api/structure`, `/api/figure/...`, `/api/leaderboard`, `/plotly.js`).
 - `_html.py` - `build_html_shell()` (server mode) and `generate_portable_html()` (self-contained offline HTML).
-- `_figures.py` - `build_*_figures()` builders and the `_FIGURE_BUILDERS` registry (10 figure types: Map, TimeSeries, AnnualCycle, DiurnalCycle, ZonalLine, ZonalProfile, Hovmoller, QBO, Histogram, Scalar).
-- `_leaderboard.py`, `_db.py`, `_style.py` - scoreboard, DB reading, styling.
+- `_figures.py` - Plotly `build_*_figures()` builders and the `_FIGURE_BUILDERS` registry (10 figure types: Map, TimeSeries, AnnualCycle, DiurnalCycle, ZonalLine, ZonalProfile, Hovmoller, QBO, Histogram, Scalar).
+- `_static_figures.py` - matplotlib/cartopy mirror of the registry (`_STATIC_FIGURE_BUILDERS`, same 10 types, ESMValTool `monitor/multi_datasets.py` styling) + `generate_static_plots()` (PNG/PDF export, `report.py --static-out`) + the `portrait_plot.py`-style overall portrait figure.
+- `_common.py` - backend-agnostic helpers shared by both figure backends (`_var_label`, `_data_range`, `_get_ref_datasets`, `_combine_pivots`, ...).
+- `_leaderboard.py`, `_db.py`, `_style.py` - scoreboard, DB reading, styling/colormaps (shared by both backends).
 
 Details: [docs/reporting.md](docs/reporting.md).
 
