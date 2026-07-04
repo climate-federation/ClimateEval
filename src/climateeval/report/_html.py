@@ -17,8 +17,8 @@ from climateeval.report._figures import (
     _DIAG_LABELS,
     _FIGURE_BUILDERS,
     _diag_category,
-    _var_label,
 )
+from climateeval.report._common import _var_label
 from climateeval.report._leaderboard import (
     _render_detail_table,
     _render_summary_table,
