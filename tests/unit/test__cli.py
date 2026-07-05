@@ -61,3 +61,15 @@ def test_infer_model_name_from_single_file(tmp_path: Path) -> None:
 def test_infer_model_name_non_cmor_returns_none(tmp_path: Path) -> None:
     (tmp_path / "data.nc").touch()
     assert _infer_model_name(tmp_path) is None
+
+
+def test_suites_list(capsys: pytest.CaptureFixture[str]) -> None:
+    main(["suites", "list"])
+    out = capsys.readouterr().out
+    assert "Tier2_atmosphere_monthly" in out
+    assert "DIAGNOSTICS" in out
+
+
+def test_bare_suites_defaults_to_list(capsys: pytest.CaptureFixture[str]) -> None:
+    main(["suites"])
+    assert "Tier1_sanity_checks" in capsys.readouterr().out

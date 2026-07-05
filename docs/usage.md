@@ -41,6 +41,10 @@ compares against ERA5/GPCP/CERES-EBAF references and CMIP6 historical models.
 | `--static` | Also render static PNG figures into `<out>/static_figures/`. |
 | `--serve [--port N]` | Open an interactive server instead of writing files. |
 
+`climateeval suites list` shows the shipped suites (name, number of
+diagnostics and variables); any of those names — or a path to your own suite
+YAML — works with `--suite` (see [Suites](suites.md)).
+
 Reports for existing databases can be served or exported with
 `climateeval report DB... [--html FILE | --static-out DIR | --port N]`
 (see [reporting](reporting.md)). The root-level

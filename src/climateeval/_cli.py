@@ -13,6 +13,8 @@ Subcommands
     to the output directory.
 ``climateeval report DB [DB ...]``
     Serve or export a report for existing result databases.
+``climateeval suites list``
+    List the shipped evaluation suites.
 """
 
 from __future__ import annotations
@@ -31,6 +33,7 @@ try:
 except ImportError:  # pragma: no cover - Windows
     pwd = None  # type: ignore[assignment]
 
+import yaml
 from loguru import logger
 
 # Configure logging before the climateeval imports below: package modules log
@@ -46,6 +49,7 @@ logger.add(
     colorize=True,
 )
 
+from climateeval import suites as _suites_pkg  # noqa: E402
 from climateeval._loader import load_cmor_dir  # noqa: E402
 from climateeval.data import DataSourceInformation  # noqa: E402
 from climateeval.report import (  # noqa: E402
@@ -214,6 +218,46 @@ def _add_report_parser(subparsers: Any) -> None:
     parser.set_defaults(func=_cmd_report)
 
 
+def _add_suites_parser(subparsers: Any) -> None:
+    parser = subparsers.add_parser(
+        "suites",
+        help="Inspect the shipped evaluation suites.",
+        description=(
+            "List the evaluation suites shipped with ClimateEval. Pass a "
+            "suite name (or your own YAML path) to `climateeval benchmark "
+            "--suite`."
+        ),
+    )
+    sub = parser.add_subparsers(dest="suites_command")
+    list_parser = sub.add_parser("list", help="List the shipped suites.")
+    list_parser.set_defaults(func=_cmd_suites_list)
+    # bare `climateeval suites` behaves like `suites list`
+    parser.set_defaults(func=_cmd_suites_list)
+
+
+def _cmd_suites_list(args: argparse.Namespace) -> None:  # noqa: ARG001
+    suites_dir = Path(_suites_pkg.__file__).parent
+    rows: list[tuple[str, int, int]] = []
+    for path in sorted(suites_dir.glob("*.yml")):
+        spec = yaml.safe_load(path.read_text(encoding="utf-8"))
+        diagnostics = spec if isinstance(spec, list) else []
+        var_ids = {
+            str(v.get("id", v.get("var_name", "")))
+            for d in diagnostics
+            for v in d.get("variables", [])
+        }
+        rows.append((path.stem, len(diagnostics), len(var_ids)))
+
+    name_w = max(len(name) for name, *_ in rows)
+    print("Shipped suites (use with `climateeval benchmark --suite NAME`):")  # noqa: T201
+    print()  # noqa: T201
+    print(f"  {'NAME':<{name_w}}  DIAGNOSTICS  VARIABLES")  # noqa: T201
+    for name, n_diags, n_vars in rows:
+        print(f"  {name:<{name_w}}  {n_diags:>11}  {n_vars:>9}")  # noqa: T201
+    print()  # noqa: T201
+    print("Suite format and contents: docs/suites.md")  # noqa: T201
+
+
 def _cmd_benchmark(args: argparse.Namespace) -> None:
 
     if not args.model.exists():
@@ -356,6 +400,8 @@ def main(argv: list[str] | None = None) -> None:
             "      run a custom suite and open the interactive report\n"
             "  climateeval report results/*.ddb --html report.html\n"
             "      export a self-contained HTML report for existing results\n"
+            "  climateeval suites list\n"
+            "      list the shipped evaluation suites\n"
             "\n"
             "documentation: docs/usage.md"
         ),
@@ -364,6 +410,7 @@ def main(argv: list[str] | None = None) -> None:
     subparsers = parser.add_subparsers(dest="command")
     _add_benchmark_parser(subparsers)
     _add_report_parser(subparsers)
+    _add_suites_parser(subparsers)
 
     args = parser.parse_args(argv)
     if args.command is None:
