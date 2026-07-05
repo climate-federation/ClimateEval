@@ -55,6 +55,6 @@
 
 ## Workstream E — `climateeval` console CLI
 
-- [ ] **E1** `climateeval/_loader.py` — `load_cmor_dir()`: flat dirs, single files, CMOR DRS trees (grid preference + latest version), year-split concatenation, timerange file filter; unit tests with synthetic NetCDF trees
-- [ ] **E2** `climateeval/_cli.py` + `[project.scripts]` entry point — `climateeval benchmark MODEL_DIR` (multi-suite, one .ddb per suite, portable HTML + optional static figures + --serve) and `climateeval report DB...`; docs/usage.md section
+- [x] **E1** `climateeval/_loader.py` — `load_cmor_dir()`: flat dirs, single files, CMOR DRS trees (grid preference + latest version), year-split concatenation, timerange file filter; unit tests with synthetic NetCDF trees
+- [x] **E2** `climateeval/_cli.py` + `[project.scripts]` entry point — `climateeval benchmark MODEL_DIR` (multi-suite, one .ddb per suite, portable HTML + optional static figures + --serve) and `climateeval report DB...`; docs/usage.md section
 - [ ] **E3** (follow-up PR) `climateeval merge` (promote scripts/merge_tier_dbs.py into package + tests, closes C4 half) and `climateeval suites list/show`
