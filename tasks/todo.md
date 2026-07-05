@@ -52,3 +52,9 @@
 - [ ] **D3** `max_workers` diagnostic kwarg — parallel (variable × other_source) processing in `_get_output_of_other_data()`/`_get_reference_cubes()`; hoist global ESMValTool config context once; equivalence tests; ≥2× on ensemble-heavy run
 - [ ] **D4** (decide after D3) concurrent diagnostics in `Suite.get_database` with serialized DuckDB writes
 - [ ] Quick wins in D3 PR: drop obsolete `reference_cube.data` workaround (ESMValCore #3038); single-realization 3-metric computation
+
+## Workstream E — `climateeval` console CLI
+
+- [ ] **E1** `climateeval/_loader.py` — `load_cmor_dir()`: flat dirs, single files, CMOR DRS trees (grid preference + latest version), year-split concatenation, timerange file filter; unit tests with synthetic NetCDF trees
+- [ ] **E2** `climateeval/_cli.py` + `[project.scripts]` entry point — `climateeval benchmark MODEL_DIR` (multi-suite, one .ddb per suite, portable HTML + optional static figures + --serve) and `climateeval report DB...`; docs/usage.md section
+- [ ] **E3** (follow-up PR) `climateeval merge` (promote scripts/merge_tier_dbs.py into package + tests, closes C4 half) and `climateeval suites list/show`

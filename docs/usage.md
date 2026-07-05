@@ -13,31 +13,41 @@ A complete, runnable version of this is
 everything from inside the Pixi environment (`pixi shell`, or prefix with
 `pixi run`).
 
-## Quickest path: the `benchmark.py` CLI
+## Quickest path: the `climateeval` CLI
 
 To benchmark a model against ERA5/observations and CMIP6 without writing any
-code, use the root-level [`benchmark.py`](../benchmark.py):
+code, use the `climateeval` command (installed with the package; also
+available as `python -m climateeval`):
 
 ```bash
-python benchmark.py /path/to/model/cmor/Amon --name MyModel
-# writes MyModel_benchmark.html
+climateeval benchmark /path/to/model/cmor/Amon --name MyModel
+# writes MyModel_benchmark/: one .ddb per suite + MyModel_report.html
 ```
 
-It loads your model's CMOR-compliant NetCDF files, runs a suite (default
-`Tier2_atmosphere_monthly`, which compares against ERA5/GPCP/CERES-EBAF
-references and CMIP6 historical models), and writes a self-contained HTML report.
+The model path may be a single NetCDF file, a flat directory of NetCDF files,
+or a CMOR DRS tree (e.g. an ESGF-style `Amon` table directory — the native
+grid and latest version are selected per variable, and year-split files are
+concatenated automatically). The default suite `Tier2_atmosphere_monthly`
+compares against ERA5/GPCP/CERES-EBAF references and CMIP6 historical models.
 
 | Option | Meaning |
 |---|---|
 | `--name NAME` | Model name shown in the report. |
-| `--suite NAME` | Suite name or YAML path (default `Tier2_atmosphere_monthly`). |
+| `--suite NAME` | Suite name or YAML path; repeat for several suites. |
 | `--timerange A/B` | ISO time range applied to every dataset. |
 | `--data-root DIR` | Directory with staged reference datasets. |
 | `--download` | Download missing references (ERA5 needs `~/.cdsapirc`). |
-| `-o, --output PATH` | HTML report path (default `<name>_benchmark.html`). |
-| `--serve [--port N]` | Open an interactive server instead of writing a file. |
+| `-o, --out DIR` | Output directory (default `<name>_benchmark/`). |
+| `--static` | Also render static PNG figures into `<out>/static_figures/`. |
+| `--serve [--port N]` | Open an interactive server instead of writing files. |
 
-The rest of this page shows the underlying Python API that `benchmark.py` uses.
+Reports for existing databases can be served or exported with
+`climateeval report DB... [--html FILE | --static-out DIR | --port N]`
+(see [reporting](reporting.md)). The root-level
+[`benchmark.py`](../benchmark.py) and [`report.py`](../report.py) scripts
+remain as thin equivalents for running from a repository checkout.
+
+The rest of this page shows the underlying Python API that the CLI uses.
 
 ## Run a suite
 
