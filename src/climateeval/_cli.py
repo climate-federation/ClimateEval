@@ -33,14 +33,27 @@ except ImportError:  # pragma: no cover - Windows
 
 from loguru import logger
 
-from climateeval._loader import load_cmor_dir
-from climateeval.data import DataSourceInformation
-from climateeval.report import (
+# Configure logging before the climateeval imports below: package modules log
+# at import time, and loguru's default sink would print that as DEBUG noise.
+logger.remove()
+logger.add(
+    sys.stdout,
+    level="INFO",
+    format=(
+        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+        "<level>{level: <8}</level> | <level>{message}</level>"
+    ),
+    colorize=True,
+)
+
+from climateeval._loader import load_cmor_dir  # noqa: E402
+from climateeval.data import DataSourceInformation  # noqa: E402
+from climateeval.report import (  # noqa: E402
     generate_portable_html,
     generate_static_plots,
     serve,
 )
-from climateeval.suites import Suite
+from climateeval.suites import Suite  # noqa: E402
 
 DEFAULT_SUITE = "Tier2_atmosphere_monthly"
 DEFAULT_TIMERANGE = "19790101/20141231"
@@ -328,29 +341,34 @@ def _cmd_report(args: argparse.Namespace) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     """Run the climateeval command-line interface."""
-    logger.remove()
-    logger.add(
-        sys.stdout,
-        level="INFO",
-        format=(
-            "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | <level>{message}</level>"
-        ),
-        colorize=True,
-    )
-
     parser = argparse.ArgumentParser(
         prog="climateeval",
         description=(
             "Evaluate and benchmark Earth System Model output against "
             "observations, reanalyses and CMIP6 models."
         ),
+        epilog=(
+            "examples:\n"
+            "  climateeval benchmark /path/to/model/cmor/Amon\n"
+            "      benchmark a model against the default Tier 2 atmosphere\n"
+            "      suite (ERA5, GPCP, CERES-EBAF references + CMIP6 models)\n"
+            "  climateeval benchmark model/Amon --suite my_suite.yml --serve\n"
+            "      run a custom suite and open the interactive report\n"
+            "  climateeval report results/*.ddb --html report.html\n"
+            "      export a self-contained HTML report for existing results\n"
+            "\n"
+            "documentation: docs/usage.md"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command")
     _add_benchmark_parser(subparsers)
     _add_report_parser(subparsers)
 
     args = parser.parse_args(argv)
+    if args.command is None:
+        parser.print_help(sys.stderr)
+        raise SystemExit(2)
     args.func(args)
 
 

@@ -12,7 +12,7 @@ results in an interactive HTML report.
 | Page | What it covers |
 |---|---|
 | [Installation](installation.md) | Requirements and installing with Pixi; HPC notes and troubleshooting. |
-| [Usage](usage.md) | The core workflow: load model output, run a suite, inspect the results. |
+| [Usage](usage.md) | The `climateeval` CLI and the core workflow: load model output, run a suite, inspect the results. |
 | [Suites](suites.md) | The suite YAML format, the shipped suites, and writing your own. |
 | [Variables & coordinates](variables.md) | Reference of the known variables and coordinates (auto-generated). |
 | [Data sources](data-sources.md) | Reference datasets, provenance, environment variables, adding custom sources. |

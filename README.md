@@ -80,13 +80,15 @@ Benchmark your model against ERA5, GPCP, CERES-EBAF and CMIP6 historical models
 and build a self-contained interactive HTML report in one command:
 
 ```bash
-python benchmark.py /path/to/model/cmor/Amon --name MyModel
-# → writes MyModel_benchmark.html
+pixi run climateeval benchmark /path/to/model/cmor/Amon
+# → writes <model>_benchmark/: one results database per suite + an HTML report
 ```
 
-Point `benchmark.py` at a directory of your model's CMOR-compliant NetCDF files.
-Use `--data-root DIR` for staged references, `--download` to fetch missing ones,
-or `--serve` to open an interactive server instead of a file. See
+Point it at your model's CMOR-compliant NetCDF output — a single file, a flat
+directory, or a DRS tree; the model name is read from the file names. Use
+`--data-root DIR` for staged references, `--download` to fetch missing ones,
+`--static` to also render static PNG figures, or `--serve` to open an
+interactive server instead of writing files. Run `climateeval --help` or see
 [docs/usage.md](docs/usage.md) for all options.
 
 ## Examples
