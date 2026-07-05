@@ -17719,6 +17719,7 @@ packages:
 - pypi: .
   name: climateeval
   requires_dist:
+  - cartopy
   - cdsapi
   - cf-units
   - esmvalcore
@@ -17726,11 +17727,14 @@ packages:
   - ibis-framework
   - intake-esgf
   - loguru
+  - matplotlib
   - ncdata
   - numpy
   - pandas>=3
+  - plotly
   - pyyaml
   - scitools-iris
+  - seaborn
   - tzdata
   - xarray
   requires_python: '>=3.12'

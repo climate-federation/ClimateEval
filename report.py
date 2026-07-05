@@ -3,6 +3,7 @@
 
 Default behaviour: start a local web server and open the browser.
 Use --save-portable-html-output to also write a self-contained HTML file.
+Use --static-out to render ESMValTool-style static figures (PNG/PDF) instead.
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from climateeval.report import serve
+from climateeval.report import generate_static_plots, serve
 
 
 def main() -> None:
@@ -72,12 +73,43 @@ def main() -> None:
             "Omit PATH to place it next to the first database file."
         ),
     )
+    parser.add_argument(
+        "--static-out",
+        type=Path,
+        metavar="DIR",
+        help=(
+            "Render ESMValTool-style static figures into DIR and exit "
+            "(no server is started)."
+        ),
+    )
+    parser.add_argument(
+        "--static-format",
+        default="png",
+        metavar="FMT[,FMT...]",
+        help="Comma-separated static image format(s), e.g. png,pdf (default: png).",
+    )
+    parser.add_argument(
+        "--dpi",
+        type=int,
+        default=300,
+        help="Resolution of raster static figures (default: 300).",
+    )
     args = parser.parse_args()
 
     db_paths = [p.resolve() for p in args.db]
     for p in db_paths:
         if not p.exists():
             parser.error(f"Database not found: {p}")
+
+    if args.static_out is not None:
+        formats = [f.strip() for f in args.static_format.split(",") if f.strip()]
+        generate_static_plots(
+            db_paths,
+            args.static_out.resolve(),
+            formats=formats,
+            dpi=args.dpi,
+        )
+        return
 
     save_html: Path | None = None
     if args.save_portable_html_output is not None:

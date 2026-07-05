@@ -24,6 +24,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
+    "cartopy",  # required by climateeval.report (static map figures)
     "cdsapi",
     "cf-units",
     "esmvalcore",
@@ -31,12 +32,14 @@ dependencies = [
     "ibis-framework",
     "intake-esgf",
     "loguru",
+    "matplotlib",  # required by climateeval.report (static figures)
     "ncdata",
     "numpy",
     "pandas>=3",
     "plotly",  # required by climateeval.report
     "pyyaml",
     "scitools-iris",
+    "seaborn",  # required by climateeval.report (static-figure theme)
     "tzdata",  # required by ibis-framework
     "xarray",
 ]
