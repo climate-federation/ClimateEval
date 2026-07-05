@@ -8,10 +8,10 @@
 - [x] **Checkpoint:** Map samples reviewed by user ("maps are working"); missing pieces from monitor scripts added (gridlines, stats, rasterize)
 - [x] **A3** ZonalProfile (log-pressure inverted, vertical cbars, stats at 0.01/0.7) + ZonalLine (variable_vs_lat)
 - [x] **A4** AnnualCycle + DiurnalCycle (multi_datasets 1D cycles) + Histogram (plot_histogram.py bars, log-y for pr)
-- [ ] **A5** Hovmöller + QBO (stacked panels, shared clim)
-- [ ] **A6** Scalar bars + consistent titles/metrics annotations; registry covers all 10 types
-- [ ] **A6b** Portrait plot (ESMValTool `portrait_plot.py` style): models × variables relative-RMSE grid from metrics tables, written once per run; reuse `_leaderboard.py` normalization; optionally restyle Plotly scoreboard to match
-- [ ] **A7** docs/reporting.md section + full showcase-DB render validation
+- [x] **A5** Hovmöller (stacked lon×time pcolormesh, shared clim) + QBO (heatmaps + amplitude + ~50 hPa index; Pa→hPa)
+- [x] **A6** Scalar bars (blue benchmark on top, gold refs, gray others); registry now equals _FIGURE_BUILDERS (all 10 types, test-enforced)
+- [x] **A6b** Portrait plot (ESMValTool `portrait_plot.py` style): centered_median relative RMSE, RdYlBu_r ±0.5, NaN white, single-model fallback annotates raw RMSE; written to `out_dir/portrait_plot.<fmt>` per run. (Plotly-scoreboard restyle deferred to workstream B3.)
+- [x] **A7** docs/reporting.md "Static figure export" section + CLI table + AGENTS.md module reference; full 8-tier showcase render validated
 - [ ] **Checkpoint:** #18 definition of done met → close issue
 
 ## Workstream B — #17 Report HTML polish (remaining after PR #19)

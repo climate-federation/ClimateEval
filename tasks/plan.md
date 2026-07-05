@@ -142,6 +142,24 @@ units + short id), metrics annotations, figure size, font.
 **Verification:** registry-completeness unit test (10 keys, matching `_FIGURE_BUILDERS`); full-suite manual render of the MPI-ESM1-2-HR showcase DBs, visual review
 **Dependencies:** A2–A5 · **Scope:** S (2 files)
 
+#### Task A6b: Portrait plot (overall model evaluation summary)
+**Description:** Static matplotlib portrait plot in the style of ESMValTool's
+`portrait_plot.py` (ICONEval `recipe_portrait_plot.yml`): models on x,
+variables on y, cell colour = RMSE normalized by the centered median across
+models (diverging cmap, ±0.5 "Relative RMSE" colorbar, small tick labels).
+Reuses the normalization logic of `build_leaderboard_data` /
+`build_scoreboard_figure` (`_leaderboard.py`). Written once per
+`generate_static_plots` run (`out_dir/portrait_plot.<fmt>`) when metrics
+exist; falls back to raw RMSE colouring for a single model (like the
+scoreboard). Optionally restyle the interactive Plotly scoreboard to the same
+cmap/scale so both backends match. Split cells for alternative references
+deferred.
+**Acceptance criteria:**
+- [ ] Multi-model DBs produce a centered-median portrait matching the scoreboard's numbers
+- [ ] Single-model DBs fall back gracefully (raw RMSE)
+**Verification:** unit test against synthetic metrics; manual render with cmip6_historical_dbs
+**Dependencies:** A1 · **Scope:** S-M (2-3 files)
+
 #### Task A7: Docs + full validation
 **Description:** New "Static figure export (PNG/PDF)" section in
 `docs/reporting.md` (CLI + API examples); update CLAUDE.md report-module
