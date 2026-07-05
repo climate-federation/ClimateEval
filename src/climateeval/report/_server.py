@@ -28,12 +28,12 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
+from climateeval.report._common import _var_label
 from climateeval.report._db import detect_diag_type, get_var_cols, read_database
 from climateeval.report._figures import (
     _DIAG_ICONS,
     _DIAG_LABELS,
     _FIGURE_BUILDERS,
-    _var_label,
 )
 from climateeval.report._html import build_html_shell, generate_portable_html
 from climateeval.report._leaderboard import (
