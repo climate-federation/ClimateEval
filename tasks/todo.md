@@ -2,14 +2,15 @@
 
 ## Workstream A — #18 Static plot export (PNG/PDF)
 
-- [ ] **A1** (in progress, branch `ap/static-figures`) Skeleton + shared helpers + deps + `generate_static_plots()` API + `report.py --static-out/--static-format/--dpi` CLI + TimeSeries builder (end-to-end slice). Style source: ICONEval `recipe_templates` → ESMValTool `monitor/multi_datasets.py` (seaborn ticks, 7×5 in, gray gridlines, legend below axes, black refs w/ linestyle cycle, lightgray "other" bundle, dpi 300 tight bbox; maps later: Robinson central_lon=10, discrete levels, common_cbar, fontsize 8)
-- [ ] **Checkpoint:** sample TimeSeries PNG reviewed; PR strategy decided
-- [ ] **A2** Map builder — cartopy coastlines, ref + bias small-multiples, per-var cmaps, symmetric diverging ranges
-- [ ] **Checkpoint:** Map sample PNG/PDF posted to #18 for style sign-off
-- [ ] **A3** ZonalProfile (log-pressure, inverted) + ZonalLine
-- [ ] **A4** AnnualCycle + DiurnalCycle + Histogram
+- [x] **A1** (branch `ap/static-figures`) Skeleton + shared helpers + deps + `generate_static_plots()` API + `report.py --static-out/--static-format/--dpi` CLI + TimeSeries builder. Style source: ICONEval `recipe_templates` → ESMValTool `monitor/multi_datasets.py` (seaborn ticks, 7×5 in, gray gridlines, legend below axes, black refs w/ linestyle cycle, lightgray "other" bundle, dpi 300 tight bbox)
+- [x] **Checkpoint:** TimeSeries sample reviewed by user ("sample figures are working")
+- [x] **A2** Map builder — multi_datasets.py style: Robinson central_lon=10, coastlines, gridlines, 12 discrete contourf levels, 3-panel (model|ref|bias) for single model, ref+bias grid otherwise, per-panel mean/RMSE/R² stats, polar stereo for sea ice, cyclic seam fix, rasterized
+- [x] **Checkpoint:** Map samples reviewed by user ("maps are working"); missing pieces from monitor scripts added (gridlines, stats, rasterize)
+- [x] **A3** ZonalProfile (log-pressure inverted, vertical cbars, stats at 0.01/0.7) + ZonalLine (variable_vs_lat)
+- [x] **A4** AnnualCycle + DiurnalCycle (multi_datasets 1D cycles) + Histogram (plot_histogram.py bars, log-y for pr)
 - [ ] **A5** Hovmöller + QBO (stacked panels, shared clim)
 - [ ] **A6** Scalar bars + consistent titles/metrics annotations; registry covers all 10 types
+- [ ] **A6b** Portrait plot (ESMValTool `portrait_plot.py` style): models × variables relative-RMSE grid from metrics tables, written once per run; reuse `_leaderboard.py` normalization; optionally restyle Plotly scoreboard to match
 - [ ] **A7** docs/reporting.md section + full showcase-DB render validation
 - [ ] **Checkpoint:** #18 definition of done met → close issue
 

@@ -199,7 +199,8 @@ def build_static_timeseries_figures(
 _MAP_FONTSIZE = 8
 _MAP_STATS_FONTSIZE = 6
 _MAP_LEVELS = 12
-_MAP_CBAR_KWARGS = {"orientation": "horizontal", "aspect": 30}
+_MAP_CBAR_ORIENTATION = "horizontal"
+_MAP_CBAR_ASPECT = 30.0
 
 
 def _mpl_cmap(name: str) -> str:
@@ -289,6 +290,22 @@ def _fmt_stat(value: float, units: str) -> str:
     return f"{formatted} {units}".rstrip()
 
 
+def _stats_text(
+    axes: matplotlib.axes.Axes,
+    x_pos: float,
+    y_pos: float,
+    text: str,
+) -> None:
+    """Small stats annotation inside an axes (multi_datasets.py style)."""
+    axes.text(
+        x_pos,
+        y_pos,
+        text,
+        fontsize=_MAP_STATS_FONTSIZE,
+        transform=axes.transAxes,
+    )
+
+
 def _annotate_bias_panel(  # noqa: PLR0913
     stats_text: Callable,
     axes: matplotlib.axes.Axes,
@@ -298,15 +315,20 @@ def _annotate_bias_panel(  # noqa: PLR0913
     ref_pivot: pd.DataFrame,
     units: str,
     metrics: dict[str, float],
+    x_avg: float = 0.0,
+    x_bias: float = 0.92,
 ) -> None:
-    """Add multi_datasets.py-style stats to a bias panel (mean, RMSE, R²)."""
-    stats_text(axes, 0.0, 0.95, _fmt_stat(_weighted_mean(bias), units))
+    """Add multi_datasets.py-style stats to a bias panel (mean, RMSE, R²).
+
+    Pivots must have latitude as their index (transpose profile pivots).
+    """
+    stats_text(axes, x_avg, 0.95, _fmt_stat(_weighted_mean(bias), units))
     rmse = metrics.get("weighted_rmse", _weighted_rmse(bias))
     if np.isfinite(rmse):
-        stats_text(axes, 0.92, 0.95, f"RMSE={_fmt_stat(rmse, units)}")
+        stats_text(axes, x_bias, 0.95, f"RMSE={_fmt_stat(rmse, units)}")
     r2 = _weighted_r2(model_pivot, ref_pivot)
     if np.isfinite(r2):
-        stats_text(axes, 0.92, 0.85, f"R²={r2:.2f}")
+        stats_text(axes, x_bias, 0.85, f"R²={r2:.2f}")
 
 
 def _map_metrics_for(
@@ -418,25 +440,14 @@ def build_static_map_figures(
         *,
         extra_aspect: float = 0.0,
     ) -> None:
-        kwargs = dict(_MAP_CBAR_KWARGS)
-        kwargs["aspect"] += extra_aspect
-        cbar = fig.colorbar(mappable, ax=axes, **kwargs)
+        cbar = fig.colorbar(
+            mappable,
+            ax=axes,
+            orientation=_MAP_CBAR_ORIENTATION,
+            aspect=_MAP_CBAR_ASPECT + extra_aspect,
+        )
         cbar.set_label(label, fontsize=_MAP_FONTSIZE)
         cbar.ax.tick_params(labelsize=_MAP_FONTSIZE)
-
-    def _stats_text(
-        axes: matplotlib.axes.Axes,
-        x_pos: float,
-        y_pos: float,
-        text: str,
-    ) -> None:
-        axes.text(
-            x_pos,
-            y_pos,
-            text,
-            fontsize=_MAP_STATS_FONTSIZE,
-            transform=axes.transAxes,
-        )
 
     figures: dict[str, Figure] = {}
     all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
@@ -472,8 +483,7 @@ def build_static_map_figures(
 
         if has_bias:
             biases = {
-                ds: pivots[ds].subtract(ref_pivot, fill_value=None)
-                for ds in non_ref
+                ds: pivots[ds].subtract(ref_pivot, fill_value=None) for ds in non_ref
             }
             bias_vals = np.concatenate(
                 [b.to_numpy(dtype=float).ravel() for b in biases.values()],
@@ -536,8 +546,12 @@ def build_static_map_figures(
             )
             _add_cbar(fig, m_bias, ax_bottom, f"Δ{cbar_label}")
 
-            _stats_text(ax_left, 0.0, 0.95, _fmt_stat(_weighted_mean(pivots[model]), units))
-            _stats_text(ax_right, 0.0, 0.95, _fmt_stat(_weighted_mean(ref_pivot), units))
+            _stats_text(
+                ax_left, 0.0, 0.95, _fmt_stat(_weighted_mean(pivots[model]), units)
+            )
+            _stats_text(
+                ax_right, 0.0, 0.95, _fmt_stat(_weighted_mean(ref_pivot), units)
+            )
             _annotate_bias_panel(
                 _stats_text,
                 ax_bottom,
@@ -560,8 +574,7 @@ def build_static_map_figures(
                 ]
             else:
                 panels = [
-                    (str(ds), pivots[ds], cmap, levels, False, None)
-                    for ds in pivots
+                    (str(ds), pivots[ds], cmap, levels, False, None) for ds in pivots
                 ]
             ncols = min(len(panels), 3)
             nrows = (len(panels) + ncols - 1) // ncols
@@ -618,6 +631,766 @@ def build_static_map_figures(
 
 
 # ---------------------------------------------------------------------------
+# AnnualCycle / DiurnalCycle / Histogram builders
+# ---------------------------------------------------------------------------
+
+
+def _build_static_cycle_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None,
+    *,
+    coord: str,
+    xlabel: str,
+    xticks: list[int],
+    xticklabels: list[str] | None = None,
+) -> dict[str, Figure]:
+    """Shared 1D-cycle line plot (multi_datasets.py annual/diurnal cycle)."""
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_datasets = _get_ref_datasets(data_df, metrics_df)
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+
+        fig, axes = _new_figure()
+        color_idx = 0
+        for dataset in all_datasets:
+            grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+            if grp.empty:
+                continue
+            series = grp.groupby(coord)[var_id].mean().sort_index()
+            dtype = grp["data_type"].iloc[0]
+            ref_idx = ref_datasets.index(dataset) if dataset in ref_datasets else 0
+            axes.plot(
+                series.index,
+                series.values,
+                label=None if dtype == "other" else str(dataset),
+                **_line_kwargs(dtype, color_idx, ref_idx),
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+
+        axes.set_xticks(xticks)
+        if xticklabels is not None:
+            axes.set_xticklabels(xticklabels)
+        axes.set_xlabel(xlabel)
+        ylabel = f"{var_id} [{units}]" if units else var_id
+        _finish_line_axes(axes, title=long_name, ylabel=ylabel)
+        figures[var_id] = fig
+
+    return figures
+
+
+def build_static_annual_cycle_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, Figure]:
+    """Annual cycle (Jan–Dec), multi_datasets.py "annual_cycle" style."""
+    return _build_static_cycle_figures(
+        data_df,
+        variables_df,
+        metrics_df,
+        coord="month_number",
+        xlabel="month",
+        xticks=list(range(1, 13)),
+        xticklabels=["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"],
+    )
+
+
+def build_static_diurnal_cycle_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, Figure]:
+    """Diurnal cycle (0–24 h), multi_datasets.py "diurnal_cycle" style."""
+    return _build_static_cycle_figures(
+        data_df,
+        variables_df,
+        metrics_df,
+        coord="hour",
+        xlabel="hour",
+        xticks=list(range(0, 25, 3)),
+    )
+
+
+def build_static_histogram_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, Figure]:
+    """Histograms, ESMValTool plot_histogram.py style.
+
+    Overlapping semi-transparent bars per dataset at the stored bin centres,
+    "Density" on y (log for precipitation, like the ICONEval histogram
+    recipes), reference black / benchmarked coloured.
+    """
+    from climateeval.report._db import get_density_cols
+    from climateeval.report._style import _base_var
+
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+
+    for density_col in get_density_cols(data_df):
+        var_id = density_col.replace("density_", "")
+        sub = data_df[["data_id", "data_type", var_id, density_col]].dropna(
+            subset=[density_col],
+        )
+        if sub.empty:
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+        log_y = _base_var(var_id) == "pr"
+
+        fig, axes = _new_figure()
+        color_idx = 0
+        for dataset in all_datasets:
+            ds_sub = sub[sub["data_id"] == dataset].sort_values(var_id)
+            if ds_sub.empty:
+                continue
+            dtype = ds_sub["data_type"].iloc[0]
+            kwargs = _line_kwargs(dtype, color_idx, 0)
+            centers = ds_sub[var_id].to_numpy(dtype=float)
+            heights = ds_sub[density_col].to_numpy(dtype=float)
+            if log_y:
+                heights = np.where(heights > 0, heights, 0.0)
+            if centers.size > 1:
+                widths = np.diff(centers, prepend=2 * centers[0] - centers[1])
+            else:
+                widths = np.array([1.0])
+            axes.bar(
+                centers,
+                heights,
+                width=widths,
+                alpha=0.5,
+                color=kwargs["color"],
+                label=None if dtype == "other" else str(dataset),
+                zorder=kwargs["zorder"],
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+
+        if log_y:
+            axes.set_yscale("log")
+        xlabel = f"{long_name} [{units}]" if units else long_name
+        axes.set_xlabel(xlabel)
+        _finish_line_axes(axes, title=long_name, ylabel="Density")
+        figures[var_id] = fig
+
+    return figures
+
+
+# ---------------------------------------------------------------------------
+# ZonalLine + ZonalProfile builders
+# ---------------------------------------------------------------------------
+
+_PLEV_TICKS = [1000, 700, 500, 300, 200, 100, 70, 50, 30, 20, 10, 7, 5, 3, 2, 1]
+
+
+def build_static_zonal_line_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, Figure]:
+    """Zonal mean vs latitude, multi_datasets.py "variable_vs_lat" style."""
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_datasets = _get_ref_datasets(data_df, metrics_df)
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+
+        fig, axes = _new_figure()
+        color_idx = 0
+        for dataset in all_datasets:
+            grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+            if grp.empty:
+                continue
+            series = grp.groupby("latitude")[var_id].mean().sort_index()
+            dtype = grp["data_type"].iloc[0]
+            ref_idx = ref_datasets.index(dataset) if dataset in ref_datasets else 0
+            axes.plot(
+                series.index,
+                series.values,
+                label=None if dtype == "other" else str(dataset),
+                **_line_kwargs(dtype, color_idx, ref_idx),
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+
+        axes.set_xlabel("latitude [°N]")
+        ylabel = f"{var_id} [{units}]" if units else var_id
+        _finish_line_axes(axes, title=long_name, ylabel=ylabel)
+        figures[var_id] = fig
+
+    return figures
+
+
+def build_static_zonal_profile_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, Figure]:
+    """Zonal mean profiles (lat × pressure), "zonal_mean_profile" style.
+
+    Same layout rules as the static maps: three panels for a single
+    benchmarked dataset with a reference, otherwise a reference + bias (or
+    absolute) grid. Log-pressure axis decreasing upward, vertical colorbars,
+    stats text at the multi_datasets.py positions (0.01 / 0.7).
+    """
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_datasets_all = _get_ref_datasets(data_df, metrics_df)
+
+    def _profile_pivot(dataset: str, var_id: str) -> pd.DataFrame | None:
+        sub = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+        if sub.empty:
+            return None
+        p = sub.pivot_table(
+            index="air_pressure",
+            columns="latitude",
+            values=var_id,
+            aggfunc="mean",
+        ).sort_index()
+        if p.empty:
+            return None
+        if p.index.max() > 2000.0:  # noqa: PLR2004 - stored in Pa
+            p.index = p.index / 100.0  # Pa → hPa
+        return p
+
+    def _draw_profile(
+        axes: matplotlib.axes.Axes,
+        pivot: pd.DataFrame,
+        *,
+        title: str,
+        cmap: str,
+        levels: np.ndarray,
+    ) -> object:
+        mappable = axes.contourf(
+            pivot.columns.to_numpy(dtype=float),
+            pivot.index.to_numpy(dtype=float),
+            pivot.to_numpy(dtype=float),
+            levels=levels,
+            cmap=cmap,
+            extend="both",
+        )
+        for collection in axes.collections:
+            collection.set_rasterized(True)
+        axes.set_yscale("log")
+        axes.invert_yaxis()
+        pmin = float(pivot.index.min())
+        pmax = float(pivot.index.max())
+        ticks = [t for t in _PLEV_TICKS if pmin <= t <= pmax]
+        axes.set_yticks(ticks)
+        axes.set_yticklabels([str(t) for t in ticks], fontsize=_MAP_FONTSIZE)
+        axes.minorticks_off()  # y_minor_formatter: '' in multi_datasets.py
+        axes.tick_params(labelsize=_MAP_FONTSIZE)
+        axes.set_title(title, fontsize=_MAP_FONTSIZE)
+        return mappable
+
+    def _add_cbar(
+        fig: Figure,
+        mappable: object,
+        axes: object,
+        label: str,
+    ) -> None:
+        cbar = fig.colorbar(mappable, ax=axes, orientation="vertical")
+        cbar.set_label(label, fontsize=_MAP_FONTSIZE)
+        cbar.ax.tick_params(labelsize=_MAP_FONTSIZE)
+
+    for var_id in get_var_cols(data_df):
+        long_name, units = _var_label(var_id, variables_df)
+        cbar_label = f"{var_id} [{units}]" if units else var_id
+        cmap = _mpl_cmap(_colorscale_for(var_id))
+        bias_cmap = _mpl_cmap(_bias_colorscale_for(var_id))
+
+        pivots = {
+            ds: piv
+            for ds in all_datasets
+            if (piv := _profile_pivot(ds, var_id)) is not None
+        }
+        if not pivots:
+            continue
+
+        valid_refs = [r for r in ref_datasets_all if r in pivots]
+        ref_pivot = _combine_pivots([pivots[r] for r in valid_refs])
+        ref_label = valid_refs[0] if len(valid_refs) == 1 else "Multi-obs mean"
+        non_ref = [ds for ds in pivots if ds not in valid_refs]
+        has_bias = ref_pivot is not None and bool(non_ref)
+        # mypy cannot narrow ref_pivot through the has_bias flag
+        ref_pivot_t = None if ref_pivot is None else ref_pivot.T
+
+        vmin, vmax = _data_range(data_df[var_id], var_id)
+        levels = _map_levels(vmin, vmax)
+
+        if has_bias:
+            biases = {ds: pivots[ds].subtract(ref_pivot) for ds in non_ref}
+            bias_vals = np.concatenate(
+                [b.to_numpy(dtype=float).ravel() for b in biases.values()],
+            )
+            bias_vals = bias_vals[np.isfinite(bias_vals)]
+            if bias_vals.size:
+                babs = max(
+                    abs(float(np.percentile(bias_vals, 2))),
+                    abs(float(np.percentile(bias_vals, 98))),
+                )
+            else:
+                babs = 1.0
+            babs = babs or 1.0
+            bias_levels = _map_levels(-babs, babs)
+
+        if has_bias and len(non_ref) == 1:
+            model = non_ref[0]
+            fig = Figure(figsize=_FIGSIZE, layout="constrained")
+            gridspec = fig.add_gridspec(
+                5,
+                4,
+                height_ratios=[1.0, 1.0, 0.4, 1.0, 1.0],
+            )
+            ax_left = fig.add_subplot(gridspec[0:2, 0:2])
+            ax_right = fig.add_subplot(gridspec[0:2, 2:4])
+            ax_bottom = fig.add_subplot(gridspec[3:5, 1:3])
+
+            m_left = _draw_profile(
+                ax_left, pivots[model], title=str(model), cmap=cmap, levels=levels
+            )
+            _draw_profile(
+                ax_right, ref_pivot, title=str(ref_label), cmap=cmap, levels=levels
+            )
+            _add_cbar(fig, m_left, [ax_left, ax_right], cbar_label)
+            m_bias = _draw_profile(
+                ax_bottom,
+                biases[model],
+                title=f"{model} − {ref_label}",
+                cmap=bias_cmap,
+                levels=bias_levels,
+            )
+            _add_cbar(fig, m_bias, ax_bottom, f"Δ{cbar_label}")
+
+            ax_right.set_yticklabels([])
+            for axes in (ax_left, ax_bottom):
+                axes.set_ylabel("Pressure (hPa)", fontsize=_MAP_FONTSIZE)
+            for axes in (ax_left, ax_right, ax_bottom):
+                axes.set_xlabel("latitude [°N]", fontsize=_MAP_FONTSIZE)
+
+            _stats_text(
+                ax_left, 0.01, 0.95, _fmt_stat(_weighted_mean(pivots[model].T), units)
+            )
+            _stats_text(
+                ax_right, 0.01, 0.95, _fmt_stat(_weighted_mean(ref_pivot_t), units)
+            )
+            _annotate_bias_panel(
+                _stats_text,
+                ax_bottom,
+                bias=biases[model].T,
+                model_pivot=pivots[model].T,
+                ref_pivot=ref_pivot_t,
+                units=units,
+                metrics=_map_metrics_for(metrics_df, var_id, model),
+                x_avg=0.01,
+                x_bias=0.7,
+            )
+        else:
+            if ref_pivot is not None and non_ref:  # has_bias, mypy-narrowed
+                panels = [(str(ref_label), ref_pivot, cmap, levels, False, None)] + [
+                    (str(ds), biases[ds], bias_cmap, bias_levels, True, ds)
+                    for ds in non_ref
+                ]
+            else:
+                panels = [
+                    (str(ds), pivots[ds], cmap, levels, False, None) for ds in pivots
+                ]
+            ncols = min(len(panels), 3)
+            nrows = (len(panels) + ncols - 1) // ncols
+            figsize = _FIGSIZE if len(panels) == 1 else (7.0, 1.0 + 2.2 * nrows)
+            fig = Figure(figsize=figsize, layout="constrained")
+            groups: dict[bool, tuple[object | None, list]] = {
+                False: (None, []),
+                True: (None, []),
+            }
+            for i, (title, pivot, panel_cmap, panel_levels, is_bias, ds) in enumerate(
+                panels,
+            ):
+                axes = fig.add_subplot(nrows, ncols, i + 1)
+                mappable = _draw_profile(
+                    axes, pivot, title=title, cmap=panel_cmap, levels=panel_levels
+                )
+                if i % ncols == 0:
+                    axes.set_ylabel("Pressure (hPa)", fontsize=_MAP_FONTSIZE)
+                else:
+                    axes.set_yticklabels([])
+                if i // ncols == nrows - 1:
+                    axes.set_xlabel("latitude [°N]", fontsize=_MAP_FONTSIZE)
+                if is_bias and ds is not None:
+                    _annotate_bias_panel(
+                        _stats_text,
+                        axes,
+                        bias=pivot.T,
+                        model_pivot=pivots[ds].T,
+                        ref_pivot=ref_pivot_t,
+                        units=units,
+                        metrics=_map_metrics_for(metrics_df, var_id, ds),
+                        x_avg=0.01,
+                        x_bias=0.7,
+                    )
+                else:
+                    _stats_text(
+                        axes, 0.01, 0.95, _fmt_stat(_weighted_mean(pivot.T), units)
+                    )
+                first, ax_list = groups[is_bias]
+                groups[is_bias] = (first if first is not None else mappable, ax_list)
+                ax_list.append(axes)
+            for is_bias, (mappable, ax_list) in groups.items():
+                if mappable is None:
+                    continue
+                label = f"Δ{cbar_label}" if is_bias else cbar_label
+                _add_cbar(fig, mappable, ax_list, label)
+
+        sup = f"{long_name} — bias vs {ref_label}" if has_bias else long_name
+        if has_bias and len(non_ref) == 1:
+            sup = long_name
+        fig.suptitle(sup, fontsize=_MAP_FONTSIZE + 2)
+        figures[var_id] = fig
+
+    return figures
+
+
+# ---------------------------------------------------------------------------
+# Scalar builder
+# ---------------------------------------------------------------------------
+
+_SCALAR_TYPE_COLORS = {
+    "to_benchmark": "#4C72B0",
+    "reference": "#c0860a",
+    "other": "#aaaaaa",
+}
+
+
+def build_static_bar_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,  # noqa: ARG001
+) -> dict[str, Figure]:
+    """Horizontal bar chart for scalar (0-D) diagnostics, one per variable.
+
+    Mirrors the interactive Scalar figures: benchmarked dataset on top in
+    blue, references in gold, auxiliary datasets in light gray, values
+    annotated next to the bars.
+    """
+    figures: dict[str, Figure] = {}
+    type_order = {"to_benchmark": 0, "reference": 1, "other": 2}
+
+    for var_id in get_var_cols(data_df):
+        sub = data_df[["data_id", "data_type", var_id]].dropna(subset=[var_id]).copy()
+        if sub.empty:
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+
+        sub["_type_rank"] = sub["data_type"].map(type_order).fillna(3)
+        sub = sub.sort_values(["_type_rank", var_id], ascending=[True, True])
+
+        n = len(sub)
+        with sns.axes_style(_SEABORN_STYLE):
+            fig = Figure(
+                figsize=(7.0, max(2.5, 0.35 * n + 1.5)),
+                layout="constrained",
+            )
+            axes = fig.add_subplot(111)
+
+        # Plot bottom-up so to_benchmark ends on top
+        y_pos = range(n - 1, -1, -1)
+        values = sub[var_id].to_numpy(dtype=float)
+        colors = [_SCALAR_TYPE_COLORS.get(str(t), "#aaaaaa") for t in sub["data_type"]]
+        axes.barh(list(y_pos), values, color=colors, height=0.7)
+        axes.set_yticks(list(y_pos))
+        axes.set_yticklabels(
+            sub["data_id"].tolist(),
+            fontsize=_MAP_FONTSIZE,
+        )
+        for y, v in zip(y_pos, values, strict=True):
+            axes.annotate(
+                f"{v:.3g}",
+                xy=(v, y),
+                xytext=(3, 0),
+                textcoords="offset points",
+                va="center",
+                fontsize=_MAP_STATS_FONTSIZE,
+            )
+        axes.grid(visible=True, axis="x", **_GRIDLINE_KWARGS)
+        axes.set_axisbelow(True)
+        axes.margins(x=0.15)
+        axes.set_xlabel(f"{var_id} [{units}]" if units else var_id)
+        axes.set_title(long_name)
+        figures[var_id] = fig
+
+    return figures
+
+
+# ---------------------------------------------------------------------------
+# Hovmöller + QBO builders
+# ---------------------------------------------------------------------------
+
+
+def build_static_hovmoller_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,  # noqa: ARG001
+) -> dict[str, Figure]:
+    """Hovmöller diagrams: longitude × time anomalies, one panel per dataset.
+
+    Stacked pcolormesh panels on a shared symmetric colour range (single
+    colorbar), time increasing downward like the interactive report.
+    """
+    from climateeval.report._style import _hovmoller_colorscale_for
+
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+        cmap = _mpl_cmap(_hovmoller_colorscale_for(var_id))
+
+        pivots: dict[str, pd.DataFrame] = {}
+        for ds in all_datasets:
+            sub = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
+            if sub.empty:
+                continue
+            p = sub.pivot_table(
+                index="time",
+                columns="longitude",
+                values=var_id,
+                aggfunc="mean",
+            )
+            p = p.dropna(how="all").dropna(axis=1, how="all")
+            if not p.empty:
+                pivots[ds] = p
+        if not pivots:
+            continue
+
+        all_vals = np.concatenate(
+            [p.to_numpy(dtype=float).ravel() for p in pivots.values()],
+        )
+        all_vals = all_vals[np.isfinite(all_vals)]
+        if all_vals.size:
+            vabs = max(
+                abs(float(np.percentile(all_vals, 2))),
+                abs(float(np.percentile(all_vals, 98))),
+            )
+        else:
+            vabs = 1.0
+        vabs = vabs or 1.0
+
+        nrows = len(pivots)
+        fig = Figure(figsize=(7.0, 2.0 + 2.2 * nrows), layout="constrained")
+        axes_list = []
+        mappable = None
+        for i, (ds, pivot) in enumerate(pivots.items()):
+            axes = fig.add_subplot(nrows, 1, i + 1)
+            mappable = axes.pcolormesh(
+                pivot.columns.to_numpy(dtype=float),
+                pivot.index.to_numpy(),
+                pivot.to_numpy(dtype=float),
+                cmap=cmap,
+                vmin=-vabs,
+                vmax=vabs,
+                rasterized=True,
+            )
+            axes.invert_yaxis()
+            axes.set_title(str(ds), fontsize=_MAP_FONTSIZE)
+            axes.set_ylabel("Time", fontsize=_MAP_FONTSIZE)
+            axes.tick_params(labelsize=_MAP_FONTSIZE)
+            if i == nrows - 1:
+                axes.set_xlabel("Longitude", fontsize=_MAP_FONTSIZE)
+            axes_list.append(axes)
+        if mappable is not None:
+            cbar = fig.colorbar(mappable, ax=axes_list, orientation="vertical")
+            cbar.set_label(
+                f"{var_id} [{units}]" if units else var_id,
+                fontsize=_MAP_FONTSIZE,
+            )
+            cbar.ax.tick_params(labelsize=_MAP_FONTSIZE)
+
+        fig.suptitle(long_name, fontsize=_MAP_FONTSIZE + 2)
+        figures[var_id] = fig
+
+    return figures
+
+
+def build_static_qbo_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, Figure]:
+    """QBO figures mirroring the interactive layout.
+
+    Left: stacked time × pressure heatmaps (one per dataset, shared symmetric
+    colour range). Right: amplitude profile (std vs pressure). Bottom: QBO
+    index (wind at ~50 hPa vs time).
+    """
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_datasets = _get_ref_datasets(data_df, metrics_df)
+    qbo_ticks = [100, 70, 50, 30, 20, 10, 5, 1]
+    index_plev_pa = 5000.0  # ~50 hPa
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+        cmap = _mpl_cmap(_colorscale_for(var_id))
+
+        pivots: dict[str, pd.DataFrame] = {}
+        for ds in all_datasets:
+            sub = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
+            if sub.empty:
+                continue
+            p = sub.pivot_table(
+                index="air_pressure",
+                columns="time",
+                values=var_id,
+                aggfunc="mean",
+            )
+            p = p.dropna(how="all").dropna(axis=1, how="all")
+            if not p.empty:
+                p.index = p.index / 100.0  # Pa → hPa
+                pivots[ds] = p
+        if not pivots:
+            continue
+
+        arr = data_df[var_id].dropna().to_numpy(dtype=float)
+        vabs = max(
+            abs(float(np.percentile(arr, 2))),
+            abs(float(np.percentile(arr, 98))),
+        )
+        vabs = vabs or 1.0
+
+        n_ds = len(pivots)
+        fig = Figure(figsize=(7.0, 1.8 * n_ds + 2.6), layout="constrained")
+        gridspec = fig.add_gridspec(
+            n_ds + 1,
+            5,
+            height_ratios=[1.8] * n_ds + [1.6],
+        )
+
+        # Stacked heatmaps (left 4/5 columns)
+        heatmap_axes = []
+        mappable = None
+        for i, (ds, pivot) in enumerate(pivots.items()):
+            axes = fig.add_subplot(gridspec[i, 0:4])
+            mappable = axes.pcolormesh(
+                pivot.columns.to_numpy(),
+                pivot.index.to_numpy(dtype=float),
+                pivot.to_numpy(dtype=float),
+                cmap=cmap,
+                vmin=-vabs,
+                vmax=vabs,
+                rasterized=True,
+            )
+            axes.set_yscale("log")
+            axes.set_ylim(float(pivot.index.max()), float(pivot.index.min()))
+            ticks = [
+                t for t in qbo_ticks if pivot.index.min() <= t <= pivot.index.max()
+            ]
+            axes.set_yticks(ticks)
+            axes.set_yticklabels([str(t) for t in ticks], fontsize=_MAP_FONTSIZE)
+            axes.minorticks_off()
+            axes.set_title(str(ds), fontsize=_MAP_FONTSIZE)
+            axes.set_ylabel("Pressure (hPa)", fontsize=_MAP_FONTSIZE)
+            axes.tick_params(labelsize=_MAP_FONTSIZE)
+            if i < n_ds - 1:
+                axes.set_xticklabels([])
+            heatmap_axes.append(axes)
+        if mappable is not None:
+            cbar = fig.colorbar(mappable, ax=heatmap_axes, orientation="vertical")
+            cbar.set_label(
+                f"{var_id} [{units}]" if units else var_id,
+                fontsize=_MAP_FONTSIZE,
+            )
+            cbar.ax.tick_params(labelsize=_MAP_FONTSIZE)
+
+        # Amplitude profile (right column, spans the heatmap rows)
+        ax_amp = fig.add_subplot(gridspec[0:n_ds, 4])
+        color_idx = 0
+        for ds in pivots:
+            grp = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
+            dtype = grp["data_type"].iloc[0]
+            std_profile = (
+                grp.assign(plev_hpa=grp["air_pressure"] / 100.0)
+                .groupby("plev_hpa")[var_id]
+                .std()
+                .sort_index()
+            )
+            if std_profile.empty:
+                continue
+            ref_idx = ref_datasets.index(ds) if ds in ref_datasets else 0
+            ax_amp.plot(
+                std_profile.values,
+                std_profile.index,
+                **_line_kwargs(dtype, color_idx, ref_idx),
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+        ax_amp.set_yscale("log")
+        ax_amp.invert_yaxis()
+        ax_amp.minorticks_off()
+        ax_amp.set_yticks([])
+        ax_amp.set_title("Amplitude", fontsize=_MAP_FONTSIZE)
+        ax_amp.set_xlabel(f"σ [{units}]", fontsize=_MAP_FONTSIZE)
+        ax_amp.xaxis.set_major_locator(MaxNLocator(nbins=3))
+        ax_amp.tick_params(labelsize=_MAP_FONTSIZE)
+        ax_amp.tick_params(axis="x", labelrotation=45)
+
+        # QBO index (bottom, full width)
+        ax_idx = fig.add_subplot(gridspec[n_ds, :])
+        color_idx = 0
+        for ds in pivots:
+            grp = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
+            dtype = grp["data_type"].iloc[0]
+            at_50 = grp[np.isclose(grp["air_pressure"], index_plev_pa)]
+            if at_50.empty:
+                continue
+            series = at_50.groupby("time")[var_id].mean().sort_index()
+            ref_idx = ref_datasets.index(ds) if ds in ref_datasets else 0
+            ax_idx.plot(
+                series.index,
+                series.values,
+                label=str(ds),
+                **_line_kwargs(dtype, color_idx, ref_idx),
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+        ax_idx.grid(visible=True, **_GRIDLINE_KWARGS)
+        ax_idx.set_axisbelow(True)
+        ax_idx.set_title("QBO index (~50 hPa)", fontsize=_MAP_FONTSIZE)
+        ax_idx.set_ylabel(
+            f"{var_id} [{units}]" if units else var_id,
+            fontsize=_MAP_FONTSIZE,
+        )
+        ax_idx.tick_params(labelsize=_MAP_FONTSIZE)
+        handles, labels = ax_idx.get_legend_handles_labels()
+        if handles:
+            ax_idx.legend(
+                handles,
+                labels,
+                fontsize=_MAP_FONTSIZE,
+                **_LEGEND_KWARGS,
+                bbox_to_anchor=(0.5, -0.25),
+                ncols=min(len(handles), 3),
+            )
+
+        fig.suptitle(long_name, fontsize=_MAP_FONTSIZE + 2)
+        figures[var_id] = fig
+
+    return figures
+
+
+# ---------------------------------------------------------------------------
 # Registry + export entry point
 # ---------------------------------------------------------------------------
 
@@ -625,8 +1398,16 @@ def build_static_map_figures(
 # _figures.py. Types without a static builder yet are skipped (with a log
 # message) by generate_static_plots().
 _STATIC_FIGURE_BUILDERS: dict[str, Callable] = {
+    "AnnualCycle": build_static_annual_cycle_figures,
+    "DiurnalCycle": build_static_diurnal_cycle_figures,
+    "Histogram": build_static_histogram_figures,
+    "Hovmoller": build_static_hovmoller_figures,
     "Map": build_static_map_figures,
+    "QBO": build_static_qbo_figures,
+    "Scalar": build_static_bar_figures,
     "TimeSeries": build_static_timeseries_figures,
+    "ZonalLine": build_static_zonal_line_figures,
+    "ZonalProfile": build_static_zonal_profile_figures,
 }
 
 
@@ -694,8 +1475,8 @@ def generate_static_plots(
                 )
                 continue
             figures = builder(data_df, variables_df, metrics_df)
-            diag_dir = out_dir / _safe_filename(db_path.stem) / _safe_filename(
-                diag_name
+            diag_dir = (
+                out_dir / _safe_filename(db_path.stem) / _safe_filename(diag_name)
             )
             diag_dir.mkdir(parents=True, exist_ok=True)
             for var_id, fig in figures.items():
