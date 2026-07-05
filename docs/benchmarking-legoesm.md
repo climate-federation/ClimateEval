@@ -12,8 +12,15 @@ A ready-to-edit version of everything below is
 
 ### 1. CMORize / load your model output
 
-ClimateEval expects CMOR-compliant NetCDF (standard variable names, units and
-coordinates). Point Iris at the files:
+ClimateEval expects CMOR-style NetCDF — the exact requirements (variable
+names, coordinates, units) and how to convert non-CMOR output are documented
+in the [input data spec](input-data-spec.md). Validate your files with
+
+```bash
+climateeval check /path/to/legoesm/cmor/Amon --timerange 19790101/19790930
+```
+
+and fix reported FAILs until it exits 0. Then point Iris at the files:
 
 ```python
 import iris

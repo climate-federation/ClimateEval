@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
 
 from climateeval._cli import _infer_model_name, main
+from tests.unit.test__check import _make_cube, _save, _suite
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -24,7 +26,7 @@ def test_help_exits_cleanly() -> None:
     assert excinfo.value.code == 0
 
 
-@pytest.mark.parametrize("command", ["benchmark", "report"])
+@pytest.mark.parametrize("command", ["benchmark", "check", "report"])
 def test_subcommand_help(command: str) -> None:
     with pytest.raises(SystemExit) as excinfo:
         main([command, "--help"])
@@ -61,6 +63,58 @@ def test_infer_model_name_from_single_file(tmp_path: Path) -> None:
 def test_infer_model_name_non_cmor_returns_none(tmp_path: Path) -> None:
     (tmp_path / "data.nc").touch()
     assert _infer_model_name(tmp_path) is None
+
+
+def test_check_missing_model_path(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit, match="Model path not found"):
+        main(["check", str(tmp_path / "nope")])
+
+
+def test_check_empty_model_dir(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit, match="No NetCDF data found"):
+        main(["check", str(tmp_path)])
+
+
+def _write_check_fixture(tmp_path: Path, var_name: str) -> tuple[str, str]:
+    """Save one synthetic cube and a single-variable suite; return CLI args."""
+    data = tmp_path / "data"
+    _save(_make_cube(var_name), data)
+    suite = _suite(tmp_path, [{"id": "tas", "var_name": "tas", "frequency": "mon"}])
+    return str(data), str(suite)
+
+
+def test_check_passing_data(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    data, suite = _write_check_fixture(tmp_path, "tas")
+    main(["check", data, "--suite", suite, "--timerange", "20000101/20011231"])
+    out = capsys.readouterr().out
+    assert "PASS" in out
+    assert "Summary:" in out
+
+
+def test_check_failing_data_exits_1(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    data, suite = _write_check_fixture(tmp_path, "t2m")
+    with pytest.raises(SystemExit) as excinfo:
+        main(["check", data, "--suite", suite, "--timerange", "20000101/20011231"])
+    assert excinfo.value.code == 1
+    assert "FAIL" in capsys.readouterr().out
+
+
+def test_check_json_output(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    data, suite = _write_check_fixture(tmp_path, "tas")
+    main(
+        ["check", data, "--suite", suite, "--timerange", "20000101/20011231", "--json"],
+    )
+    report = json.loads(capsys.readouterr().out)
+    assert report["passed"] is True
 
 
 def test_suites_list(capsys: pytest.CaptureFixture[str]) -> None:

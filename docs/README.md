@@ -13,6 +13,7 @@ results in an interactive HTML report.
 |---|---|
 | [Installation](installation.md) | Requirements and installing with Pixi; HPC notes and troubleshooting. |
 | [Usage](usage.md) | The `climateeval` CLI and the core workflow: load model output, run a suite, inspect the results. |
+| [Input data spec](input-data-spec.md) | What ClimateEval expects from (non-CMORized) model output, and the `climateeval check` validator. |
 | [Suites](suites.md) | The suite YAML format, the shipped suites, and writing your own. |
 | [Variables & coordinates](variables.md) | Reference of the known variables and coordinates (auto-generated). |
 | [Data sources](data-sources.md) | Reference datasets, provenance, environment variables, adding custom sources. |

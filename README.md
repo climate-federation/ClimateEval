@@ -85,7 +85,9 @@ pixi run climateeval benchmark /path/to/model/cmor/Amon
 ```
 
 Point it at your model's CMOR-compliant NetCDF output — a single file, a flat
-directory, or a DRS tree; the model name is read from the file names. Use
+directory, or a DRS tree; the model name is read from the file names. If your
+output is not CMORized, `pixi run climateeval check /path/to/model` reports
+what to fix (see [docs/input-data-spec.md](docs/input-data-spec.md)). Use
 `--data-root DIR` for staged references, `--download` to fetch missing ones,
 `--static` to also render static PNG figures, or `--serve` to open an
 interactive server instead of writing files. Run `climateeval --help` or see

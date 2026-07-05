@@ -59,3 +59,4 @@
 - [x] **E2** `climateeval/_cli.py` + `[project.scripts]` entry point — `climateeval benchmark MODEL_DIR` (multi-suite, one .ddb per suite, portable HTML + optional static figures + --serve) and `climateeval report DB...`; docs/usage.md section
 - [ ] **E3** (follow-up PR) `climateeval merge` (promote scripts/merge_tier_dbs.py into package + tests, closes C4 half) and `climateeval suites show`
   - [x] `climateeval suites list` (2026-07-05: name + diagnostics/variables counts; bare `suites` aliases to list)
+- [x] **E4** non-CMORized input support (2026-07-05): `docs/input-data-spec.md` (agent-facing conversion spec) + `climateeval check MODEL [--suite] [--timerange] [--json]` validator (`_check.py`; metadata-only, exit 0 = benchmark-ready; per-variable found/coordinates/units/timerange/levels/sources checks incl. derived vars)

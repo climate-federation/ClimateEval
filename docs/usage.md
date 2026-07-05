@@ -45,6 +45,19 @@ compares against ERA5/GPCP/CERES-EBAF references and CMIP6 historical models.
 diagnostics and variables); any of those names — or a path to your own suite
 YAML — works with `--suite` (see [Suites](suites.md)).
 
+**Check your data first.** If your model output is not (or only partially)
+CMORized, `climateeval check` validates it against a suite's input
+requirements in seconds — no reference data needed — and prints an actionable
+per-variable PASS/FAIL report (exit code 0 = ready to benchmark):
+
+```bash
+climateeval check /path/to/model --suite Tier2_atmosphere_monthly --timerange 19900101/20091231
+```
+
+The requirements themselves (and how to convert non-CMOR output) are
+documented in the [input data spec](input-data-spec.md); `--json` gives a
+machine-readable report for use in conversion scripts or AI agents.
+
 Reports for existing databases can be served or exported with
 `climateeval report DB... [--html FILE | --static-out DIR | --port N]`
 (see [reporting](reporting.md)). The root-level

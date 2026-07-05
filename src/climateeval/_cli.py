@@ -11,6 +11,9 @@ Subcommands
     CERES-EBAF, ...) and the CMIP6 comparison ensemble. Writes one DuckDB
     per suite plus a portable HTML report (and optionally static figures)
     to the output directory.
+``climateeval check MODEL``
+    Validate model output against a suite's input requirements without
+    running any diagnostics.
 ``climateeval report DB [DB ...]``
     Serve or export a report for existing result databases.
 ``climateeval suites list``
@@ -21,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import json
 import os
 import re
 import socket
@@ -50,6 +54,7 @@ logger.add(
 )
 
 from climateeval import suites as _suites_pkg  # noqa: E402
+from climateeval._check import check_model_data  # noqa: E402
 from climateeval._loader import load_cmor_dir  # noqa: E402
 from climateeval.data import DataSourceInformation  # noqa: E402
 from climateeval.report import (  # noqa: E402
@@ -165,6 +170,114 @@ def _add_benchmark_parser(subparsers: Any) -> None:
         help="Port for --serve (default: 8765).",
     )
     parser.set_defaults(func=_cmd_benchmark)
+
+
+def _add_check_parser(subparsers: Any) -> None:
+    parser = subparsers.add_parser(
+        "check",
+        help="Check that model output meets a suite's input requirements.",
+        description=(
+            "Validate model output against the input requirements of the "
+            "selected evaluation suites without running any diagnostics. "
+            "Only metadata is read (fast, no reference data needed) and a "
+            "per-variable PASS/FAIL report is printed. Exit status 0 means "
+            "every required variable is usable by `climateeval benchmark`; "
+            "the requirements are documented in docs/input-data-spec.md."
+        ),
+    )
+    parser.add_argument(
+        "model",
+        type=Path,
+        help=(
+            "Model output: a NetCDF file, a flat directory of NetCDF files, "
+            "or a CMOR DRS tree (e.g. an Amon table directory)."
+        ),
+    )
+    parser.add_argument(
+        "--suite",
+        action="append",
+        metavar="SUITE",
+        help=(
+            f"Suite name or YAML path; repeat for several suites "
+            f"(default: {DEFAULT_SUITE})."
+        ),
+    )
+    parser.add_argument(
+        "--timerange",
+        default=DEFAULT_TIMERANGE,
+        help=(
+            f"ISO time range the benchmark will use; the data must cover it "
+            f"(default: {DEFAULT_TIMERANGE})."
+        ),
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print a machine-readable JSON report instead of the table.",
+    )
+    parser.set_defaults(func=_cmd_check)
+
+
+def _cmd_check(args: argparse.Namespace) -> None:
+    if not args.model.exists():
+        msg = f"Model path not found: {args.model}"
+        raise SystemExit(msg)
+
+    suite_names = args.suite or [DEFAULT_SUITE]
+    report = check_model_data(
+        args.model,
+        suites=suite_names,
+        timerange=args.timerange,
+    )
+    if report.n_cubes == 0:
+        msg = f"No NetCDF data found in {args.model}"
+        raise SystemExit(msg)
+
+    if args.json:
+        print(json.dumps(report.to_dict(), indent=2))  # noqa: T201
+    else:
+        _print_check_report(report)
+
+    if not report.passed:
+        raise SystemExit(1)
+
+
+def _print_check_report(report: Any) -> None:
+    """Print a human-readable check report."""
+    print(  # noqa: T201
+        f"Checked {report.model_path} against {', '.join(report.suites)} "
+        f"(timerange {report.timerange})",
+    )
+    print(f"Loaded {report.n_cubes} cube(s)")  # noqa: T201
+    print()  # noqa: T201
+
+    counts = {"pass": 0, "warn": 0, "fail": 0}
+    name_w = max(len(v.var_name) for v in report.variables)
+    for variable in report.variables:
+        counts[variable.status] += 1
+        details = "; ".join(
+            f"{check.name}: {check.message}"
+            if check.status != "pass"
+            else check.message
+            for check in variable.checks
+            if check.message or check.status != "pass"
+        )
+        label = variable.long_name or ""
+        text = " — ".join(part for part in (label, details) if part)
+        status = variable.status.upper()
+        print(f"  {status:<4}  {variable.var_name:<{name_w}}  {text}")  # noqa: T201
+
+    print()  # noqa: T201
+    if report.extra_var_names:
+        print(  # noqa: T201
+            f"Extra cubes not used by the selected suites: "
+            f"{', '.join(report.extra_var_names)}",
+        )
+    print(  # noqa: T201
+        f"Summary: {counts['pass']} pass, {counts['warn']} warning(s), "
+        f"{counts['fail']} fail",
+    )
+    print("Input data requirements: docs/input-data-spec.md")  # noqa: T201
 
 
 def _add_report_parser(subparsers: Any) -> None:
@@ -396,6 +509,8 @@ def main(argv: list[str] | None = None) -> None:
             "  climateeval benchmark /path/to/model/cmor/Amon\n"
             "      benchmark a model against the default Tier 2 atmosphere\n"
             "      suite (ERA5, GPCP, CERES-EBAF references + CMIP6 models)\n"
+            "  climateeval check /path/to/model/cmor/Amon\n"
+            "      verify converted model output is usable before benchmarking\n"
             "  climateeval benchmark model/Amon --suite my_suite.yml --serve\n"
             "      run a custom suite and open the interactive report\n"
             "  climateeval report results/*.ddb --html report.html\n"
@@ -409,6 +524,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     subparsers = parser.add_subparsers(dest="command")
     _add_benchmark_parser(subparsers)
+    _add_check_parser(subparsers)
     _add_report_parser(subparsers)
     _add_suites_parser(subparsers)
 
