@@ -250,6 +250,201 @@ second ("leaderboard & a11y") — or one PR if diffs stay small.
 
 ---
 
+## Workstream C — Benchmarking throughput (multi-model tier runs)
+
+**Motivation (2026-07-05):** the sequential MPI-vs-4-CMIP6 Tier2 run
+(`scripts/run_mpi_vs_cmip6_tiers.py`) takes ~1 h *per model* because every
+model run appends into one DuckDB (single-writer) and recomputes the ERA5 /
+GPCP / CERES references **and** the ~50-model CMIP6 comparison ensemble from
+scratch. Goal: parallel per-model runs + a merge step, then kill the redundant
+recomputation.
+
+**Architecture decisions**
+- Per-model scratch `.ddb` files (proven by the 52-model array job) + a
+  **merge tool** that unions them into one combined db per tier — DuckDB has no
+  concurrent writers, so parallelism must happen at the file level.
+- Merge dedups on natural keys (`data_sources.id`, `variables.id`,
+  `raw_output.data_id`, `metrics.data_id`) — reference/ensemble rows appear in
+  every per-model db; first occurrence wins. Tolerates column drift
+  (`INSERT … BY NAME` + `ALTER TABLE ADD COLUMN`) since a model missing a
+  variable may lack that raw_output column.
+- Merge lives in `scripts/` first (machine-specific driver territory);
+  promote into the package + tests once the workflow stabilizes.
+- Reference-reuse (C3) is a **core** change → own branch/PR, not on
+  `ap/static-figures`.
+
+#### Task C1: `scripts/merge_tier_dbs.py`
+**Description:** CLI `python merge_tier_dbs.py OUT.ddb SRC1.ddb SRC2.ddb …`.
+For each attached database (diagnostic) in each source: create missing
+schemas/tables in OUT, add missing columns, insert rows whose dedup key is not
+yet present. Source order defines precedence (pass the benchmarked model first).
+**Acceptance criteria:**
+- [ ] Merging N per-model dbs yields one db; each dataset's rows appear once
+      (no duplicated ERA5/reference rows).
+- [ ] Works with column drift (model missing a variable).
+- [ ] `report.py OUT.ddb` loads it and the leaderboard shows all models.
+**Verification:** merge 3 real dbs from `cmip6_historical_dbs/`, compare
+per-table row counts vs dedup expectation; open with report.py.
+**Dependencies:** none · **Scope:** S (1 file)
+
+#### Task C2: parallel SLURM driver + submit script
+**Description:** `scripts/run_tier_benchmark_model.py` (one model per process:
+`--suite`, `--model INSTITUTE/DATASET` or `--model-index` + `--models-file`,
+`--timerange`, `--out-dir`; loads Amon from the DKRZ CMIP6 archive, any grid,
+latest version) + `scripts/submit_tier_benchmark.sh` (SLURM array over models,
+then a `--dependency=afterok` merge job calling C1).
+**Acceptance criteria:**
+- [ ] One invocation = one model = one scratch db named `<suite>__<dataset>.ddb`.
+- [ ] `sbatch --test-only` validates; merge job chained via afterok.
+- [ ] Wall time for a 5-model Tier2 run ≈ 1 model run + merge (< ~1.5 h).
+**Verification:** argparse smoke locally; full validation on next real run.
+**Dependencies:** C1 · **Scope:** S-M (2 files)
+
+#### Task C3: stop recomputing references + comparison ensemble (core)
+**Description:** ~90 % of each Tier2 model run is spent re-processing datasets
+that are identical across runs (ERA5/GPCP/CERES refs + CMIP6 ensemble).
+Design options: (a) diagnostic kwarg `skip_data_ids` — suite checks the target
+db and skips datasets already present; (b) "references-only" run mode that
+builds a shared refs db once, per-model runs compute *only* the benchmarked
+model + its metrics, and C1 merges refs in. Option (b) composes with C2 and
+needs no db introspection inside diagnostics — preferred.
+**Acceptance criteria:**
+- [ ] Per-model run after the refs db exists takes minutes, not ~1 h.
+- [ ] Merged output byte-equivalent (per table, key-sorted) to today's
+      sequential append output.
+- [ ] Unit test covering the skip/refs-only path.
+**Dependencies:** C1, C2 · **Scope:** M (core: suites/diags kwargs + tests) —
+**own PR off `main`**
+
+#### Task C4: docs + promote merge into the package
+**Description:** document the parallel workflow in `docs/benchmarking.md`;
+move the merge logic into `climateeval` proper (e.g. `climateeval.db.merge`)
+with unit tests once C1-C3 have proven the shape.
+**Dependencies:** C1-C3 · **Scope:** S-M
+
+**Further improvement candidates (unscoped, noted for later):**
+- Resume/skip-existing at the per-model-db level (trivially free with C2:
+  re-submit only failed array indices).
+- Dask multi-worker within a model run (`cpus-per-task` currently mostly idle
+  during regridding).
+- Cache prepared (regridded/masked) reference cubes on disk keyed by
+  (variable, grid, timerange) — helps even single-model interactive runs.
+- Tier1 suites are cheap (~10 s) — no parallelization needed; keep them in the
+  benchmarked model's array task only.
+
+### Checkpoints (Workstream C)
+- **After C1:** merged db from 3 real per-model dbs opens in report.py with a
+  correct leaderboard → then wire C2.
+- **After C3 design, before implementation:** confirm option (a) vs (b) with
+  the team (touches suite semantics).
+
+---
+
+## Workstream D — In-process parallelization (speed up ONE suite run)
+
+**Motivation (2026-07-05):** Workstream C parallelizes *across models* at the
+job level; a single Tier2 run still takes ~1 h. Code reading shows why:
+
+- `SimpleDiagnostic._get_output_of_other_data()`
+  (`diags/simple/_base.py:314`) loops **sequentially** over
+  (variable × other_source) — for Tier2 that is ~10 variables × ~50 CMIP6
+  ensemble members ≈ 500 independent load→preprocess→metric chains.
+- `Suite.get_database()` (`suites/_base.py:75`) runs the 6 diagnostics
+  sequentially; each re-derives everything it needs.
+- There is **no dask/threading configuration anywhere** in the package —
+  iris/dask defaults decide chunking and worker counts; SLURM
+  `cpus-per-task` is mostly idle.
+- Reference cubes are eagerly realized (`reference_cube.data`,
+  `diags/simple/_base.py:474` — workaround for ESMValCore PR #3038, possibly
+  obsolete) and `_get_metrics()` calls `distance_metric` 3× per pair.
+
+**Constraint discovered:** `setup_esmvaltool_config_and_logging()`
+(`_config.py`) mutates process-global state (esmvalcore `CFG.context`,
+logger levels; iris `COMBINE_POLICY` likewise). Naïve threading around it
+is unsafe → either hoist the context once around a parallel section, or use
+process workers.
+
+**Architecture decisions**
+- **Profile before parallelizing** — the ~1 h/model estimate is anecdotal;
+  D1 produces the breakdown that decides how far to go (D3 vs also D4).
+- Dataset-level parallelism (D3) is the highest-leverage target (the ~500
+  independent chains) and is invisible to callers — a `max_workers`
+  diagnostic kwarg, default 1 (today's behavior).
+- All D tasks are **core changes → own branch/PR off `main`**, not
+  `ap/static-figures`. C3 (refs-only mode) removes the ensemble loop from
+  per-model runs entirely; D3 still pays off for the *first*/refs run and
+  for interactive `benchmark.py` users.
+
+#### Task D1: Profile a real Tier2 run
+**Description:** `scripts/profile_tier2.py` — run one model through
+Tier2_atmosphere_monthly with per-phase wall-time logging (per diagnostic ×
+{references, to_benchmark, other} × {load, preprocess, metrics}), on a
+reduced variable set first, then one full run; optionally a py-spy flame
+graph. Pure scripts/ addition, no core changes.
+**Acceptance criteria:**
+- [ ] Table of top cost centers (phase × step) for a full single-model run.
+- [ ] Answers: is time CPU-bound (regrid/metrics) or I/O-bound (load)?
+      Are dask graphs realized single-threaded?
+**Verification:** breakdown numbers sum to ≈ total wall time.
+**Dependencies:** none · **Scope:** S (1 file)
+
+#### Task D2: Dask/threading configuration knob
+**Description:** size dask's threaded scheduler + OMP/BLAS thread pools to
+the available cores (env-driven, e.g. `CLIMATEEVAL_NUM_THREADS`, defaulting
+to `len(os.sched_getaffinity(0))`); set it in `_config.py` alongside the
+existing setup; document in docs/benchmarking.md; align submit scripts'
+`cpus-per-task`/OMP exports.
+**Acceptance criteria:**
+- [ ] Measurable speedup (or documented null result) on the D1 scenario.
+- [ ] No change in output values (bitwise per table on the D1 scenario).
+**Verification:** re-run D1 profile with/without; compare tables.
+**Dependencies:** D1 · **Scope:** S (1-2 files + docs)
+
+#### Task D3: Parallel dataset processing inside a diagnostic (core)
+**Description:** `max_workers` kwarg on `SimpleDiagnostic` (suite-settable
+via `diagnostic_kwargs`); fan the (variable × other_source) chains of
+`_get_output_of_other_data()` (and `_get_reference_cubes()`) over a worker
+pool. Design point: hoist `setup_esmvaltool_config_and_logging()` ONCE
+around the parallel section (it is currently entered per `distance_metric`
+call) so workers don't race on global config; workers return plain
+DataFrames, table assembly stays on the main thread. Threads first (dask
+releases the GIL for numeric work); switch to processes only if D1 shows
+GIL saturation.
+**Acceptance criteria:**
+- [ ] Output identical to sequential (key-sorted table comparison) for a
+      2-variable × 3-other-source test fixture.
+- [ ] ≥2× wall-time reduction on the ensemble-heavy D1 scenario with
+      `max_workers=8`.
+- [ ] `max_workers=1` (default) takes the exact sequential code path.
+**Verification:** new unit tests + D1 re-profile; full
+`pixi run pytest` green.
+**Dependencies:** D1 (D2 numbers inform worker count) · **Scope:** M
+(diags/simple/_base.py, _config.py, tests) — **own PR off `main`**
+
+#### Task D4: Concurrent diagnostics in `Suite.get_database` (decide after D3)
+**Description:** run the 6 diagnostics' `get_output()` concurrently and
+serialize only the DuckDB writes (single writer). Only worth it if D1 shows
+no single diagnostic dominating; skip if D3 already saturates cores or
+memory (concurrent realization of several ensembles on a 64 G node).
+**Acceptance criteria:**
+- [ ] Go/no-go note in this plan backed by D1/D3 numbers; if go: identical
+      db content vs sequential + measured speedup.
+**Dependencies:** D1, D3 · **Scope:** M (suites/_base.py + tests)
+
+**Quick-win candidates to fold into D3's PR (verify in D1 first):**
+- Drop the eager `reference_cube.data` realization if ESMValCore ≥ current
+  pin no longer needs the PR #3038 workaround.
+- `_get_metrics()`: compute the 3 distance metrics without re-realizing the
+  cube pair 3× (realize once, or `dask.compute` the three together).
+
+### Checkpoints (Workstream D)
+- **After D1:** review the breakdown together; pick worker counts and decide
+  D4 go/no-go before writing any core code.
+- **After D3:** equivalence tests green + speedup measured → then D4
+  decision.
+
+---
+
 ## Recommended order
 
 1. **A1 → A2** first (the flagship new capability; A1 unblocks all of A3-A6).

@@ -228,3 +228,4 @@ __marimo__/
 /*.ddb.wal
 /*.html
 showcase_output/
+/output/
