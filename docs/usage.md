@@ -20,8 +20,8 @@ code, use the `climateeval` command (installed with the package; also
 available as `python -m climateeval`):
 
 ```bash
-climateeval benchmark /path/to/model/cmor/Amon --name MyModel
-# writes MyModel_benchmark/: one .ddb per suite + MyModel_report.html
+climateeval benchmark /path/to/model/cmor/Amon
+# writes <model>_benchmark/: one .ddb per suite + <model>_report.html
 ```
 
 The model path may be a single NetCDF file, a flat directory of NetCDF files,
@@ -32,7 +32,7 @@ compares against ERA5/GPCP/CERES-EBAF references and CMIP6 historical models.
 
 | Option | Meaning |
 |---|---|
-| `--name NAME` | Model name shown in the report. |
+| `--name NAME` | Model name shown in the report (default: derived from the CMOR file names). |
 | `--suite NAME` | Suite name or YAML path; repeat for several suites. |
 | `--timerange A/B` | ISO time range applied to every dataset. |
 | `--data-root DIR` | Directory with staged reference datasets. |

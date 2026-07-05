@@ -18,9 +18,18 @@ Subcommands
 from __future__ import annotations
 
 import argparse
+import getpass
+import os
+import re
+import socket
 import sys
 from pathlib import Path
 from typing import Any
+
+try:
+    import pwd
+except ImportError:  # pragma: no cover - Windows
+    pwd = None  # type: ignore[assignment]
 
 from loguru import logger
 
@@ -35,6 +44,29 @@ from climateeval.suites import Suite
 
 DEFAULT_SUITE = "Tier2_atmosphere_monthly"
 DEFAULT_TIMERANGE = "19790101/20141231"
+
+# CMOR filename convention: <var>_<table>_<source_id>_<experiment>_...
+_CMOR_FNAME_RE = re.compile(r"^[A-Za-z0-9]+_[A-Za-z0-9]+_([A-Za-z0-9-]+)_")
+
+
+def _infer_model_name(model: Path) -> str | None:
+    """Derive the model name (CMOR source_id) from NetCDF file names."""
+    files = [model] if model.is_file() else sorted(model.rglob("*.nc"))
+    for path in files[:50]:
+        match = _CMOR_FNAME_RE.match(path.name)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _full_user_name() -> str:
+    """Return the user's full name (GECOS field), falling back to the login."""
+    login = getpass.getuser()
+    if pwd is not None:
+        full_name = pwd.getpwuid(os.getuid()).pw_gecos.split(",")[0].strip()
+        if full_name:
+            return full_name
+    return login
 
 
 def _add_benchmark_parser(subparsers: Any) -> None:
@@ -56,8 +88,11 @@ def _add_benchmark_parser(subparsers: Any) -> None:
     )
     parser.add_argument(
         "--name",
-        default="model",
-        help="Model name shown in the report (default: model).",
+        default=None,
+        help=(
+            "Model name shown in the report "
+            "(default: derived from the CMOR file names)."
+        ),
     )
     parser.add_argument(
         "--suite",
@@ -172,6 +207,10 @@ def _cmd_benchmark(args: argparse.Namespace) -> None:
         msg = f"Model path not found: {args.model}"
         raise SystemExit(msg)
 
+    if not args.name:
+        args.name = _infer_model_name(args.model) or "model"
+        logger.info(f"Model name '{args.name}' derived from the input files")
+
     cubes = load_cmor_dir(args.model, timerange=args.timerange)
     if not cubes:
         msg = f"No NetCDF data found in {args.model}"
@@ -195,8 +234,17 @@ def _cmd_benchmark(args: argparse.Namespace) -> None:
     out_dir = args.out or Path(f"{args.name}_benchmark")
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    suite_names = args.suite or [DEFAULT_SUITE]
+    user_name = _full_user_name()
+    run_info = {
+        "Data": str(args.model.resolve()),
+        "Time range": args.timerange,
+        "Suites": ", ".join(Path(s).stem for s in suite_names),
+        "Host": socket.gethostname(),
+    }
+
     db_paths: list[Path] = []
-    for suite_name in args.suite or [DEFAULT_SUITE]:
+    for suite_name in suite_names:
         db_path = out_dir / f"{Path(suite_name).stem}.ddb"
         db_path.unlink(missing_ok=True)
         Path(str(db_path) + ".wal").unlink(missing_ok=True)
@@ -211,12 +259,24 @@ def _cmd_benchmark(args: argparse.Namespace) -> None:
         db_paths.append(db_path)
 
     if args.serve:
-        serve(db_paths, model_name=args.name, port=args.port)
+        serve(
+            db_paths,
+            model_name=args.name,
+            user_name=user_name,
+            run_info=run_info,
+            port=args.port,
+        )
         return
 
     html_path = out_dir / f"{args.name}_report.html"
     html_path.write_text(
-        generate_portable_html(db_paths, offline=True, model_name=args.name),
+        generate_portable_html(
+            db_paths,
+            offline=True,
+            model_name=args.name,
+            user_name=user_name,
+            run_info=run_info,
+        ),
         encoding="utf-8",
     )
     logger.info(f"Wrote report {html_path}")
@@ -246,7 +306,12 @@ def _cmd_report(args: argparse.Namespace) -> None:
 
     if args.html is not None:
         args.html.write_text(
-            generate_portable_html(db_paths, offline=True, model_name=args.model),
+            generate_portable_html(
+                db_paths,
+                offline=True,
+                model_name=args.model,
+                user_name=_full_user_name(),
+            ),
             encoding="utf-8",
         )
         logger.info(f"Wrote report {args.html}")
@@ -255,6 +320,7 @@ def _cmd_report(args: argparse.Namespace) -> None:
     serve(
         db_paths,
         model_name=args.model,
+        user_name=_full_user_name(),
         port=args.port,
         open_browser=not args.no_browser,
     )
