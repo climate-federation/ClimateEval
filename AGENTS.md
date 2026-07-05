@@ -41,7 +41,7 @@ pixi run pytest --cov=climateeval --cov-report=html
 pixi run pre-commit run --all-files
 
 # Benchmark a model vs ERA5 + CMIP6 and write an HTML report (quickest start)
-pixi run python benchmark.py /path/to/model/cmor/Amon --name MyModel
+pixi run climateeval benchmark /path/to/model/cmor/Amon --name MyModel
 
 # Run the quickstart example and inspect its output database
 pixi run python examples/quickstart/example.py
@@ -74,6 +74,7 @@ tests/                        # unit/ + integration/ + sample_data/
 ### Core Modules (`src/climateeval/`)
 
 - `_variable.py` - `Variable`, `Coordinate`, `VerticalLevel`, `NO_LEVEL` dataclasses. Loads metadata from `variables.yml` and `coordinates.yml` (override paths with `CLIMATEEVAL_VARIABLES_FILE` / `CLIMATEEVAL_COORDINATES_FILE`). Frozen dataclasses with auto-filled fields (units, standard_name, coordinates, derived flag, etc.)
+- `_cli.py` - the `climateeval` console script (`benchmark` + `report` subcommands; also `python -m climateeval`); `_loader.py` - `load_cmor_dir()` loads model output from flat dirs, single files, or CMOR DRS trees (grid/version selection, year-split concatenation)
 - `_config.py` - ESMValCore config setup (`load_from_dirs([])`), logging control, and the Iris cube combine policy
 - `_utils.py` - `get_prepared_cube()` performs preprocessing (unit conversion, longitude normalization, time range extraction, level extraction, spatial masking via landsea/AR6 region masks). Also provides `str_to_class()` for dynamic class loading and `check_coordinates()` to validate cube dimensions
 

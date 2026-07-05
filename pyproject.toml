@@ -44,6 +44,9 @@ dependencies = [
     "xarray",
 ]
 
+[project.scripts]
+climateeval = "climateeval._cli:main"
+
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
