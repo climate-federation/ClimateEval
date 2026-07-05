@@ -162,8 +162,7 @@ _CSS = """
   --accent: #2e86c1;
   --accent-hover: #1a6fa8;
   --sidebar-w: 230px;
-  --header-h: 72px;
-  --toolbar-h: 52px;
+  --toolbar-h: 44px;
   --bg: #f0f3f7;
   --surface: #ffffff;
   --border: #dde2eb;
@@ -185,40 +184,35 @@ html, body {
 
 /* ── Header ── */
 .app-header {
-  flex-shrink: 0; height: var(--header-h);
+  flex-shrink: 0;
   background: linear-gradient(110deg, var(--navy) 0%, var(--navy-mid) 50%, var(--navy-light) 100%);
-  color: #c8daf0; padding: 0 28px;
+  color: #c8daf0; padding: 8px 24px;
   display: flex; align-items: center; gap: 20px;
   border-bottom: 1px solid rgba(255,255,255,0.07);
   box-shadow: 0 2px 12px rgba(0,0,0,.35);
   z-index: 300;
 }
 
-.header-logo {
-  flex-shrink: 0; width: 42px; height: 42px;
-  background: rgba(255,255,255,0.10); border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px;
-}
-
 .header-title { flex: 1; min-width: 0; }
 .header-title h1 {
-  margin: 0 0 2px; font-size: 1.15rem; font-weight: 700;
+  margin: 0 0 4px; font-size: 1.05rem; font-weight: 700;
   color: #fff; letter-spacing: -.1px; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 .header-meta {
-  display: flex; gap: 20px; flex-wrap: wrap;
-  font-size: 0.76rem; opacity: 0.65; line-height: 1.2;
+  display: flex; gap: 6px; flex-wrap: wrap;
+  font-size: 0.76rem; line-height: 1.2;
 }
-.header-meta span::before { content: ""; }
 .header-chip {
   display: flex; align-items: center; gap: 5px;
   background: rgba(255,255,255,0.08); border-radius: 20px;
-  padding: 3px 10px; font-size: 0.74rem; color: #b8cde4;
-  white-space: nowrap;
+  padding: 2px 10px; font-size: 0.73rem; color: #b8cde4;
+  white-space: nowrap; max-width: 100%;
 }
-.header-chip strong { color: #e0edf8; font-weight: 600; }
+.header-chip strong {
+  color: #e0edf8; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis;
+}
 
 /* ── Body split ── */
 .app-body {
@@ -309,19 +303,19 @@ html, body {
 .content-toolbar {
   flex-shrink: 0; height: var(--toolbar-h);
   background: var(--surface); border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 12px;
-  padding: 0 24px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px;
   box-shadow: 0 1px 4px rgba(0,0,0,.06);
   z-index: 100;
 }
 
 .diag-filter-btns {
-  display: flex; gap: 6px; align-items: center; flex-shrink: 0;
+  display: flex; gap: 5px; align-items: center; flex-shrink: 0;
 }
 .diag-filter-btn {
   background: none; border: 1.5px solid var(--border);
-  border-radius: 20px; padding: 5px 14px;
-  font-size: 0.8rem; font-weight: 500; cursor: pointer;
+  border-radius: 20px; padding: 3px 11px;
+  font-size: 0.78rem; font-weight: 500; cursor: pointer;
   color: var(--muted); display: flex; align-items: center; gap: 5px;
   transition: background .12s, border-color .12s, color .12s;
   white-space: nowrap;
@@ -353,9 +347,15 @@ html, body {
 .search-input:focus { border-color: var(--accent); background: #fff; }
 .search-input::placeholder { color: var(--muted); }
 
+.toolbar-db {
+  margin-left: auto; flex-shrink: 1; min-width: 0;
+  font-size: 0.73rem; color: var(--muted); font-style: italic;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* ── Main scrolling content ── */
 .main-content {
-  flex: 1; overflow-y: auto; padding: 28px 32px 48px;
+  flex: 1; overflow-y: auto; padding: 16px 24px 40px;
 }
 
 /* ── Content panels ── */
@@ -363,7 +363,7 @@ html, body {
 .content-panel.active { display: block; }
 
 /* ── Diagnostic sections within a tier ── */
-.diag-section { margin-bottom: 48px; }
+.diag-section { margin-bottom: 28px; }
 .diag-section.hidden { display: none; }
 
 /* ── Plot-type category grouping ── */
@@ -372,20 +372,21 @@ html, body {
    visible sections; search only dims sections, so headers stay during search */
 .diag-category:not(:has(.diag-section:not(.hidden))) { display: none; }
 .diag-category-header {
-  margin: 4px 0 22px; padding-bottom: 8px;
+  margin: 0 0 12px; padding-bottom: 5px;
   font-size: 0.72rem; font-weight: 700; letter-spacing: .12em;
   text-transform: uppercase; color: var(--navy-light);
   border-bottom: 1px solid var(--border);
 }
+/* with a single diagnostic filtered, the header would repeat the pill */
+.content-panel.filtered .diag-category-header { display: none; }
 
 .diag-section-header {
   display: flex; align-items: center; gap: 10px;
-  margin-bottom: 18px; padding-bottom: 12px;
+  margin-bottom: 10px; padding-bottom: 6px;
   border-bottom: 2px solid var(--border);
 }
-.diag-section-icon { font-size: 1.2rem; }
 .diag-section-title {
-  font-size: 1.05rem; font-weight: 700; color: var(--navy-mid);
+  font-size: 1rem; font-weight: 700; color: var(--navy-mid);
 }
 
 /* ── Section headings ── */
@@ -571,25 +572,23 @@ details > summary:hover { opacity: 0.75; }
   display: flex; gap: 18px; flex-wrap: wrap; align-items: center;
 }
 .legend-note span { display: flex; align-items: center; gap: 7px; }
-.ln-solid {
+/* line swatches mirror _get_line_properties(): model = coloured solid,
+   reference = black solid, other = gray dashed */
+.ln-model {
   display: inline-block; width: 26px; height: 2.5px;
-  background: #555; border-radius: 2px;
+  background: #4C72B0; border-radius: 2px;
 }
-.ln-dash {
-  display: inline-block; width: 26px; height: 2.5px; border-radius: 2px;
-  background: repeating-linear-gradient(to right,#555 0 5px,transparent 5px 9px);
+.ln-refline {
+  display: inline-block; width: 26px; height: 2.5px;
+  background: #000; border-radius: 2px;
 }
-.ln-dot {
-  display: inline-block; width: 26px; height: 2.5px; border-radius: 2px;
-  background: repeating-linear-gradient(to right,#555 0 2px,transparent 2px 6px);
+.ln-other {
+  display: inline-block; width: 26px; height: 2px; border-radius: 2px;
+  background: repeating-linear-gradient(to right,#888 0 5px,transparent 5px 9px);
 }
-.ln-ref-swatch {
-  display: inline-block; width: 14px; height: 14px; border-radius: 3px;
-  background: rgba(192,134,10,0.15); border: 1.5px solid #c0860a; flex-shrink: 0;
-}
-.ln-bias-swatch {
+/* backgrounds are set inline per variable from the plot's colorscales */
+.ln-data-swatch, .ln-bias-swatch {
   display: inline-block; width: 26px; height: 10px; border-radius: 3px; flex-shrink: 0;
-  background: linear-gradient(to right, #2166ac, #f7f7f7, #d6604d);
 }
 
 /* ── Search no-results ── */
@@ -600,7 +599,6 @@ details > summary:hover { opacity: 0.75; }
 .search-no-results.visible { display: block; }
 
 /* ── Misc ── */
-.db-source { font-size: 0.76rem; color: #aab; margin: 0 0 14px; font-style: italic; }
 .empty-note { color: #888; font-style: italic; padding: 20px 0; }
 .diag-content { padding: 0; }
 
@@ -767,6 +765,10 @@ function filterDiag(tierId, diagName) {
       s.classList.add('hidden');
     }
   });
+
+  // Category headers only group things in the "All" view; with a single
+  // diagnostic selected they just repeat the active filter pill.
+  panel.classList.toggle('filtered', diagName !== 'all');
 
   var toolbar = document.getElementById('toolbar-' + tierId);
   if (toolbar) {

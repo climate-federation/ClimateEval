@@ -31,7 +31,6 @@ import pandas as pd
 from climateeval.report._common import _var_label
 from climateeval.report._db import detect_diag_type, get_var_cols, read_database
 from climateeval.report._figures import (
-    _DIAG_ICONS,
     _DIAG_LABELS,
     _FIGURE_BUILDERS,
 )
@@ -65,6 +64,7 @@ def _load_state(
     model_name: str,
     user_name: str,
     developer: str,
+    run_info: dict[str, str] | None = None,
 ) -> None:
     """Read all DuckDB files and build the server state."""
     tiers: list[dict[str, Any]] = []
@@ -112,6 +112,7 @@ def _load_state(
         model_name,
         user_name,
         developer,
+        run_info,
     )
     _STATE["lb_json"] = _build_leaderboard_json()
 
@@ -242,7 +243,6 @@ def _build_structure() -> bytes:
                     "type": dtype,
                     "label": _DIAG_LABELS.get(diag_name)
                     or _DIAG_LABELS.get(dtype, diag_name),
-                    "icon": _DIAG_ICONS.get(diag_name) or _DIAG_ICONS.get(dtype, ""),
                     "variables": variables,
                 },
             )
@@ -341,6 +341,7 @@ def serve(
     model_name: str = "",
     user_name: str = "",
     developer: str = "",
+    run_info: dict[str, str] | None = None,
     host: str = "127.0.0.1",
     port: int = 8765,
     open_browser: bool = True,
@@ -353,6 +354,7 @@ def serve(
         model_name: Model label shown in the report header.
         user_name: Analyst / user name shown in the report header.
         developer: Benchmarking tool developer name.
+        run_info: Extra run metadata rendered as chips in the header.
         host: Server bind address.
         port: Server port.
         open_browser: If True, open the default web browser automatically.
@@ -360,7 +362,7 @@ def serve(
                    to that location using generate_portable_html().
     """
     print("Loading databases…", flush=True)  # noqa: T201
-    _load_state(db_paths, model_name, user_name, developer)
+    _load_state(db_paths, model_name, user_name, developer, run_info)
     n_tiers = len(_STATE["tiers"])
     print(  # noqa: T201
         f"  Loaded {n_tiers} tier(s): {[t['label'] for t in _STATE['tiers']]}",
@@ -375,6 +377,7 @@ def serve(
             model_name=model_name,
             user_name=user_name,
             developer=developer,
+            run_info=run_info,
         )
         save_html.write_text(html_content, encoding="utf-8")
         print(f"  HTML saved to {save_html}", flush=True)  # noqa: T201

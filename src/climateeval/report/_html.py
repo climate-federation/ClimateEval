@@ -9,11 +9,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+from plotly.colors import sample_colorscale
 
 from climateeval.report._db import detect_diag_type, read_database
 from climateeval.report._figures import (
     _CATEGORY_ORDER,
-    _DIAG_ICONS,
     _DIAG_LABELS,
     _FIGURE_BUILDERS,
     _diag_category,
@@ -25,7 +25,13 @@ from climateeval.report._leaderboard import (
     build_leaderboard_data,
     build_scoreboard_figure,
 )
-from climateeval.report._style import _CSS, _JS, _tier_accent
+from climateeval.report._style import (
+    _CSS,
+    _JS,
+    _bias_colorscale_for,
+    _colorscale_for,
+    _tier_accent,
+)
 
 if TYPE_CHECKING:
     import plotly.graph_objects as go
@@ -33,6 +39,48 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # HTML assembly helpers
 # ---------------------------------------------------------------------------
+
+
+def _render_app_header(
+    model_name: str,
+    user_name: str,
+    developer: str,
+    run_info: dict[str, str] | None,
+    now: str,
+) -> str:
+    """Render the page header: title plus one chip per piece of run metadata."""
+
+    def _chip(label: str, value: str) -> str:
+        return (
+            f"<span class='header-chip'><span>{html_module.escape(label)}</span> "
+            f"<strong>{html_module.escape(value)}</strong></span>"
+        )
+
+    chips = ""
+    if model_name:
+        chips += _chip("Model", model_name)
+    if user_name:
+        chips += _chip("User", user_name)
+    for key, value in (run_info or {}).items():
+        if value:
+            chips += _chip(key, str(value))
+    if developer:
+        chips += _chip("Tool", developer)
+    chips += _chip("Generated", now)
+    return (
+        '<header class="app-header">'
+        '<div class="header-title">'
+        "<h1>ClimateEval</h1>"
+        f'<div class="header-meta">{chips}</div>'
+        "</div>"
+        "</header>"
+    )
+
+
+def _css_gradient(colorscale: str) -> str:
+    """Convert a Plotly colorscale name into a CSS linear-gradient."""
+    colors = sample_colorscale(colorscale, [0.0, 0.25, 0.5, 0.75, 1.0])
+    return f"linear-gradient(to right, {', '.join(colors)})"
 
 
 def _stem_to_label(stem: str) -> str:
@@ -247,19 +295,32 @@ def render_diagnostic_section(
         if data_df is not None and not data_df.empty
         else "Unknown"
     )
-    if _diag_type in ("Map", "ZonalProfile"):
+    is_2d = _diag_type in ("Map", "ZonalProfile")
+    if is_2d:
+        # Rendered per variable panel: swatches mirror each plot's colormaps.
+        legend_note = ""
+    else:
+        # Mirror _get_line_properties(): model = coloured solid,
+        # reference = black solid, other = gray dashed.
         legend_note = (
             "<div class='legend-note'>"
-            "<span><span class='ln-ref-swatch'></span>Reference (left column)</span>"
-            "<span><span class='ln-bias-swatch'></span>Bias = model − reference (right column, RdBu r)</span>"
+            "<span><span class='ln-model'></span>Model</span>"
+            "<span><span class='ln-refline'></span>Reference</span>"
+            "<span><span class='ln-other'></span>Other</span>"
             "</div>"
         )
-    else:
-        legend_note = (
+
+    def _map_legend_note(var_id: str) -> str:
+        data_grad = _css_gradient(_colorscale_for(var_id))
+        bias_grad = _css_gradient(_bias_colorscale_for(var_id))
+        return (
             "<div class='legend-note'>"
-            "<span><span class='ln-solid'></span>Model</span>"
-            "<span><span class='ln-dash'></span>Reference</span>"
-            "<span><span class='ln-dot'></span>Other</span>"
+            f"<span><span class='ln-data-swatch' style='background:{data_grad}'>"
+            "</span>Reference (left column)</span>"
+            f"<span><span class='ln-data-swatch' style='background:{data_grad}'>"
+            "</span>Model (middle column)</span>"
+            f"<span><span class='ln-bias-swatch' style='background:{bias_grad}'>"
+            "</span>Bias = model − reference (right column)</span>"
             "</div>"
         )
 
@@ -291,12 +352,14 @@ def render_diagnostic_section(
                 f"</div>"
             )
 
+        panel_legend = _map_legend_note(var_id) if is_2d else ""
         plot_panels += (
             f"<div class='plot-panel {active_cls}' id='{panel_id}' "
             f"data-graph='{graph_id}' data-search='{search_key}'>"
             f"<div class='plot-title-bar'>"
             f"<span class='plot-title-text'>{title_html}</span>"
             f"</div>"
+            f"{panel_legend}"
             f"<div id='{graph_id}' style='height:{height}px;width:100%;'></div>"
             f"<script type='application/json' id='figdata-{graph_id}'>{fig.to_json()}</script>"
             f"{detail_block}"
@@ -475,9 +538,6 @@ def _render_tier_panel(
             dname,
         )
 
-    def _icon(dname: str) -> str:
-        return _DIAG_ICONS.get(dname) or _DIAG_ICONS.get(diag_types.get(dname, ""), "")
-
     # Toolbar: All + per-diagnostic filter buttons + search
     filter_btns = (
         f"<button class='diag-filter-btn active' data-diag='all' "
@@ -485,11 +545,10 @@ def _render_tier_panel(
     )
     for dname in diag_names:
         label = _label(dname)
-        icon = _icon(dname)
         filter_btns += (
             f"<button class='diag-filter-btn' data-diag='{dname}' "
             f'onclick=\'filterDiag("{tier_id}","{dname}")\'>'
-            f"{icon} {label}</button>"
+            f"{label}</button>"
         )
 
     search_svg = (
@@ -506,6 +565,8 @@ def _render_tier_panel(
         f"<input class='search-input' type='text' placeholder='Search plots…' "
         f"oninput='searchPlots(this.value)'>"
         f"</div>"
+        f"<span class='toolbar-db' title='{html_module.escape(str(db_path))}'>"
+        f"{html_module.escape(db_path.name)}</span>"
         f"</div>"
     )
 
@@ -513,11 +574,9 @@ def _render_tier_panel(
     section_html_by_diag: dict[str, str] = {}
     for dname, (content, _) in diag_sections.items():
         label = _label(dname)
-        icon = _icon(dname)
         section_html_by_diag[dname] = (
             f"<div class='diag-section' data-diag='{dname}' id='diag-sec-{tier_id}-{dname}'>"
             f"<div class='diag-section-header'>"
-            f"<span class='diag-section-icon'>{icon}</span>"
             f"<span class='diag-section-title'>{label}</span>"
             f"</div>"
             f"{content}"
@@ -527,7 +586,6 @@ def _render_tier_panel(
 
     panel_html = (
         f"<div class='content-panel' id='panel-{tier_id}' data-type='tier'>"
-        f"<p class='db-source'>{html_module.escape(str(db_path))}</p>"
         f"{sections_html}"
         f"<div class='search-no-results'>No plots match your search.</div>"
         f"</div>"
@@ -543,8 +601,13 @@ def generate_portable_html(
     model_name: str = "",
     user_name: str = "",
     developer: str = "",
+    run_info: dict[str, str] | None = None,
 ) -> str:
-    """Read one or more databases and produce a self-contained HTML string."""
+    """Read one or more databases and produce a self-contained HTML string.
+
+    ``run_info`` is extra run metadata (e.g. model data path, time range)
+    rendered as chips in the page header.
+    """
     from climateeval.report._figures import _coastlines
 
     _coastlines()
@@ -623,43 +686,20 @@ def generate_portable_html(
         all_toolbars += toolbar_html
         all_panels += panel_html
 
-    # ── Header chips ──
-    chips = ""
-    if model_name:
-        chips += f"<span class='header-chip'><span>Model</span> <strong>{html_module.escape(model_name)}</strong></span>"
-    if user_name:
-        chips += f"<span class='header-chip'><span>User</span> <strong>{html_module.escape(user_name)}</strong></span>"
-    developer_str = developer or "diffESM Benchmarking"
-    chips += f"<span class='header-chip'><span>Tool</span> <strong>{html_module.escape(developer_str)}</strong></span>"
-    chips += f"<span class='header-chip'><span>Generated</span> <strong>{now}</strong></span>"
-
-    logo_svg = (
-        '<svg width="26" height="26" viewBox="0 0 26 26" fill="none" '
-        'xmlns="http://www.w3.org/2000/svg">'
-        '<circle cx="13" cy="13" r="11" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
-        '<path d="M2 13 Q7 7 13 13 Q19 19 24 13" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
-        '<path d="M2 13 Q7 19 13 13 Q19 7 24 13" stroke="#93c5fd" stroke-width="1" fill="none" stroke-dasharray="2 2"/>'
-        "</svg>"
-    )
+    header_html = _render_app_header(model_name, user_name, developer, run_info, now)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ESM Benchmarking Report</title>
+  <title>ClimateEval Report</title>
   <style>{_CSS}</style>
 </head>
 <body>
 <div class="app-shell">
 
-  <header class="app-header">
-    <div class="header-logo">{logo_svg}</div>
-    <div class="header-title">
-      <h1>ESM Benchmarking Report</h1>
-      <div class="header-meta">{chips}</div>
-    </div>
-  </header>
+  {header_html}
 
   <div class="app-body" id="appBody">
 
@@ -696,6 +736,7 @@ def build_html_shell(
     model_name: str = "",
     user_name: str = "",
     developer: str = "",
+    run_info: dict[str, str] | None = None,
 ) -> str:
     """Render the full HTML shell for the web server (sidebar + empty content panels).
 
@@ -706,6 +747,7 @@ def build_html_shell(
         model_name: Model label shown in the report header.
         user_name: Analyst / user name shown in the report header.
         developer: Benchmarking tool developer name.
+        run_info: Extra run metadata rendered as chips in the header.
 
     Returns
     -------
@@ -764,9 +806,6 @@ def build_html_shell(
 
     def _diag_label(diag_name: str, dtype: str) -> str:
         return _DIAG_LABELS.get(diag_name) or _DIAG_LABELS.get(dtype, diag_name)
-
-    def _diag_icon(diag_name: str, dtype: str) -> str:
-        return _DIAG_ICONS.get(diag_name) or _DIAG_ICONS.get(dtype, "")
 
     def _render_shell_diagnostic(
         tier_id: str,
@@ -853,13 +892,11 @@ def build_html_shell(
 
             diags_for_toolbar.append((diag_name, dtype))
             label = _diag_label(diag_name, dtype)
-            icon = _diag_icon(diag_name, dtype)
             content = _render_shell_diagnostic(tier_id, diag_name, dtype, variables)
             section_html_by_diag[diag_name] = (
                 f"<div class='diag-section' data-diag='{diag_name}' "
                 f"id='diag-sec-{tier_id}-{diag_name}'>"
                 f"<div class='diag-section-header'>"
-                f"<span class='diag-section-icon'>{icon}</span>"
                 f"<span class='diag-section-title'>{html_module.escape(label)}</span>"
                 f"</div>"
                 f"{content}"
@@ -874,11 +911,10 @@ def build_html_shell(
         )
         for dname, dtype in diags_for_toolbar:
             label = _diag_label(dname, dtype)
-            icon = _diag_icon(dname, dtype)
             filter_btns += (
                 f"<button class='diag-filter-btn' data-diag='{dname}' "
                 f'onclick=\'filterDiag("{tier_id}","{dname}")\'>'
-                f"{icon} {html_module.escape(label)}</button>"
+                f"{html_module.escape(label)}</button>"
             )
 
         search_svg = (
@@ -893,43 +929,18 @@ def build_html_shell(
             f"<div class='search-wrap'>{search_svg}"
             f"<input class='search-input' type='text' placeholder='Search plots…' "
             f"oninput='searchPlots(this.value)'></div>"
+            f"<span class='toolbar-db' title='{html_module.escape(str(tier['db_path']))}'>"
+            f"{html_module.escape(Path(tier['db_path']).name)}</span>"
             f"</div>"
         )
         all_panels += (
             f"<div class='content-panel' id='panel-{tier_id}' data-type='tier'>"
-            f"<p class='db-source'>{html_module.escape(str(tier['db_path']))}</p>"
             f"{sections_html}"
             f"<div class='search-no-results'>No plots match your search.</div>"
             f"</div>"
         )
 
-    # ── Header chips ──
-    chips = ""
-    if model_name:
-        chips += (
-            f"<span class='header-chip'><span>Model</span> "
-            f"<strong>{html_module.escape(model_name)}</strong></span>"
-        )
-    if user_name:
-        chips += (
-            f"<span class='header-chip'><span>User</span> "
-            f"<strong>{html_module.escape(user_name)}</strong></span>"
-        )
-    dev_str = developer or "diffESM Benchmarking"
-    chips += (
-        f"<span class='header-chip'><span>Tool</span> "
-        f"<strong>{html_module.escape(dev_str)}</strong></span>"
-    )
-    chips += f"<span class='header-chip'><span>Generated</span> <strong>{now}</strong></span>"
-
-    logo_svg = (
-        '<svg width="26" height="26" viewBox="0 0 26 26" fill="none" '
-        'xmlns="http://www.w3.org/2000/svg">'
-        '<circle cx="13" cy="13" r="11" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
-        '<path d="M2 13 Q7 7 13 13 Q19 19 24 13" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
-        '<path d="M2 13 Q7 19 13 13 Q19 7 24 13" stroke="#93c5fd" stroke-width="1" fill="none" stroke-dasharray="2 2"/>'
-        "</svg>"
-    )
+    header_html = _render_app_header(model_name, user_name, developer, run_info, now)
 
     # In server mode, serve Plotly.js via the /plotly.js endpoint so the HTML
     # shell stays small and loads instantly.
@@ -1025,19 +1036,13 @@ function _esc(s) {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ESM Benchmarking Report</title>
+  <title>ClimateEval Report</title>
   <style>{_CSS}</style>
 </head>
 <body>
 <div class="app-shell">
 
-  <header class="app-header">
-    <div class="header-logo">{logo_svg}</div>
-    <div class="header-title">
-      <h1>ESM Benchmarking Report</h1>
-      <div class="header-meta">{chips}</div>
-    </div>
-  </header>
+  {header_html}
 
   <div class="app-body" id="appBody">
 

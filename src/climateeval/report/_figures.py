@@ -473,6 +473,9 @@ def build_map_figures(
                 width=ncols * _panel_w + _w_margin,
                 autosize=False,
                 margin={"t": 80, "b": 50, "l": 60, "r": 150 if has_bias else 90},
+                # panels are labelled by subplot titles + colorbars; heatmap
+                # legend entries render as meaningless color swatches
+                showlegend=False,
             ),
         )
         ref_title_texts = {f"<b>{r}</b>" for r in valid_refs} if has_bias else set()
@@ -1423,6 +1426,7 @@ def build_zonal_profile_figures(
                 },
                 height=max(400 * nrows + 120, 520),
                 margin={"t": 80, "b": 60, "l": 80, "r": 150 if has_bias else 90},
+                showlegend=False,
             ),
         )
         for ann in fig.layout.annotations:
@@ -1850,6 +1854,7 @@ def build_hovmoller_figures(
                 },
                 margin={"t": 110, "b": 60, "l": 90, "r": 90},
                 height=panel_height,
+                showlegend=False,
             ),
             updatemenus=[
                 {
@@ -2227,19 +2232,6 @@ _DIAG_LABELS = {
     "QBO": "QBO",
     "Histogram": "Histogram",
     "Scalar": "Scalar",
-}
-
-_DIAG_ICONS = {
-    "Map": "🗺",
-    "TimeSeries": "📈",
-    "AnnualCycle": "📅",
-    "DiurnalCycle": "🌅",
-    "ZonalLine": "〰",
-    "ZonalProfile": "🌡",
-    "Hovmoller": "🌊",
-    "QBO": "🌀",
-    "Histogram": "📊",
-    "Scalar": "📊",
 }
 
 # Plot-type categories — group diagnostics by the kind of view they present, so
