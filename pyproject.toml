@@ -181,6 +181,11 @@ ignore = [
 future-annotations = true
 
 [tool.ruff.lint.per-file-ignores]
+# The CLI entry point defers heavy subsystem imports (ESMValCore/iris/dask)
+# into the command functions so lightweight commands start instantly.
+"src/climateeval/_cli.py" = [
+    "PLC0415",    # `import` should be at the top-level of a file
+]
 "*example.py" = [
     "ERA001",     # Found commented-out code
     "T201",       # `print` found

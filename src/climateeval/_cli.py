@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import importlib.util
 import json
 import os
 import re
@@ -53,17 +54,10 @@ logger.add(
     colorize=True,
 )
 
-from climateeval import suites as _suites_pkg  # noqa: E402
-from climateeval._check import check_model_data  # noqa: E402
-from climateeval._loader import load_cmor_dir  # noqa: E402
-from climateeval._share import DEFAULT_CONTAINER, share_file  # noqa: E402
-from climateeval.data import DataSourceInformation  # noqa: E402
-from climateeval.report import (  # noqa: E402
-    generate_portable_html,
-    generate_static_plots,
-    serve,
-)
-from climateeval.suites import Suite  # noqa: E402
+# NOTE: The heavy climateeval subsystems (suites, report, data, loader — which
+# pull in ESMValCore/iris/dask, ~5 s to import) are imported lazily inside the
+# command functions that need them, so lightweight commands like
+# `climateeval suites list` and `--help` start instantly.
 
 DEFAULT_SUITE = "Tier2_atmosphere_monthly"
 DEFAULT_TIMERANGE = "19790101/20141231"
@@ -121,6 +115,8 @@ def _add_share_args(parser: argparse.ArgumentParser) -> None:
 
 def _share_report(html_path: Path, args: argparse.Namespace, default_name: str) -> None:
     """Publish `html_path` to Swift, printing the URL; clean error on failure."""
+    from climateeval._share import DEFAULT_CONTAINER, share_file
+
     raw_name = args.share_name or default_name
     name = re.sub(r"[^\w.-]+", "_", raw_name).strip("_") or html_path.stem
     try:
@@ -270,6 +266,9 @@ def _cmd_check(args: argparse.Namespace) -> None:
         msg = f"Model path not found: {args.model}"
         raise SystemExit(msg)
 
+    logger.info("Loading ClimateEval (this can take a few seconds)…")
+    from climateeval._check import check_model_data
+
     suite_names = args.suite or [DEFAULT_SUITE]
     report = check_model_data(
         args.model,
@@ -407,7 +406,13 @@ def _add_suites_parser(subparsers: Any) -> None:
 
 
 def _cmd_suites_list(args: argparse.Namespace) -> None:
-    suites_dir = Path(_suites_pkg.__file__).parent
+    # Locate the suites/ directory via the module spec without importing the
+    # (heavy) suites package, so this command stays instant.
+    spec = importlib.util.find_spec("climateeval.suites")
+    if spec is None or not spec.submodule_search_locations:
+        msg = "Could not locate the climateeval.suites package."
+        raise SystemExit(msg)
+    suites_dir = Path(spec.submodule_search_locations[0])
     suite_filter = getattr(args, "suite", None)
 
     # Each entry pairs a suite name with its diagnostic rows and variable count.
@@ -457,6 +462,16 @@ def _cmd_benchmark(args: argparse.Namespace) -> None:
     if not args.model.exists():
         msg = f"Model path not found: {args.model}"
         raise SystemExit(msg)
+
+    logger.info("Loading ClimateEval (this can take a few seconds)…")
+    from climateeval._loader import load_cmor_dir
+    from climateeval.data import DataSourceInformation
+    from climateeval.report import (
+        generate_portable_html,
+        generate_static_plots,
+        serve,
+    )
+    from climateeval.suites import Suite
 
     if not args.name:
         args.name = _infer_model_name(args.model) or "model"
@@ -553,6 +568,13 @@ def _cmd_report(args: argparse.Namespace) -> None:
             "--share requires --html FILE (only the self-contained HTML can be shared)."
         )
         raise SystemExit(msg)
+
+    logger.info("Loading ClimateEval (this can take a few seconds)…")
+    from climateeval.report import (
+        generate_portable_html,
+        generate_static_plots,
+        serve,
+    )
 
     if args.static_out is not None:
         formats = [f.strip() for f in args.static_format.split(",") if f.strip()]
