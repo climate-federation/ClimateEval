@@ -56,6 +56,7 @@ logger.add(
 from climateeval import suites as _suites_pkg  # noqa: E402
 from climateeval._check import check_model_data  # noqa: E402
 from climateeval._loader import load_cmor_dir  # noqa: E402
+from climateeval._share import DEFAULT_CONTAINER, share_file  # noqa: E402
 from climateeval.data import DataSourceInformation  # noqa: E402
 from climateeval.report import (  # noqa: E402
     generate_portable_html,
@@ -89,6 +90,51 @@ def _full_user_name() -> str:
         if full_name:
             return full_name
     return login
+
+
+def _add_share_args(parser: argparse.ArgumentParser) -> None:
+    """Add the `--share*` flags for publishing the HTML report to DKRZ Swift."""
+    parser.add_argument(
+        "--share",
+        action="store_true",
+        help=(
+            "Publish the HTML report to DKRZ Swift object storage as a public "
+            "link (uses ~/.swiftenv or ST_USER/ST_KEY; see docs/reporting.md)."
+        ),
+    )
+    parser.add_argument(
+        "--share-container",
+        default=None,
+        metavar="NAME",
+        help="Swift container for --share (default: climateeval).",
+    )
+    parser.add_argument(
+        "--share-name",
+        default=None,
+        metavar="NAME",
+        help=(
+            "Prefix for the published report, giving the URL .../<name>/"
+            "index.html (default: the model name, else the HTML file stem)."
+        ),
+    )
+
+
+def _share_report(html_path: Path, args: argparse.Namespace, default_name: str) -> None:
+    """Publish `html_path` to Swift, printing the URL; clean error on failure."""
+    raw_name = args.share_name or default_name
+    name = re.sub(r"[^\w.-]+", "_", raw_name).strip("_") or html_path.stem
+    try:
+        url = share_file(
+            html_path,
+            container=args.share_container or DEFAULT_CONTAINER,
+            name=name,
+        )
+    except Exception as exc:
+        # The HTML is already on disk; a failed upload is not fatal.
+        msg = f"Report written to {html_path} but sharing failed: {exc}"
+        raise SystemExit(msg) from exc
+    logger.info("Report shared at:")
+    print(url)  # noqa: T201
 
 
 def _add_benchmark_parser(subparsers: Any) -> None:
@@ -169,6 +215,7 @@ def _add_benchmark_parser(subparsers: Any) -> None:
         default=8765,
         help="Port for --serve (default: 8765).",
     )
+    _add_share_args(parser)
     parser.set_defaults(func=_cmd_benchmark)
 
 
@@ -328,6 +375,7 @@ def _add_report_parser(subparsers: Any) -> None:
         action="store_true",
         help="Do not open the browser automatically.",
     )
+    _add_share_args(parser)
     parser.set_defaults(func=_cmd_report)
 
 
@@ -451,6 +499,9 @@ def _cmd_benchmark(args: argparse.Namespace) -> None:
     )
     logger.info(f"Wrote report {html_path}")
 
+    if args.share:
+        _share_report(html_path, args, default_name=args.name)
+
     if args.static:
         generate_static_plots(db_paths, out_dir / "static_figures")
         logger.info(f"Wrote static figures to {out_dir / 'static_figures'}")
@@ -463,6 +514,12 @@ def _cmd_report(args: argparse.Namespace) -> None:
         if not path.exists():
             msg = f"Database not found: {path}"
             raise SystemExit(msg)
+
+    if args.share and args.html is None:
+        msg = (
+            "--share requires --html FILE (only the self-contained HTML can be shared)."
+        )
+        raise SystemExit(msg)
 
     if args.static_out is not None:
         formats = [f.strip() for f in args.static_format.split(",") if f.strip()]
@@ -485,6 +542,8 @@ def _cmd_report(args: argparse.Namespace) -> None:
             encoding="utf-8",
         )
         logger.info(f"Wrote report {args.html}")
+        if args.share:
+            _share_report(args.html, args, default_name=args.model or args.html.stem)
         return
 
     serve(

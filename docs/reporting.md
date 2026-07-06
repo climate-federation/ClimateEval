@@ -129,6 +129,66 @@ models the reference is shown once followed by one bias panel per model;
 without a reference a plain grid of absolute panels is drawn. Sea-ice maps
 switch automatically to polar stereographic views.
 
+## Sharing a report (DKRZ Swift)
+
+A portable HTML report is a single self-contained file, so it can be published
+to [DKRZ's Swift object storage](https://swiftbrowser.dkrz.de) and opened by
+anyone with the link — no DKRZ account required. This mirrors how ICONEval
+publishes its output, so ClimateEval reports get the same style of URL. Add
+`--share` when writing the HTML:
+
+```bash
+# Write the self-contained HTML and publish it to Swift as a public link
+climateeval report output.ddb --model MPI-ESM1-2-LR \
+    --html report.html --share
+# → prints e.g.
+#   https://swift.dkrz.de/v1/dkrz_<uuid>/climateeval/MPI-ESM1-2-LR/index.html
+```
+
+The report is stored as `<container>/<name>/index.html`, where `<name>` is the
+`--model` (or the HTML file stem), so each report gets a clean, collision-free
+URL under its own prefix. Defaults: container `climateeval`
+(`--share-container NAME`), prefix from `--model` (`--share-name NAME`).
+For `report`, `--share` requires `--html`.
+
+`climateeval benchmark` takes the same `--share`/`--share-container`/
+`--share-name` flags and publishes the report it writes in one step:
+
+```bash
+climateeval benchmark /path/to/model/cmor/Amon --name MPI-ESM1-2-LR --share
+```
+
+### Credentials
+
+`--share` uses the first of these it finds (matching DKRZ's `swift-token` /
+ICONEval workflow):
+
+1. **A cached token in `~/.swiftenv`** — the usual path on Levante. Create or
+   refresh it with `swift-token` (from `py-python-swiftclient`), entering your
+   **project account**, username and password:
+   ```bash
+   swift-token          # writes ~/.swiftenv (OS_STORAGE_URL + OS_AUTH_TOKEN)
+   ```
+   Using a project account publishes into the shared 10 TiB project space
+   (alongside ICONEval) rather than your 50 GiB user account. The token
+   expires; re-run `swift-token` when sharing starts failing with `401`.
+2. **A pre-fetched token in the environment:**
+   ```bash
+   export OS_STORAGE_URL=https://swift.dkrz.de/v1/dkrz_<uuid>
+   export OS_AUTH_TOKEN=<token>
+   ```
+3. **Legacy tempauth** (a one-shot login, no caching):
+   ```bash
+   export ST_USER=<account>:<user>   # a project account for the shared space
+   export ST_KEY=<password>
+   ```
+
+The container's read ACL is set to `.r:*`, so the returned URL is
+world-readable — treat the link as public; Swift keeps no backup. The uploader
+is a thin wrapper over Swift's RESTful API in
+[`src/climateeval/_share.py`](../src/climateeval/_share.py) (`share_file()`),
+usable directly from Python too.
+
 ## Figure types
 
 The report auto-detects how to plot each diagnostic from its output coordinates.
