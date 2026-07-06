@@ -184,8 +184,10 @@ ICONEval workflow):
    ```
 
 The container's read ACL is set to `.r:*`, so the returned URL is
-world-readable — treat the link as public; Swift keeps no backup. The uploader
-is a thin wrapper over Swift's RESTful API in
+world-readable — treat the link as public; Swift keeps no backup. Note that a
+benchmark report embeds run metadata in its header, including the **absolute
+model path** and the **hostname** it ran on, which become public along with the
+figures. The uploader is a thin wrapper over Swift's RESTful API in
 [`src/climateeval/_share.py`](../src/climateeval/_share.py) (`share_file()`),
 usable directly from Python too.
 

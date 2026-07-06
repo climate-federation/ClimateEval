@@ -102,6 +102,9 @@ def _spinner(message: str) -> Iterator[None]:
     their plain INFO log lines. On a terminal the routine INFO logs are muted
     for the duration so they do not fight the spinner; warnings and errors
     still come through (cleanly, via `_log_sink`).
+
+    Assumes non-nested use: it toggles the single global log sink, so nesting
+    two spinners would un-mute logs when the inner one exits.
     """
     if not sys.stderr.isatty():
         yield
@@ -173,7 +176,10 @@ def _add_share_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help=(
             "Publish the HTML report to DKRZ Swift object storage as a public "
-            "link (uses ~/.swiftenv or ST_USER/ST_KEY; see docs/reporting.md)."
+            "link. Credentials come from ~/.swiftenv, OS_STORAGE_URL/"
+            "OS_AUTH_TOKEN, or ST_USER/ST_KEY (see docs/reporting.md). Note: "
+            "with `report` this requires --html; with `benchmark` it is "
+            "ignored under --serve (no HTML is written)."
         ),
     )
     parser.add_argument(
@@ -416,7 +422,11 @@ def _add_report_parser(subparsers: Any) -> None:
         ),
     )
     parser.add_argument("db", type=Path, nargs="+", help="DuckDB .ddb file(s).")
-    parser.add_argument("--model", default="", help="Model name in the header.")
+    parser.add_argument(
+        "--model",
+        default="",
+        help="Model name shown in the report header (default: blank).",
+    )
     parser.add_argument(
         "--html",
         type=Path,
@@ -537,11 +547,13 @@ def _cmd_suites_list(args: argparse.Namespace) -> None:
     print("Suite format and contents: docs/suites.md")  # noqa: T201
 
 
-def _cmd_benchmark(args: argparse.Namespace) -> None:
-
+def _cmd_benchmark(args: argparse.Namespace) -> None:  # noqa: PLR0915 - orchestration
     if not args.model.exists():
         msg = f"Model path not found: {args.model}"
         raise SystemExit(msg)
+
+    if args.serve and args.share:
+        logger.warning("--share is ignored with --serve (no HTML file is written).")
 
     logger.info("Loading ClimateEval (this can take a few seconds)…")
     from climateeval._loader import load_cmor_dir
@@ -715,6 +727,9 @@ def main(argv: list[str] | None = None) -> None:
             "      run a custom suite and open the interactive report\n"
             "  climateeval report results/*.ddb --html report.html\n"
             "      export a self-contained HTML report for existing results\n"
+            "  climateeval benchmark model/Amon --name MyModel --share\n"
+            "      benchmark and publish the report to DKRZ Swift as a\n"
+            "      public link (see docs/reporting.md)\n"
             "  climateeval suites list\n"
             "      list the shipped evaluation suites\n"
             "\n"

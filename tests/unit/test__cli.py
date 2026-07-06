@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from climateeval import _cli
 from climateeval._cli import _infer_model_name, main
 from tests.unit.test__check import _make_cube, _save, _suite
 
@@ -144,3 +145,19 @@ def test_suites_list_no_match(capsys: pytest.CaptureFixture[str]) -> None:
 def test_bare_suites_defaults_to_list(capsys: pytest.CaptureFixture[str]) -> None:
     main(["suites"])
     assert "Tier1_sanity_checks" in capsys.readouterr().out
+
+
+def test_report_share_requires_html(tmp_path: Path) -> None:
+    db = tmp_path / "results.ddb"
+    db.touch()  # exists, so it clears the file-existence check
+    with pytest.raises(SystemExit, match="requires --html"):
+        main(["report", str(db), "--share"])
+
+
+def test_spinner_is_noop_without_tty() -> None:
+    # Under pytest stderr is not a TTY, so the spinner must be a pass-through
+    # that leaves the log sink (and thus level) untouched.
+    before = _cli._LOG_SINK_ID
+    with _cli._spinner("working"):
+        pass
+    assert before == _cli._LOG_SINK_ID
