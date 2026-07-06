@@ -121,7 +121,24 @@ def test_suites_list(capsys: pytest.CaptureFixture[str]) -> None:
     main(["suites", "list"])
     out = capsys.readouterr().out
     assert "Tier2_atmosphere_monthly" in out
-    assert "DIAGNOSTICS" in out
+    # The listing now expands each suite into its diagnostics: the diagnostic
+    # name, its class and a variable count.
+    assert "6 diagnostics" in out
+    assert "annual_cycle" in out  # a diagnostic name
+    assert "Map" in out  # a diagnostic class
+    assert "vars" in out
+
+
+def test_suites_list_filter(capsys: pytest.CaptureFixture[str]) -> None:
+    main(["suites", "list", "Tier3"])
+    out = capsys.readouterr().out
+    assert "Tier3_dynamics" in out
+    assert "Tier2_atmosphere_monthly" not in out
+
+
+def test_suites_list_no_match(capsys: pytest.CaptureFixture[str]) -> None:
+    main(["suites", "list", "does-not-exist"])
+    assert "No suites match" in capsys.readouterr().out
 
 
 def test_bare_suites_defaults_to_list(capsys: pytest.CaptureFixture[str]) -> None:
