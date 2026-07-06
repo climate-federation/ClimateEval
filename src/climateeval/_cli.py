@@ -23,6 +23,7 @@ Subcommands
 from __future__ import annotations
 
 import argparse
+import contextlib
 import getpass
 import importlib.util
 import json
@@ -30,8 +31,13 @@ import os
 import re
 import socket
 import sys
+import threading
+import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 try:
     import pwd
@@ -43,16 +49,90 @@ from loguru import logger
 
 # Configure logging before the climateeval imports below: package modules log
 # at import time, and loguru's default sink would print that as DEBUG noise.
-logger.remove()
-logger.add(
-    sys.stdout,
-    level="INFO",
-    format=(
-        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-        "<level>{level: <8}</level> | <level>{message}</level>"
-    ),
-    colorize=True,
+_LOG_FORMAT = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+    "<level>{level: <8}</level> | <level>{message}</level>"
 )
+# Logs and the spinner both go to stderr (the conventional place for progress),
+# leaving stdout for actual data output (JSON, the suites list, shared URLs). A
+# function sink can't auto-detect a TTY the way a stream sink does, so decide
+# colorization from stderr ourselves (avoids raw ANSI codes in redirected logs).
+_COLORIZE = sys.stderr.isatty()
+# Set while a spinner animates so the log sink can wipe the spinner line before
+# emitting a record (keeps warnings clean instead of prefixed by spinner text).
+_SPINNER_ACTIVE = threading.Event()
+
+
+def _log_sink(message: str) -> None:
+    """Write a log record to stderr, clearing any active spinner line first."""
+    prefix = "\r\033[K" if _SPINNER_ACTIVE.is_set() else ""
+    sys.stderr.write(prefix + message)
+    sys.stderr.flush()
+
+
+logger.remove()
+_LOG_SINK_ID = logger.add(
+    _log_sink,
+    level="INFO",
+    format=_LOG_FORMAT,
+    colorize=_COLORIZE,
+)
+
+
+def _set_log_level(level: str) -> None:
+    """Re-point the log sink at a new minimum level."""
+    global _LOG_SINK_ID  # noqa: PLW0603 - single module-level sink handle
+    logger.remove(_LOG_SINK_ID)
+    _LOG_SINK_ID = logger.add(
+        _log_sink,
+        level=level,
+        format=_LOG_FORMAT,
+        colorize=_COLORIZE,
+    )
+
+
+_SPINNER_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+
+
+@contextlib.contextmanager
+def _spinner(message: str) -> Iterator[None]:
+    """Show an animated spinner with elapsed time while the block runs.
+
+    A no-op when stderr is not a TTY (e.g. SLURM logs), so batch runs keep
+    their plain INFO log lines. On a terminal the routine INFO logs are muted
+    for the duration so they do not fight the spinner; warnings and errors
+    still come through (cleanly, via `_log_sink`).
+    """
+    if not sys.stderr.isatty():
+        yield
+        return
+
+    stop = threading.Event()
+
+    def spin() -> None:
+        start = time.monotonic()
+        i = 0
+        while not stop.wait(0.1):
+            frame = _SPINNER_FRAMES[i % len(_SPINNER_FRAMES)]
+            elapsed = time.monotonic() - start
+            sys.stderr.write(f"\r\033[K{frame} {message} ({elapsed:.0f}s)")
+            sys.stderr.flush()
+            i += 1
+
+    _set_log_level("WARNING")
+    _SPINNER_ACTIVE.set()
+    thread = threading.Thread(target=spin, daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join()
+        _SPINNER_ACTIVE.clear()
+        sys.stderr.write("\r\033[K")
+        sys.stderr.flush()
+        _set_log_level("INFO")
+
 
 # NOTE: The heavy climateeval subsystems (suites, report, data, loader — which
 # pull in ESMValCore/iris/dask, ~5 s to import) are imported lazily inside the
@@ -477,7 +557,8 @@ def _cmd_benchmark(args: argparse.Namespace) -> None:
         args.name = _infer_model_name(args.model) or "model"
         logger.info(f"Model name '{args.name}' derived from the input files")
 
-    cubes = load_cmor_dir(args.model, timerange=args.timerange)
+    with _spinner("Loading model data"):
+        cubes = load_cmor_dir(args.model, timerange=args.timerange)
     if not cubes:
         msg = f"No NetCDF data found in {args.model}"
         raise SystemExit(msg)
@@ -510,7 +591,8 @@ def _cmd_benchmark(args: argparse.Namespace) -> None:
     }
 
     db_paths: list[Path] = []
-    for suite_name in suite_names:
+    n_suites = len(suite_names)
+    for i, suite_name in enumerate(suite_names, 1):
         db_path = out_dir / f"{Path(suite_name).stem}.ddb"
         db_path.unlink(missing_ok=True)
         Path(str(db_path) + ".wal").unlink(missing_ok=True)
@@ -519,8 +601,10 @@ def _cmd_benchmark(args: argparse.Namespace) -> None:
             diagnostic_kwargs=diagnostic_kwargs,
             variable_kwargs={"timerange": args.timerange},
         )
-        logger.info(f"Running suite '{suite_name}' (timerange {args.timerange})")
-        suite.get_database(cubes, info, database_resource=f"duckdb://{db_path}")
+        stem = Path(suite_name).stem
+        logger.info(f"Running suite '{stem}' (timerange {args.timerange})")
+        with _spinner(f"Running suite '{stem}' [{i}/{n_suites}]"):
+            suite.get_database(cubes, info, database_resource=f"duckdb://{db_path}")
         logger.info(f"Wrote database {db_path}")
         db_paths.append(db_path)
 
@@ -535,14 +619,16 @@ def _cmd_benchmark(args: argparse.Namespace) -> None:
         return
 
     html_path = out_dir / f"{args.name}_report.html"
-    html_path.write_text(
-        generate_portable_html(
+    with _spinner("Building report"):
+        html = generate_portable_html(
             db_paths,
             offline=True,
             model_name=args.name,
             user_name=user_name,
             run_info=run_info,
-        ),
+        )
+    html_path.write_text(
+        html,
         encoding="utf-8",
     )
     logger.info(f"Wrote report {html_path}")
