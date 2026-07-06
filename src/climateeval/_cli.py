@@ -390,31 +390,64 @@ def _add_suites_parser(subparsers: Any) -> None:
         ),
     )
     sub = parser.add_subparsers(dest="suites_command")
-    list_parser = sub.add_parser("list", help="List the shipped suites.")
+    list_parser = sub.add_parser(
+        "list",
+        help="List the shipped suites and their diagnostics.",
+    )
+    list_parser.add_argument(
+        "suite",
+        nargs="?",
+        default=None,
+        metavar="NAME",
+        help="Only show suites whose name contains this string.",
+    )
     list_parser.set_defaults(func=_cmd_suites_list)
     # bare `climateeval suites` behaves like `suites list`
     parser.set_defaults(func=_cmd_suites_list)
 
 
-def _cmd_suites_list(args: argparse.Namespace) -> None:  # noqa: ARG001
+def _cmd_suites_list(args: argparse.Namespace) -> None:
     suites_dir = Path(_suites_pkg.__file__).parent
-    rows: list[tuple[str, int, int]] = []
+    suite_filter = getattr(args, "suite", None)
+
+    # Each entry pairs a suite name with its diagnostic rows and variable count.
+    suites: list[tuple[str, list[tuple[str, str, int]], int]] = []
     for path in sorted(suites_dir.glob("*.yml")):
+        if suite_filter and suite_filter.lower() not in path.stem.lower():
+            continue
         spec = yaml.safe_load(path.read_text(encoding="utf-8"))
         diagnostics = spec if isinstance(spec, list) else []
-        var_ids = {
-            str(v.get("id", v.get("var_name", "")))
-            for d in diagnostics
-            for v in d.get("variables", [])
-        }
-        rows.append((path.stem, len(diagnostics), len(var_ids)))
+        diag_rows: list[tuple[str, str, int]] = []
+        var_ids: set[str] = set()
+        for d in diagnostics:
+            variables = d.get("variables") or []
+            for v in variables:
+                var_ids.add(str(v.get("id", v.get("var_name", ""))))
+            diag_name = str(d.get("name") or "?")
+            class_name = str(d.get("diagnostic") or "?").rsplit(".", 1)[-1]
+            diag_rows.append((diag_name, class_name, len(variables)))
+        suites.append((path.stem, diag_rows, len(var_ids)))
 
-    name_w = max(len(name) for name, *_ in rows)
+    if not suites:
+        print(f"No suites match '{suite_filter}'.")  # noqa: T201
+        return
+
     print("Shipped suites (use with `climateeval benchmark --suite NAME`):")  # noqa: T201
-    print()  # noqa: T201
-    print(f"  {'NAME':<{name_w}}  DIAGNOSTICS  VARIABLES")  # noqa: T201
-    for name, n_diags, n_vars in rows:
-        print(f"  {name:<{name_w}}  {n_diags:>11}  {n_vars:>9}")  # noqa: T201
+    # Align the diagnostic name/class columns across all listed suites.
+    name_w = max((len(n) for _, rows, _ in suites for n, _, _ in rows), default=4)
+    class_w = max((len(c) for _, rows, _ in suites for _, c, _ in rows), default=4)
+    for suite_name, diag_rows, n_vars in suites:
+        n_diag = len(diag_rows)
+        print(  # noqa: T201
+            f"\n  {suite_name}  "
+            f"({n_diag} diagnostic{'' if n_diag == 1 else 's'}, "
+            f"{n_vars} variable{'' if n_vars == 1 else 's'})",
+        )
+        for diag_name, class_name, n in diag_rows:
+            print(  # noqa: T201
+                f"    {diag_name:<{name_w}}  {class_name:<{class_w}}  "
+                f"{n:>2} var{'' if n == 1 else 's'}",
+            )
     print()  # noqa: T201
     print("Suite format and contents: docs/suites.md")  # noqa: T201
 

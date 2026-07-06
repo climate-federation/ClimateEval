@@ -41,9 +41,11 @@ compares against ERA5/GPCP/CERES-EBAF references and CMIP6 historical models.
 | `--static` | Also render static PNG figures into `<out>/static_figures/`. |
 | `--serve [--port N]` | Open an interactive server instead of writing files. |
 
-`climateeval suites list` shows the shipped suites (name, number of
-diagnostics and variables); any of those names — or a path to your own suite
-YAML — works with `--suite` (see [Suites](suites.md)).
+`climateeval suites list` shows the shipped suites and, under each, the
+diagnostics it runs (their `name`, diagnostic class and variable count). Pass a
+substring — `climateeval suites list Tier2` — to show only matching suites. Any
+suite name, or a path to your own suite YAML, works with `--suite` (see
+[Suites](suites.md)).
 
 **Check your data first.** If your model output is not (or only partially)
 CMORized, `climateeval check` validates it against a suite's input
