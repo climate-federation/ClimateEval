@@ -244,6 +244,9 @@ html, body {
 }
 .sidebar-toggle:hover { background: var(--accent-hover); }
 .app-body.sidebar-collapsed .sidebar-toggle { left: 8px; }
+/* Make room for the toggle so it doesn't overlap the toolbar's "All" pill */
+.content-toolbar { transition: padding-left .2s ease; }
+.app-body.sidebar-collapsed .content-toolbar { padding-left: 46px; }
 
 .sidebar-toggle .bar {
   position: absolute;
