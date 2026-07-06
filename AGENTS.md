@@ -1,5 +1,10 @@
 # AGENTS.md file
 
+> **User-facing documentation lives in [`docs/`](docs/README.md)** (installation,
+> usage, suites, data sources, reporting, output schema, benchmarking). This file
+> is the internal architecture reference for contributors and coding agents
+> (it is also surfaced to Claude Code as `CLAUDE.md`, a symlink).
+
 ## Project Overview
 
 ClimateEval is a framework for evaluating and benchmarking Earth System Model
@@ -20,240 +25,129 @@ well-established preprocessing functions. Any missing reference data is
 automatically downloaded if required. Diagnostics results (raw output and
 metrics calculated relative to the reference data) are stored in a database
 (either in-memory or on disk for post-hoc analyses), which can be then explored
-through an interactive HTML file.
+through an interactive HTML report.
 
 ## Common Commands
 
 ```bash
-# Install with development dependencies
-pip install -e ".[develop]"
+# Install (Pixi + conda-forge). See docs/installation.md.
+pixi install
 
-# Run tests
-pytest
+# Run tests / coverage (inside the pixi env)
+pixi run pytest
+pixi run pytest --cov=climateeval --cov-report=html
 
-# Run tests with coverage
-pytest --cov=src/climateeval --cov-report=html
+# Lint (ruff + mypy + more, via pre-commit; enforced in CI)
+pixi run pre-commit run --all-files
 
-# Lint
-pre-commit run --all
+# Benchmark a model vs ERA5 + CMIP6 and write an HTML report (quickest start)
+pixi run python benchmark.py /path/to/model/cmor/Amon --name MyModel
 
-# Run the example suite and inspect the output database
-python example.py
-python db.py
+# Run the quickstart example and inspect its output database
+pixi run python examples/quickstart/example.py
+pixi run python examples/quickstart/db_example.py
+
+# Serve an interactive benchmarking report (recommended for large databases)
+pixi run python report.py output.ddb [output2.ddb ...] --model MPI-ESM1-2-LR
+# → opens http://127.0.0.1:8765 in the browser
+
+# Export a portable single-file HTML report (offline, no server needed)
+pixi run python report.py output.ddb --model MPI-ESM1-2-LR --save-portable-html-output report.html --no-browser
 ```
 
-When inspecting databases, use `ibis`.
+When inspecting databases, use `ibis`. See [docs/output-schema.md](docs/output-schema.md)
+for the table layout and [docs/reporting.md](docs/reporting.md) for the report.
+
+## Repository layout
+
+```
+report.py                     # report CLI (thin wrapper around climateeval.report.serve)
+src/climateeval/              # the package
+examples/                     # curated, runnable examples (quickstart, legoesm, ocean)
+scripts/                      # experimental, machine-specific drivers (NOT linted; see scripts/README.md)
+docs/                         # user documentation (plain Markdown)
+tests/                        # unit/ + integration/ + sample_data/
+```
 
 ## Architecture
 
-### Core Modules
+### Core Modules (`src/climateeval/`)
 
-- `_variable.py` - `Variable`, `Coordinate`, `VerticalLevel`, `NO_LEVEL` dataclasses. Loads metadata from `variables.yml` and `coordinates.yml`. Frozen dataclasses with auto-filled fields (units, standard_name, coordinates, derived flag, etc.)
-- `_config.py` - ESMValTool config reset and intake-ESGF data source setup
+- `_variable.py` - `Variable`, `Coordinate`, `VerticalLevel`, `NO_LEVEL` dataclasses. Loads metadata from `variables.yml` and `coordinates.yml` (override paths with `CLIMATEEVAL_VARIABLES_FILE` / `CLIMATEEVAL_COORDINATES_FILE`). Frozen dataclasses with auto-filled fields (units, standard_name, coordinates, derived flag, etc.)
+- `_config.py` - ESMValCore config setup (`load_from_dirs([])`), logging control, and the Iris cube combine policy
 - `_utils.py` - `get_prepared_cube()` performs preprocessing (unit conversion, longitude normalization, time range extraction, level extraction, spatial masking via landsea/AR6 region masks). Also provides `str_to_class()` for dynamic class loading and `check_coordinates()` to validate cube dimensions
 
 ### Diagnostics (`src/climateeval/diags/`)
 
-- `_base.py` - Abstract `Diagnostic` class with `DiagnosticOutput` dataclass: manages reference/other data, computes metrics (weighted_rmse, weighted_pearsonr, weighted_emd), generates Ibis tables. Also provides `DiagnosticOutput.union()` to merge outputs
-- `_annual_cycle.py` - `AnnualCycle` diagnostic: evaluates seasonal cycle by comparing monthly means
-- `_annual_cycle_spatial_distribution.py` - `AnnualCycleSpatialDistribution` diagnostic: evaluates monthly spatial fields; outputs only metrics (no data table)
-- `_diurnal_cycle.py` - `DiurnalCycle` diagnostic: evaluates diurnal cycle via hourly climatology in local solar time
-- `_map.py` - `Map` diagnostic: regrid to 2x2, compute spatial mean; output coordinates: latitude, longitude
-- `_timeseries.py` - `AnnualMeanTimeSeries` diagnostic: regrid to 2x2, area mean, annual mean; output coordinates: time
-- `_zonal_line.py` - `ZonalLine` diagnostic: zonal mean fields; output coordinates: latitude
-- `_zonal_profile.py` - `ZonalProfileAirPressure` diagnostic: vertical profiles of humidity/temperature/wind; output coordinates: air_pressure, latitude
+- `_base.py` - Abstract `Diagnostic` class with the `DiagnosticOutput` dataclass (fields `raw_output`, `metrics`, `variables`, `data_sources` as Ibis tables; `union()` merges outputs). `get_output(data, data_information)` is the entry point.
+- `simple/` - `SimpleDiagnostic` base + the simple diagnostics: `Map`, `ZonalLine`, `ZonalProfileAirPressure`, `AnnualMeanTimeSeries`, `MeanTimeSeries`, `TimeSeriesNoPreprocessing`, `AnnualCycle`, `AnnualCycleSpatialDistribution`, `DiurnalCycle`, `Histogram`, `Hovmoller`, `QBO`, `Nino34`, `SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `AMOCTimeSeries`, `OceanHeatContentTimeSeries`.
+- `complex/` - `ComplexDiagnostic` base + `ECS`, `TEMDiagnostic`.
 
 ### Suites (`src/climateeval/suites/`)
 
-- `_base.py` - `Suite` class: reads a YAML suite definition, builds diagnostics, orchestrates execution, and writes results to an Ibis/DuckDB backend
-- `Tier2_atmosphere_monthly.yml` - YAML-defined suite: 19 2-D variables (clivi, clt, clwvi, hfls, hfss, hus400, lwcre, lwp, pr, prw, rlut, rsut, rtnt, swcre, ta200, ta800, tas, ua200, ua800) across five 2-D diagnostics (AnnualCycle, AnnualCycleSpatialDistribution, Map, AnnualMeanTimeSeries, ZonalLine) plus 3 3-D variables (hus, ta, ua) for ZonalProfileAirPressure
+- `_base.py` - `Suite` class: reads a YAML suite definition, builds diagnostics, orchestrates execution, and writes results to an Ibis/DuckDB backend. Each diagnostic becomes an **attached database named after its `name:` field** in the YAML.
+- `*.yml` - the shipped suites, organised into tiers of increasing complexity: **Tier 1** sanity/consistency (`Tier1_sanity_checks`, `Tier1_consistency_checks`), **Tier 2** mean state vs observations (`Tier2_atmosphere_monthly`, `Tier2_ocean_monthly`, `Tier2_sea_ice_monthly`), **Tier 3** variability/processes/feedbacks (`Tier3_dynamics`, `Tier3_atmosphere_subdaily`, `Tier3_ecs`). Format: [docs/suites.md](docs/suites.md).
 
 ### Data Sources (`src/climateeval/data/`)
 
-- `_base.py` - `DataSource` abstract class for data loading/downloading; `DiagnosticData` dataclass pairs a variable with its reference and optional "other" data sources; `DataSourceInformation` dataclass holds provenance metadata (name, category, institute, exp, variant, references, auto-generated id)
-- Concrete implementations: `CERESEBAF`, `ERA5`, `ESACCICloud`, `GPCP`, `HadCRUT5`, `MERRA2`
+- `_base.py` - `DataSource` / `ComplexDataSource` abstract classes and `DataSourceGenerator`; `_utils.py` holds `DataSourceInformation` (provenance: name, category, institute, exp, variant, references, auto-generated `id`).
+- Concrete implementations: `ERA5Monthly`/`ERA5Hourly`, `MERRA2`, `CERESEBAF`, `ESACCICloud`, `GPCP`, `HadCRUT5`, `HadISST`, `ESACCISST`, `NOAAERSSTv5`, `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC`, `RAPID`, `OSI450NH`/`OSI450SH`, `NSIDCG02202SH`, `CMIP6HistoricalR1I1P1F1`/`CMIP6Abrupt4xCO2R1I1P1F1`/`CMIP6PiControlR1I1P1F1`, and the generic `ESMValToolIntakeDataSource` / `ESMValToolCMORizerDataSource`. See [docs/data-sources.md](docs/data-sources.md).
+
+### Report (`src/climateeval/report/`)
+
+Turns result databases into an interactive report. `report.py` (repo root) is a
+thin CLI over `climateeval.report.serve`.
+
+- `_server.py` - `serve()`: threaded HTTP server, lazy figure building + caching, API endpoints (`/api/structure`, `/api/figure/...`, `/api/leaderboard`, `/plotly.js`).
+- `_html.py` - `build_html_shell()` (server mode) and `generate_portable_html()` (self-contained offline HTML).
+- `_figures.py` - `build_*_figures()` builders and the `_FIGURE_BUILDERS` registry (10 figure types: Map, TimeSeries, AnnualCycle, DiurnalCycle, ZonalLine, ZonalProfile, Hovmoller, QBO, Histogram, Scalar).
+- `_leaderboard.py`, `_db.py`, `_style.py` - scoreboard, DB reading, styling.
+
+Details: [docs/reporting.md](docs/reporting.md).
 
 ## Data Flow
 
 ### Option 1: Use a Suite (recommended)
 
-1. Create a `Suite` instance with a YAML config (e.g., `Suite("Tier2_atmosphere", ...)`)
+1. Create a `Suite` with a YAML config, e.g. `Suite("Tier2_atmosphere_monthly", diagnostic_kwargs=..., variable_kwargs=...)`
 2. Call `suite.get_database(cubes, data_information, database_resource="duckdb://output.ddb")`
-3. Output: Ibis connection with per-diagnostic databases, each containing `raw_output`, `metrics`, `variables`, and `data_sources` tables
+3. Output: an Ibis connection with one attached database per diagnostic, each containing `raw_output`, `metrics`, `variables`, and `data_sources` tables (empty tables are omitted).
 
-### Option 2: Direct Diagnostic usage
+### Option 2: Direct Diagnostic usage (advanced)
 
-1. Define variables with `Variable("id", "var_name", "frequency", **settings)`
-2. Create `DiagnosticData` with reference/other data sources
-3. Pass dict of `{Variable: DiagnosticData}` to diagnostic constructor
-4. Call `diagnostic.get_output(cubes, data_information)` with Iris cubes or Xarray datasets
-5. Output: `DiagnosticOutput(raw_output, metrics, variables, data_sources)` as Ibis tables
+Diagnostic classes can be constructed and run directly via
+`diagnostic.get_output(data, data_information) -> DiagnosticOutput`. The
+constructors are lower-level than the suite path — see the classes under
+`src/climateeval/diags/` and `tests/integration/` for concrete usage.
 
 ### Example Usage
 
-See [example.py](example.py) for a complete workflow loading CMIP6 data and computing diagnostics.
-See [db.py](db.py) for an example of how to inspect the output database.
+See [examples/quickstart/example.py](examples/quickstart/example.py) for a
+complete workflow, [examples/quickstart/db_example.py](examples/quickstart/db_example.py)
+for inspecting the output, and [docs/usage.md](docs/usage.md) for the walkthrough.
 
 ## Key Patterns
 
 - Variables with `derived: true` in YAML are derived via ESMValTool's derive module
 - `_preprocess()` must be implemented by each diagnostic subclass
-- Final coordinates are specified via `_FINAL_COORDINATES` class variable (ensures data has expected dimensions)
+- Final coordinates are specified via the `_FINAL_COORDINATES` class variable (ensures data has expected dimensions)
 - `_OUTPUT_DATA_TABLE` and `_OUTPUT_METRICS_TABLE` class variables control which tables a diagnostic outputs
-- Metrics use ESMValTool's `distance_metric` function
+- Metrics use ESMValTool's `distance_metric` function (`weighted_rmse`, `weighted_pearsonr`, `weighted_emd`)
 - `fail_on_missing_data` diagnostic kwarg controls whether missing data raises errors or logs warnings
 - Suites support custom `diagnostic_kwargs` and `variable_kwargs` for customization
 - `DataSourceInformation` auto-generates an `id` field from category, name, exp, and variant
 
 ## DuckDB Output Schema
 
-Suites output to DuckDB using **attached databases** (one per diagnostic) to organize output.
-
-### Accessing via Ibis
-
-```python
-import ibis
-
-conn = ibis.connect("duckdb://climateeval.ddb")
-
-# List diagnostic databases
-dbs = conn.list_databases()  # e.g., ['AnnualCycle', 'AnnualCycleSpatialDistribution', 'Map', 'AnnualMeanTimeSeries', 'ZonalLine', 'ZonalProfileAirPressure']
-
-# Access tables within a diagnostic
-raw_output = conn.table("raw_output", database="Map")
-metrics = conn.table("metrics", database="Map")
-variables = conn.table("variables", database="Map")
-data_sources = conn.table("data_sources", database="Map")
-```
-
-### Database Hierarchy
-
-Each diagnostic is stored as an attached database containing four tables:
-`raw_output`, `metrics`, `variables`, and `data_sources`.
-
-```bash
-climateeval.ddb
-├── AnnualCycle/
-│   ├── raw_output      # Monthly climatology (month_number coordinate)
-│   ├── metrics         # Comparison metrics
-│   ├── variables       # Variable metadata
-│   └── data_sources    # Provenance of all datasets used
-├── AnnualCycleSpatialDistribution/
-│   ├── metrics         # Spatial monthly metrics (no raw_output table)
-│   ├── variables
-│   └── data_sources
-├── Map/
-│   ├── raw_output      # Gridded data (latitude, longitude coordinates)
-│   ├── metrics
-│   ├── variables
-│   └── data_sources
-├── AnnualMeanTimeSeries/
-│   ├── raw_output      # Temporal data (time coordinate, annual means)
-│   ├── metrics
-│   ├── variables
-│   └── data_sources
-├── ZonalLine/
-│   ├── raw_output      # Zonally-averaged data (latitude coordinate)
-│   ├── metrics
-│   ├── variables
-│   └── data_sources
-└── ZonalProfileAirPressure/
-    ├── raw_output      # Vertical profile data (air_pressure, latitude)
-    ├── metrics
-    ├── variables
-    └── data_sources
-```
-
-The set of diagnostics and variables depends entirely on the suite configuration.
-Different runs will produce different databases with different tables and columns.
-
-### `raw_output` Table (per diagnostic)
-
-The data table name is `raw_output` (not `data`). Each diagnostic has its own
-coordinate columns. Variable columns are dynamically added based on the suite
-configuration.
-
-| Diagnostic                     | Coordinate columns           |
-| ------------------------------ | ---------------------------- |
-| AnnualCycle                    | `month_number` (float, 1–12) |
-| AnnualCycleSpatialDistribution | `month_number`, `lat`, `lon` |
-| Map                            | `latitude`, `longitude`      |
-| AnnualMeanTimeSeries           | `time` (timestamp)           |
-| ZonalLine                      | `latitude`                   |
-| ZonalProfileAirPressure        | `air_pressure`, `latitude`   |
-
-Common columns in all `raw_output` tables:
-
-| Column    | Type   | Description                                                              |
-| --------- | ------ | ------------------------------------------------------------------------ |
-| data_id   | string | Unique identifier of the dataset (e.g., from `DataSourceInformation.id`) |
-| data_type | string | One of: `to_benchmark` (model being evaluated), `reference`, `other`     |
-| [coords]  | varies | Diagnostic-specific coordinate columns (see above)                       |
-| var...    | float  | Variable columns (one per variable ID in the suite, float32)             |
-
-Rows where a variable has no data contain NaN. Superfluous rows (all-NaN across
-all variable columns) are dropped.
-
-### `metrics` Table (all diagnostics)
-
-| Column            | Type   | Description                           |
-| ----------------- | ------ | ------------------------------------- |
-| var_id            | string | Variable identifier                   |
-| weighted_rmse     | float  | Weighted root mean square error       |
-| weighted_pearsonr | float  | Weighted Pearson correlation          |
-| weighted_emd      | float  | Weighted Earth mover's distance       |
-| data_id           | string | Dataset this metric applies to        |
-| reference_data_id | string | Reference dataset used for comparison |
-
-Metrics are computed for each `(data_id, var_id, reference_data_id)` combination.
-Different variables use different reference datasets (e.g., ERA5 for temperature,
-CERES-EBAF for radiative fluxes, GPCP for precipitation). Metrics rows also
-exist for `other` data sources (e.g., ERA5 as an alternative to GPCP for
-precipitation).
-
-### `variables` Table (all diagnostics)
-
-| Column           | Type    | Description                                                                    |
-| ---------------- | ------- | ------------------------------------------------------------------------------ |
-| id               | string  | Variable identifier (unique within diagnostic)                                 |
-| var_name         | string  | CMIP variable name                                                             |
-| frequency        | string  | Temporal frequency (e.g., mon)                                                 |
-| vertical_level   | string  | Vertical level if applicable (e.g., "air_pressure = 200.0 hPa"); empty if none |
-| min_lat          | float   | Minimum latitude of the data                                                   |
-| max_lat          | float   | Maximum latitude of the data                                                   |
-| min_lon          | float   | Minimum longitude of the data                                                  |
-| max_lon          | float   | Maximum longitude of the data                                                  |
-| landsea_mask     | string  | Land-sea mask used (space-joined list)                                         |
-| ar6_regions_mask | string  | AR6 regions mask used (space-joined list)                                      |
-| timerange        | string  | Time range of the data                                                         |
-| units            | string  | Units of the variable                                                          |
-| anomaly          | string  | Anomaly type (e.g., "full"); empty if not computed                             |
-| coordinates      | string  | Required coordinates (space-joined CMIP var names)                             |
-| derived          | boolean | Whether the variable is derived via ESMValTool                                 |
-| long_name        | string  | Long descriptive name                                                          |
-| realm            | string  | CMIP realm (e.g., atmos)                                                       |
-| standard_name    | string  | CF standard name                                                               |
-| cmip6_table_id   | string  | CMIP6 table ID (e.g., Amon)                                                    |
-
-### `data_sources` Table (all diagnostics)
-
-| Column     | Type   | Description                                           |
-| ---------- | ------ | ----------------------------------------------------- |
-| id         | string | Unique data source identifier (auto-generated)        |
-| name       | string | Dataset name (e.g., ERA5, GPCP, MPI-ESM1-2-LR)        |
-| category   | string | Category (e.g., reanalysis, observation, CMIP6 model) |
-| institute  | string | Institute (for model runs)                            |
-| exp        | string | Experiment (e.g., historical)                         |
-| variant    | string | Variant label (e.g., r1i1p1f1)                        |
-| references | string | Space-separated reference URLs                        |
-
-This table stores provenance for every dataset used in the diagnostic: the
-data being benchmarked, all reference datasets, and all `other` datasets.
+Suites output to DuckDB using **attached databases** (one per diagnostic). The
+full table/column reference has moved to
+**[docs/output-schema.md](docs/output-schema.md)**.
 
 ## Future Extensibility
 
 The hierarchy supports expansion with:
 
-1. **Additional diagnostics**: New attached database entries (e.g., `TaylorDiagram`)
-2. **Additional variables**: New columns added to data tables dynamically
-3. **Additional suites**: Different YAML configurations produce their own diagnostic hierarchy
+1. **Additional diagnostics**: new classes under `diags/simple/` or `diags/complex/`, referenced by class path in a suite
+2. **Additional variables**: new entries in `variables.yml` (regenerate `docs/variables.md` with `scripts/gen_variables_doc.py`)
+3. **Additional data sources**: new `DataSource` subclasses under `data/`
+4. **Additional suites**: new YAML configurations under `suites/`

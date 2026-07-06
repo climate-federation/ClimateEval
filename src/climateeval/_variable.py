@@ -213,6 +213,7 @@ class Variable:
         """
         if self.realm == "":
             return ""
+
         if self.realm == "atmos":
             if self.frequency == "1hr":
                 if self.var_name in ("pr", "prc"):
@@ -236,9 +237,21 @@ class Variable:
             return "SImon"
         msg = (
             f"Cannot determine CMIP6 table ID of {self}, this might be a problem "
-            f"for some data sources"
+            f"for some data sources",
         )
-        logger.warning(msg)
+        return ""
+
+    def _get_atmos_cmip6_table_id(self) -> str:
+        """Get CMIP6 table ID for atmospheric variables."""
+        if self.frequency == "1hr":
+            if self.var_name in ("pr", "prc"):
+                return "E1hr"
+            if self.var_name in ("ps", "tas"):
+                return "AERhr"
+        if self.frequency in ("3hr", "day", "fx"):
+            return self.frequency
+        if self.frequency == "mon":
+            return "Amon"
         return ""
 
     def get_preprocessing_settings(self) -> dict[str, Any]:

@@ -20,18 +20,33 @@ results (raw output and metrics calculated relative to the reference data) are
 stored in a database (either in-memory or on disk for post-hoc analyses), which
 can be then explored through an interactive HTML file.
 
+## Documentation
+
+Full documentation is in [`docs/`](docs/README.md):
+
+- [Installation](docs/installation.md) — requirements, Pixi, HPC notes, troubleshooting
+- [Usage](docs/usage.md) — run a suite and inspect the results
+- [Suites](docs/suites.md) and [Variables & coordinates](docs/variables.md)
+- [Data sources](docs/data-sources.md) and [Output schema](docs/output-schema.md)
+- [Reporting](docs/reporting.md) — the interactive / portable HTML report
+- [Benchmarking your own model (legoESM)](docs/benchmarking-legoesm.md)
+- [Contributing](docs/contributing.md)
+
 ## Installation from source
+
+See [docs/installation.md](docs/installation.md) for requirements, Pixi
+environments and troubleshooting. In short:
 
 1. Clone the ClimateEval repository:
 
    ```bash
-   git clone https://github.com/EyringMLClimateGroup/ClimateEval.git
+   git clone https://github.com/climate-federation/ClimateEval.git
    ```
 
    or
 
    ```bash
-   git clone git@github.com:EyringMLClimateGroup/ClimateEval.git
+   git clone git@github.com:climate-federation/ClimateEval.git
    ```
 
    if you prefer to connect to the repository over SSH
@@ -58,6 +73,32 @@ can be then explored through an interactive HTML file.
 Now you can use `pixi shell`/`pixi shell --frozen` to launch a shell in your
 pixi environment or `pixi run ...`/`pixi run --frozen ...` to run commands in
 your pixi environment.
+
+## Quick start
+
+Benchmark your model against ERA5, GPCP, CERES-EBAF and CMIP6 historical models
+and build a self-contained interactive HTML report in one command:
+
+```bash
+python benchmark.py /path/to/model/cmor/Amon --name MyModel
+# → writes MyModel_benchmark.html
+```
+
+Point `benchmark.py` at a directory of your model's CMOR-compliant NetCDF files.
+Use `--data-root DIR` for staged references, `--download` to fetch missing ones,
+or `--serve` to open an interactive server instead of a file. See
+[docs/usage.md](docs/usage.md) for all options.
+
+## Examples
+
+- [`examples/quickstart`](examples/quickstart/README.md) — the minimal loop: run
+  a suite on a model and inspect the results database.
+- [`examples/legoesm`](examples/legoesm/README.md) — benchmark an external
+  (non-CMIP archive) model against observations and build a report.
+- [`examples/ocean`](examples/ocean/README.md) — run the ocean and sea-ice
+  diagnostics on a CMIP6 model and produce an interactive HTML report (staging
+  the observational references, running the suites, and switching to a different
+  model).
 
 ## Known limitations
 

@@ -39,6 +39,9 @@ MANIFEST
 *.slurm
 *.sbatch
 *.err
+# ...but keep the committed example submission templates
+!examples/ocean/run.slurm
+!examples/legoesm/run.slurm
 *.out
 
 # Installer logs
@@ -224,3 +227,4 @@ __marimo__/
 /*.ddb
 /*.ddb.wal
 /*.html
+showcase_output/
