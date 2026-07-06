@@ -1,0 +1,63 @@
+- name: performance_metrics
+  diagnostic: climateeval.diags.simple.AnnualCycleSpatialDistribution
+  variables:
+    - id: tas-mon
+      var_name: tas
+      frequency: mon
+      timerange: 20150101/20221231
+      reference_data: climateeval.data.HadCRUT5
+      other_data: [climateeval.data.CMIP6SSP245R1I1P1F1]
+    # - id: tas-day
+    #   var_name: tas
+    #   frequency: day
+    #   timerange: 20150101/20181231
+    #   reference_data: climateeval.data.ERA5Daily
+    #   other_data: [climateeval.data.CMIP6SSP245R1I1P1F1]
+    - id: tos-mon
+      var_name: tos
+      frequency: mon
+      timerange: 20150101/20251231
+      reference_data: climateeval.data.EN4
+      other_data: [climateeval.data.CMIP6SSP245R1I1P1F1]
+    - id: pr-mon
+      var_name: pr
+      frequency: mon
+      timerange: 20150101/20231231
+      reference_data: climateeval.data.GPCP
+      other_data: [climateeval.data.CMIP6SSP245R1I1P1F1]
+    # - id: pr-day
+    #   var_name: pr
+    #   frequency: day
+    #   timerange: 20150101/20181231
+    #   reference_data: climateeval.data.ERA5Daily
+    #   other_data: [climateeval.data.CMIP6SSP245R1I1P1F1]
+    - id: rsut-mon
+      var_name: rsut
+      frequency: mon
+      timerange: 20150101/20241231
+      reference_data: climateeval.data.CERESEBAF
+      other_data: [climateeval.data.CMIP6SSP245R1I1P1F1]
+    - id: rsutcs-mon
+      var_name: rsutcs
+      frequency: mon
+      timerange: 20150101/20241231
+      reference_data: climateeval.data.CERESEBAF
+      other_data: [climateeval.data.CMIP6SSP245R1I1P1F1]
+    - id: rlut-mon
+      var_name: rlut
+      frequency: mon
+      timerange: 20150101/20241231
+      reference_data: climateeval.data.CERESEBAF
+      other_data: [climateeval.data.CMIP6SSP245R1I1P1F1]
+    - id: rlutcs-mon
+      var_name: rlutcs
+      frequency: mon
+      timerange: 20150101/20241231
+      reference_data: climateeval.data.CERESEBAF
+      other_data: [climateeval.data.CMIP6SSP245R1I1P1F1]
+    - id: siconc-mon
+      var_name: siconc
+      frequency: mon
+      timerange: 20150101/20211231
+      reference_data: climateeval.data.HadISST
+      other_data: [climateeval.data.CMIP6SSP245R1I1P1F1]
