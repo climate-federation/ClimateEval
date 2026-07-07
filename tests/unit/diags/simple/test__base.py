@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from climateeval import Coordinate, Variable
-from climateeval.data import ERA5, MERRA2, HadCRUT5
+from climateeval.data import MERRA2, ERA5Monthly, HadCRUT5
 from climateeval.diags.simple import (
     SimpleDiagnostic,
     SimpleDiagnosticInputData,
@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 
 
 class MockDiagnostic(SimpleDiagnostic):
-    _FINAL_COORDINATES = (Coordinate("lat"),)
+    _final_coordinates = (Coordinate("lat"),)
 
-    def _preprocess(self, cube: Cube) -> Cube:
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess cube."""
         return cube
 
@@ -30,13 +30,13 @@ class MockDiagnostic(SimpleDiagnostic):
 def diagnostic(
     variables_and_data_2d_with_other: dict[Variable, SimpleDiagnosticInputData],
 ) -> MockDiagnostic:
-    return MockDiagnostic(variables_and_data_2d_with_other)
+    return MockDiagnostic("mock_diagnostic", variables_and_data_2d_with_other)
 
 
 def test___init__(diagnostic: MockDiagnostic, temporary_data_root_dir: Path) -> None:
     assert diagnostic.data_root_dir == temporary_data_root_dir
     assert diagnostic._final_coordinate_names == ("latitude",)
-    assert diagnostic.name == "MockDiagnostic"
+    assert diagnostic.name == "mock_diagnostic"
 
     expected_variable = Variable("my_tas", "tas", "mon")
     assert diagnostic._variables == (expected_variable,)
@@ -46,7 +46,7 @@ def test___init__(diagnostic: MockDiagnostic, temporary_data_root_dir: Path) -> 
     assert len(diagnostic._other_data) == 1
     assert expected_variable in diagnostic._other_data
     assert len(diagnostic._other_data[expected_variable]) == 2
-    assert isinstance(diagnostic._other_data[expected_variable][0], ERA5)
+    assert isinstance(diagnostic._other_data[expected_variable][0], ERA5Monthly)
     assert isinstance(diagnostic._other_data[expected_variable][1], MERRA2)
 
 
@@ -56,7 +56,8 @@ def test_non_unique_variables_fail() -> None:
     data = SimpleDiagnosticInputData(reference=HadCRUT5)
     variables_and_data = {var_1: data, var_2: data}
     msg = (
-        r"Variable IDs must be unique for diagnostic MockDiagnostic, got ['tas', 'tas']"
+        r"Variable IDs must be unique for diagnostic 'mock_diagnostic', got "
+        r"['tas', 'tas']"
     )
     with pytest.raises(ValueError, match=re.escape(msg)):
-        MockDiagnostic(variables_and_data)
+        MockDiagnostic("mock_diagnostic", variables_and_data)

@@ -11,7 +11,7 @@ from climateeval.data._utils import DataSourceInformation
 class GPCP(ESMValToolIntakeDataSource):
     """Manage GPCP data."""
 
-    _INFORMATION = DataSourceInformation(
+    _information = DataSourceInformation(
         name="GPCP",
         category="observation",
         institute="NASA-GSFC",
@@ -21,7 +21,7 @@ class GPCP(ESMValToolIntakeDataSource):
         ),
     )
 
-    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]] = {
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
         "project": "obs4MIPs",
         "dataset": "GPCP-3-3",
     }

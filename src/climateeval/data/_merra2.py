@@ -39,7 +39,7 @@ VAR_TO_FILE: dict[str, str] = {
 class MERRA2(ESMValToolCMORizerDataSource):
     """Manage MERRA2 data."""
 
-    _INFORMATION = DataSourceInformation(
+    _information = DataSourceInformation(
         name="MERRA2",
         category="reanalysis",
         institute="NASA GMAO",
@@ -49,10 +49,10 @@ class MERRA2(ESMValToolCMORizerDataSource):
         ),
     )
 
-    SUPPORTED_VAR_NAMES = tuple(VAR_TO_FILE.keys())
-    TIER = 3
+    _supported_var_names = tuple(VAR_TO_FILE.keys())
+    _tier = 3
 
-    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:
         """Download data.
 
         Note
@@ -72,6 +72,8 @@ class MERRA2(ESMValToolCMORizerDataSource):
         An account can be registered at https://urs.earthdata.nasa.gov/.
 
         """
+        data_root_dir = Path(data_root_dir)
+
         self._check_supported_variables(variable)
 
         # Raw downloaded data by ESMValTool will be stored in temporary
@@ -83,7 +85,7 @@ class MERRA2(ESMValToolCMORizerDataSource):
         # downloader downloads all variables at once (takes lots of time)
         source = "https://goldsmr4.gesdisc.eosdis.nasa.gov/data/MERRA2_MONTHLY/"
         dataset_info = {
-            "tier": self.TIER,
+            "tier": self._tier,
             "source": source,
             "last_access": datetime.now(UTC),
             "info": "",

@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from importlib import resources
-from pathlib import Path
 from typing import TYPE_CHECKING
 
-import climateeval.diags._utils
 import pytest
-from climateeval import Variable
-from climateeval.data import ERA5, GPCP, MERRA2, DataSourceGenerator, HadCRUT5
-from climateeval.diags.simple import SimpleDiagnosticInputData
 
+import climateeval.diags._base
+from climateeval import Variable
 from tests.sample_data.create_sample_data_sources import (
     get_air_pressure_coord,
     get_altitude_coord,
@@ -18,19 +14,14 @@ from tests.sample_data.create_sample_data_sources import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from pathlib import Path
 
-    from climateeval.data import DataSource
     from iris.cube import Cube
 
 
 pytest.register_assert_rewrite("tests._utils")
+pytest.register_assert_rewrite("tests.integration")
 pytest.register_assert_rewrite("tests.unit")
-
-
-@pytest.fixture
-def sample_data_root_dir() -> Path:
-    return Path(str(resources.files("tests"))) / "sample_data" / "data_sources"
 
 
 @pytest.fixture(autouse=True)
@@ -45,33 +36,23 @@ def temporary_data_root_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
 
 
 @pytest.fixture
-def variables_and_data_2d() -> dict[Variable, SimpleDiagnosticInputData]:
-    return {
-        Variable("my_tas", "tas", "mon"): SimpleDiagnosticInputData(reference=HadCRUT5),
-        Variable("my_pr", "pr", "mon"): SimpleDiagnosticInputData(reference=GPCP),
-    }
+def variable_tas() -> Variable:
+    return Variable(
+        "my_tas",
+        "tas",
+        "mon",
+        diagnostic_kwargs={"bin_range": (250.0, 350.0)},
+    )
 
 
 @pytest.fixture
-def variables_and_data_2d_with_other() -> dict[Variable, SimpleDiagnosticInputData]:
-    class MockDataSourceGenerator(DataSourceGenerator):
-        def generate(self, _variable: Variable) -> Generator[DataSource]:
-            """Generate data sources."""
-            yield from (ERA5(),)
-
-    return {
-        Variable("my_tas", "tas", "mon"): SimpleDiagnosticInputData(
-            reference=HadCRUT5,
-            other=(MockDataSourceGenerator, MERRA2),
-        ),
-    }
+def variable_ta() -> Variable:
+    return Variable("ta", "ta", "mon", diagnostic_kwargs={"bin_range": (250.0, 350.0)})
 
 
 @pytest.fixture
-def variables_and_data_3d() -> dict[Variable, SimpleDiagnosticInputData]:
-    return {
-        Variable("ta", "ta", "mon"): SimpleDiagnosticInputData(reference=ERA5),
-    }
+def variable_pr() -> Variable:
+    return Variable("my_pr", "pr", "mon", diagnostic_kwargs={"bin_range": (0.0, 15.0)})
 
 
 @pytest.fixture

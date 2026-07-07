@@ -70,28 +70,30 @@ def _setup_esmvaltool_intake_data_source(cache_dir: Path) -> Generator[None]:
 class ESMValToolIntakeDataSource(DataSource):
     """Manage ESMValTool Intake-ESGF data source."""
 
-    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]]
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]]
     """Facets used to download data."""
 
     def __getattr__(self, name: str) -> Any:
         """Access attributes."""
-        if name == "ESMVALTOOL_DATASET_FACETS" and name not in self.__dict__:
+        if name == "esmvaltool_dataset_facets" and name not in self.__dict__:
             msg = (
                 "Child classes of 'ESMValToolIntakeDataSource' should define the class "
-                "variable 'ESMVALTOOL_DATASET_FACETS'"
+                "variable 'esmvaltool_dataset_facets'"
             )
             raise TypeError(msg)
         return super().__getattr__(name)
 
-    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:
         """Download data.
 
         See
         https://docs.esmvaltool.org/projects/ESMValCore/en/latest/quickstart/configure.html#data-sources.
 
         """
+        data_root_dir = Path(data_root_dir)
+
         facets = {"dataset": self.name}
-        facets.update(self.ESMVALTOOL_DATASET_FACETS)
+        facets.update(self.esmvaltool_dataset_facets)
 
         # Always read variable-related facets from variable
         facets.update(
@@ -109,7 +111,7 @@ class ESMValToolIntakeDataSource(DataSource):
             cube = Dataset(**facets).load()
 
         # Save file into data directory
-        data_dir = self._get_data_dir(data_root_dir, variable.var_name)
+        data_dir = self._get_data_dir(data_root_dir, variable)
         data_dir.mkdir(parents=True, exist_ok=True)
         output_path = data_dir / self._get_output_filename(cube, **facets)
         iris.save(cube, output_path)
@@ -120,15 +122,15 @@ class ESMValToolIntakeDataSource(DataSource):
 class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
     """Generate ESMValTool Intake-ESGF data sources."""
 
-    ESMVALTOOL_DATASET_FACETS: ClassVar[dict[str, Any]]
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]]
     """Facets used to generate data sources."""
 
     def __getattr__(self, name: str) -> Any:
         """Access attributes."""
-        if name == "ESMVALTOOL_DATASET_FACETS" and name not in self.__dict__:
+        if name == "esmvaltool_dataset_facets" and name not in self.__dict__:
             msg = (
                 "Child classes of 'ESMValToolIntakeDataSourceGenerator' should define "
-                "the class variable 'ESMVALTOOL_DATASET_FACETS'"
+                "the class variable 'esmvaltool_dataset_facets'"
             )
             raise TypeError(msg)
         return super().__getattribute__(name)
@@ -138,7 +140,7 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
         variable: Variable,
     ) -> Generator[ESMValToolIntakeDataSource]:
         """Generate data sources."""
-        facets = dict(self.ESMVALTOOL_DATASET_FACETS)
+        facets = dict(self.esmvaltool_dataset_facets)
         facets.update(
             {
                 "mip": variable.cmip6_table_id,
@@ -169,8 +171,8 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
                 f"{self.__class__.__name__}DataSource",
                 (ESMValToolIntakeDataSource,),
                 {
-                    "_INFORMATION": new_data_source_information,
-                    "ESMVALTOOL_DATASET_FACETS": new_esmvaltool_dataset_facets,
+                    "_information": new_data_source_information,
+                    "esmvaltool_dataset_facets": new_esmvaltool_dataset_facets,
                 },
             )
             yield new_data_source_cls()
@@ -189,7 +191,7 @@ def filter_intake_data_sources(
 
     For each group, at least one data source per required facet must be
     present. Otherwise, this group is filtered out. Data sources are identified
-    via their :attr:`~ESMValToolIntakeDataSource.ESMVALTOOL_DATASET_FACETS`
+    via their :attr:`~ESMValToolIntakeDataSource.esmvaltool_dataset_facets`
     attribute.
 
     Parameters
@@ -243,9 +245,9 @@ def filter_intake_data_sources(
     all_data_sources: dict[str, list[ESMValToolIntakeDataSource]] = defaultdict(list)
     for generator in generators:
         for data_source in generator:
-            if group_by in data_source.ESMVALTOOL_DATASET_FACETS:
+            if group_by in data_source.esmvaltool_dataset_facets:
                 all_data_sources[
-                    data_source.ESMVALTOOL_DATASET_FACETS[group_by]
+                    data_source.esmvaltool_dataset_facets[group_by]
                 ].append(
                     data_source,
                 )
@@ -255,7 +257,7 @@ def filter_intake_data_sources(
     for group, data_sources in all_data_sources.items():
         for required_facet_dict in required_facets:
             data_sources_facets = tuple(
-                {(f, d.ESMVALTOOL_DATASET_FACETS.get(f)) for f in required_facet_dict}
+                {(f, d.esmvaltool_dataset_facets.get(f)) for f in required_facet_dict}
                 for d in data_sources
             )
             required_facet_set = set(required_facet_dict.items())

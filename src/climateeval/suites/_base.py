@@ -11,7 +11,7 @@ import ibis
 import yaml
 from loguru import logger
 
-from climateeval._utils import str_to_class
+from climateeval._utils import str_to_object
 from climateeval.diags._base import Diagnostic
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ class Suite:
         """Initialize class instance."""
         self._suite_definition_file = self._get_suite_defintion_file(suite_definition)
         self._suite_definition = self._get_suite_defintion()
-        logger.info(f"Initializing evaluation suite {self.name}")
+        logger.info(f"Initializing evaluation suite '{self.name}'")
         if diagnostic_kwargs is None:
             diagnostic_kwargs = {}
         if variable_kwargs is None:
@@ -51,61 +51,105 @@ class Suite:
 
     def get_database(
         self,
-        data: CubeList | Dataset,
+        data: dict[str, CubeList | Dataset] | CubeList | Dataset,
         data_information: DataSourceInformation,
         *,
         database_resource: str = "duckdb://",
+        append: bool = False,
         **database_kwargs: Any,
     ) -> ibis.BaseBackend:
-        """Get database from evaluation suite."""
+        """Get database from evaluation suite.
+
+        Parameters
+        ----------
+        append:
+            If True, append results to an existing database instead of
+            failing when diagnostic schemas already exist.  Use this to
+            accumulate output from multiple model runs into one file.
+        """
         logger.debug(f"Using database {database_resource}")
 
         connection = ibis.connect(database_resource, **database_kwargs)
+        existing_schemas = set(connection.list_databases()) if append else set()
 
-        for diagnostic in self._get_diagnostics():
+        for diag_name, diag in self._get_diagnostics().items():
             logger.info(
-                f"Processing diagnostic {diagnostic.name} within suite {self.name}",
+                f"Processing diagnostic '{diag_name}' within suite '{self.name}'",
             )
-            output = diagnostic.get_output(data, data_information)
-            connection.create_database(diagnostic.name)
+            output = diag.get_output(data, data_information)
+
+            if diag_name not in existing_schemas:
+                connection.create_database(diag_name)
+
+            existing_tables = (
+                set(connection.list_tables(database=diag_name))
+                if diag_name in existing_schemas
+                else set()
+            )
+
             for output_field in fields(output):
                 table_name = output_field.name
                 table = getattr(output, table_name)
                 if table is None:
                     logger.debug(
-                        f"Table '{table_name}' of diagnostic {diagnostic.name} "
-                        f"within suite {self.name} contains no data",
+                        f"Table '{table_name}' of diagnostic '{diag_name}' "
+                        f"within suite '{self.name}' contains no data",
                     )
                     continue
-                connection.create_table(table_name, table, database=diagnostic.name)
+                if table_name in existing_tables:
+                    connection.insert(table_name, table, database=diag_name)
+                else:
+                    connection.create_table(table_name, table, database=diag_name)
             logger.info(
-                f"Created database for diagnostic {diagnostic.name} within suite "
-                f"{self.name} at {database_resource}",
+                f"Created database for diagnostic '{diag_name}' within suite "
+                f"'{self.name}' at {database_resource}",
             )
 
         return connection
 
-    def _get_diagnostics(self) -> list[Diagnostic]:
+    def _get_diagnostics(self) -> dict[str, Diagnostic]:
         """Get diagnostics to run."""
-        diagnostics: list[Diagnostic] = []
-        for diag_str, diag_settings in self._suite_definition.items():
-            diag_cls = str_to_class(diag_str)
+        diagnostics: dict[str, Diagnostic] = {}
+        for diag_index, diag_definition_ in enumerate(self._suite_definition):
+            diag_definition = dict(diag_definition_)
+            general_required_keys = ("name", "diagnostic")
+            for required_key in general_required_keys:
+                if required_key not in diag_definition:
+                    msg = (
+                        f"Expected key '{required_key}' in diagnostic located "
+                        f"at index {diag_index} in suite '{self.name}'"
+                    )
+                    raise KeyError(msg)
+
+            diag_name = diag_definition.pop("name")
+            diag_cls = str_to_object(diag_definition.pop("diagnostic"))
+
+            if diag_name in diagnostics:
+                msg = (
+                    f"Diagnostic names must be unique for suite '{self.name}', "
+                    f"got multiple diagnostics named '{diag_name}'"
+                )
+                raise ValueError(msg)
+
             if not issubclass(diag_cls, Diagnostic):
                 msg = (
-                    f"Diagnostic '{diag_str}' is not a valid diagnostic; should "
+                    f"Diagnostic '{diag_name}' is not a valid diagnostic; should "
                     f"be a subclass of climateeval.diags.simple.SimpleDiagnostic or "
                     f"climateeval.diags.copmlex.ComplexDiagnostic"
                 )
                 raise TypeError(msg)
+
             diag = diag_cls.from_suite_dict(
-                diag_settings,
+                diag_name,
+                diag_definition,
                 self._variable_kwargs,
                 **self._diagnostic_kwargs,
             )
-            diagnostics.append(diag)
+            diagnostics[diag_name] = diag
+
         return diagnostics
 
-    def _get_suite_defintion(self) -> dict[str, dict[str, Any] | None]:
+    def _get_suite_defintion(self) -> list[dict[str, Any]]:
         """Get suite definition."""
         with self._suite_definition_file.open("r", encoding="utf-8") as file:
             return yaml.safe_load(file)

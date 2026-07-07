@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -29,6 +29,7 @@ class VerticalLevel:
     coordinate_name: str
     units: str
     value: float
+    extrapolate: bool = field(default=False, repr=False, compare=False)
 
     def __str__(self) -> str:
         """Get human-readable string."""
@@ -47,10 +48,6 @@ class _NoLevel(VerticalLevel):
         """Get string representation."""
         return "NO_LEVEL"
 
-    def __str__(self) -> str:
-        """Get human-readable string."""
-        return ""
-
 
 NO_LEVEL = _NoLevel()
 """Represent no vertical level."""
@@ -61,12 +58,13 @@ class Coordinate:
     """Manage coordinates."""
 
     var_name: str
-    long_name: str = field(default="", init=False, repr=False, compare=False)
-    standard_name: str = field(default="", init=False, repr=False, compare=False)
-    units: str = field(default="", init=False, repr=False, compare=False)
+
+    # Fields that can be filled automatically if not set (additional metadata)
+    long_name: str = field(default="", repr=False, compare=False)
+    standard_name: str = field(default="", repr=False, compare=False)
+    units: str = field(default="", repr=False, compare=False)
     allowed_coordinates: tuple[Coordinate, ...] = field(
         default_factory=tuple,
-        init=False,
         repr=False,
         compare=False,
     )
@@ -80,10 +78,12 @@ class Coordinate:
         # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
         coord_info = COORDINATES[self.var_name]
         for key, val in coord_info.items():
+            if getattr(self, key):  # allow manually settings these
+                continue
             if key == "allowed_coordinates":
                 continue
             object.__setattr__(self, key, val)
-        if "allowed_coordinates" in coord_info:
+        if "allowed_coordinates" in coord_info and not self.allowed_coordinates:
             object.__setattr__(
                 self,
                 "allowed_coordinates",
@@ -107,8 +107,7 @@ class Variable:
     var_name: str = field(repr=False)
     frequency: str = field(repr=False)
 
-    # Settings
-    settings: dict[str, Any] = field(init=False, repr=False, compare=False)
+    # Custom preprocessing settings
     vertical_level: VerticalLevel = field(default=NO_LEVEL, repr=False, kw_only=True)
     min_lat: float = field(default=-90.0, repr=False, kw_only=True)
     max_lat: float = field(default=90.0, repr=False, kw_only=True)
@@ -122,15 +121,45 @@ class Variable:
     )
     timerange: str = field(default="*", repr=False, kw_only=True)
     units: str = field(default="", repr=False, kw_only=True)
-    anomaly: str = field(default="", repr=False, kw_only=True)
+    diagnostic_kwargs: dict[str, Any] = field(
+        default_factory=dict,
+        repr=False,
+        kw_only=True,
+        compare=False,
+    )
+    additional_preprocessors: dict[str, dict[str, Any]] = field(
+        default_factory=dict,
+        repr=False,
+        kw_only=True,
+        compare=False,
+    )
 
-    # Automatically filled fields
-    coordinates: tuple[Coordinate] = field(init=False, repr=False, compare=False)
-    derived: bool = field(default=False, init=False, repr=False, compare=False)
-    long_name: str = field(init=False, repr=False, compare=False)
-    realm: str = field(init=False, repr=False, compare=False)
-    standard_name: str = field(init=False, repr=False, compare=False)
-    cmip6_table_id: str = field(init=False, repr=False, compare=False)
+    # Reasonable values that can be used downstream code (like plotting)
+    reasonable_min: float = field(
+        default=np.nan,
+        repr=False,
+        kw_only=True,
+        compare=False,
+    )
+    reasonable_max: float = field(
+        default=np.nan,
+        repr=False,
+        kw_only=True,
+        compare=False,
+    )
+
+    # Fields that can be filled automatically if not set (additional metadata)
+    coordinates: tuple[Coordinate] = field(  # type: ignore[assignment]
+        default_factory=tuple,
+        repr=False,
+        compare=False,
+    )
+    derived: bool = field(default=False, repr=False, compare=False)
+    long_name: str = field(default="", repr=False, compare=False)
+    realm: str = field(default="", repr=False, compare=False)
+    standard_name: str = field(default="", repr=False, compare=False)
+    cmip6_table_id: str = field(default="", repr=False, compare=False)
+    ndim: int = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         """Initialize class instance."""
@@ -140,19 +169,37 @@ class Variable:
         var_info = VARIABLES[self.var_name]
 
         # See https://docs.python.org/3/library/dataclasses.html#frozen-instances
-        object.__setattr__(
-            self,
-            "coordinates",
-            tuple(Coordinate(c) for c in var_info["coordinates"]),
-        )
+        if not self.coordinates:
+            object.__setattr__(
+                self,
+                "coordinates",
+                tuple(Coordinate(c) for c in var_info["coordinates"]),
+            )
         for key, val in var_info.items():
+            if getattr(self, key):  # allow manually settings these
+                continue
             if key == "coordinates":
                 continue
-            if key == "units" and self.units != "":
-                continue
             object.__setattr__(self, key, val)
-        object.__setattr__(self, "settings", self._get_settings())
-        object.__setattr__(self, "cmip6_table_id", self._get_cmip6_table_id())
+        if not self.cmip6_table_id:
+            object.__setattr__(self, "cmip6_table_id", self._get_cmip6_table_id())
+        object.__setattr__(self, "ndim", len(self.coordinates))
+
+    def get_required_variables(self) -> tuple[Variable, ...]:
+        """Get variables necessary for derivation."""
+        if not self.derived:
+            return (self,)
+        with setup_esmvaltool_config_and_logging():
+            required_facets = get_required(self.var_name, "CMIP6")
+        return tuple(
+            Variable(
+                v["short_name"],
+                v["short_name"],
+                self.frequency,
+                **self.get_preprocessing_settings(),
+            )
+            for v in required_facets
+        )
 
     def _get_cmip6_table_id(self) -> str:
         """Get CMIP6 table ID.
@@ -166,45 +213,64 @@ class Variable:
         """
         if self.realm == "":
             return ""
+
         if self.realm == "atmos":
-            if self.frequency in ("3hr", "day", "fx"):
-                return self.frequency
-            if self.frequency == "mon":
-                return "Amon"
-        if self.realm == "ocean" and self.frequency in ("day", "fx", "mon", "yr"):
-            return f"O{self.frequency}"
-        if self.realm == "land" and self.frequency == "mon":
-            return "Lmon"
-        msg = (
+            table_id = self._get_atmos_cmip6_table_id()
+        else:
+            # Realms whose table ID is a fixed prefix plus the frequency, with
+            # the set of frequencies that actually have a table.
+            prefix_realms = {
+                "ocean": ("O", ("day", "fx", "mon", "yr")),
+                "ocnBgchem": ("O", ("day", "fx", "mon", "yr")),
+                "sea_ice": ("SI", ("day", "mon")),
+                "land": ("L", ("mon",)),
+            }
+            prefix, frequencies = prefix_realms.get(self.realm, ("", ()))
+            table_id = (
+                f"{prefix}{self.frequency}" if self.frequency in frequencies else ""
+            )
+
+        if table_id:
+            return table_id
+
+        logger.warning(
             f"Cannot determine CMIP6 table ID of {self}, this might be a problem "
-            f"for some data sources"
+            f"for some data sources",
         )
-        logger.warning(msg)
         return ""
 
-    def _get_settings(self) -> dict[str, Any]:
-        """Get settings."""
-        settings: dict[str, Any] = {}
-        for field_ in fields(self):
-            if field_.init and field_.kw_only:
-                settings[field_.name] = getattr(self, field_.name)
-        return settings
+    def _get_atmos_cmip6_table_id(self) -> str:
+        """Get CMIP6 table ID for atmospheric variables."""
+        if self.frequency == "1hr":
+            if self.var_name in ("pr", "prc"):
+                return "E1hr"
+            if self.var_name in ("ps", "tas"):
+                return "AERhr"
+        if self.frequency in ("3hr", "day", "fx"):
+            return self.frequency
+        if self.frequency == "mon":
+            return "Amon"
+        return ""
 
-    def get_required_variables(self) -> tuple[Variable, ...]:
-        """Get variables necessary for derivation."""
-        if not self.derived:
-            return (self,)
-        with setup_esmvaltool_config_and_logging():
-            required_facets = get_required(self.var_name, "CMIP6")
-        return tuple(
-            Variable(
-                v["short_name"],
-                v["short_name"],
-                self.frequency,
-                **self.settings,
-            )
-            for v in required_facets
+    def get_preprocessing_settings(self) -> dict[str, Any]:
+        """Get preprocessing settings."""
+        preprocessing_attributes = (
+            "vertical_level",
+            "min_lat",
+            "max_lat",
+            "min_lon",
+            "max_lon",
+            "landsea_mask",
+            "ar6_regions_mask",
+            "timerange",
+            "units",
+            "diagnostic_kwargs",
+            "additional_preprocessors",
         )
+        preprocessing_settings: dict[str, Any] = {}
+        for attribute in preprocessing_attributes:
+            preprocessing_settings[attribute] = getattr(self, attribute)
+        return preprocessing_settings
 
 
 def _read_coordinates() -> dict[str, dict[str, str | list[str]]]:

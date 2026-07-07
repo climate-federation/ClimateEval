@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 import ibis
 import iris
 import pandas as pd
+from ibis import _
 from iris.pandas import as_data_frame
 from loguru import logger
 
@@ -25,9 +26,6 @@ if TYPE_CHECKING:
     from climateeval.data import DataSourceInformation
 
 if TYPE_CHECKING:
-    from iris.cube import CubeList
-    from xarray import Dataset
-
     from climateeval.data import DataSourceInformation
 
 logger = logger.opt(colors=True)
@@ -39,19 +37,19 @@ _DEFAULT_DATA_ROOT_DIR: Path = Path.home() / ".climateeval" / "data"
 class Diagnostic(ABC):
     """Manage diagnostics."""
 
-    _DATA_ID_COLUMN: ClassVar[str] = "data_id"
+    _data_id_column: ClassVar[str] = "data_id"
     """Name of table column containing data ID."""
 
-    _REFERENCE_DATA_ID_COLUMN: ClassVar[str] = "reference_data_id"
+    _reference_data_id_column: ClassVar[str] = "reference_data_id"
     """Name of table column containing reference data ID."""
 
-    _DATA_TYPE_COLUMN: ClassVar[str] = "data_type"
+    _data_type_column: ClassVar[str] = "data_type"
     """Name of table column containing data type."""
 
-    _DTYPE: ClassVar[ibis.DataType] = "float32"
+    _dtype: ClassVar[ibis.DataType] = "float32"
     """Dtype of numerical values."""
 
-    _VARIABLE_ID_COLUMN: ClassVar[str] = "var_id"
+    _variable_id_column: ClassVar[str] = "var_id"
     """Name of table column containing variable ID."""
 
     # Attributes that subclass instances need to define
@@ -65,6 +63,9 @@ class Diagnostic(ABC):
     _fail_on_missing_data: bool
     """Fail on missing data."""
 
+    _name: str
+    """Diagnostic name."""
+
     @property
     def data_root_dir(self) -> Path:
         """Get path to data root directory."""
@@ -73,13 +74,14 @@ class Diagnostic(ABC):
     @property
     def name(self) -> str:
         """Get diagnostic name."""
-        return self.__class__.__name__
+        return self._name
 
     @classmethod
     @abstractmethod
     def from_suite_dict(
         cls,
-        suite_settings: dict[str, Any] | None,
+        name: str,
+        suite_settings: dict[str, Any],
         additional_variable_kwargs: dict[str, Any],
         **additional_diagnostic_kwargs: Any,
     ) -> Self:
@@ -88,15 +90,16 @@ class Diagnostic(ABC):
     @abstractmethod
     def get_output(
         self,
-        data: dict[str, CubeList | Dataset],
+        data: Any,  # type specified in subclasses
         data_information: DataSourceInformation,
     ) -> DiagnosticOutput:
         """Get diagnostic output."""
 
-    def _get_data_root_dir(self, data_root_dir: Path | None) -> Path:
+    def _get_data_root_dir(self, data_root_dir: Path | str | None) -> Path:
         """Get data root directory."""
         if data_root_dir is None:
             data_root_dir = _DEFAULT_DATA_ROOT_DIR
+        data_root_dir = Path(data_root_dir)
         data_root_dir.mkdir(parents=True, exist_ok=True)
         logger.debug(f"Using data root directory {data_root_dir}")
         return data_root_dir
@@ -125,30 +128,29 @@ class Diagnostic(ABC):
             df["time"] = df["time"].astype(str)
         raw_output_table = ibis.memtable(df)
         cast_operations = {
-            c: {"time": "timestamp(6)"}.get(c, self._DTYPE)
+            c: {"time": "timestamp(6)"}.get(c, self._dtype)
             for c in raw_output_table.columns
         }
         raw_output_table = raw_output_table.cast(**cast_operations)
         raw_output_table = raw_output_table.rename(**{variable.id: cube.name()})
         raw_output_table = raw_output_table.mutate(
-            **{self._DATA_ID_COLUMN: ibis.literal(data_id)},
+            **{self._data_id_column: ibis.literal(data_id)},
         )
         raw_output_table = raw_output_table.mutate(
-            **{self._DATA_TYPE_COLUMN: ibis.literal(data_type)},
+            **{self._data_type_column: ibis.literal(data_type)},
         )
         return raw_output_table  # noqa: RET504
 
     def _get_variables_table(self, variables: Iterable[Variable]) -> ibis.Table:
         """Get variables table."""
         df = pd.DataFrame(sorted(set(variables)))
-        df = df.drop("settings", axis=1)
         df["coordinates"] = df["coordinates"].map(
             lambda r: " ".join(c["var_name"] for c in r),
         )
         df["ar6_regions_mask"] = df["ar6_regions_mask"].map(" ".join)
 
         def vertical_level_dict_to_str(
-            vertical_level_dict: dict[str, str | float],
+            vertical_level_dict: dict[str, str | float | bool],
         ) -> str:
             """Convert vertical level dictionary to string."""
             if vertical_level_dict == asdict(NO_LEVEL):
@@ -158,7 +160,15 @@ class Diagnostic(ABC):
                 f"{vertical_level_dict['value']} {vertical_level_dict['units']}"
             )
 
+        def dict_to_str(dict_: dict[str, Any]) -> str:
+            """Convert dictionary to string."""
+            return " ".join(f"{k}={v}" for k, v in dict_.items())
+
         df["vertical_level"] = df["vertical_level"].map(vertical_level_dict_to_str)
+        df["diagnostic_kwargs"] = df["diagnostic_kwargs"].map(dict_to_str)
+        df["additional_preprocessors"] = df["additional_preprocessors"].map(
+            lambda r: " ".join(f"{p}: {dict_to_str(s)}" for p, s in r.items()),
+        )
         return ibis.memtable(df)
 
     def _handle_missing_data(
@@ -167,11 +177,45 @@ class Diagnostic(ABC):
         variables: Iterable[Variable],
         exception: Exception,
     ) -> None:
-        """Check if data is available."""
+        """Handle missing data."""
         msg = f"Failed to get data {data_id} for variable(s) {variables}: {exception}"
         if self._fail_on_missing_data:
             raise MissingDataError(msg) from exception
         logger.warning(msg)
+
+    def _remove_superfluous_rows(
+        self,
+        table: ibis.Table,
+        *,
+        unique_columns: Iterable[str],
+        variable_columns: Iterable[str],
+    ) -> ibis.Table:
+        """Drop superfluous rows by removing NaN entries.
+
+        Note
+        ----
+        Currently, we first add NaNs and then remove it again. The reason for
+        this is that the logic is simple and the code robust. There are
+        certainly smarter and more efficient ways to do this, but since our
+        tables are usually quite small, it's probably not necessary.
+
+        """
+        variable_columns = tuple(variable_columns)
+
+        # A variable may produce no data at all (e.g. the benchmarked dataset
+        # lacks it and its reference is unavailable). In that case the column is
+        # missing from the combined table; add it (filled with NaNs) so the
+        # output still has one column per variable.
+        missing_columns = tuple(c for c in variable_columns if c not in table.columns)
+        if missing_columns:
+            table = table.mutate(
+                **{c: ibis.literal(None).cast("float64") for c in missing_columns},
+            )
+
+        table = table.group_by(unique_columns).aggregate(
+            **{v: _[v].first() for v in variable_columns},
+        )
+        return table.drop_null(variable_columns, how="all")
 
 
 @dataclass(frozen=True, kw_only=True)

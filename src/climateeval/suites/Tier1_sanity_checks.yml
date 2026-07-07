@@ -1,0 +1,89 @@
+# Reasonable ranges are defined in Table 2 of
+# https://doi.org/10.5194/egusphere-2026-2288
+# Note: these values have been calculated for monthly-mean data
+- name: timeseries
+  diagnostic: climateeval.diags.simple.MeanTimeSeries
+  diagnostic_kwargs:
+    calculate_metrics: false
+  variables:
+    - id: asr
+      var_name: asr
+      frequency: mon
+      reasonable_min: 215.4
+      reasonable_max: 248.7
+    - id: clivi
+      var_name: clivi
+      frequency: mon
+      reasonable_min: 0.0290555
+      reasonable_max: 0.092597
+    - id: clt
+      var_name: clt
+      frequency: mon
+      reasonable_min: 58.7
+      reasonable_max: 74.9
+    - id: hfls
+      var_name: hfls
+      frequency: mon
+      reasonable_min: 76.4
+      reasonable_max: 92.3
+    - id: hfss
+      var_name: hfss
+      frequency: mon
+      reasonable_min: 15.8
+      reasonable_max: 21.5
+    - id: lwcre
+      var_name: lwcre
+      frequency: mon
+      reasonable_min: 23.6
+      reasonable_max: 30.5
+    - id: lwp
+      var_name: lwp
+      frequency: mon
+      reasonable_min: 0.0229
+      reasonable_max: 0.1569
+    - id: netcre
+      var_name: netcre
+      frequency: mon
+      reasonable_min: -47.1
+      reasonable_max: -12.3
+    - id: pr
+      var_name: pr
+      frequency: mon
+      units: mm day-1
+      reasonable_min: 2.50
+      reasonable_max: 3.21
+    - id: prw
+      var_name: prw
+      frequency: mon
+      reasonable_min: 22.3
+      reasonable_max: 28.7
+    - id: rlut
+      var_name: rlut
+      frequency: mon
+      reasonable_min: 226.4
+      reasonable_max: 246.3
+    - id: rtnt
+      var_name: rtnt
+      frequency: mon
+      reasonable_min: -22.7
+      reasonable_max: 13.4
+    - id: rsut
+      var_name: rsut
+      frequency: mon
+      reasonable_min: 91.1
+      reasonable_max: 128.8
+    - id: swcre
+      var_name: swcre
+      frequency: mon
+      reasonable_min: -73.5
+      reasonable_max: -40.6
+    - id: tas
+      var_name: tas
+      frequency: mon
+      reasonable_min: 283.9
+      reasonable_max: 293.7
+    - id: tauu
+      var_name: tauu
+      frequency: mon
+      reasonable_min: -0.0528
+      reasonable_max: 0.0198

@@ -1,0 +1,5 @@
+- name: annual_cycle
+  variables:
+    - id: tas
+      var_name: tas
+      frequency: mon

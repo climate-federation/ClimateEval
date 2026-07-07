@@ -20,13 +20,15 @@ from climateeval.diags.simple._base import SimpleDiagnostic
 if TYPE_CHECKING:
     from iris.cube import Cube
 
+    from climateeval import Variable
 
-class TimeSeries(SimpleDiagnostic):
-    """Manage timeseries diagnostics."""
 
-    _FINAL_COORDINATES = (Coordinate("time"),)
+class AnnualMeanTimeSeries(SimpleDiagnostic):
+    """Manage annual mean timeseries diagnostics."""
 
-    def _preprocess(self, cube: Cube) -> Cube:
+    _final_coordinates = (Coordinate("time"),)
+
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
             cube = regrid(
@@ -44,3 +46,31 @@ class TimeSeries(SimpleDiagnostic):
                 units=COORDINATES["time"]["units"],
             )
         return cube  # noqa: RET504
+
+
+class MeanTimeSeries(SimpleDiagnostic):
+    """Manage mean timeseries diagnostics."""
+
+    _final_coordinates = (Coordinate("time"),)
+
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
+        """Preprocess data."""
+        with setup_esmvaltool_config_and_logging():
+            cube = regrid(
+                cube,
+                DEFAULT_GRID,
+                "linear",
+                cache_weights=True,
+            )  # to ensure we are on a regular grid
+            cube = area_statistics(cube, "mean")
+        return cube  # noqa: RET504
+
+
+class TimeSeriesNoPreprocessing(SimpleDiagnostic):
+    """Manage timeseries diagnostics without preprocessing."""
+
+    _final_coordinates = (Coordinate("time"),)
+
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
+        """Preprocess data."""
+        return cube

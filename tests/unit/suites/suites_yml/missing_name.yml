@@ -1,0 +1,5 @@
+- diagnostic: climateeval.diags.simple.AnnualCycle
+  variables:
+    - id: tas
+      var_name: tas
+      frequency: mon

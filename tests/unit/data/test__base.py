@@ -4,6 +4,7 @@ import re
 from typing import TYPE_CHECKING
 
 import pytest
+
 from climateeval.data import DataSource
 
 if TYPE_CHECKING:
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class MockDataSource(DataSource):
-    def download(self, _variable: Variable, _data_root_dir: Path) -> list[Path]:
+    def download(self, _variable: Variable, _data_root_dir: Path | str) -> list[Path]:
         return []
 
 
@@ -24,7 +25,7 @@ class MockDataSource(DataSource):
             "information",
             TypeError,
             r"Child classes of 'DataSource' should define the class variable "
-            r"'_INFORMATION'",
+            r"'_information'",
         ),
         (
             "invalid_attribute",

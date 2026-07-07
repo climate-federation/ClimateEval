@@ -1,0 +1,2 @@
+- name: ecs
+  diagnostic: climateeval.diags.complex.ECS

@@ -3,9 +3,7 @@
 ---
 exclude: |
   (?x)^(
-    ecs_example.py|
-    example.py|
-    db.py
+    pixi.lock
   )$
 
 repos:
@@ -16,6 +14,7 @@ repos:
       - id: check-ast
       - id: check-case-conflict
       - id: check-merge-conflict
+      - id: check-illegal-windows-names
       - id: debug-statements
       - id: end-of-file-fixer
       - id: trailing-whitespace

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from pathlib import Path
 from pprint import pformat
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -14,7 +15,6 @@ from climateeval.exceptions import DownloadError
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from pathlib import Path
 
     from iris.cube import Cube, CubeList
     from xarray import Dataset
@@ -29,14 +29,14 @@ logger = logger.opt(colors=True)
 class DataSource(ABC):
     """Manage data source."""
 
-    _INFORMATION: ClassVar[DataSourceInformation]
+    _information: ClassVar[DataSourceInformation]
 
     def __getattr__(self, name: str) -> Any:
         """Access attributes."""
-        if name == "_INFORMATION" and name not in self.__dict__:
+        if name == "_information" and name not in self.__dict__:
             msg = (
                 "Child classes of 'DataSource' should define the class variable "
-                "'_INFORMATION'"
+                "'_information'"
             )
             raise TypeError(msg)
         return super().__getattribute__(name)
@@ -49,7 +49,7 @@ class DataSource(ABC):
     @property
     def information(self) -> DataSourceInformation:
         """Get data source information."""
-        return self._INFORMATION
+        return self._information
 
     @property
     def name(self) -> str:
@@ -57,20 +57,22 @@ class DataSource(ABC):
         return self.information.name
 
     @abstractmethod
-    def download(self, variable: Variable, data_root_dir: Path) -> list[Path]:
+    def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:
         """Download data."""
 
     def get_cube(
         self,
-        data_root_dir: Path,
+        data_root_dir: Path | str,
         variable: Variable,
         *,
         download_missing_data: bool = True,
     ) -> Cube:
         """Get data cube."""
         logger.debug(f"Loading {variable} of {self.id}")
+
+        data_root_dir = Path(data_root_dir)
         paths: list[Path] = list(
-            self._get_data_dir(data_root_dir, variable.var_name).glob("*.nc"),
+            self._get_data_dir(data_root_dir, variable).glob("*.nc"),
         )
         if paths:
             return get_prepared_cube(load_cubes(paths), variable)
@@ -122,9 +124,9 @@ class DataSource(ABC):
         cubes = load_cubes(paths)
         return get_prepared_cube(cubes, variable)
 
-    def _get_data_dir(self, data_root_dir: Path, var_name: str) -> Path:
+    def _get_data_dir(self, data_root_dir: Path, variable: Variable) -> Path:
         """Get data- and variable-specific subdirectory."""
-        return data_root_dir / self.id / var_name
+        return data_root_dir / self.id / variable.frequency / variable.var_name
 
     def _get_output_filename(self, cube: Cube, **facets: str) -> str:
         """Get output file name."""
@@ -161,7 +163,7 @@ class DataSource(ABC):
         paths: list[Path] = []
         for required_variable in variable.get_required_variables():
             paths_for_required_variable = list(
-                self._get_data_dir(data_root_dir, required_variable.var_name).glob(
+                self._get_data_dir(data_root_dir, required_variable).glob(
                     "*.nc",
                 ),
             )

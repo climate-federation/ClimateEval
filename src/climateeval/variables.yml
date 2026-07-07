@@ -194,32 +194,71 @@ zg:
   standard_name: geopotential_height
   units: m
 
+# Land
+# Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_land.json
+gpp:
+  coordinates: [time, lat, lon]
+  long_name: Carbon Mass Flux out of Atmosphere Due to Gross Primary Production on Land [kgC m-2 s-1]
+  realm: land
+  standard_name: gross_primary_productivity_of_biomass_expressed_as_carbon
+  units: kg m-2 s-1
+
 # Ocean
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_ocean.json
 so:
-  coordinates: [time, olevel, lon, lat]
+  coordinates: [time, olevel, lat, lon]
   long_name: Sea Water Salinity
   realm: ocean
   standard_name: sea_water_salinity
   units: "1E-03"
+mlotst:
+  coordinates: [time, lat, lon]
+  long_name: Ocean Mixed Layer Thickness Defined by Sigma T
+  realm: ocean
+  standard_name: ocean_mixed_layer_thickness_defined_by_sigma_t
+  units: m
+# msftmz/msftyz are inputs for the derived `amoc` variable (CMIP6 provides one
+# or the other depending on the model's ocean grid).
+msftmz:
+  coordinates: [time, basin, olevel, lat]
+  long_name: Ocean Meridional Overturning Mass Streamfunction
+  realm: ocean
+  standard_name: ocean_meridional_overturning_mass_streamfunction
+  units: kg s-1
+msftyz:
+  coordinates: [time, basin, olevel, lat]
+  long_name: Ocean Y Overturning Mass Streamfunction
+  realm: ocean
+  standard_name: ocean_y_overturning_mass_streamfunction
+  units: kg s-1
 phcint:
-  coordinates: [time, olevel, lon, lat]
+  coordinates: [time, olevel, lat, lon]
+  derived: true
   long_name: Integrated Ocean Heat Content from Potential Temperature
   realm: ocean
   standard_name: integral_wrt_depth_of_sea_water_potential_temperature_expressed_as_heat_content
   units: J m-2
 thetao:
-  coordinates: [time, olevel, lon, lat]
+  coordinates: [time, olevel, lat, lon]
   long_name: Sea Water Potential Temperature
   realm: ocean
   standard_name: sea_water_potential_temperature
   units: degC
 tos:
-  coordinates: [time, lon, lat]
+  coordinates: [time, lat, lon]
   long_name: Sea Surface Temperature
   realm: ocean
   standard_name: sea_surface_temperature
   units: degC
+
+# Ocean biogeochemistry
+# Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_ocnBgchem.json
+chl:
+  coordinates: [time, olevel, lat, lon]
+  long_name: Mass Concentration of Total Phytoplankton Expressed as Chlorophyll in Sea Water
+  realm: ocnBgchem
+  standard_name: mass_concentration_of_phytoplankton_expressed_as_chlorophyll_in_sea_water
+  units: kg m-3
 
 # Sea Ice
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_sea_ice.json
@@ -267,6 +306,13 @@ netcre:
   realm: atmos
   standard_name: ""
   units: W m-2
+qep:
+  coordinates: [time, lat, lon]
+  derived: true
+  long_name: Net moisture flux into atmosphere
+  realm: atmos
+  standard_name: ""
+  units: kg m-2 s-1
 rtnt:
   coordinates: [time, lat, lon]
   derived: true

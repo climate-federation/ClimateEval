@@ -19,13 +19,15 @@ from climateeval.diags.simple._base import SimpleDiagnostic
 if TYPE_CHECKING:
     from iris.cube import Cube
 
+    from climateeval import Variable
+
 
 class ZonalProfileAirPressure(SimpleDiagnostic):
     """Manage zonal profile diagnostics."""
 
-    _FINAL_COORDINATES = (Coordinate("plev"), Coordinate("lat"))
+    _final_coordinates = (Coordinate("plev"), Coordinate("lat"))
 
-    def _preprocess(self, cube: Cube) -> Cube:
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
             cube = extract_levels(

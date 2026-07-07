@@ -1,0 +1,10 @@
+,data_id,data_type,time,mypr,ta1000
+0,C_N_E_V,to_benchmark,1970-07-01,,2.5
+1,C_N_E_V,to_benchmark,1971-07-01,8500,14.5
+2,C_N_E_V,to_benchmark,1972-07-01,14500,
+3,observation_GPCP,reference,1971-07-01,17000,
+4,observation_GPCP,reference,1972-07-01,29000,
+5,reanalysis_ERA5,other,1971-07-01,8500,
+6,reanalysis_ERA5,other,1972-07-01,14500,
+7,reanalysis_ERA5,reference,1970-07-01,,5
+8,reanalysis_ERA5,reference,1971-07-01,,29
