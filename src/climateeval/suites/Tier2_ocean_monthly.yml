@@ -141,3 +141,31 @@
     - *chl
     - *tos
     - *sos
+
+- name: gulf_stream_ssh
+  diagnostic: climateeval.diags.simple.GulfStreamSshGradient
+  variables:
+    - id: ssh_gulf_stream
+      var_name: zos
+      frequency: mon
+      reference_data: climateeval.data.ORAS5
+      # min_lat: 20.0
+      # max_lat: 65.0
+      # min_lon: -100.0
+      # max_lon: -10.0
+
+- name: acc_transport_drake
+  diagnostic: climateeval.diags.simple.ACCTransportZonalTransect
+  variables:
+    - id: uo_acc
+      var_name: uo
+      frequency: mon
+      reference_data: climateeval.data.ORAS5
+
+- name: atlantic_heat_transport_26n
+  diagnostic: climateeval.diags.simple.OceanHeatTransportProfile
+  variables:
+    - id: oht_atlantic
+      var_name: hfbasin
+      frequency: mon
+      reference_data: climateeval.data.ORAS5

@@ -77,34 +77,51 @@ MODEL_INFO = DataSourceInformation(
 # because its reference (RAPID) only starts in 2004.
 # ---------------------------------------------------------------------------
 RUNS = (
-    (
-        "Tier2_seaice_monthly",
-        (("siconc", "SImon"),),
-        "19970101/20091231",
-        "seaice.ddb",
-    ),
-    (
-        "Tier2_ocean_monthly",
-        (("tos", "Omon"), ("so", "Omon"), ("thetao", "Omon")),
-        "19790101/19891231",
-        "ocean_ohc.ddb",
-    ),
+    # (
+    #     "Tier2_seaice_monthly",
+    #     (("siconc", "SImon"),),
+    #     "19970101/20091231",
+    #     "seaice.ddb",
+    # ),
+    # (
+    #     "Tier2_ocean_monthly",
+    #     (("tos", "Omon"), ("so", "Omon"), ("thetao", "Omon")),
+    #     "19790101/19891231",
+    #     "ocean_ohc.ddb",
+    # ),
+    # (
+    #     "Tier2_ocean_monthly",
+    #     (
+    #         ("chl", "Omon"),
+    #         ("tos", "Omon"),
+    #         ("so", "Omon"),
+    #         ("mlotst", "Omon"),
+    #         ("zos", "Omon"),
+    #     ),
+    #     "19970101/20001231",
+    #     "ocean_sst.ddb",
+    # ),
+    # (
+    #     "Tier2_ocean_monthly",
+    #     (("msftmz", "Omon"),),
+    #     "20040101/20141231",
+    #     "ocean_amoc.ddb",
+    # ),
     (
         "Tier2_ocean_monthly",
         (
-            ("chl", "Omon"),
             ("tos", "Omon"),
+            ("thetao", "Omon"),
+            ("siconc", "SImon"),
             ("so", "Omon"),
             ("mlotst", "Omon"),
+            ("zos", "Omon"),
+            ("msftmz", "Omon"),
+            ("uo", "Omon"),
+            ("hfbasin", "Omon"),
         ),
-        "19970101/20091231",
-        "ocean_sst.ddb",
-    ),
-    (
-        "Tier2_ocean_monthly",
-        (("msftmz", "Omon"),),
-        "20040101/20141231",
-        "ocean_amoc.ddb",
+        "19800101/19841231",
+        "ocean_add.ddb",
     ),
 )
 
@@ -115,8 +132,11 @@ def model_files(var: str, mip: str) -> list[str]:
     pattern = f"{MODEL_VERSION}/{var}_{mip}_*.nc"
     files = sorted(str(path) for path in base.glob(pattern))
     if not files:
-        msg = f"No model files found for '{var}' ({mip}): {base / pattern}"
-        raise FileNotFoundError(msg)
+        pattern = f"*/{var}_{mip}_*.nc"
+        files = sorted(str(path) for path in base.glob(pattern))
+        if not files:
+            msg = f"No model files found for '{var}' ({mip}): {base / pattern}"
+            raise FileNotFoundError(msg)
     return files
 
 

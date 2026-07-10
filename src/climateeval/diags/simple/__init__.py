@@ -16,6 +16,9 @@ from climateeval.diags.simple._annual_cycle_spatial_distribution import (
 )
 from climateeval.diags.simple._base import SimpleDiagnostic
 from climateeval.diags.simple._diurnal_cycle import DiurnalCycle
+from climateeval.diags.simple._gulf_stream import GulfStreamSshGradient
+from climateeval.diags.simple._acc_transport import ACCTransportZonalTransect
+from climateeval.diags.simple._heat_transport import OceanHeatTransportProfile
 from climateeval.diags.simple._histogram import Histogram
 from climateeval.diags.simple._map import Map
 from climateeval.diags.simple._nino34 import Nino34
@@ -39,6 +42,9 @@ __all__ = [
     "AnnualCycleSpatialDistribution",
     "AnnualMeanTimeSeries",
     "DiurnalCycle",
+    "GulfStreamSshGradient",
+    "ACCTransportZonalTransect",
+    "OceanHeatTransportProfile",
     "Histogram",
     "Map",
     "MeanTimeSeries",

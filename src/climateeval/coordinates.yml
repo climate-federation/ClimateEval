@@ -19,6 +19,14 @@ lev:
   long_name: ocean depth coordinate
   standard_name: depth
   units: m
+Vertical T levels:
+  long_name: ocean depth coordinate
+  standard_name: depth
+  units: m
+depth:
+  long_name: ocean depth coordinate
+  standard_name: depth
+  units: m
 lon:
   long_name: Longitude
   standard_name: longitude
@@ -45,3 +53,4 @@ alevel:
 olevel:
   allowed_coordinates:
     - lev
+    - depth

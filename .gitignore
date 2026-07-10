@@ -220,6 +220,7 @@ __marimo__/
 
 # pixi environments
 .pixi/*
+*pixi*
 !.pixi/config.toml
 
 # Output files
