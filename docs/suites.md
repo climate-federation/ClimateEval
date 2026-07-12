@@ -126,6 +126,7 @@ order to diagnose a model from the basics upward:
 | `Tier3_dynamics` | Tropical convection (Hovmöller / MJO) and the stratospheric QBO. |
 | `Tier3_atmosphere_subdaily` | Sub-daily precipitation: diurnal cycle and intensity histograms. |
 | `Tier3_ecs` | Effective climate sensitivity from abrupt-4xCO2 / piControl experiments. |
+| `Tier3_forced_response` | Equilibrium forced responses (land-ocean warming ratio, Arctic amplification) from abrupt-4xCO2 / piControl. |
 
 Open the corresponding file in
 [`src/climateeval/suites/`](../src/climateeval/suites/) to see the exact
@@ -139,7 +140,8 @@ Use these class paths in the `diagnostic:` field. **Simple** diagnostics
 `DiurnalCycle`, `Histogram`, `Hovmoller`, `QBO`, `Nino34`,
 `SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `AMOCTimeSeries`,
 `OceanHeatContentTimeSeries`. **Complex** diagnostics
-(`climateeval.diags.complex.*`): `ECS`, `TEMDiagnostic`.
+(`climateeval.diags.complex.*`): `ECS`, `TEMDiagnostic`,
+`LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`.
 
 How each renders in a report (and its coordinate columns) is summarised in
 [Reporting](reporting.md#figure-types).

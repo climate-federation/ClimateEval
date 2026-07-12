@@ -82,7 +82,7 @@ tests/                        # unit/ + integration/ + sample_data/
 
 - `_base.py` - Abstract `Diagnostic` class with the `DiagnosticOutput` dataclass (fields `raw_output`, `metrics`, `variables`, `data_sources` as Ibis tables; `union()` merges outputs). `get_output(data, data_information)` is the entry point.
 - `simple/` - `SimpleDiagnostic` base + the simple diagnostics: `Map`, `ZonalLine`, `ZonalProfileAirPressure`, `AnnualMeanTimeSeries`, `MeanTimeSeries`, `TimeSeriesNoPreprocessing`, `AnnualCycle`, `AnnualCycleSpatialDistribution`, `DiurnalCycle`, `Histogram`, `Hovmoller`, `QBO`, `Nino34`, `SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `AMOCTimeSeries`, `OceanHeatContentTimeSeries`.
-- `complex/` - `ComplexDiagnostic` base + `ECS`, `TEMDiagnostic`.
+- `complex/` - `ComplexDiagnostic` base + `ECS`, `TEMDiagnostic`, `LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`.
 
 ### Suites (`src/climateeval/suites/`)
 
