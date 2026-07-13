@@ -204,6 +204,12 @@ so:
   realm: ocean
   standard_name: sea_water_salinity
   units: "1E-03"
+hfbasin:
+  coordinates: [time, basin, lat]
+  long_name: Northward Ocean Heat Transport
+  realm: ocean
+  standard_name: northward_ocean_heat_transport
+  units: W
 mlotst:
   coordinates: [time, lat, lon]
   long_name: Ocean Mixed Layer Thickness Defined by Sigma T
@@ -243,6 +249,18 @@ tos:
   realm: ocean
   standard_name: sea_surface_temperature
   units: degC
+uo:
+  coordinates: [time, olevel, lat, lon]
+  long_name: Sea Water X Velocity
+  realm: ocean
+  standard_name: sea_water_x_velocity
+  units: m s-1
+zos:
+  coordinates: [time, lat, lon]
+  long_name: Sea Surface Height Above Geoid
+  realm: ocean
+  standard_name: sea_surface_height_above_geoid
+  units: m
 
 # Ocean biogeochemistry
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_ocnBgchem.json
