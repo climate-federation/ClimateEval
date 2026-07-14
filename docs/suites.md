@@ -127,6 +127,7 @@ order to diagnose a model from the basics upward:
 | `Tier3_atmosphere_subdaily` | Sub-daily precipitation: diurnal cycle and intensity histograms. |
 | `Tier3_ecs` | Effective climate sensitivity from abrupt-4xCO2 / piControl experiments. |
 | `Tier3_forced_response` | Equilibrium forced responses (land-ocean warming ratio, Arctic amplification) from abrupt-4xCO2 / piControl. |
+| `Tier3_transport` | Implied meridional heat transport partitioning (atmosphere vs ocean) from a piControl run. |
 
 Open the corresponding file in
 [`src/climateeval/suites/`](../src/climateeval/suites/) to see the exact

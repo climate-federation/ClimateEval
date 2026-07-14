@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 from esmvalcore.preprocessor import (
@@ -10,23 +10,32 @@ from esmvalcore.preprocessor import (
     regrid,
     zonal_statistics,
 )
-from iris.cube import Cube
+from iris.cube import Cube, CubeList
+from loguru import logger
 
 from climateeval import Variable
 from climateeval._config import (
     setup_esmvaltool_config_and_logging,
+    setup_iris_combine_policy,
 )
 from climateeval._utils import get_prepared_cube
+from climateeval.data import (
+    CMIP6PiControlR1I1P1F1,
+    ComplexDataSource,
+    DataSourceInformation,
+)
+from climateeval.data._esmvaltool_intake import filter_intake_data_sources
 from climateeval.diags._base import DiagnosticOutput
 from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.complex._base import ComplexDiagnostic
 
 if TYPE_CHECKING:
-    from iris.cube import CubeList
+    from collections.abc import Generator
+
     from xarray import Dataset
 
-    from climateeval.data import ComplexDataSource
 
+logger = logger.opt(colors=True)
 
 EARTH_RADIUS_M = 6.371e6
 
@@ -76,9 +85,20 @@ class MeridionalHeatTransport(ComplexDiagnostic):
     magnitudes (PW) and latitudes of both components — observed benchmarks
     are an OMET peak of 1.5-2.0 PW near 15-20 degN and an AMET peak of 4-5 PW
     near 45 degN (ECCO/ERA5).
+
+    Additional keyword arguments
+    ----------------------------
+    amet_search_band: tuple[float, float] (default: (25.0, 55.0))
+        NH latitude band (degrees north) searched for the AMET peak.
+    omet_search_band: tuple[float, float] (default: (5.0, 30.0))
+        NH latitude band (degrees north) searched for the OMET peak.
+
     """
 
     _required_data_keys = ("picontrol",)
+
+    _default_amet_search_band: ClassVar[tuple[float, float]] = (25.0, 55.0)
+    _default_omet_search_band: ClassVar[tuple[float, float]] = (5.0, 30.0)
 
     # Input variables (piControl monthly means)
     _input_variables: ClassVar[tuple[Variable, ...]] = (
@@ -107,6 +127,16 @@ class MeridionalHeatTransport(ComplexDiagnostic):
         "fx",
     )
 
+    def __init__(self, name: str, **kwargs: Any) -> None:
+        """Initialize class instance."""
+        super().__init__(name, **kwargs)
+        self._amet_search_band: tuple[float, float] = tuple(
+            self._kwargs.get("amet_search_band", self._default_amet_search_band),
+        )
+        self._omet_search_band: tuple[float, float] = tuple(
+            self._kwargs.get("omet_search_band", self._default_omet_search_band),
+        )
+
     def _calculate_raw_output(
         self,
         complex_data_source: ComplexDataSource,
@@ -132,8 +162,8 @@ class MeridionalHeatTransport(ComplexDiagnostic):
         amet = implied_meridional_transport(toa_net - sfc_net, latitudes) / 1e15
         omet = implied_meridional_transport(sfc_net, latitudes) / 1e15
 
-        amet_peak, amet_lat = self._nh_peak(amet, latitudes, 25.0, 55.0)
-        omet_peak, omet_lat = self._nh_peak(omet, latitudes, 5.0, 30.0)
+        amet_peak, amet_lat = self._nh_peak(amet, latitudes, *self._amet_search_band)
+        omet_peak, omet_lat = self._nh_peak(omet, latitudes, *self._omet_search_band)
 
         return {
             self._amet_peak: Cube(amet_peak, var_name="amet_peak"),
@@ -164,6 +194,50 @@ class MeridionalHeatTransport(ComplexDiagnostic):
             return float("nan"), float("nan")
         idx = int(np.nanargmax(np.where(mask, profile, -np.inf)))
         return float(profile[idx]), float(latitudes[idx])
+
+    def _get_other_data(self) -> Generator[ComplexDataSource]:
+        """Get the CMIP6 r1i1p1f1 piControl reference ensemble (as in ECS)."""
+        logger.debug(f"Retrieving other data for complex diagnostic '{self.name}'")
+        variables = self._input_variables
+        generators = [CMIP6PiControlR1I1P1F1().generate(var) for var in variables]
+        grouped_data_sources = filter_intake_data_sources(
+            *generators,
+            group_by="dataset",
+            required_facets=tuple(
+                {"exp": "piControl", "short_name": var.var_name} for var in variables
+            ),
+        )
+        for dataset, data_sources in grouped_data_sources.items():
+            logger.debug(f"Found other data of CMIP6 model {dataset}")
+            data_source = next(
+                d
+                for d in data_sources
+                if d.__class__.__name__ == "CMIP6PiControlR1I1P1F1DataSource"
+            )
+            data_information = DataSourceInformation(
+                name=dataset,
+                category=data_source.information.category,
+                institute=data_source.information.institute,
+                exp="piControl",
+                variant=data_source.information.variant,
+                references=data_source.information.references,
+            )
+            with setup_iris_combine_policy():
+                try:
+                    data = {
+                        "picontrol": CubeList(
+                            data_source.get_cube(
+                                self.data_root_dir,
+                                var,
+                                download_missing_data=self._download_missing_data,
+                            )
+                            for var in variables
+                        ),
+                    }
+                except Exception as exc:  # noqa: BLE001
+                    self._handle_missing_data(data_source.id, variables, exc)
+                    continue
+            yield ComplexDataSource(data=data, information=data_information)
 
     def _postprocess_output(self, output: DiagnosticOutput) -> DiagnosticOutput:
         """Postprocess diagnostic output."""

@@ -106,16 +106,26 @@ def test_arctic_amplification_polar_warming() -> None:
     assert raw["arctic_amplification"] > 1.5
 
 
-def test_land_ocean_warming_ratio_runs_and_orders_columns() -> None:
+def test_land_ocean_warming_ratio_is_mask_sensitive() -> None:
+    """NH-weighted warming warms the (land-heavy) NH more, so land > ocean.
+
+    A warming anomaly that increases linearly northward puts more warming
+    over the land-heavy Northern Hemisphere, giving a ratio distinctly above
+    1 — and below 1 if the land and sea masks were swapped. A uniform field
+    (ratio == 1) would not constrain the mask orientation.
+    """
+
     def warmed(n_time: int, lats: np.ndarray, lons: np.ndarray) -> np.ndarray:
-        return np.full((n_time, lats.size, lons.size), 291.0)
+        base = np.full((n_time, lats.size, lons.size), 288.0)
+        anomaly = ((lats + 90.0) / 180.0 * 6.0)[None, :, None]  # 0 K @ SP, 6 K @ NP
+        return base + anomaly
 
     data = {
         "picontrol": CubeList([_monthly_cube("tas", "K", _constant(288.0))]),
         "4xco2": CubeList([_monthly_cube("tas", "K", warmed)]),
     }
     diag = LandOceanWarmingRatio(
-        "low_ratio",
+        "lo_ratio",
         fail_on_missing_data=True,
         equilibrium_years=10,
     )
@@ -129,8 +139,22 @@ def test_land_ocean_warming_ratio_runs_and_orders_columns() -> None:
         "delta_t_land",
         "delta_t_ocean",
     ]
-    # Uniform warming -> ratio 1
-    assert raw.iloc[0]["land_ocean_warming_ratio"] == pytest.approx(1.0, abs=0.05)
+    row = raw.iloc[0]
+    assert row["delta_t_land"] > row["delta_t_ocean"]
+    assert row["land_ocean_warming_ratio"] > 1.1
+
+
+def test_forced_response_rejects_run_shorter_than_equilibrium() -> None:
+    """A run shorter than equilibrium_years must fail, not silently truncate."""
+    data = {
+        "picontrol": CubeList([_monthly_cube("tas", "K", _constant(288.0))]),
+        "4xco2": CubeList([_monthly_cube("tas", "K", _constant(291.0))]),
+    }
+    # The synthetic run spans N_YEARS, fewer than the default 50 equilibrium
+    # years, so the diagnostic must refuse rather than average the short run.
+    diag = LandOceanWarmingRatio("too_short", fail_on_missing_data=True)
+    with pytest.raises(ValueError, match="equilibrium"):
+        diag.get_output(data, _info())
 
 
 def test_meridional_heat_transport_balanced_control() -> None:
@@ -169,5 +193,19 @@ def test_meridional_heat_transport_balanced_control() -> None:
     assert output.raw_output is not None
     raw = output.raw_output.to_pandas().iloc[0]
     assert raw["amet_peak"] > 1.0  # PW
-    assert 25.0 <= raw["amet_peak_lat"] <= 55.0
+    # F = A(cos(phi) - pi/4) implies a transport peaking analytically near
+    # 37 degN; asserting a band tighter than the (25, 55) search window is a
+    # genuine constraint, not the tautology of landing inside the search band.
+    assert 30.0 <= raw["amet_peak_lat"] <= 44.0
     assert abs(raw["omet_peak"]) < 0.2  # no surface flux -> no ocean transport
+
+
+def test_meridional_heat_transport_search_bands_are_configurable() -> None:
+    """The AMET/OMET peak-search bands are exposed as kwargs."""
+    diag = MeridionalHeatTransport(
+        "mht_bands",
+        amet_search_band=(30.0, 40.0),
+        omet_search_band=(0.0, 10.0),
+    )
+    assert diag._amet_search_band == (30.0, 40.0)
+    assert diag._omet_search_band == (0.0, 10.0)
