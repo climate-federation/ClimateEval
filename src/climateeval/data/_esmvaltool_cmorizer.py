@@ -9,8 +9,12 @@ from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from esmvalcore.config import CFG
-from esmvaltool.cmorizers.data.cmorizer import DataCommand
+try:
+    from esmvalcore.config import CFG
+    from esmvaltool.cmorizers.data.cmorizer import DataCommand
+except ImportError:
+    CFG = None
+    DataCommand = None  # esmvaltool not installed; CMORizer sources unavailable
 from loguru import logger
 
 from climateeval import Variable

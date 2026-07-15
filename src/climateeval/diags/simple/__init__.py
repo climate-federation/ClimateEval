@@ -16,7 +16,7 @@ from climateeval.diags.simple._annual_cycle_spatial_distribution import (
 )
 from climateeval.diags.simple._base import SimpleDiagnostic
 from climateeval.diags.simple._diurnal_cycle import DiurnalCycle
-from climateeval.diags.simple._histogram import Histogram
+from climateeval.diags.simple._chl_bgc import ChlBGCEvaluation
 from climateeval.diags.simple._map import Map
 from climateeval.diags.simple._nino34 import Nino34
 from climateeval.diags.simple._ohc import OceanHeatContentTimeSeries
@@ -36,6 +36,7 @@ from climateeval.diags.simple._zonal_profile import ZonalProfileAirPressure
 __all__ = [
     "AMOCTimeSeries",
     "AnnualCycle",
+    "ChlBGCEvaluation",
     "AnnualCycleSpatialDistribution",
     "AnnualMeanTimeSeries",
     "DiurnalCycle",

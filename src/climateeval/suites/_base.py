@@ -77,16 +77,10 @@ class Suite:
                 f"Processing diagnostic '{diag_name}' within suite '{self.name}'",
             )
             output = diag.get_output(data, data_information)
-
-            if diag_name not in existing_schemas:
+            try:
                 connection.create_database(diag_name)
-
-            existing_tables = (
-                set(connection.list_tables(database=diag_name))
-                if diag_name in existing_schemas
-                else set()
-            )
-
+            except Exception:
+                pass  # schema already exists from previous model
             for output_field in fields(output):
                 table_name = output_field.name
                 table = getattr(output, table_name)
@@ -96,10 +90,10 @@ class Suite:
                         f"within suite '{self.name}' contains no data",
                     )
                     continue
-                if table_name in existing_tables:
-                    connection.insert(table_name, table, database=diag_name)
-                else:
+                try:
                     connection.create_table(table_name, table, database=diag_name)
+                except Exception:
+                    connection.insert(table_name, table, database=diag_name)
             logger.info(
                 f"Created database for diagnostic '{diag_name}' within suite "
                 f"'{self.name}' at {database_resource}",

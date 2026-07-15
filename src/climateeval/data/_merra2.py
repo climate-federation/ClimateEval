@@ -7,7 +7,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from esmvaltool.cmorizers.data.downloaders.wget import NASADownloader
+try:
+    from esmvaltool.cmorizers.data.downloaders.wget import NASADownloader
+except ImportError:
+    NASADownloader = None  # esmvaltool not installed
 
 from climateeval.data._esmvaltool_cmorizer import ESMValToolCMORizerDataSource
 from climateeval.data._utils import DataSourceInformation

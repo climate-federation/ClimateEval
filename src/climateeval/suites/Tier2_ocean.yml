@@ -1,14 +1,47 @@
-climateeval.diags.simple.AnnualCycle: &2d_variables
-  chl:
-    var_name: chl
-    frequency: mon
-    reference_data: climateeval.data.ESACCIOC
-    
-climateeval.diags.simple.AnnualCycleSpatialDistribution: *2d_variables
+- name: annual_cycle
+  diagnostic: climateeval.diags.simple.AnnualCycle
+  variables:
+    - id: chl
+      var_name: chl
+      frequency: mon
+      reference_data: climateeval.data.ESACCIOC
 
-climateeval.diags.simple.Map: *2d_variables
+- name: annual_cycle_spatial_distribution
+  diagnostic: climateeval.diags.simple.AnnualCycleSpatialDistribution
+  variables:
+    - id: chl
+      var_name: chl
+      frequency: mon
+      reference_data: climateeval.data.ESACCIOC
 
-climateeval.diags.simple.TimeSeries: *2d_variables
+- name: map
+  diagnostic: climateeval.diags.simple.Map
+  variables:
+    - id: chl
+      var_name: chl
+      frequency: mon
+      reference_data: climateeval.data.ESACCIOC
 
-climateeval.diags.simple.ZonalLine: *2d_variables
+- name: timeseries
+  diagnostic: climateeval.diags.simple.MeanTimeSeries
+  variables:
+    - id: chl
+      var_name: chl
+      frequency: mon
+      reference_data: climateeval.data.ESACCIOC
 
+- name: zonal_line
+  diagnostic: climateeval.diags.simple.ZonalLine
+  variables:
+    - id: chl
+      var_name: chl
+      frequency: mon
+      reference_data: climateeval.data.ESACCIOC
+
+- name: chl_bgc_evaluation
+  diagnostic: climateeval.diags.simple.ChlBGCEvaluation
+  variables:
+    - id: chl
+      var_name: chl
+      frequency: mon
+      reference_data: climateeval.data.ESACCIOC
