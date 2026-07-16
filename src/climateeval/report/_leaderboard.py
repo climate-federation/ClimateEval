@@ -149,7 +149,7 @@ def _render_detail_table(detail_df: pd.DataFrame, table_id: str) -> str:
 
 def build_scoreboard_figure(
     all_metrics: dict[str, dict[str, pd.DataFrame]],
-    metric: str = Literal["weighted_emd", "weighted_rmse"],
+    metric: Literal["weighted_emd", "weighted_rmse"] = "weighted_emd",
 ) -> go.Figure | None:
     """ClimateBench-style performance scoreboard heatmap.
 
