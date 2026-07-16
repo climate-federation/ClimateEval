@@ -203,13 +203,11 @@ def build_scoreboard_figure(
     if pivot.empty:
         return None
 
-    # Add "Overall" column (mean relative score across all variables)
-    pivot["Overall"] = pivot.mean(axis=1)
+    # Add "Mean score" column (mean score across all variables)
+    pivot["Mean score"] = pivot.mean(axis=1)
 
     # Sort models by mean absolute relative score (best = smallest MAD first)
-    pivot = pivot.loc[
-        pivot.drop(columns="Overall").abs().mean(axis=1).sort_values().index
-    ]
+    pivot = pivot.loc[pivot["Mean score"].sort_values(ascending=True).index]
 
     single_model = len(pivot.index) < 2
 
@@ -218,7 +216,7 @@ def build_scoreboard_figure(
         raw_pivot = (
             metric_df.groupby(["data_id", "var_id"])[metric].mean().unstack("var_id")
         )
-        raw_pivot["Overall"] = raw_pivot.mean(axis=1)
+        raw_pivot["Mean score"] = raw_pivot.mean(axis=1)
         z = raw_pivot.values.tolist()
         x_labels = [str(c) for c in raw_pivot.columns]
         y_labels = [str(i) for i in raw_pivot.index]
