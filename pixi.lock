@@ -17729,6 +17729,7 @@ packages:
   - ncdata
   - numpy
   - pandas>=3
+  - plotly
   - pyyaml
   - scitools-iris
   - tzdata
