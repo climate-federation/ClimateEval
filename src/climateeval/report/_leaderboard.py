@@ -161,7 +161,7 @@ def build_scoreboard_figure(
 
           deviation = 1 - model_metric / median_metric
 
-      Negative values (blue) = better than median; positive (red) = worse.
+      Positive values (blue) = better than median; negative (red) = worse.
       A "Mean deviation" column shows the mean deviation across all variables.
       Models are sorted by mean absolute deviation (best first).
 
@@ -228,7 +228,7 @@ def build_scoreboard_figure(
         pivot["Mean deviation"] = pivot.mean(axis=1)
 
         # Sort models by mean deviation (best = smallest mean deviation first)
-        pivot = pivot.loc[pivot["Mean deviation"].sort_values(ascending=False).index]
+        pivot = pivot.loc[pivot["Mean deviation"].sort_values(ascending=True).index]
 
     else:
         pivot = (
@@ -247,9 +247,24 @@ def build_scoreboard_figure(
         if normalize_metrics:
             pivot["Mean deviation"] = pivot.mean(axis=1)
 
+    nice_variable_names = {
+        "pr-mon": "Precipitation (Mon)",
+        "rlut-mon": "TOA Outgoing LW Radiation (Mon)",
+        "rlutcs-mon": "TOA Outgoing clear-sky LW Radiation (Mon)",
+        "rsut-mon": "TOA Outgoing SW Radiation (Mon)",
+        "rsutcs-mon": "TOA Outgoing clear-sky SW Radiation (Mon)",
+        "siconc-mon": "Sea Ice Area Fraction (Mon)",
+        "tas-mon": "2m-Temperature (Mon)",
+        "tos-mon": "Sea Surface Temperature (Mon)",
+    }
+
     z = pivot.values.tolist()
-    x_labels = [str(c) for c in pivot.columns]
-    y_labels = [str(i) for i in pivot.index]
+    x_labels = [
+        nice_variable_names.get(str(c), str(c)) for c in pivot.columns
+    ]
+    y_labels = [
+        str(i).split("_")[1] for i in pivot.index
+    ]
     finite_vals = pivot.values[np.isfinite(pivot.values)]
 
     if single_model or not normalize_metrics:
@@ -257,7 +272,6 @@ def build_scoreboard_figure(
         zmax = float(np.nanpercentile(finite_vals, 98)) if len(finite_vals) > 0 else 1.0
         heatmap_kwargs = dict(zmin=zmin, zmax=zmax, zmid=zmax / 2)
         colorbar_title = f"{nice_metric_name}<br>({ranking})"
-        title_note = f"({nice_metric_name} per variable, blue = better)"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.4g}<extra></extra>"
         text_annots = [
             [f"{v:.3g}" if np.isfinite(v) else "" for v in row]
@@ -271,13 +285,16 @@ def build_scoreboard_figure(
         else:
             clamp = 50.0
         heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
-        colorbar_title = f"deviation from<br>median {nice_metric_name}"
-        title_note = f"(deviation from median {nice_metric_name}, blue = better)"
+        colorbar_title = f"deviation from<br>median {nice_metric_name} (blue = better)"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
         text_annots = [
             [f"{v:.2f}" if np.isfinite(v) else "" for v in row] for row in pivot.values
         ]
-        colorscale = "RdBu_r"
+        colorscale = "RdBu"
+
+    tickfontsize = 14
+    textfontsize = 12
+    titlefontsize = 20
 
     fig = go.Figure(
         go.Heatmap(
@@ -288,12 +305,13 @@ def build_scoreboard_figure(
             **heatmap_kwargs,
             text=text_annots,
             texttemplate="%{text}",
-            textfont={"size": 9},
+            textfont={"size": textfontsize},
             hovertemplate=hover_tmpl,
             colorbar={
-                "title": {"text": colorbar_title, "side": "right"},
+                "title": {"text": colorbar_title, "side": "right", "font": {"size": tickfontsize}},
                 "thickness": 14,
                 "len": 0.8,
+                "tickfont": {"size": tickfontsize},
             },
             xgap=2,
             ygap=2,
@@ -304,9 +322,8 @@ def build_scoreboard_figure(
     fig.update_layout(
         **_base_layout(
             title={
-                "text": f"<b>Performance Scoreboard</b>"
-                f" <span style='font-size:0.8em;font-weight:400'>{title_note}</span>",
-                "font": {"size": 15},
+                "text": "<b>Performance Scoreboard</b>",
+                "font": {"size": titlefontsize},
                 "x": 0.5,
                 "xanchor": "center",
             },
@@ -316,12 +333,12 @@ def build_scoreboard_figure(
         xaxis={
             "tickangle": -40,
             "side": "bottom",
-            "tickfont": {"size": 10},
+            "tickfont": {"size": tickfontsize},
             "showgrid": False,
             "zeroline": False,
         },
         yaxis={
-            "tickfont": {"size": 10},
+            "tickfont": {"size": tickfontsize},
             "showgrid": False,
             "zeroline": False,
         },
