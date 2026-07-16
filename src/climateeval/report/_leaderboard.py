@@ -156,10 +156,10 @@ def build_scoreboard_figure(
 
     Rows = models (`data_id`), columns = variables (`var_id`).
 
-    - If ``normalize_metrics=True``, each cell shows the % deviation from the
+    - If ``normalize_metrics=True``, each cell shows the deviation from the
       median metric:
 
-          deviation_pct = (model_metric - median_metric) / median_metric * 100
+          deviation = 1 - model_metric / median_metric
 
       Negative values (blue) = better than median; positive (red) = worse.
       A "Mean deviation" column shows the mean deviation across all variables.
@@ -206,22 +206,20 @@ def build_scoreboard_figure(
 
     if normalize_metrics:
         # Compute median metric per (diag, var_id) across all data_ids, then
-        # deviation_pct = (model_metric - median_metric) / median_metric * 100
+        # deviation = (model_metric - median_metric) / median_metric
         median_metric = (
             metric_df.groupby(["_diag", "var_id"])[metric]
             .median()
             .rename("median_metric")
         )
         metric_df = metric_df.join(median_metric, on=["_diag", "var_id"])
-        metric_df["deviation_pct"] = (
-            (metric_df[metric] - metric_df["median_metric"])
-            / metric_df["median_metric"].abs().clip(lower=1e-12)
-            * 100
-        )
+        metric_df["deviation"] = 1.0 - metric_df[metric] / metric_df[
+            "median_metric"
+        ].abs().clip(lower=1e-12)
 
         # One deviation per (data_id, var_id) averaged over diagnostics
         pivot = (
-            metric_df.groupby(["data_id", "var_id"])["deviation_pct"].mean().unstack("var_id")
+            metric_df.groupby(["data_id", "var_id"])["deviation"].mean().unstack("var_id")
         )
         if pivot.empty:
             return None
@@ -273,15 +271,11 @@ def build_scoreboard_figure(
         else:
             clamp = 50.0
         heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
-        colorbar_title = f"% deviation from<br>median {nice_metric_name}"
-        title_note = f"(% deviation from median {nice_metric_name}, blue = better)"
+        colorbar_title = f"deviation from<br>median {nice_metric_name}"
+        title_note = f"(deviation from median {nice_metric_name}, blue = better)"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
         text_annots = [
-            [
-                (f"+{v:.0f}%" if v > 0 else f"{v:.0f}%") if np.isfinite(v) else ""
-                for v in row
-            ]
-            for row in pivot.values
+            [f"{v:.2f}" if np.isfinite(v) else "" for v in row] for row in pivot.values
         ]
         colorscale = "RdBu_r"
 
@@ -300,7 +294,6 @@ def build_scoreboard_figure(
                 "title": {"text": colorbar_title, "side": "right"},
                 "thickness": 14,
                 "len": 0.8,
-                **({"ticksuffix": "%"} if not single_model else {}),
             },
             xgap=2,
             ygap=2,
