@@ -248,20 +248,21 @@ def build_scoreboard_figure(
     if single_model:
         zmin = float(np.nanpercentile(finite_vals, 2)) if len(finite_vals) > 0 else 0.0
         zmax = float(np.nanpercentile(finite_vals, 98)) if len(finite_vals) > 0 else 1.0
-        heatmap_kwargs = dict(zmin=zmin, zmax=zmax, zmid=zmax / 2)
+        heatmap_kwargs = dict(zmin=zmin, zmax=zmax)
         colorbar_title = f"{nice_metric_name}<br>({ranking})"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.4g}<extra></extra>"
         text_annots = [
             [f"{v:.3g}" if np.isfinite(v) else "" for v in row] for row in pivot.values
         ]
         colorscale = "Viridis"
+        colorbar_ticks = {}
     else:
-        if len(finite_vals) > 0:
-            max_abs = float(np.nanpercentile(np.abs(finite_vals), 98))
-            clamp = max(max_abs, 1.0)
-        else:
-            clamp = 0.5
-        heatmap_kwargs = dict(zmin=-clamp, zmax=clamp)
+        mintext = "▼-1" if len(finite_vals) > 0 and np.min(finite_vals) < 1.0 else "-1"
+        colorbar_ticks = {
+            "tickvals": [-1.0, -0.5, 0.0, 0.5, 1.0],
+            "ticktext": [mintext, "-0.5", "0", "0.5", "1.0"],
+        }
+        heatmap_kwargs = dict(zmin=-1.0, zmax=1.0)
         colorbar_title = "Relative score (blue = better)"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
         text_annots = [
@@ -293,6 +294,7 @@ def build_scoreboard_figure(
                 "thickness": 14,
                 "len": 0.8,
                 "tickfont": {"size": tickfontsize},
+                **colorbar_ticks,
             },
             xgap=2,
             ygap=2,
