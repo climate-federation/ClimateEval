@@ -154,13 +154,14 @@ def build_scoreboard_figure(
     """ClimateBench-style performance scoreboard heatmap.
 
     Rows = models (`data_id`), columns = variables (`var_id`).
-    Each cell shows the deviation from the median metric:
 
-        deviation = 1 - model_metric/median_metric
+    Each cell shows a relative score calculated as
 
-    Positive values (blue) = better than median; negative (red) = worse.
-    An "Overall" column shows the mean deviation across all variables.
-    Models are sorted by mean absolute deviation (best first).
+        relative score = 1 - model_metric / median_metric
+
+    Positive values (blue) = better than median; negative (red) = worse. A
+    "Mean score" column shows the mean relative score across all variables.
+    Models are sorted by mean relative score (best first).
 
     Returns None if `metric` is not available.
     """
@@ -181,7 +182,7 @@ def build_scoreboard_figure(
         return None
 
     # Compute median metric per (diag, var_id) across all data_ids, then
-    # deviation = 1 - model_metric/median_metric
+    # relative score = 1 - model_metric / median_metric
     metric_df = detail[["_diag", "var_id", "data_id", metric]].dropna(
         subset=[metric],
     )
@@ -189,21 +190,23 @@ def build_scoreboard_figure(
         metric_df.groupby(["_diag", "var_id"])[metric].median().rename("median_metric")
     )
     metric_df = metric_df.join(median_metric, on=["_diag", "var_id"])
-    metric_df["deviation"] = (
+    metric_df["relative score"] = (
         (1.0 - metric_df[metric] / metric_df["median_metric"]).abs().clip(lower=1e-12)
     )
 
-    # One deviation per (data_id, var_id) averaged over diagnostics
+    # One relative score per (data_id, var_id) averaged over diagnostics
     pivot = (
-        metric_df.groupby(["data_id", "var_id"])["deviation"].mean().unstack("var_id")
+        metric_df.groupby(["data_id", "var_id"])["relative score"]
+        .mean()
+        .unstack("var_id")
     )
     if pivot.empty:
         return None
 
-    # Add "Overall" column (mean deviation across all variables)
+    # Add "Overall" column (mean relative score across all variables)
     pivot["Overall"] = pivot.mean(axis=1)
 
-    # Sort models by mean absolute deviation (best = smallest MAD first)
+    # Sort models by mean absolute relative score (best = smallest MAD first)
     pivot = pivot.loc[
         pivot.drop(columns="Overall").abs().mean(axis=1).sort_values().index
     ]
@@ -211,7 +214,7 @@ def build_scoreboard_figure(
     single_model = len(pivot.index) < 2
 
     if single_model:
-        # Only 1 model: deviation from its own median is always 0 → show raw metric instead.
+        # Only 1 model: relative score is always 0 → show raw metric instead.
         raw_pivot = (
             metric_df.groupby(["data_id", "var_id"])[metric].mean().unstack("var_id")
         )
@@ -226,29 +229,26 @@ def build_scoreboard_figure(
             [f"{v:.3g}" if np.isfinite(v) else "" for v in row]
             for row in raw_pivot.values
         ]
-        heatmap_kwargs = dict(zmin=0, zmax=zmax, zmid=zmax / 2)
+        heatmap_kwargs = dict(zmin=0, zmax=zmax)
         colorbar_title = f"{metric.upper()}<br>(lower = better)"
         title_note = f"(weighted {metric.upper()} per variable, blue = lower = better)"
         hover_suffix = "<extra></extra>"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.4g}" + hover_suffix
+        colorbar_ticks = {}
     else:
-        # Multiple models: show deviation from the multi-model median metric.
+        # Multiple models: show relative score.
         z = pivot.values.tolist()
         x_labels = [str(c) for c in pivot.columns]
         y_labels = [str(i) for i in pivot.index]
         finite_vals = pivot.values[np.isfinite(pivot.values)]
-        if len(finite_vals) > 0:
-            max_abs = float(np.nanpercentile(np.abs(finite_vals), 98))
-            max_abs = max(max_abs, 1.0)
-            clamp = min(max_abs, 50.0)
-        else:
-            clamp = 50.0
-        text_annots = [
-            [f"{v:.2f}" if np.isfinite(v) else "" for v in row] for row in pivot.values
-        ]
-        heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
-        colorbar_title = "deviation<br>from median"
-        title_note = f"(deviation from median {metric.upper()}, blue = better)"
+        mintext = "▼-1" if len(finite_vals) > 0 and np.min(finite_vals) < 1.0 else "-1"
+        colorbar_ticks = {
+            "tickvals": [-1.0, -0.5, 0.0, 0.5, 1.0],
+            "ticktext": [mintext, "-0.5", "0", "0.5", "1.0"],
+        }
+        heatmap_kwargs = dict(zmin=-1.0, zmax=1.0)
+        colorbar_title = "Relative score (blue = better)"
+        title_note = f"Relative score = 1 - weighted {metric.upper()} / median weighted {metric.upper()}"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
 
     fig = go.Figure(
@@ -266,6 +266,7 @@ def build_scoreboard_figure(
                 "title": {"text": colorbar_title, "side": "right"},
                 "thickness": 14,
                 "len": 0.8,
+                **colorbar_ticks,
             },
             xgap=2,
             ygap=2,
