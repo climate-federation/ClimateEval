@@ -160,7 +160,7 @@ def build_scoreboard_figure(
         relative score = 1 - model_metric / median_metric
 
     Positive values (blue) = better than median; negative (red) = worse. A
-    "Mean score" column shows the mean relative score across all variables.
+    "Mean relative score" column shows the mean relative score across all variables.
     Models are sorted by mean relative score (best first).
 
     Returns None if `metric` is not available.
@@ -203,11 +203,11 @@ def build_scoreboard_figure(
     if pivot.empty:
         return None
 
-    # Add "Mean score" column (mean score across all variables)
-    pivot["Mean score"] = pivot.mean(axis=1)
+    # Add "Mean relative score" column (mean relative score across all variables)
+    pivot["Mean relative score"] = pivot.mean(axis=1)
 
     # Sort models by mean absolute relative score (best = smallest MAD first)
-    pivot = pivot.loc[pivot["Mean score"].sort_values(ascending=True).index]
+    pivot = pivot.loc[pivot["Mean relative score"].sort_values(ascending=True).index]
 
     single_model = len(pivot.index) < 2
 
@@ -216,7 +216,7 @@ def build_scoreboard_figure(
         raw_pivot = (
             metric_df.groupby(["data_id", "var_id"])[metric].mean().unstack("var_id")
         )
-        raw_pivot["Mean score"] = raw_pivot.mean(axis=1)
+        raw_pivot["Mean relative score"] = raw_pivot.mean(axis=1)
         z = raw_pivot.values.tolist()
         x_labels = [str(c) for c in raw_pivot.columns]
         y_labels = [str(i) for i in raw_pivot.index]
