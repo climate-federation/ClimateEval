@@ -186,9 +186,7 @@ def build_scoreboard_figure(
         subset=[metric],
     )
     median_metric = (
-        metric_df.groupby(["_diag", "var_id"])[metric]
-        .median()
-        .rename("median_metric")
+        metric_df.groupby(["_diag", "var_id"])[metric].median().rename("median_metric")
     )
     metric_df = metric_df.join(median_metric, on=["_diag", "var_id"])
     metric_df["deviation"] = (
@@ -215,9 +213,7 @@ def build_scoreboard_figure(
     if single_model:
         # Only 1 model: deviation from its own median is always 0 → show raw metric instead.
         raw_pivot = (
-            metric_df.groupby(["data_id", "var_id"])[metric]
-            .mean()
-            .unstack("var_id")
+            metric_df.groupby(["data_id", "var_id"])[metric].mean().unstack("var_id")
         )
         raw_pivot["Overall"] = raw_pivot.mean(axis=1)
         z = raw_pivot.values.tolist()
