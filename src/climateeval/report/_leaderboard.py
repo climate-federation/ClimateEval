@@ -261,7 +261,7 @@ def build_scoreboard_figure(
             clamp = max(max_abs, 1.0)
         else:
             clamp = 0.5
-        heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
+        heatmap_kwargs = dict(zmin=-clamp, zmax=clamp)
         colorbar_title = "Relative score (blue = better)"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
         text_annots = [
