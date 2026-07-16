@@ -158,7 +158,7 @@ def build_scoreboard_figure(
 
         deviation = 1 - model_metric/median_metric
 
-    Negative values (blue) = better than median; positive (red) = worse.
+    Positive values (blue) = better than median; negative (red) = worse.
     An "Overall" column shows the mean deviation across all variables.
     Models are sorted by mean absolute deviation (best first).
 
@@ -226,7 +226,6 @@ def build_scoreboard_figure(
             [f"{v:.3g}" if np.isfinite(v) else "" for v in row]
             for row in raw_pivot.values
         ]
-        colorscale = [[0, "#2166ac"], [0.5, "#ffffff"], [1, "#d6604d"]]
         heatmap_kwargs = dict(zmin=0, zmax=zmax, zmid=zmax / 2)
         colorbar_title = f"{metric.upper()}<br>(lower = better)"
         title_note = f"(weighted {metric.upper()} per variable, blue = lower = better)"
@@ -247,7 +246,6 @@ def build_scoreboard_figure(
         text_annots = [
             [f"{v:.2f}" if np.isfinite(v) else "" for v in row] for row in pivot.values
         ]
-        colorscale = [[0, "#2166ac"], [0.5, "#ffffff"], [1, "#d6604d"]]
         heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
         colorbar_title = "deviation<br>from median"
         title_note = f"(deviation from median {metric.upper()}, blue = better)"
@@ -258,7 +256,7 @@ def build_scoreboard_figure(
             z=z,
             x=x_labels,
             y=y_labels,
-            colorscale=colorscale,
+            colorscale="RdBu",
             **heatmap_kwargs,
             text=text_annots,
             texttemplate="%{text}",
