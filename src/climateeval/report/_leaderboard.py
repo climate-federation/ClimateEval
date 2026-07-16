@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html as html_module
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -148,19 +149,20 @@ def _render_detail_table(detail_df: pd.DataFrame, table_id: str) -> str:
 
 def build_scoreboard_figure(
     all_metrics: dict[str, dict[str, pd.DataFrame]],
+    metric: str = Literal["weighted_emd", "weighted_rmse"],
 ) -> go.Figure | None:
     """ClimateBench-style performance scoreboard heatmap.
 
     Rows = models (`data_id`), columns = variables (`var_id`).
-    Each cell shows the % deviation from the median RMSE:
+    Each cell shows the deviation from the median metric:
 
-        deviation_pct = (model_rmse - median_rmse) / median_rmse * 100
+        deviation = 1 - model_metric/median_metric
 
     Negative values (blue) = better than median; positive (red) = worse.
     An "Overall" column shows the mean deviation across all variables.
     Models are sorted by mean absolute deviation (best first).
 
-    Only uses `weighted_rmse`. Returns None if `weighted_rmse` is not available.
+    Returns None if `metric` is not available.
     """
     dfs = []
     for tier_metrics in all_metrics.values():
@@ -175,30 +177,27 @@ def build_scoreboard_figure(
 
     detail = pd.concat(dfs, ignore_index=True)
 
-    if "weighted_rmse" not in detail.columns:
+    if metric not in detail.columns:
         return None
 
-    # Compute median RMSE per (diag, var_id) across all data_ids, then
-    # deviation_pct = (model_rmse - median_rmse) / median_rmse * 100
-    rmse_df = detail[["_diag", "var_id", "data_id", "weighted_rmse"]].dropna(
-        subset=["weighted_rmse"],
+    # Compute median metric per (diag, var_id) across all data_ids, then
+    # deviation = 1 - model_metric/median_metric
+    metric_df = detail[["_diag", "var_id", "data_id", metric]].dropna(
+        subset=[metric],
     )
-
-    median_rmse = (
-        rmse_df.groupby(["_diag", "var_id"])["weighted_rmse"]
+    median_metric = (
+        metric_df.groupby(["_diag", "var_id"])[metric]
         .median()
-        .rename("median_rmse")
+        .rename("median_metric")
     )
-    rmse_df = rmse_df.join(median_rmse, on=["_diag", "var_id"])
-    rmse_df["deviation_pct"] = (
-        (rmse_df["weighted_rmse"] - rmse_df["median_rmse"])
-        / rmse_df["median_rmse"].abs().clip(lower=1e-12)
-        * 100
+    metric_df = metric_df.join(median_metric, on=["_diag", "var_id"])
+    metric_df["deviation"] = (
+        (1.0 - metric_df[metric] / metric_df["median_metric"]).abs().clip(lower=1e-12)
     )
 
     # One deviation per (data_id, var_id) averaged over diagnostics
     pivot = (
-        rmse_df.groupby(["data_id", "var_id"])["deviation_pct"].mean().unstack("var_id")
+        metric_df.groupby(["data_id", "var_id"])["deviation"].mean().unstack("var_id")
     )
     if pivot.empty:
         return None
@@ -214,9 +213,9 @@ def build_scoreboard_figure(
     single_model = len(pivot.index) < 2
 
     if single_model:
-        # Only 1 model: deviation from its own median is always 0 → show raw RMSE instead.
+        # Only 1 model: deviation from its own median is always 0 → show raw metric instead.
         raw_pivot = (
-            rmse_df.groupby(["data_id", "var_id"])["weighted_rmse"]
+            metric_df.groupby(["data_id", "var_id"])[metric]
             .mean()
             .unstack("var_id")
         )
@@ -233,12 +232,12 @@ def build_scoreboard_figure(
         ]
         colorscale = [[0, "#2166ac"], [0.5, "#ffffff"], [1, "#d6604d"]]
         heatmap_kwargs = dict(zmin=0, zmax=zmax, zmid=zmax / 2)
-        colorbar_title = "RMSE<br>(lower = better)"
-        title_note = "(weighted RMSE per variable, blue = lower = better)"
+        colorbar_title = f"{metric.upper()}<br>(lower = better)"
+        title_note = f"(weighted {metric.upper()} per variable, blue = lower = better)"
         hover_suffix = "<extra></extra>"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.4g}" + hover_suffix
     else:
-        # Multiple models: show % deviation from the multi-model median RMSE.
+        # Multiple models: show deviation from the multi-model median metric.
         z = pivot.values.tolist()
         x_labels = [str(c) for c in pivot.columns]
         y_labels = [str(i) for i in pivot.index]
@@ -250,16 +249,12 @@ def build_scoreboard_figure(
         else:
             clamp = 50.0
         text_annots = [
-            [
-                (f"+{v:.0f}%" if v > 0 else f"{v:.0f}%") if np.isfinite(v) else ""
-                for v in row
-            ]
-            for row in pivot.values
+            [f"{v:.2f}" if np.isfinite(v) else "" for v in row] for row in pivot.values
         ]
         colorscale = [[0, "#2166ac"], [0.5, "#ffffff"], [1, "#d6604d"]]
         heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
-        colorbar_title = "% deviation<br>from median"
-        title_note = "(% deviation from median RMSE, blue = better)"
+        colorbar_title = "deviation<br>from median"
+        title_note = f"(deviation from median {metric.upper()}, blue = better)"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
 
     fig = go.Figure(
@@ -277,7 +272,6 @@ def build_scoreboard_figure(
                 "title": {"text": colorbar_title, "side": "right"},
                 "thickness": 14,
                 "len": 0.8,
-                **({"ticksuffix": "%"} if not single_model else {}),
             },
             xgap=2,
             ygap=2,
