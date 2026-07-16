@@ -260,7 +260,7 @@ def build_scoreboard_figure(
             max_abs = float(np.nanpercentile(np.abs(finite_vals), 98))
             clamp = max(max_abs, 1.0)
         else:
-            clamp = 50.0
+            clamp = 0.5
         heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
         colorbar_title = "Relative score (blue = better)"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
