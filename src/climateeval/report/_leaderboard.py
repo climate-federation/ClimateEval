@@ -149,17 +149,24 @@ def _render_detail_table(detail_df: pd.DataFrame, table_id: str) -> str:
 def build_scoreboard_figure(
     all_metrics: dict[str, dict[str, pd.DataFrame]],
     metric: str = "weighted_emd",
+    *,
+    normalize_metrics: bool = True,
 ) -> go.Figure | None:
     """ClimateBench-style performance scoreboard heatmap.
 
     Rows = models (`data_id`), columns = variables (`var_id`).
-    Each cell shows the % deviation from the median metric:
 
-        deviation_pct = (model_metric - median_metric) / median_metric * 100
+    - If ``normalize_metrics=True``, each cell shows the % deviation from the
+      median metric:
 
-    Negative values (blue) = better than median; positive (red) = worse.
-    A "Mean deviation" column shows the mean deviation across all variables.
-    Models are sorted by mean absolute deviation (best first).
+          deviation_pct = (model_metric - median_metric) / median_metric * 100
+
+      Negative values (blue) = better than median; positive (red) = worse.
+      A "Mean deviation" column shows the mean deviation across all variables.
+      Models are sorted by mean absolute deviation (best first).
+
+    - If ``normalize_metrics=False``, each cell shows the raw metric. Blue
+      colors refer to good performance, red colors to bad performance.
 
     """
     dfs = []
@@ -192,74 +199,83 @@ def build_scoreboard_figure(
         nice_metric_name = supported_metrics[underlying_metric]
     ranking = "lower = better"
 
-    # Compute median metric per (diag, var_id) across all data_ids, then
-    # deviation_pct = (model_metric - median_metric) / median_metric * 100
     metric_df = detail[["_diag", "var_id", "data_id", metric]].dropna(
         subset=[metric],
     )
 
-    median_metric = (
-        metric_df.groupby(["_diag", "var_id"])[metric]
-        .median()
-        .rename("median_metric")
-    )
-    metric_df = metric_df.join(median_metric, on=["_diag", "var_id"])
-    metric_df["deviation_pct"] = (
-        (metric_df[metric] - metric_df["median_metric"])
-        / metric_df["median_metric"].abs().clip(lower=1e-12)
-        * 100
-    )
 
-    # One deviation per (data_id, var_id) averaged over diagnostics
-    pivot = (
-        metric_df.groupby(["data_id", "var_id"])["deviation_pct"].mean().unstack("var_id")
-    )
-    if pivot.empty:
-        return None
+    if normalize_metrics:
+        # Compute median metric per (diag, var_id) across all data_ids, then
+        # deviation_pct = (model_metric - median_metric) / median_metric * 100
+        median_metric = (
+            metric_df.groupby(["_diag", "var_id"])[metric]
+            .median()
+            .rename("median_metric")
+        )
+        metric_df = metric_df.join(median_metric, on=["_diag", "var_id"])
+        metric_df["deviation_pct"] = (
+            (metric_df[metric] - metric_df["median_metric"])
+            / metric_df["median_metric"].abs().clip(lower=1e-12)
+            * 100
+        )
 
-    # Add "Mean deviation" column (mean deviation across all variables)
-    pivot["Mean deviation"] = pivot.mean(axis=1)
+        # One deviation per (data_id, var_id) averaged over diagnostics
+        pivot = (
+            metric_df.groupby(["data_id", "var_id"])["deviation_pct"].mean().unstack("var_id")
+        )
+        if pivot.empty:
+            return None
 
-    # Sort models by mean deviation (best = smallest mean deviation first)
-    pivot = pivot.loc[pivot["Mean deviation"].sort_values(ascending=False).index]
+        # Add "Mean deviation" column (mean deviation across all variables)
+        pivot["Mean deviation"] = pivot.mean(axis=1)
+
+        # Sort models by mean deviation (best = smallest mean deviation first)
+        pivot = pivot.loc[pivot["Mean deviation"].sort_values(ascending=False).index]
+
+    else:
+        pivot = (
+            metric_df.groupby(["data_id", "var_id"])[metric].mean().unstack("var_id")
+        )
+        if pivot.empty:
+            return None
 
     single_model = len(pivot.index) < 2
-
     if single_model:
-        # Only 1 model: deviation from its own median is always 0 → show raw metric instead.
-        raw_pivot = (
+        pivot = (
             metric_df.groupby(["data_id", "var_id"])[metric]
             .mean()
             .unstack("var_id")
         )
-        raw_pivot["Mean deviation"] = raw_pivot.mean(axis=1)
-        z = raw_pivot.values.tolist()
-        x_labels = [str(c) for c in raw_pivot.columns]
-        y_labels = [str(i) for i in raw_pivot.index]
-        finite_vals = raw_pivot.values[np.isfinite(raw_pivot.values)]
+        if normalize_metrics:
+            pivot["Mean deviation"] = pivot.mean(axis=1)
+
+    z = pivot.values.tolist()
+    x_labels = [str(c) for c in pivot.columns]
+    y_labels = [str(i) for i in pivot.index]
+    finite_vals = pivot.values[np.isfinite(pivot.values)]
+
+    if single_model or not normalize_metrics:
+        zmin = float(np.nanpercentile(finite_vals, 2)) if len(finite_vals) > 0 else 0.0
         zmax = float(np.nanpercentile(finite_vals, 98)) if len(finite_vals) > 0 else 1.0
-        zmax = max(zmax, 1e-6)
-        text_annots = [
-            [f"{v:.3g}" if np.isfinite(v) else "" for v in row]
-            for row in raw_pivot.values
-        ]
-        colorscale = [[0, "#2166ac"], [0.5, "#ffffff"], [1, "#d6604d"]]
-        heatmap_kwargs = dict(zmin=0, zmax=zmax, zmid=zmax / 2)
+        heatmap_kwargs = dict(zmin=zmin, zmax=zmax, zmid=zmax / 2)
         colorbar_title = f"{nice_metric_name}<br>({ranking})"
         title_note = f"({nice_metric_name} per variable, blue = better)"
-        hover_suffix = "<extra></extra>"
-        hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.4g}" + hover_suffix
+        hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.4g}<extra></extra>"
+        text_annots = [
+            [f"{v:.3g}" if np.isfinite(v) else "" for v in row]
+            for row in pivot.values
+        ]
+        colorscale = "Viridis"
     else:
-        # Multiple models: show % deviation from the multi-model median metric.
-        z = pivot.values.tolist()
-        x_labels = [str(c) for c in pivot.columns]
-        y_labels = [str(i) for i in pivot.index]
-        finite_vals = pivot.values[np.isfinite(pivot.values)]
         if len(finite_vals) > 0:
             max_abs = float(np.nanpercentile(np.abs(finite_vals), 98))
             clamp = max(max_abs, 1.0)
         else:
             clamp = 50.0
+        heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
+        colorbar_title = f"% deviation from<br>median {nice_metric_name}"
+        title_note = f"(% deviation from median {nice_metric_name}, blue = better)"
+        hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
         text_annots = [
             [
                 (f"+{v:.0f}%" if v > 0 else f"{v:.0f}%") if np.isfinite(v) else ""
@@ -267,11 +283,7 @@ def build_scoreboard_figure(
             ]
             for row in pivot.values
         ]
-        colorscale = [[0, "#2166ac"], [0.5, "#ffffff"], [1, "#d6604d"]]
-        heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
-        colorbar_title = f"% deviation from<br>median {nice_metric_name}"
-        title_note = f"(% deviation from median {nice_metric_name}, blue = better)"
-        hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
+        colorscale = "RdBu_r"
 
     fig = go.Figure(
         go.Heatmap(
