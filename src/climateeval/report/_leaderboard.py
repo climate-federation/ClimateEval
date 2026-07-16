@@ -149,24 +149,18 @@ def _render_detail_table(detail_df: pd.DataFrame, table_id: str) -> str:
 def build_scoreboard_figure(
     all_metrics: dict[str, dict[str, pd.DataFrame]],
     metric: str = "weighted_emd",
-    *,
-    normalize_metrics: bool = True,
 ) -> go.Figure | None:
     """ClimateBench-style performance scoreboard heatmap.
 
     Rows = models (`data_id`), columns = variables (`var_id`).
 
-    - If ``normalize_metrics=True``, each cell shows the deviation from the
-      median metric:
+    Each cell shows a relative score calculated as
 
-          deviation = 1 - model_metric / median_metric
+        relative score = 1 - model_metric / median_metric
 
-      Positive values (blue) = better than median; negative (red) = worse.
-      A "Mean deviation" column shows the mean deviation across all variables.
-      Models are sorted by mean absolute deviation (best first).
-
-    - If ``normalize_metrics=False``, each cell shows the raw metric. Blue
-      colors refer to good performance, red colors to bad performance.
+    Positive values (blue) = better than median; negative (red) = worse. A
+    "Mean score" column shows the mean relative score across all variables.
+    Models are sorted by mean relative score (best first).
 
     """
     dfs = []
@@ -203,49 +197,37 @@ def build_scoreboard_figure(
         subset=[metric],
     )
 
+    # Compute median metric per (diag, var_id) across all data_ids, then
+    # relative score = 1 - model_metric / median_metric
+    median_metric = (
+        metric_df.groupby(["_diag", "var_id"])[metric].median().rename("median_metric")
+    )
+    metric_df = metric_df.join(median_metric, on=["_diag", "var_id"])
+    metric_df["relative score"] = 1.0 - metric_df[metric] / metric_df[
+        "median_metric"
+    ].abs().clip(lower=1e-12)
 
-    if normalize_metrics:
-        # Compute median metric per (diag, var_id) across all data_ids, then
-        # deviation = (model_metric - median_metric) / median_metric
-        median_metric = (
-            metric_df.groupby(["_diag", "var_id"])[metric]
-            .median()
-            .rename("median_metric")
-        )
-        metric_df = metric_df.join(median_metric, on=["_diag", "var_id"])
-        metric_df["deviation"] = 1.0 - metric_df[metric] / metric_df[
-            "median_metric"
-        ].abs().clip(lower=1e-12)
+    # One relative score per (data_id, var_id) averaged over diagnostics
+    pivot = (
+        metric_df.groupby(["data_id", "var_id"])["relative score"]
+        .mean()
+        .unstack("var_id")
+    )
+    if pivot.empty:
+        return None
 
-        # One deviation per (data_id, var_id) averaged over diagnostics
-        pivot = (
-            metric_df.groupby(["data_id", "var_id"])["deviation"].mean().unstack("var_id")
-        )
-        if pivot.empty:
-            return None
+    # Add "Mean score" column (mean score across all variables)
+    pivot["Mean score"] = pivot.mean(axis=1)
 
-        # Add "Mean deviation" column (mean deviation across all variables)
-        pivot["Mean deviation"] = pivot.mean(axis=1)
-
-        # Sort models by mean deviation (best = smallest mean deviation first)
-        pivot = pivot.loc[pivot["Mean deviation"].sort_values(ascending=True).index]
-
-    else:
-        pivot = (
-            metric_df.groupby(["data_id", "var_id"])[metric].mean().unstack("var_id")
-        )
-        if pivot.empty:
-            return None
+    # Sort models by mean score (best = highest mean score first)
+    pivot = pivot.loc[pivot["Mean score"].sort_values(ascending=True).index]
 
     single_model = len(pivot.index) < 2
     if single_model:
         pivot = (
-            metric_df.groupby(["data_id", "var_id"])[metric]
-            .mean()
-            .unstack("var_id")
+            metric_df.groupby(["data_id", "var_id"])[metric].mean().unstack("var_id")
         )
-        if normalize_metrics:
-            pivot["Mean deviation"] = pivot.mean(axis=1)
+        pivot["Mean score"] = pivot.mean(axis=1)
 
     nice_variable_names = {
         "pr-mon": "Precipitation (Mon)",
@@ -259,23 +241,18 @@ def build_scoreboard_figure(
     }
 
     z = pivot.values.tolist()
-    x_labels = [
-        nice_variable_names.get(str(c), str(c)) for c in pivot.columns
-    ]
-    y_labels = [
-        str(i).split("_")[1] for i in pivot.index
-    ]
+    x_labels = [nice_variable_names.get(str(c), str(c)) for c in pivot.columns]
+    y_labels = [str(i).split("_")[1] for i in pivot.index]
     finite_vals = pivot.values[np.isfinite(pivot.values)]
 
-    if single_model or not normalize_metrics:
+    if single_model:
         zmin = float(np.nanpercentile(finite_vals, 2)) if len(finite_vals) > 0 else 0.0
         zmax = float(np.nanpercentile(finite_vals, 98)) if len(finite_vals) > 0 else 1.0
         heatmap_kwargs = dict(zmin=zmin, zmax=zmax, zmid=zmax / 2)
         colorbar_title = f"{nice_metric_name}<br>({ranking})"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.4g}<extra></extra>"
         text_annots = [
-            [f"{v:.3g}" if np.isfinite(v) else "" for v in row]
-            for row in pivot.values
+            [f"{v:.3g}" if np.isfinite(v) else "" for v in row] for row in pivot.values
         ]
         colorscale = "Viridis"
     else:
@@ -285,15 +262,15 @@ def build_scoreboard_figure(
         else:
             clamp = 50.0
         heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
-        colorbar_title = f"deviation from<br>median {nice_metric_name} (blue = better)"
+        colorbar_title = "Relative score (blue = better)"
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
         text_annots = [
             [f"{v:.2f}" if np.isfinite(v) else "" for v in row] for row in pivot.values
         ]
         colorscale = "RdBu"
 
-    tickfontsize = 14
-    textfontsize = 12
+    tickfontsize = 15
+    textfontsize = 13
     titlefontsize = 20
 
     fig = go.Figure(
@@ -308,7 +285,11 @@ def build_scoreboard_figure(
             textfont={"size": textfontsize},
             hovertemplate=hover_tmpl,
             colorbar={
-                "title": {"text": colorbar_title, "side": "right", "font": {"size": tickfontsize}},
+                "title": {
+                    "text": colorbar_title,
+                    "side": "right",
+                    "font": {"size": tickfontsize},
+                },
                 "thickness": 14,
                 "len": 0.8,
                 "tickfont": {"size": tickfontsize},
@@ -322,13 +303,13 @@ def build_scoreboard_figure(
     fig.update_layout(
         **_base_layout(
             title={
-                "text": "<b>Performance Scoreboard</b>",
+                "text": f"<b>Performance Scoreboard</b><br><span style='font-size:0.8em;font-weight:400'>Relative score = 1 - {nice_metric_name} / median {nice_metric_name}</span>",
                 "font": {"size": titlefontsize},
                 "x": 0.5,
                 "xanchor": "center",
             },
             height=max(280 + 22 * len(y_labels), 380),
-            margin={"t": 70, "b": 120, "l": 260, "r": 80},
+            margin={"t": 100, "b": 120, "l": 260, "r": 80},
         ),
         xaxis={
             "tickangle": -40,
