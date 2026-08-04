@@ -1,0 +1,1 @@
+/work/bd0854/DATA/ESMValTool2/OBS/Tier2/ESACCI-OC/OBS6_ESACCI-OC_sat_fv5.0_Omon_chl_199709-202012.nc

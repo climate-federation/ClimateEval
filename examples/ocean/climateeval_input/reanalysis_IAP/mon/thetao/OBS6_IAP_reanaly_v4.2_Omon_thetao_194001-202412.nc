@@ -1,0 +1,1 @@
+/work/bd0854/DATA/ESMValTool2/OBS/Tier2/IAP/OBS6_IAP_reanaly_v4.2_Omon_thetao_194001-202412.nc

@@ -1,0 +1,72 @@
+cd /home/b/b384036/ClimateEval/src/climateeval/diags/simple
+python - <<'PYEOF'
+from pathlib import Path
+p = Path("_chl_bgc.py"); s = p.read_text()
+
+if "common grid does not depend on ORAS5" in s:
+    print("already patched"); raise SystemExit
+
+old = '''        # MLD — build common grid on first successful load
+        try:
+            if self._common_grid is None:
+                obs_mld = s.load_obs_mld()
+                self._obs_mld_ts = obs_mld
+                self._common_grid = xr.DataArray(
+                    np.zeros((obs_mld.sizes["lat"], obs_mld.sizes["lon"])),
+                    dims=("lat", "lon"),
+                    coords={"lat": obs_mld.lat, "lon": obs_mld.lon},
+                )
+            mld_native = s.load_model_mld(model)
+            if mld_native is not None:
+                mld_re = s.regrid_timeseries(mld_native, self._common_grid)
+                self._model_mld_ts[model] = mld_re
+        except Exception as e:
+            logger.warning(f"  [{model}] MLD failed: {e}")'''
+
+new = '''        # The common grid does not depend on ORAS5.
+        #
+        # It used to be built from load_obs_mld(), which streams ORAS5
+        # over OPeNDAP from apdrc.soest.hawaii.edu. Compute nodes have no
+        # outbound network, so that call fails for every model, leaving
+        # _common_grid as None - and Phase B is wrapped in
+        # `if common_grid is not None`, so ONE unreachable URL suppressed
+        # the SST and cloud bias maps too, neither of which needs ORAS5.
+        #
+        # A plain 1 degree grid is what ORAS5's 1x1 distribution provided
+        # anyway, so building it directly costs nothing and keeps the
+        # rest of Phase B alive when the reanalysis cannot be reached.
+        if self._common_grid is None:
+            self._common_grid = xr.DataArray(
+                np.zeros((180, 360)),
+                dims=("lat", "lon"),
+                coords={"lat": np.arange(-89.5, 90.0, 1.0),
+                        "lon": np.arange(0.5, 360.0, 1.0)},
+            )
+            logger.info("  common grid: 1 deg global (independent of ORAS5)")
+
+        # ORAS5 itself, separately: its absence must not take the grid,
+        # or Phase B, down with it.
+        try:
+            if self._obs_mld_ts is None:
+                self._obs_mld_ts = s.load_obs_mld()
+        except Exception as e:
+            logger.warning(f"  ORAS5 MLD reference unavailable: {e}")
+            logger.warning("  -> Fig 5 (MLD bias) will be skipped; "
+                           "Figs 6-7 are unaffected")
+
+        try:
+            mld_native = s.load_model_mld(model)
+            if mld_native is not None:
+                mld_re = s.regrid_timeseries(mld_native, self._common_grid)
+                self._model_mld_ts[model] = mld_re
+        except Exception as e:
+            logger.warning(f"  [{model}] model MLD failed: {e}")'''
+
+assert old in s, "MLD block not found -- send me the current _chl_bgc.py"
+s = s.replace(old, new, 1)
+import ast; ast.parse(s)
+p.write_text(s)
+print("patched: common grid no longer depends on ORAS5")
+PYEOF
+
+grep -n "common grid: 1 deg" _chl_bgc.py

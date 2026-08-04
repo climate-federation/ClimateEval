@@ -1,0 +1,1 @@
+/work/bd0854/DATA/ESMValTool2/OBS/Tier3/NSIDC-G02202-sh/OBS6_NSIDC-G02202-sh_reanaly_4_SImon_siconc_*.nc

@@ -1,0 +1,1 @@
+/work/bd0854/DATA/ESMValTool2/OBS/Tier2/HadISST/OBS6_HadISST_reanaly_1_SImon_siconc_187001-202112.nc

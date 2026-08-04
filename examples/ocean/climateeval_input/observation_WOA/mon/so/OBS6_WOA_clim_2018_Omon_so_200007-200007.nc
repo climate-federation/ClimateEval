@@ -1,0 +1,1 @@
+/work/bd0854/DATA/ESMValTool2/OBS/Tier2/WOA/OBS6_WOA_clim_2018_Omon_so_200007-200007.nc

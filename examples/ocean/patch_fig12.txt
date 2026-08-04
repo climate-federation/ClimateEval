@@ -1,0 +1,129 @@
+cd /home/b/b384036/ClimateEval
+python - <<'PYEOF'
+import re
+from pathlib import Path
+
+p = Path("example_chl_nodatabse10.py")
+s = p.read_text()
+
+if "_pcolormesh_projected" in s:
+    print("already patched"); raise SystemExit
+
+# ---------------------------------------------------------------- #
+# 1. Undo the previous attempt.
+#
+# transform_first is a contourf-only argument; pcolormesh rejects it in
+# every cartopy version ("QuadMesh.set() got an unexpected keyword
+# argument"). The earlier patch also matched a block in
+# make_bias_map_2x2 before reaching Fig 1+2, so it edited the wrong
+# function. Both are reverted here before anything else.
+# ---------------------------------------------------------------- #
+n_revert = s.count("transform=ccrs.PlateCarree(), transform_first=True,")
+s = s.replace("transform=ccrs.PlateCarree(), transform_first=True,",
+              "transform=ccrs.PlateCarree(),")
+print(f"reverted {n_revert} stray transform_first argument(s)")
+
+start = s.index("    # transform= was missing entirely")
+end = s.index(")  # land NaN in chl", start)
+end = s.index("\n", end) + 1
+s = s[:start] + '''    im_obs   = ax0.pcolormesh(
+        obs_clim.lon, obs_clim.lat, obs_clim.values,
+        norm=norm_log, cmap="YlGn",
+    )  # land NaN in chl — no land mask needed
+''' + s[end:]
+print("reverted the obs-panel block")
+
+# ---------------------------------------------------------------- #
+# 2. The helper.
+# ---------------------------------------------------------------- #
+helper = '''def _pcolormesh_projected(ax, lon, lat, values, **kwargs):
+    """pcolormesh with the coordinates projected up front.
+
+    Two things go wrong with the obvious forms on a GeoAxes:
+
+      * omitting transform= makes cartopy read lon/lat as projection
+        metres, so a degree grid collapses to a speck at the origin;
+      * passing transform=PlateCarree() makes cartopy push every quad's
+        geometry through cartopy.trace -> shapely, which raises
+        "ufunc 'create_collection' not supported for the input types"
+        on the cartopy/shapely pairing in this environment.
+
+    transform_first would avoid the second, but pcolormesh does not
+    accept it in any cartopy version - that argument is contourf only.
+    So the points are projected here and pcolormesh is handed
+    coordinates already in the axes' projection, with no transform=.
+
+    Longitudes are folded to [-180, 180) and sorted so the periodic seam
+    falls at the edge of a central_longitude=0 map. Any cell still
+    spanning a large fraction of the map width is blanked: after
+    projection such a cell draws as a band across the whole figure.
+    """
+    lon = np.asarray(lon, dtype=float)
+    lat = np.asarray(lat, dtype=float)
+    vals = np.array(values, dtype=float)
+
+    if lon.ndim == 1:
+        wrapped = ((lon + 180.0) % 360.0) - 180.0
+        order = np.argsort(wrapped)
+        lon2d, lat2d = np.meshgrid(wrapped[order], lat)
+        vals = vals[..., order]
+    else:
+        lon2d = ((lon + 180.0) % 360.0) - 180.0
+        lat2d = lat
+
+    xyz = ax.projection.transform_points(ccrs.PlateCarree(), lon2d, lat2d)
+    x, y = xyz[..., 0], xyz[..., 1]
+
+    span = np.nanmax(x) - np.nanmin(x)
+    if np.isfinite(span) and span > 0:
+        seam = np.zeros(vals.shape, dtype=bool)
+        seam[..., :-1] |= np.abs(np.diff(x, axis=-1)) > 0.25 * span
+        vals = np.where(seam, np.nan, vals)
+
+    return ax.pcolormesh(x, y, vals, **kwargs)
+
+
+'''
+anchor = "def make_fig1_and_fig2_combined("
+assert anchor in s, "make_fig1_and_fig2_combined not found"
+s = s.replace(anchor, helper + anchor, 1)
+
+# ---------------------------------------------------------------- #
+# 3. Edit ONLY inside make_fig1_and_fig2_combined.
+# ---------------------------------------------------------------- #
+fstart = s.index(anchor)
+m = re.search(r"\n(?=def |# =====)", s[fstart + len(anchor):])
+fend = fstart + len(anchor) + (m.start() if m else len(s))
+body = s[fstart:fend]
+before = body
+
+body = body.replace('''    im_obs   = ax0.pcolormesh(
+        obs_clim.lon, obs_clim.lat, obs_clim.values,
+        norm=norm_log, cmap="YlGn",
+    )''', '''    im_obs   = _pcolormesh_projected(
+        ax0, obs_clim.lon.values, obs_clim.lat.values, obs_clim.values,
+        norm=norm_log, cmap="YlGn",
+    )''', 1)
+
+body = body.replace('''        im_bias = ax.pcolormesh(
+            _blon2d, _blat2d, _bias_vals,
+            norm=norm_bias, cmap="RdBu_r",
+            transform=ccrs.PlateCarree(),
+        )''', '''        im_bias = _pcolormesh_projected(
+            ax, _blon2d, _blat2d, _bias_vals,
+            norm=norm_bias, cmap="RdBu_r",
+        )''', 1)
+
+assert body.count("_pcolormesh_projected") == 2, (
+    f"expected 2 replacements inside the function, got "
+    f"{body.count('_pcolormesh_projected')}")
+s = s[:fstart] + body + s[fend:]
+
+import ast; ast.parse(s)
+p.write_text(s)
+print("patched: both Fig 1+2 panels now pre-project their coordinates")
+PYEOF
+
+echo "--- verification ---"
+grep -n "_pcolormesh_projected" example_chl_nodatabse10.py | sed 's/^/  /'
+echo "  stray transform_first on pcolormesh: $(grep -c 'transform=ccrs.PlateCarree(), transform_first=True' example_chl_nodatabse10.py)"

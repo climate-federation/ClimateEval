@@ -1,0 +1,1 @@
+/work/bd0854/DATA/ESMValTool2/OBS/Tier2/HadISST/OBS_HadISST_reanaly_1_Omon_tos_187001-202112.nc

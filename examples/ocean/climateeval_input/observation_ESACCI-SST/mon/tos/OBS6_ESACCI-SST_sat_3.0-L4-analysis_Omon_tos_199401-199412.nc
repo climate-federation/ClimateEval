@@ -1,0 +1,1 @@
+/work/bd0854/DATA/ESMValTool2/OBS/Tier2/ESACCI-SST/OBS6_ESACCI-SST_sat_3.0-L4-analysis_Omon_tos_199401-199412.nc
