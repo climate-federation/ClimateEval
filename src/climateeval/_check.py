@@ -350,7 +350,9 @@ def _check_timerange(
             f"{actual_min_year}0101/{actual_max_year}1231 or extend the data",
         )
     # For derived-variable sources the per-source coverage adds only noise
-    message = "" if source_prefix else f"data covers {actual_min_year}-{actual_max_year}"
+    message = (
+        "" if source_prefix else f"data covers {actual_min_year}-{actual_max_year}"
+    )
     return CheckResult("timerange", "pass", message)
 
 
