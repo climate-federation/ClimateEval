@@ -5,7 +5,7 @@ separate grid (mesh) files. This module loads those files directly with Iris
 (replicating what ESMValCore's ``native6`` ORAS5 fix does for the irregular
 grid: drop the redundant halo cells, rename the variable, and attach the
 horizontal cell bounds from the grid file). This keeps ORAS5 support independent
-of the (currently unreleased) ESMValCore ORAS5 fix.
+of the ESMValCore ORAS5 fix.
 
 Staging the data
 ----------------
@@ -28,8 +28,10 @@ regrid (followed by ``mask_landsea``) to the variable's
 ``additional_preprocessors``; the simple diagnostics otherwise regrid with the
 ``linear`` scheme, which does not support irregular grids.
 
-This loader currently handles 2-D (surface) variables only. Loading 3-D
-variables additionally requires fixing the vertical coordinate.
+Both 2-D (surface) and 3-D variables are supported. For 3-D variables the raw
+NEMO depth coordinate (``deptht``/``depthu``/``depthv``/``depthw``) is relabelled
+as a CF ``depth`` coordinate so downstream preprocessing and diagnostics can
+recognise it.
 
 """
 
@@ -70,8 +72,8 @@ class ORAS5(DataSource):
         references=("https://doi.org/10.5194/os-15-779-2019",),
     )
 
-    #: Map of CMIP variable name to (raw NEMO variable name, raw units). Only
-    #: 2-D (surface) variables are supported by this loader.
+    #: Map of CMIP variable name to (raw NEMO variable name, raw units). Both
+    #: 2-D (surface) and 3-D variables are supported.
     _RAW_VARIABLE_INFO: ClassVar[dict[str, tuple[str, str]]] = {
         "mlotst": ("somxl010", "m"),
         "tos": ("sosstsst", "degC"),
@@ -133,15 +135,24 @@ class ORAS5(DataSource):
             )
             raise NotImplementedError(msg)
 
+    #: Raw NEMO depth coordinate names (per grid) relabelled as CF ``depth``.
+    _RAW_DEPTH_NAMES: ClassVar[tuple[str, ...]] = (
+        "deptht",
+        "depthu",
+        "depthv",
+        "depthw",
+    )
+
     def _load_native_cube(self, files: list[Path], variable: Variable) -> Cube:
-        """Load and CMORize raw ORAS5 files for a 2-D variable."""
+        """Load and CMORize raw ORAS5 files for a 2-D or 3-D variable."""
         raw_name, raw_units = self._RAW_VARIABLE_INFO[variable.var_name]
         cube = load_cubes([str(file) for file in files]).extract_cube(
             NameConstraint(var_name=raw_name),
         )
 
         # Drop the redundant halo cells of the ORCA025 grid so that the data
-        # aligns with the grid (mesh) file.
+        # aligns with the grid (mesh) file. The ellipsis leaves any leading
+        # time and depth dimensions untouched, so this works for 2-D and 3-D.
         cube = cube[..., :-1, 1:-1]
 
         # Set variable metadata.
@@ -151,9 +162,27 @@ class ORAS5(DataSource):
         cube.units = raw_units
         cube.standard_name = var_info["standard_name"] or None
 
+        self._fix_depth_coordinate(cube)
         self._add_grid_bounds(cube, variable)
 
         return cube
+
+    def _fix_depth_coordinate(self, cube: Cube) -> None:
+        """Relabel the raw NEMO depth coordinate as a CF ``depth`` coordinate.
+
+        The raw files carry the vertical coordinate as ``deptht``/``depthu``/etc.
+        with no ``standard_name``; downstream coordinate unification
+        (``check_coordinates``) and the diagnostics look it up by the CF name
+        ``depth``. No-op for 2-D variables.
+        """
+        for raw_depth_name in self._RAW_DEPTH_NAMES:
+            if cube.coords(var_name=raw_depth_name):
+                coord = cube.coord(var_name=raw_depth_name)
+                coord.standard_name = "depth"
+                coord.long_name = "ocean depth coordinate"
+                coord.var_name = "lev"
+                coord.convert_units("m")
+                return
 
     def _add_grid_bounds(self, cube: Cube, variable: Variable) -> None:
         """Attach horizontal cell bounds from the ORAS5 grid (mesh) file."""

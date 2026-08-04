@@ -159,10 +159,11 @@
       frequency: mon
       reference_data: climateeval.data.ORAS5
 
+# Run model-only: hfbasin is not provided by ORAS5 (and RAPID, which measures
+# it at 26.5N, has no CMORizer yet), so no reference dataset is attached.
 - name: atlantic_heat_transport_26n
   diagnostic: climateeval.diags.simple.OceanHeatTransportProfile
   variables:
     - id: oht_atlantic
       var_name: hfbasin
       frequency: mon
-      reference_data: climateeval.data.ORAS5
