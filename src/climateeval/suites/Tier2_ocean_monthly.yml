@@ -142,3 +142,28 @@
     - *chl
     - *tos
     - *sos
+
+- name: gulf_stream_ssh
+  diagnostic: climateeval.diags.simple.GulfStreamSshGradient
+  variables:
+    - id: ssh_gulf_stream
+      var_name: zos
+      frequency: mon
+      reference_data: climateeval.data.ORAS5
+
+- name: acc_transport_drake
+  diagnostic: climateeval.diags.simple.ACCTransportZonalTransect
+  variables:
+    - id: uo_acc
+      var_name: uo
+      frequency: mon
+      reference_data: climateeval.data.ORAS5
+
+# Run model-only: hfbasin is not provided by ORAS5 (and RAPID, which measures
+# it at 26.5N, has no CMORizer yet), so no reference dataset is attached.
+- name: atlantic_heat_transport_26n
+  diagnostic: climateeval.diags.simple.OceanHeatTransportProfile
+  variables:
+    - id: oht_atlantic
+      var_name: hfbasin
+      frequency: mon
