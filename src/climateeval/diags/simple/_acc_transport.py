@@ -54,10 +54,11 @@ class ACCTransportZonalTransect(SimpleDiagnostic):
             distance_matrix = (lon_points_normalized - target_lon_normalized) ** 2 + (
                 lat_points - lat_mid
             ) ** 2
-            _, closest_x_idx = np.unravel_index(
-                np.argmin(distance_matrix), lon_points.shape,
+            _, closest_x = np.unravel_index(
+                np.argmin(distance_matrix),
+                lon_points.shape,
             )
-            closest_x_idx = int(closest_x_idx)
+            closest_x_idx = int(closest_x)
 
             lats_along_transect = lat_points[:, closest_x_idx]
 
@@ -74,7 +75,7 @@ class ACCTransportZonalTransect(SimpleDiagnostic):
             y_dim_index = int(cube.coord_dims(lat_coord)[0])
             x_dim_index = int(cube.coord_dims(lon_coord)[1])
 
-        slice_structure = [slice(None)] * cube.ndim
+        slice_structure: list[slice | int | np.ndarray] = [slice(None)] * cube.ndim
 
         slice_structure[x_dim_index] = closest_x_idx
         slice_structure[y_dim_index] = y_indices
@@ -91,7 +92,9 @@ class ACCTransportZonalTransect(SimpleDiagnostic):
         dy_array = np.abs(earth_radius * dlat)
 
         dy_coord = iris.coords.AuxCoord(
-            dy_array, long_name="grid_cell_width_y", units="m",
+            dy_array,
+            long_name="grid_cell_width_y",
+            units="m",
         )
         cube.add_aux_coord(dy_coord, cube.coord_dims("latitude"))
 
@@ -101,13 +104,16 @@ class ACCTransportZonalTransect(SimpleDiagnostic):
         else:
             dz_array = np.gradient(z_coord.points)
 
-
         cube = self._compute_transport(cube, dy_array, dz_array)
 
         return cube  # noqa: RET504
 
-    def _compute_transport(self, cube: Cube, dy_array: np.ndarray,
-                           dz_array: np.ndarray) -> Cube:
+    def _compute_transport(
+        self,
+        cube: Cube,
+        dy_array: np.ndarray,
+        dz_array: np.ndarray,
+    ) -> Cube:
         """Compute the transport through the transect."""
         dz_coord = iris.coords.AuxCoord(
             dz_array,
@@ -131,7 +137,8 @@ class ACCTransportZonalTransect(SimpleDiagnostic):
         transport_cube.data = transport_cube.core_data() * dy_cube * dz_cube / 1e6
 
         transport_cube = transport_cube.collapsed(
-            ["latitude", "depth"], iris.analysis.SUM,
+            ["latitude", "depth"],
+            iris.analysis.SUM,
         )
 
         actual_lon = np.mean(cube.coord("longitude").points)

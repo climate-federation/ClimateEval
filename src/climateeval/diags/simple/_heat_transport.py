@@ -5,16 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import iris
-import numpy as np
 from esmvalcore.preprocessor import climate_statistics
 
 from climateeval import Coordinate
 from climateeval._config import setup_esmvaltool_config_and_logging
-from climateeval.diags._utils import DEFAULT_GRID
-from climateeval.diags.simple._base import SimpleDiagnostic
-
-if TYPE_CHECKING:
-    from iris.cube import Cube
 
     from climateeval import Variable
 
@@ -36,9 +30,7 @@ class OceanHeatTransportProfile(SimpleDiagnostic):
             cube = cube.extract(iris.Constraint(region="atlantic_arctic_ocean"))
             cube.data = cube.core_data() / 1e15
             cube.units = "PW"
-            cube.long_name = (
-                "Climatological_Northward_Ocean_Heat_Transport_Basin"
-            )
+            cube.long_name = "Climatological_Northward_Ocean_Heat_Transport_Basin"
 
             if cube.coords("basin"):
                 cube.remove_coord("basin")

@@ -50,6 +50,7 @@ class RAPID(DataSource):
     )
 
     #: Variables provided directly (not derived) by the CMORized RAPID file.
+<<<<<<< HEAD
     _supported_var_names: ClassVar[tuple[str, ...]] = ("amoc", "msftmz",)
 
     _FILE_ENV: ClassVar[str] = "CLIMATEEVAL_RAPID_FILE"
@@ -60,6 +61,15 @@ class RAPID(DataSource):
         ),
         "msftmz": ("/work/bd1083/b382555/OBS_RAPID_Omon_msftmz_2004_2024.nc"),
     }
+=======
+    _supported_var_names: ClassVar[tuple[str, ...]] = ("amoc",)
+
+    _FILE_ENV: ClassVar[str] = "CLIMATEEVAL_RAPID_FILE"
+    _DEFAULT_FILE: ClassVar[str] = (
+        "/work/bd0854/DATA/ESMValTool2/OBS/Tier3/RAPID/"
+        "OBS6_RAPID_exp_2024.1a_Omon_amoc_2004_2024.nc"
+    )
+>>>>>>> origin
 
     def get_cube(
         self,
@@ -72,8 +82,12 @@ class RAPID(DataSource):
         logger.debug(f"Loading {variable} of {self.id}")
         self._check_supported_variables(variable)
 
+<<<<<<< HEAD
         default_path = self._DEFAULT_FILE.get(variable.var_name)
         file = Path(os.environ.get(self._FILE_ENV, default_path))
+=======
+        file = Path(os.environ.get(self._FILE_ENV, self._DEFAULT_FILE))
+>>>>>>> origin
         if not file.is_file():
             msg = f"RAPID file {file} not found for {variable} of {self.id}"
             raise MissingDataError(msg)

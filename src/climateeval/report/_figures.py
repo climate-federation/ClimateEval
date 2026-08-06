@@ -2,17 +2,26 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+if TYPE_CHECKING:
+    import pandas as pd
+
+from climateeval.report._common import (
+    _combine_pivots,
+    _data_range,
+    _get_ref_dataset,
+    _get_ref_datasets,
+    _sort_datasets,
+    _var_label,
+)
 from climateeval.report._db import get_density_cols, get_var_cols
 from climateeval.report._style import (
     _AXIS_STYLE,
-    _DIVERGING_VARS,
     _PLOT_FONT,
     _SEABORN_COLORS,
     _bias_colorscale_for,
@@ -59,30 +68,14 @@ def _coastlines() -> tuple[list, list]:
 # ---------------------------------------------------------------------------
 
 
-def _vrange(series: pd.Series) -> tuple[float, float]:
-    s = series.dropna()
-    if s.empty:
-        return 0.0, 1.0
-    return float(s.quantile(0.02)), float(s.quantile(0.98))
+def _sync_subplot_axes(fig: go.Figure) -> None:
+    """Link all subplot axes so zoom, pan and reset apply to every panel.
 
-
-def _var_label(var_id: str, variables_df: pd.DataFrame) -> tuple[str, str]:
-    """Return (long_name, units) for var_id."""
-    row = variables_df[variables_df["id"] == var_id]
-    long_name = row["long_name"].values[0] if not row.empty else var_id
-    units = row["units"].values[0] if not row.empty else ""
-    return str(long_name), str(units)
-
-
-def _data_range(series: pd.Series, var_id: str) -> tuple[float, float]:
-    """Return (vmin, vmax); symmetric around zero for diverging variables."""
-    vmin, vmax = _vrange(series)
-    if var_id in _DIVERGING_VARS:
-        vabs = max(abs(vmin), abs(vmax))
-        if vabs == 0:
-            vabs = 1.0
-        return -vabs, vabs
-    return vmin, vmax
+    Only valid for figures whose panels all share the same axis semantics
+    (e.g. the lon×lat map grid); the first subplot's axes are the targets.
+    """
+    fig.update_xaxes(matches="x")
+    fig.update_yaxes(matches="y")
 
 
 def _get_line_properties(dtype: str, color_idx: int) -> dict:
@@ -126,73 +119,6 @@ def _get_line_properties(dtype: str, color_idx: int) -> dict:
         "showlegend": False,
         "zorder": 0,
     }
-
-
-def _sort_datasets(data_df: pd.DataFrame, datasets: list[str]) -> list[str]:
-    """Sort: reference first, other second, to_benchmark last."""
-    priority = {"to_benchmark": 0, "reference": 1, "other": 2}
-
-    def key(ds: str) -> int:
-        dtype = data_df[data_df["data_id"] == ds]["data_type"].iloc[0]
-        return priority.get(dtype, 3)
-
-    return sorted(datasets, key=key)
-
-
-def _get_ref_dataset(data_df: pd.DataFrame, metrics_df: pd.DataFrame) -> str | None:
-    """Return the data_id of the reference dataset, if exactly one exists."""
-    # Fall back to the old method for backwards compat / test fixtures.
-    if (
-        metrics_df is not None
-        and not metrics_df.empty
-        and "reference_data_id" in metrics_df.columns
-    ):
-        refs = metrics_df["reference_data_id"].dropna().unique().tolist()
-        return refs[0] if len(refs) == 1 else None
-    ref_datasets = (
-        data_df[data_df["data_type"] == "reference"]["data_id"].unique().tolist()
-    )
-    return ref_datasets[0] if len(ref_datasets) == 1 else None
-
-
-def _get_ref_datasets(
-    data_df: pd.DataFrame,
-    metrics_df: pd.DataFrame | None = None,
-) -> list[str]:
-    """Return every reference data_id, in stable order (may be empty)."""
-    if (
-        metrics_df is not None
-        and not metrics_df.empty
-        and "reference_data_id" in metrics_df.columns
-    ):
-        refs = list(metrics_df["reference_data_id"].dropna().unique().tolist())
-        if refs:
-            return refs
-    return data_df[data_df["data_type"] == "reference"]["data_id"].unique().tolist()
-
-
-def _combine_pivots(pivots: list[pd.DataFrame]) -> pd.DataFrame | None:
-    """Return the element-wise mean of a list of 2-D pivots (NaN-aware).
-
-    Pivots are aligned on the union of their indices/columns before averaging,
-    so references on slightly different grids can still be combined.
-    """
-    pivots = [p for p in pivots if p is not None and not p.empty]
-    if not pivots:
-        return None
-    if len(pivots) == 1:
-        return pivots[0]
-    idx = pivots[0].index
-    cols = pivots[0].columns
-    for p in pivots[1:]:
-        idx = idx.union(p.index)
-        cols = cols.union(p.columns)
-    stacked = np.stack(
-        [p.reindex(index=idx, columns=cols).values for p in pivots],
-    )
-    with np.errstate(invalid="ignore"):
-        mean_vals = np.nanmean(stacked, axis=0)
-    return pd.DataFrame(mean_vals, index=idx, columns=cols)
 
 
 def _base_layout(**kwargs: Any) -> dict:
@@ -525,13 +451,15 @@ def build_map_figures(
                 _add_panel(piv, row, col, cs, vmin, vmax, cb, ds)
                 show_cb = False
 
+        _sync_subplot_axes(fig)
+
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         # Each map panel should be ~2:1 (width:height) to match 360°×180° lon/lat.
         # Set explicit width so the aspect ratio is correct regardless of browser width.
         _panel_w = 440  # px per column
         _panel_h = 260  # px per row  (440/2 + room for axis labels)
         _h_margin = 130  # t=80 + b=50
-        _w_margin = (260 if has_bias else 180)  # l + r + colorbars
+        _w_margin = 260 if has_bias else 180  # l + r + colorbars
         fig.update_layout(
             **_base_layout(
                 title={
@@ -545,6 +473,9 @@ def build_map_figures(
                 width=ncols * _panel_w + _w_margin,
                 autosize=False,
                 margin={"t": 80, "b": 50, "l": 60, "r": 150 if has_bias else 90},
+                # panels are labelled by subplot titles + colorbars; heatmap
+                # legend entries render as meaningless color swatches
+                showlegend=False,
             ),
         )
         ref_title_texts = {f"<b>{r}</b>" for r in valid_refs} if has_bias else set()
@@ -1687,6 +1618,8 @@ def build_zonal_profile_figures(
                 _add_panel(piv, row, col, cs, vmin, vmax, cb, ds)
                 show_cb = False
 
+        _sync_subplot_axes(fig)
+
         title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
         fig.update_layout(
             **_base_layout(
@@ -1698,6 +1631,7 @@ def build_zonal_profile_figures(
                 },
                 height=max(400 * nrows + 120, 520),
                 margin={"t": 80, "b": 60, "l": 80, "r": 150 if has_bias else 90},
+                showlegend=False,
             ),
         )
         for ann in fig.layout.annotations:
@@ -1960,7 +1894,7 @@ def build_hovmoller_figures(
             sub = data_df[data_df["data_id"] == dataset].dropna(subset=[_vid])
             try:
                 p = sub.pivot_table(
-                    index="time",       # rows = time
+                    index="time",  # rows = time
                     columns="longitude",  # columns = longitude
                     values=_vid,
                     aggfunc="mean",
@@ -1995,8 +1929,9 @@ def build_hovmoller_figures(
         zmin, zmax = -abs_max, abs_max
 
         nrows = len(pivots)
-        # Do NOT share x-axes so the transpose button can update each trace's
-        # x/y independently.
+        # Do NOT share or match axes here: the transpose buttons swap each
+        # panel's x/y between numeric (lon) and categorical (time), which a
+        # matched-axis group would break.
         fig = make_subplots(
             rows=nrows,
             cols=1,
@@ -2008,8 +1943,8 @@ def build_hovmoller_figures(
         for row_i, (dataset, pv) in enumerate(zip(ds_order, pivots), start=1):
             fig.add_trace(
                 go.Heatmap(
-                    x=pv.columns.tolist(),   # longitude (default)
-                    y=pv.index.tolist(),     # time strings (default)
+                    x=pv.columns.tolist(),  # longitude (default)
+                    y=pv.index.tolist(),  # time strings (default)
                     z=pv.values.tolist(),
                     colorscale=cs,
                     zmin=zmin,
@@ -2073,20 +2008,33 @@ def build_hovmoller_figures(
 
         # Layout args for each (orientation × longitude-direction) combination.
         # Each button is fully self-contained so no client-side state is needed.
-        lon_x_layout_we: dict[str, Any] = {}   # Lon × Time, W → E (default)
-        lon_x_layout_ew: dict[str, Any] = {}   # Lon × Time, E → W
+        lon_x_layout_we: dict[str, Any] = {}  # Lon × Time, W → E (default)
+        lon_x_layout_ew: dict[str, Any] = {}  # Lon × Time, E → W
         time_x_layout_we: dict[str, Any] = {}  # Time × Lon, W → E
         time_x_layout_ew: dict[str, Any] = {}  # Time × Lon, E → W
         for i in range(nrows):
             xa, ya = _ax("xaxis", i), _ax("yaxis", i)
-            _lon_we  = {"title": {"text": "Longitude"}, **lon_ticks, **_AXIS_STYLE}
-            _lon_ew  = {"title": {"text": "Longitude"}, "autorange": "reversed", **lon_ticks, **_AXIS_STYLE}
-            _time_rv = {"title": {"text": "Time"}, "autorange": "reversed", **_AXIS_STYLE}
+            _lon_we = {"title": {"text": "Longitude"}, **lon_ticks, **_AXIS_STYLE}
+            _lon_ew = {
+                "title": {"text": "Longitude"},
+                "autorange": "reversed",
+                **lon_ticks,
+                **_AXIS_STYLE,
+            }
+            _time_rv = {
+                "title": {"text": "Time"},
+                "autorange": "reversed",
+                **_AXIS_STYLE,
+            }
             _time_fw = {"title": {"text": "Time"}, "autorange": True, **_AXIS_STYLE}
-            lon_x_layout_we[xa]  = _lon_we;  lon_x_layout_we[ya]  = _time_rv
-            lon_x_layout_ew[xa]  = _lon_ew;  lon_x_layout_ew[ya]  = _time_rv
-            time_x_layout_we[xa] = _time_fw; time_x_layout_we[ya] = _lon_we
-            time_x_layout_ew[xa] = _time_fw; time_x_layout_ew[ya] = _lon_ew
+            lon_x_layout_we[xa] = _lon_we
+            lon_x_layout_we[ya] = _time_rv
+            lon_x_layout_ew[xa] = _lon_ew
+            lon_x_layout_ew[ya] = _time_rv
+            time_x_layout_we[xa] = _time_fw
+            time_x_layout_we[ya] = _lon_we
+            time_x_layout_ew[xa] = _time_fw
+            time_x_layout_ew[ya] = _lon_ew
 
         _btn_style = {
             "type": "buttons",
@@ -2097,38 +2045,59 @@ def build_hovmoller_figures(
             "borderwidth": 1,
             "font": {"size": 11, "color": "#1e2535"},
         }
-        title_str = (
-            f"<b>{long_name}</b> — Hovmöller (meridional-mean anomaly)"
-            + (f"  [{units}]" if units else "")
+        title_str = f"<b>{long_name}</b> — Hovmöller (meridional-mean anomaly)" + (
+            f"  [{units}]" if units else ""
         )
         panel_height = max(400, 320 * nrows)
         fig.update_layout(
             **_base_layout(
-                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
                 margin={"t": 110, "b": 60, "l": 90, "r": 90},
                 height=panel_height,
+                showlegend=False,
             ),
             updatemenus=[
                 {
                     **_btn_style,
-                    "x": 0.0, "xanchor": "left",
-                    "y": 1.0, "yanchor": "bottom",
+                    "x": 0.0,
+                    "xanchor": "left",
+                    "y": 1.0,
+                    "yanchor": "bottom",
                     "buttons": [
-                        {"label": " Lon × Time ", "method": "update",
-                         "args": [lon_x_trace, lon_x_layout_we]},
-                        {"label": " Lon × Time  E→W ", "method": "update",
-                         "args": [lon_x_trace, lon_x_layout_ew]},
+                        {
+                            "label": " Lon × Time ",
+                            "method": "update",
+                            "args": [lon_x_trace, lon_x_layout_we],
+                        },
+                        {
+                            "label": " Lon × Time  E→W ",
+                            "method": "update",
+                            "args": [lon_x_trace, lon_x_layout_ew],
+                        },
                     ],
                 },
                 {
                     **_btn_style,
-                    "x": 0.55, "xanchor": "left",
-                    "y": 1.0, "yanchor": "bottom",
+                    "x": 0.55,
+                    "xanchor": "left",
+                    "y": 1.0,
+                    "yanchor": "bottom",
                     "buttons": [
-                        {"label": " Time × Lon ", "method": "update",
-                         "args": [time_x_trace, time_x_layout_we]},
-                        {"label": " Time × Lon  E→W ", "method": "update",
-                         "args": [time_x_trace, time_x_layout_ew]},
+                        {
+                            "label": " Time × Lon ",
+                            "method": "update",
+                            "args": [time_x_trace, time_x_layout_we],
+                        },
+                        {
+                            "label": " Time × Lon  E→W ",
+                            "method": "update",
+                            "args": [time_x_trace, time_x_layout_ew],
+                        },
                     ],
                 },
             ],
@@ -2163,7 +2132,8 @@ def build_qbo_figures(
         cs = _colorscale_for(var_id)  # ua → "PuOr" (diverging)
 
         valid_datasets = [
-            ds for ds in all_datasets
+            ds
+            for ds in all_datasets
             if not data_df[data_df["data_id"] == ds][var_id].isna().all()
         ]
         if not valid_datasets:
@@ -2172,7 +2142,9 @@ def build_qbo_figures(
         # Symmetric colour range across all datasets
         all_vals = data_df[var_id].dropna().tolist()
         arr = np.array(all_vals)
-        abs_max = float(max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98)))))
+        abs_max = float(
+            max(abs(float(np.percentile(arr, 2))), abs(float(np.percentile(arr, 98))))
+        )
         if abs_max == 0:
             abs_max = 1.0
         zmin, zmax = -abs_max, abs_max
@@ -2190,8 +2162,8 @@ def build_qbo_figures(
                     aggfunc="mean",
                 )
                 p = p.dropna(how="all").dropna(axis=1, how="all")
-                p.index = (p.index / 100).round(1)              # Pa → hPa
-                p.columns = p.columns.astype(str).str[:7]       # YYYY-MM
+                p.index = (p.index / 100).round(1)  # Pa → hPa
+                p.columns = p.columns.astype(str).str[:7]  # YYYY-MM
             except Exception:
                 return None
             return p if not p.empty else None
@@ -2207,7 +2179,7 @@ def build_qbo_figures(
             continue
 
         n_ds = len(ds_order)
-        nrows = n_ds + 1   # n_ds heatmap rows + 1 QBO-index row
+        nrows = n_ds + 1  # n_ds heatmap rows + 1 QBO-index row
         ncols = 2
 
         # specs: right col spans all heatmap rows; bottom row spans both cols
@@ -2235,8 +2207,8 @@ def build_qbo_figures(
             show_cb = row_i == 1
             fig.add_trace(
                 go.Heatmap(
-                    x=pv.columns.tolist(),   # time (YYYY-MM)
-                    y=pv.index.tolist(),     # pressure (hPa)
+                    x=pv.columns.tolist(),  # time (YYYY-MM)
+                    y=pv.index.tolist(),  # pressure (hPa)
                     z=pv.values.tolist(),
                     colorscale=cs,
                     zmin=zmin,
@@ -2289,6 +2261,13 @@ def build_qbo_figures(
                 row=row_i,
                 col=1,
             )
+
+        # Link the stacked heatmap rows so zoom/pan/reset applies to all
+        # datasets; the amplitude and index panels have different axis
+        # semantics and stay independent.
+        for row_i in range(2, n_ds + 1):
+            fig.update_xaxes(matches="x", row=row_i, col=1)
+            fig.update_yaxes(matches="y", row=row_i, col=1)
 
         # ---- Amplitude profile (right column, spans all heatmap rows) ------
         color_idx = 0
@@ -2362,9 +2341,8 @@ def build_qbo_figures(
             dtype = sub["data_type"].iloc[0]
             avail = sub["air_pressure"].unique()
             target = avail[int(np.argmin(np.abs(avail - _50hpa_pa)))]
-            idx_sub = (
-                sub[sub["air_pressure"] == target][["time", var_id]]
-                .sort_values("time")
+            idx_sub = sub[sub["air_pressure"] == target][["time", var_id]].sort_values(
+                "time"
             )
             if idx_sub.empty:
                 continue
@@ -2403,14 +2381,18 @@ def build_qbo_figures(
             col=1,
         )
 
-        title_str = (
-            f"<b>{long_name}</b> — QBO (equatorial zonal mean)"
-            + (f"  [{units}]" if units else "")
+        title_str = f"<b>{long_name}</b> — QBO (equatorial zonal mean)" + (
+            f"  [{units}]" if units else ""
         )
         panel_height = max(600, 280 * n_ds + 220)
         fig.update_layout(
             **_base_layout(
-                title={"text": title_str, "font": {"size": 14}, "x": 0.02, "xanchor": "left"},
+                title={
+                    "text": title_str,
+                    "font": {"size": 14},
+                    "x": 0.02,
+                    "xanchor": "left",
+                },
                 margin={"t": 80, "b": 60, "l": 80, "r": 90},
                 height=panel_height,
                 legend={
@@ -2459,16 +2441,23 @@ _DIAG_LABELS = {
     "Scalar": "Scalar",
 }
 
-_DIAG_ICONS = {
-    "Map": "🗺",
-    "TimeSeries": "📈",
-    "AnnualCycle": "📅",
-    "DiurnalCycle": "🌅",
-    "ZonalLine": "〰",
-    "ZonalProfile": "🌡",
-    "Hovmoller": "🌊",
-    "QBO": "🌀",
-    "DepthProfile": "〰",
-    "Histogram": "📊",
-    "Scalar": "📊",
+# Plot-type categories — group diagnostics by the kind of view they present, so
+# related plots cluster together in the report (issue #17).
+_DIAG_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Spatial maps & profiles", ("Map", "ZonalProfile", "ZonalLine", "DepthProfile")),
+    (
+        "Time series & cycles",
+        ("TimeSeries", "AnnualCycle", "DiurnalCycle", "Hovmoller", "QBO"),
+    ),
+    ("Distributions", ("Histogram",)),
+    ("Scalar metrics", ("Scalar",)),
+)
+_CATEGORY_ORDER: tuple[str, ...] = (*(name for name, _ in _DIAG_CATEGORIES), "Other")
+_DTYPE_TO_CATEGORY: dict[str, str] = {
+    dtype: name for name, dtypes in _DIAG_CATEGORIES for dtype in dtypes
 }
+
+
+def _diag_category(dtype: str) -> str:
+    """Return the plot-type category label for a diagnostic type."""
+    return _DTYPE_TO_CATEGORY.get(dtype, "Other")

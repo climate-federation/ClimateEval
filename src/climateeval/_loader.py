@@ -1,0 +1,147 @@
+"""Load CMOR-compliant model output for benchmarking.
+
+Handles the layouts model output typically comes in:
+
+- a flat directory of NetCDF files (or a single file),
+- a CMOR DRS tree (per-variable subdirectories with ``<grid>/<version>``
+  levels, as found in ESGF/CMIP6 archives), selecting the preferred grid and
+  the latest version,
+- time-split archives (e.g. one file per year), which are concatenated to one
+  cube per variable.
+"""
+
+from __future__ import annotations
+
+import re
+import warnings
+from pathlib import Path
+
+import iris
+from iris.cube import CubeList
+from iris.util import equalise_attributes, unify_time_units
+from loguru import logger
+
+_VERSION_RE = re.compile(r"^(v\d+|latest)$")
+
+
+def _timerange_years(timerange: str | None) -> tuple[int, int] | None:
+    """Parse an ISO-like timerange (``19900101/20091231``) into years."""
+    if timerange is None:
+        return None
+    try:
+        start, end = timerange.split("/", 1)
+        return int(start[:4]), int(end[:4])
+    except ValueError:
+        return None
+
+
+def _overlaps_years(filename: str, years: tuple[int, int] | None) -> bool:
+    """Check the CMOR filename date token against a year range.
+
+    Files whose trailing token is not a parseable ``<start>-<end>`` date range
+    are included to be safe.
+    """
+    if years is None:
+        return True
+    date_token = Path(filename).stem.rsplit("_", 1)[-1]
+    if "-" not in date_token:
+        return True
+    start_str, end_str = date_token.split("-", 1)
+    try:
+        return int(end_str[:4]) >= years[0] and int(start_str[:4]) <= years[1]
+    except ValueError:
+        return True
+
+
+def _select_drs_leaves(leaf_dirs: list[Path], preferred_grid: str) -> list[Path]:
+    """Reduce DRS leaf directories to one per variable.
+
+    Leaves following the ``<var>/<grid>/<version>`` pattern are grouped by
+    variable directory; the preferred grid (falling back to the first grid
+    alphabetically) and the latest version win. Leaves not following the
+    pattern are kept as-is.
+    """
+    plain: list[Path] = []
+    by_var: dict[Path, dict[str, list[Path]]] = {}
+    for leaf in leaf_dirs:
+        if _VERSION_RE.match(leaf.name) and leaf.parent != leaf:
+            grid_dir = leaf.parent
+            by_var.setdefault(grid_dir.parent, {}).setdefault(
+                grid_dir.name,
+                [],
+            ).append(leaf)
+        else:
+            plain.append(leaf)
+
+    selected = plain
+    for var_dir, grids in by_var.items():
+        grid = preferred_grid if preferred_grid in grids else sorted(grids)[0]
+        version_leaf = sorted(grids[grid])[-1]
+        if len(grids) > 1 or len(grids[grid]) > 1:
+            logger.debug(
+                f"{var_dir}: selected grid '{grid}', version '{version_leaf.name}'",
+            )
+        selected.append(version_leaf)
+    return sorted(selected)
+
+
+def load_cmor_dir(
+    path: Path | str,
+    *,
+    timerange: str | None = None,
+    preferred_grid: str = "gn",
+) -> CubeList:
+    """Load CMOR-compliant NetCDF output from a file, directory, or DRS tree.
+
+    Parameters
+    ----------
+    path:
+        A NetCDF file, a flat directory of NetCDF files, or the root of a
+        CMOR DRS tree (e.g. an ``Amon`` table directory with per-variable
+        subdirectories). For DRS trees, the preferred grid and the latest
+        version are selected per variable.
+    timerange:
+        Optional ISO-like timerange (``19900101/20091231``). Files whose
+        filename date token does not overlap it are skipped.
+    preferred_grid:
+        Grid label preferred when a DRS variable is available on several
+        grids (default: the native grid ``gn``).
+
+    Returns
+    -------
+    :
+        One cube per variable; time-split files are concatenated.
+
+    """
+    path = Path(path)
+    years = _timerange_years(timerange)
+
+    groups: list[list[Path]]
+    if path.is_file():
+        groups = [[path]]
+    else:
+        flat = sorted(path.glob("*.nc"))
+        if flat:
+            groups = [flat]
+        else:
+            leaf_dirs = sorted({f.parent for f in path.rglob("*.nc")})
+            groups = [
+                sorted(leaf.glob("*.nc"))
+                for leaf in _select_drs_leaves(leaf_dirs, preferred_grid)
+            ]
+
+    cubes: CubeList = CubeList([])
+    for group in groups:
+        relevant = [f for f in group if _overlaps_years(f.name, years)]
+        if not relevant:
+            continue
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            loaded = iris.load([str(f) for f in relevant])
+            equalise_attributes(loaded)
+            unify_time_units(loaded)
+            loaded = loaded.concatenate()
+        cubes.extend(loaded)
+
+    logger.info(f"Loaded {len(cubes)} cube(s) from {path}")
+    return cubes

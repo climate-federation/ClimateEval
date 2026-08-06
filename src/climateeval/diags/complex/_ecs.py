@@ -1,4 +1,4 @@
-"""Provide Effective Climate Sensitivity (ECS) diagnostic."""
+"""Provide Equilibrium Climate Sensitivity (ECS) diagnostic."""
 
 from __future__ import annotations
 

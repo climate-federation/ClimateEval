@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 # ---------------------------------------------------------------------------
 # Plot styling
 # ---------------------------------------------------------------------------
@@ -62,6 +64,8 @@ _VAR_COLORSCALE: dict[str, str] = {
     "ua": "PuOr",
     "ua200": "PuOr",
     "ua800": "PuOr",
+    # Sea-ice concentration (ICONEval sea_ice_maps: Blues_r)
+    "siconc": "Blues_r",
 }
 
 # Variables whose fields should be displayed with a symmetric range around zero
@@ -90,22 +94,58 @@ _DEFAULT_BIAS_COLORSCALE = "RdBu_r"
 
 
 _HOVMOLLER_COLORSCALE: dict[str, str] = {
-    "pr": "BrBG",    # wet (green) / dry (brown) anomaly
+    "pr": "BrBG",  # wet (green) / dry (brown) anomaly
     "rlut": "RdBu",  # warm (red) / cold (blue) OLR anomaly
 }
 _DEFAULT_HOVMOLLER_COLORSCALE = "RdBu_r"
 
 
+def _base_var(var_id: str) -> str:
+    """Return the physical variable behind a composite id (siconc_nh_map → siconc)."""
+    return var_id.split("_", maxsplit=1)[0]
+
+
 def _colorscale_for(var_id: str) -> str:
-    return _VAR_COLORSCALE.get(var_id, _DEFAULT_COLORSCALE)
+    if var_id in _VAR_COLORSCALE:
+        return _VAR_COLORSCALE[var_id]
+    return _VAR_COLORSCALE.get(_base_var(var_id), _DEFAULT_COLORSCALE)
 
 
 def _hovmoller_colorscale_for(var_id: str) -> str:
-    return _HOVMOLLER_COLORSCALE.get(var_id, _DEFAULT_HOVMOLLER_COLORSCALE)
+    if var_id in _HOVMOLLER_COLORSCALE:
+        return _HOVMOLLER_COLORSCALE[var_id]
+    return _HOVMOLLER_COLORSCALE.get(_base_var(var_id), _DEFAULT_HOVMOLLER_COLORSCALE)
 
 
 def _bias_colorscale_for(var_id: str) -> str:
-    return _VAR_BIAS_COLORSCALE.get(var_id, _DEFAULT_BIAS_COLORSCALE)
+    if var_id in _VAR_BIAS_COLORSCALE:
+        return _VAR_BIAS_COLORSCALE[var_id]
+    return _VAR_BIAS_COLORSCALE.get(_base_var(var_id), _DEFAULT_BIAS_COLORSCALE)
+
+
+# ---------------------------------------------------------------------------
+# Per-tier accent (visual separation of Tier 1/2/3 in the report)
+# ---------------------------------------------------------------------------
+
+# Modern, distinct, AA-contrast accents keyed by tier number (parsed from the
+# database/panel label). Panels of the same tier share a colour.
+_TIER_ACCENTS = {
+    1: "#0f766e",  # teal-700   — Tier 1 (sanity & consistency)
+    2: "#4338ca",  # indigo-700 — Tier 2 (mean state vs obs)
+    3: "#b45309",  # amber-700  — Tier 3 (variability / processes / feedbacks)
+    4: "#9333ea",  # purple-600
+}
+_TIER_ACCENT_FALLBACK = "#475569"  # slate-600 (label without a tier number)
+_TIER_RE = re.compile(r"tier\s*([0-9]+)", re.IGNORECASE)
+
+
+def _tier_accent(label: str) -> tuple[str, str]:
+    """Return (accent hex, short badge) for a tier panel, parsed from its label."""
+    match = _TIER_RE.search(label)
+    if match:
+        num = int(match.group(1))
+        return _TIER_ACCENTS.get(num, _TIER_ACCENT_FALLBACK), f"T{num}"
+    return _TIER_ACCENT_FALLBACK, "•"
 
 
 # ---------------------------------------------------------------------------
@@ -122,8 +162,7 @@ _CSS = """
   --accent: #2e86c1;
   --accent-hover: #1a6fa8;
   --sidebar-w: 230px;
-  --header-h: 72px;
-  --toolbar-h: 52px;
+  --toolbar-h: 44px;
   --bg: #f0f3f7;
   --surface: #ffffff;
   --border: #dde2eb;
@@ -145,40 +184,35 @@ html, body {
 
 /* ── Header ── */
 .app-header {
-  flex-shrink: 0; height: var(--header-h);
+  flex-shrink: 0;
   background: linear-gradient(110deg, var(--navy) 0%, var(--navy-mid) 50%, var(--navy-light) 100%);
-  color: #c8daf0; padding: 0 28px;
+  color: #c8daf0; padding: 8px 24px;
   display: flex; align-items: center; gap: 20px;
   border-bottom: 1px solid rgba(255,255,255,0.07);
   box-shadow: 0 2px 12px rgba(0,0,0,.35);
   z-index: 300;
 }
 
-.header-logo {
-  flex-shrink: 0; width: 42px; height: 42px;
-  background: rgba(255,255,255,0.10); border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px;
-}
-
 .header-title { flex: 1; min-width: 0; }
 .header-title h1 {
-  margin: 0 0 2px; font-size: 1.15rem; font-weight: 700;
+  margin: 0 0 4px; font-size: 1.05rem; font-weight: 700;
   color: #fff; letter-spacing: -.1px; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 .header-meta {
-  display: flex; gap: 20px; flex-wrap: wrap;
-  font-size: 0.76rem; opacity: 0.65; line-height: 1.2;
+  display: flex; gap: 6px; flex-wrap: wrap;
+  font-size: 0.76rem; line-height: 1.2;
 }
-.header-meta span::before { content: ""; }
 .header-chip {
   display: flex; align-items: center; gap: 5px;
   background: rgba(255,255,255,0.08); border-radius: 20px;
-  padding: 3px 10px; font-size: 0.74rem; color: #b8cde4;
-  white-space: nowrap;
+  padding: 2px 10px; font-size: 0.73rem; color: #b8cde4;
+  white-space: nowrap; max-width: 100%;
 }
-.header-chip strong { color: #e0edf8; font-weight: 600; }
+.header-chip strong {
+  color: #e0edf8; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis;
+}
 
 /* ── Body split ── */
 .app-body {
@@ -210,6 +244,9 @@ html, body {
 }
 .sidebar-toggle:hover { background: var(--accent-hover); }
 .app-body.sidebar-collapsed .sidebar-toggle { left: 8px; }
+/* Make room for the toggle so it doesn't overlap the toolbar's "All" pill */
+.content-toolbar { transition: padding-left .2s ease; }
+.app-body.sidebar-collapsed .content-toolbar { padding-left: 46px; }
 
 .sidebar-toggle .bar {
   position: absolute;
@@ -249,6 +286,12 @@ html, body {
   border-left-color: var(--accent); font-weight: 600;
 }
 .sidebar-item .sidebar-icon { font-size: 1rem; flex-shrink: 0; opacity: 0.8; }
+.tier-badge {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; height: 19px; padding: 0 6px;
+  border-radius: 6px; font-size: 0.68rem; font-weight: 800;
+  letter-spacing: .02em; color: #fff;
+}
 
 .sidebar-divider {
   height: 1px; background: rgba(255,255,255,0.07); margin: 8px 16px;
@@ -263,19 +306,19 @@ html, body {
 .content-toolbar {
   flex-shrink: 0; height: var(--toolbar-h);
   background: var(--surface); border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 12px;
-  padding: 0 24px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px;
   box-shadow: 0 1px 4px rgba(0,0,0,.06);
   z-index: 100;
 }
 
 .diag-filter-btns {
-  display: flex; gap: 6px; align-items: center; flex-shrink: 0;
+  display: flex; gap: 5px; align-items: center; flex-shrink: 0;
 }
 .diag-filter-btn {
   background: none; border: 1.5px solid var(--border);
-  border-radius: 20px; padding: 5px 14px;
-  font-size: 0.8rem; font-weight: 500; cursor: pointer;
+  border-radius: 20px; padding: 3px 11px;
+  font-size: 0.78rem; font-weight: 500; cursor: pointer;
   color: var(--muted); display: flex; align-items: center; gap: 5px;
   transition: background .12s, border-color .12s, color .12s;
   white-space: nowrap;
@@ -307,9 +350,15 @@ html, body {
 .search-input:focus { border-color: var(--accent); background: #fff; }
 .search-input::placeholder { color: var(--muted); }
 
+.toolbar-db {
+  margin-left: auto; flex-shrink: 1; min-width: 0;
+  font-size: 0.73rem; color: var(--muted); font-style: italic;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* ── Main scrolling content ── */
 .main-content {
-  flex: 1; overflow-y: auto; padding: 28px 32px 48px;
+  flex: 1; overflow-y: auto; padding: 16px 24px 40px;
 }
 
 /* ── Content panels ── */
@@ -317,17 +366,30 @@ html, body {
 .content-panel.active { display: block; }
 
 /* ── Diagnostic sections within a tier ── */
-.diag-section { margin-bottom: 48px; }
+.diag-section { margin-bottom: 28px; }
 .diag-section.hidden { display: none; }
+
+/* ── Plot-type category grouping ── */
+.diag-category + .diag-category { margin-top: 14px; }
+/* auto-hide a category (incl. its header) when a filter leaves it with no
+   visible sections; search only dims sections, so headers stay during search */
+.diag-category:not(:has(.diag-section:not(.hidden))) { display: none; }
+.diag-category-header {
+  margin: 0 0 12px; padding-bottom: 5px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--navy-light);
+  border-bottom: 1px solid var(--border);
+}
+/* with a single diagnostic filtered, the header would repeat the pill */
+.content-panel.filtered .diag-category-header { display: none; }
 
 .diag-section-header {
   display: flex; align-items: center; gap: 10px;
-  margin-bottom: 18px; padding-bottom: 12px;
+  margin-bottom: 10px; padding-bottom: 6px;
   border-bottom: 2px solid var(--border);
 }
-.diag-section-icon { font-size: 1.2rem; }
 .diag-section-title {
-  font-size: 1.05rem; font-weight: 700; color: var(--navy-mid);
+  font-size: 1rem; font-weight: 700; color: var(--navy-mid);
 }
 
 /* ── Section headings ── */
@@ -429,6 +491,15 @@ details > summary:hover { opacity: 0.75; }
 .plot-title-text {
   font-size: 0.88rem; font-weight: 600; color: var(--navy-mid);
 }
+<<<<<<< HEAD
+=======
+.var-id-chip {
+  display: inline-block; padding: 1px 7px; margin-left: 6px;
+  border-radius: 6px; font-size: 0.7rem; font-weight: 600;
+  background: #eef2f7; color: #51637f; border: 1px solid var(--border);
+}
+.plot-title-units { color: var(--muted); font-weight: 500; }
+>>>>>>> origin
 
 /* ── Dataset detail box ── */
 .plot-detail-footer {
@@ -507,6 +578,7 @@ details > summary:hover { opacity: 0.75; }
   display: flex; gap: 18px; flex-wrap: wrap; align-items: center;
 }
 .legend-note span { display: flex; align-items: center; gap: 7px; }
+<<<<<<< HEAD
 .ln-solid {
   display: inline-block; width: 26px; height: 2.5px;
   background: #555; border-radius: 2px;
@@ -526,6 +598,25 @@ details > summary:hover { opacity: 0.75; }
 .ln-bias-swatch {
   display: inline-block; width: 26px; height: 10px; border-radius: 3px; flex-shrink: 0;
   background: linear-gradient(to right, #2166ac, #f7f7f7, #d6604d);
+=======
+/* line swatches mirror _get_line_properties(): model = coloured solid,
+   reference = black solid, other = gray dashed */
+.ln-model {
+  display: inline-block; width: 26px; height: 2.5px;
+  background: #4C72B0; border-radius: 2px;
+}
+.ln-refline {
+  display: inline-block; width: 26px; height: 2.5px;
+  background: #000; border-radius: 2px;
+}
+.ln-other {
+  display: inline-block; width: 26px; height: 2px; border-radius: 2px;
+  background: repeating-linear-gradient(to right,#888 0 5px,transparent 5px 9px);
+}
+/* backgrounds are set inline per variable from the plot's colorscales */
+.ln-data-swatch, .ln-bias-swatch {
+  display: inline-block; width: 26px; height: 10px; border-radius: 3px; flex-shrink: 0;
+>>>>>>> origin
 }
 
 /* ── Search no-results ── */
@@ -536,7 +627,10 @@ details > summary:hover { opacity: 0.75; }
 .search-no-results.visible { display: block; }
 
 /* ── Misc ── */
+<<<<<<< HEAD
 .db-source { font-size: 0.76rem; color: #aab; margin: 0 0 14px; font-style: italic; }
+=======
+>>>>>>> origin
 .empty-note { color: #888; font-style: italic; padding: 20px 0; }
 .diag-content { padding: 0; }
 
@@ -704,6 +798,13 @@ function filterDiag(tierId, diagName) {
     }
   });
 
+<<<<<<< HEAD
+=======
+  // Category headers only group things in the "All" view; with a single
+  // diagnostic selected they just repeat the active filter pill.
+  panel.classList.toggle('filtered', diagName !== 'all');
+
+>>>>>>> origin
   var toolbar = document.getElementById('toolbar-' + tierId);
   if (toolbar) {
     toolbar.querySelectorAll('.diag-filter-btn').forEach(function(b){ b.classList.remove('active'); });

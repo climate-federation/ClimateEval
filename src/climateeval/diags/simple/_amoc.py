@@ -11,6 +11,7 @@ from esmvalcore.preprocessor import (
     climate_statistics,
     extract_levels,
     regrid_time,
+    convert_units,
 )
 
 from climateeval import Coordinate
@@ -37,15 +38,13 @@ class AMOCTimeSeries(SimpleDiagnostic):
 
     _final_coordinates = (Coordinate("time"),)
 
-    # _units: ClassVar[str] = "Tg s-1"
+    _units: ClassVar[str] = "Tg s-1"
 
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
             cube = annual_statistics(cube, "mean")
-            rho_0 = 1025.0  # kg m-3
-            cube.data = cube.core_data() / (rho_0 * 1e6)
-            cube.units = "Sv"
+            cube = convert_units(cube, self._units)
             cube = regrid_time(
                 cube,
                 frequency="yr",
@@ -71,9 +70,7 @@ class AMOCDepthProfile(SimpleDiagnostic):
         with setup_esmvaltool_config_and_logging():
 
             cube = extract_levels(cube, DEPTH_LEVELS, "linear", coordinate="depth")
-            rho_0 = 1025.0  # kg m-3
-            cube.data = cube.core_data() / (rho_0 * 1e6)
-            cube.units = "Sv"
+            cube = convert_units(cube, self._units)
             cube = cube.extract(iris.Constraint(region="atlantic_arctic_ocean"))
 
             """Preprocess 3D streamfunction data and slice at 26.5N."""

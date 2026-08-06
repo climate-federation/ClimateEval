@@ -1,3 +1,4 @@
+# Tier 2 | Mean state vs observations: ocean climatology (SST, salinity, chl, MLD, Nino3.4, AMOC, OHC).
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.AnnualCycle
   variables:
@@ -149,10 +150,6 @@
       var_name: zos
       frequency: mon
       reference_data: climateeval.data.ORAS5
-      # min_lat: 20.0
-      # max_lat: 65.0
-      # min_lon: -100.0
-      # max_lon: -10.0
 
 - name: acc_transport_drake
   diagnostic: climateeval.diags.simple.ACCTransportZonalTransect
@@ -162,10 +159,11 @@
       frequency: mon
       reference_data: climateeval.data.ORAS5
 
+# Run model-only: hfbasin is not provided by ORAS5 (and RAPID, which measures
+# it at 26.5N, has no CMORizer yet), so no reference dataset is attached.
 - name: atlantic_heat_transport_26n
   diagnostic: climateeval.diags.simple.OceanHeatTransportProfile
   variables:
     - id: oht_atlantic
       var_name: hfbasin
       frequency: mon
-      reference_data: climateeval.data.ORAS5

@@ -23,6 +23,26 @@ if TYPE_CHECKING:
 logger = logger.opt(colors=True)
 
 
+def resolve_suite_definition_file(suite_definition_file: str | Path) -> Path:
+    """Resolve a shipped suite name or a path to the suite YAML file."""
+    suite_dir = Path(str(resources.files("climateeval.suites")))
+    if (
+        isinstance(suite_definition_file, str)
+        and (suite_dir / suite_definition_file).is_file()
+    ):
+        return suite_dir / suite_definition_file
+    if (
+        isinstance(suite_definition_file, str)
+        and (suite_dir / f"{suite_definition_file}.yml").is_file()
+    ):
+        return suite_dir / f"{suite_definition_file}.yml"
+    suite_definition_file = Path(suite_definition_file)
+    if not suite_definition_file.is_file():
+        msg = f"Suite definition file {suite_definition_file} does not exist"
+        raise FileNotFoundError(msg)
+    return suite_definition_file
+
+
 class Suite:
     """Manage evaluation suites."""
 
@@ -156,19 +176,4 @@ class Suite:
 
     def _get_suite_defintion_file(self, suite_definition_file: str | Path) -> Path:
         """Get suite definition file."""
-        suite_dir = Path(str(resources.files("climateeval.suites")))
-        if (
-            isinstance(suite_definition_file, str)
-            and (suite_dir / suite_definition_file).is_file()
-        ):
-            return suite_dir / suite_definition_file
-        if (
-            isinstance(suite_definition_file, str)
-            and (suite_dir / f"{suite_definition_file}.yml").is_file()
-        ):
-            return suite_dir / f"{suite_definition_file}.yml"
-        suite_definition_file = Path(suite_definition_file)
-        if not suite_definition_file.is_file():
-            msg = f"Suite definition file {suite_definition_file} does not exist"
-            raise FileNotFoundError(msg)
-        return suite_definition_file
+        return resolve_suite_definition_file(suite_definition_file)

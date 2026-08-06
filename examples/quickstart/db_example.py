@@ -9,13 +9,18 @@ import ibis
 
 def main() -> None:
     """Run example script."""
+<<<<<<< HEAD:db_example.py
     # root = Path.home() / "ClimateEval"
     root = Path.cwd()
     # db_path = root / "Tier1_ecs.ddb"
+=======
+    root = Path.home() / "ClimateEval"
+    # db_path = root / "Tier3_ecs.ddb"
+>>>>>>> origin:examples/quickstart/db_example.py
     # db_path = root / "Tier1_consistency_checks.ddb"
     db_path = root / "Tier1_sanity_checks.ddb"
     # db_path = root / "Tier2_atmosphere_monthly.ddb"
-    # db_path = root / "Tier2_atmosphere_subdaily.ddb"
+    # db_path = root / "Tier3_atmosphere_subdaily.ddb"
     # db_path = root / "Tier2_ocean_monthly.ddb"
     con = ibis.duckdb.connect(db_path)
 

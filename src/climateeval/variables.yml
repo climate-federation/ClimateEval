@@ -204,6 +204,15 @@ so:
   realm: ocean
   standard_name: sea_water_salinity
   units: "1E-03"
+<<<<<<< HEAD
+=======
+hfbasin:
+  coordinates: [time, basin, lat]
+  long_name: Northward Ocean Heat Transport
+  realm: ocean
+  standard_name: northward_ocean_heat_transport
+  units: W
+>>>>>>> origin
 mlotst:
   coordinates: [time, lat, lon]
   long_name: Ocean Mixed Layer Thickness Defined by Sigma T
@@ -243,24 +252,36 @@ tos:
   realm: ocean
   standard_name: sea_surface_temperature
   units: degC
+<<<<<<< HEAD
 zos:
   coordinates: [time, lat, lon]
   long_name: Sea Surface Height Above Geoid
   realm: ocean
   standard_name: sea_surface_height_above_geoid
   units: m
+=======
+>>>>>>> origin
 uo:
   coordinates: [time, olevel, lat, lon]
   long_name: Sea Water X Velocity
   realm: ocean
   standard_name: sea_water_x_velocity
   units: m s-1
+<<<<<<< HEAD
 hfbasin:
   coordinates: [time, basin, lat]
   long_name: Northward Ocean Heat Transport
   realm: ocean
   standard_name: northward_ocean_heat_transport
   units: W
+=======
+zos:
+  coordinates: [time, lat, lon]
+  long_name: Sea Surface Height Above Geoid
+  realm: ocean
+  standard_name: sea_surface_height_above_geoid
+  units: m
+>>>>>>> origin
 
 # Ocean biogeochemistry
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_ocnBgchem.json
@@ -279,6 +300,13 @@ siconc:
   realm: sea_ice
   standard_name: sea_ice_area_fraction
   units: "%"
+
+vt:
+  coordinates: [time, alevel, lat, lon]
+  long_name: Northward Heat Flux
+  realm: atmos
+  standard_name: northward_air_temperature_transport
+  units: K m s-1
 
 # ESMValTool derived variables
 # Source: https://github.com/ESMValGroup/ESMValCore/blob/main/esmvalcore/cmor/tables/cmip6-custom/CMIP6_custom.json
@@ -382,3 +410,29 @@ r2:
   realm: ""
   standard_name: ""
   units: "1"
+
+# TEM diagnostic output variables
+psi_star:
+  coordinates: [plev, lat]
+  long_name: TEM Residual Mass Streamfunction
+  realm: atmos
+  standard_name: ""
+  units: "kg s-1"
+v_star:
+  coordinates: [plev, lat]
+  long_name: TEM Residual Meridional Velocity
+  realm: atmos
+  standard_name: ""
+  units: "m s-1"
+w_star:
+  coordinates: [plev, lat]
+  long_name: TEM Residual Vertical Velocity (omega)
+  realm: atmos
+  standard_name: ""
+  units: "Pa s-1"
+w_dia:
+  coordinates: [plev, lat]
+  long_name: Diabatic Vertical Velocity (thermodynamic residual)
+  realm: atmos
+  standard_name: ""
+  units: "Pa s-1"

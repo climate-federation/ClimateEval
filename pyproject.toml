@@ -24,6 +24,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
+    "cartopy",  # required by climateeval.report (static map figures)
     "cdsapi",
     "cf-units",
     "esmvalcore",
@@ -31,15 +32,20 @@ dependencies = [
     "ibis-framework",
     "intake-esgf",
     "loguru",
+    "matplotlib",  # required by climateeval.report (static figures)
     "ncdata",
     "numpy",
     "pandas>=3",
     "plotly",  # required by climateeval.report
     "pyyaml",
     "scitools-iris",
+    "seaborn",  # required by climateeval.report (static-figure theme)
     "tzdata",  # required by ibis-framework
     "xarray",
 ]
+
+[project.scripts]
+climateeval = "climateeval._cli:main"
 
 
 [tool.pixi.workspace]
@@ -175,6 +181,11 @@ ignore = [
 future-annotations = true
 
 [tool.ruff.lint.per-file-ignores]
+# The CLI entry point defers heavy subsystem imports (ESMValCore/iris/dask)
+# into the command functions so lightweight commands start instantly.
+"src/climateeval/_cli.py" = [
+    "PLC0415",    # `import` should be at the top-level of a file
+]
 "*example.py" = [
     "ERA001",     # Found commented-out code
     "T201",       # `print` found
@@ -185,9 +196,12 @@ future-annotations = true
     "INP001",     # File is part of an implicit namespace package
     "T201",       # `print` found
 ]
+<<<<<<< HEAD
 # The report module is grafted from the `ap/webserver_html` branch and is
 # maintained/linted there; relax style rules for it here so it can be used
 # unchanged.
+=======
+>>>>>>> origin
 "src/climateeval/report/*.py" = [
     "ARG001", "B007", "B023", "B905", "BLE001", "C408", "C901", "COM812",
     "E501", "E702", "ERA001", "FBT001", "I001", "PD010", "PD011", "PD101",
@@ -211,6 +225,18 @@ future-annotations = true
     "INP001",     # File is part of an implicit namespace package.
     "T201",       # `print` found
 ]
+# Numerically dense diagnostics: intentional Unicode math notation in
+# docstrings/comments plus scientific-code patterns ruff flags as pedantic.
+"src/climateeval/diags/complex/_tem.py" = [
+    "ANN001", "ANN202", "N806", "PLC0415", "PLR0915", "PLR2004",
+    "RET504", "RUF001", "RUF002", "RUF003", "TC001", "TC002", "TRY300",
+]
+"src/climateeval/diags/simple/_hovmoller.py" = [
+    "ANN001", "ANN003", "PLR2004", "RET504", "RUF002",
+]
+"src/climateeval/diags/simple/_qbo.py" = [
+    "RET504", "RUF002",
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
@@ -218,3 +244,31 @@ convention = "numpy"
 
 [tool.codespell]
 ignore-words-list = "vas"
+
+
+[tool.coverage.run]
+# The report layer (Plotly figure building, HTTP server, HTML generation) is
+# exercised end-to-end via the rendered report rather than unit-tested line by
+# line; exclude it so the coverage metric reflects the scientific core
+# (diagnostics, preprocessing, variables, data-source provenance, suites).
+omit = [
+    "src/climateeval/report/*",
+]
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@(typing\\.)?overload",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+
+
+[tool.mypy]
+
+# report/_figures.py and the TEM diagnostic contain dense array code where mypy
+# cannot prove non-None narrowing; scope the relaxation to those modules.
+[[tool.mypy.overrides]]
+module = ["climateeval.report._figures", "climateeval.diags.complex._tem"]
+disable_error_code = ["union-attr", "assignment"]

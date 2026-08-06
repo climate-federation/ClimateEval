@@ -1,3 +1,4 @@
+# Tier 1 | Consistency: conservation of dry-air mass, water vapour and moisture flux.
 - name: timeseries
   diagnostic: climateeval.diags.simple.TimeSeriesNoPreprocessing
   diagnostic_kwargs:

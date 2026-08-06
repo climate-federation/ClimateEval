@@ -9,8 +9,8 @@ calculate a set of metrics.
 
 from __future__ import annotations
 
+from climateeval.diags.simple._acc_transport import ACCTransportZonalTransect
 from climateeval.diags.simple._amoc import AMOCTimeSeries
-from climateeval.diags.simple._amoc import AMOCDepthProfile
 from climateeval.diags.simple._annual_cycle import AnnualCycle
 from climateeval.diags.simple._annual_cycle_spatial_distribution import (
     AnnualCycleSpatialDistribution,
@@ -18,13 +18,14 @@ from climateeval.diags.simple._annual_cycle_spatial_distribution import (
 from climateeval.diags.simple._base import SimpleDiagnostic
 from climateeval.diags.simple._diurnal_cycle import DiurnalCycle
 from climateeval.diags.simple._gulf_stream import GulfStreamSshGradient
-from climateeval.diags.simple._acc_transport import ACCTransportZonalTransect
 from climateeval.diags.simple._heat_transport import OceanHeatTransportProfile
 from climateeval.diags.simple._depth_profile import DepthProfile
 from climateeval.diags.simple._histogram import Histogram
+from climateeval.diags.simple._hovmoller import Hovmoller
 from climateeval.diags.simple._map import Map
 from climateeval.diags.simple._nino34 import Nino34
 from climateeval.diags.simple._ohc import OceanHeatContentTimeSeries
+from climateeval.diags.simple._qbo import QBO
 from climateeval.diags.simple._sea_ice import (
     SeaIceAreaAnnualCycle,
     SeaIceAreaTimeSeries,
@@ -39,21 +40,22 @@ from climateeval.diags.simple._zonal_line import ZonalLine
 from climateeval.diags.simple._zonal_profile import ZonalProfileAirPressure
 
 __all__ = [
+    "QBO",
+    "ACCTransportZonalTransect",
     "AMOCTimeSeries",
-    "AMOCDepthProfile",
+    "DepthProfile",
     "AnnualCycle",
     "AnnualCycleSpatialDistribution",
     "AnnualMeanTimeSeries",
     "DiurnalCycle",
     "GulfStreamSshGradient",
-    "ACCTransportZonalTransect",
-    "OceanHeatTransportProfile",
-    "DepthProfile",
     "Histogram",
+    "Hovmoller",
     "Map",
     "MeanTimeSeries",
     "Nino34",
     "OceanHeatContentTimeSeries",
+    "OceanHeatTransportProfile",
     "SeaIceAreaAnnualCycle",
     "SeaIceAreaTimeSeries",
     "SimpleDiagnostic",

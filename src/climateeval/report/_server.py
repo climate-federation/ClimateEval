@@ -28,12 +28,20 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
+<<<<<<< HEAD
 from climateeval.report._db import detect_diag_type, get_var_cols, read_database
 from climateeval.report._figures import (
     _DIAG_ICONS,
     _DIAG_LABELS,
     _FIGURE_BUILDERS,
     _var_label,
+=======
+from climateeval.report._common import _var_label
+from climateeval.report._db import detect_diag_type, get_var_cols, read_database
+from climateeval.report._figures import (
+    _DIAG_LABELS,
+    _FIGURE_BUILDERS,
+>>>>>>> origin
 )
 from climateeval.report._html import build_html_shell, generate_portable_html
 from climateeval.report._leaderboard import (
@@ -65,6 +73,10 @@ def _load_state(
     model_name: str,
     user_name: str,
     developer: str,
+<<<<<<< HEAD
+=======
+    run_info: dict[str, str] | None = None,
+>>>>>>> origin
 ) -> None:
     """Read all DuckDB files and build the server state."""
     tiers: list[dict[str, Any]] = []
@@ -112,6 +124,10 @@ def _load_state(
         model_name,
         user_name,
         developer,
+<<<<<<< HEAD
+=======
+        run_info,
+>>>>>>> origin
     )
     _STATE["lb_json"] = _build_leaderboard_json()
 
@@ -139,11 +155,24 @@ def _build_diag_figures(tier_id: str, diag_name: str) -> None:
     try:
         figures = builder(data_df, variables_df, metrics_df)
     except Exception as exc:
+<<<<<<< HEAD
         print(f"[warn] figure build failed for {tier_id}/{diag_name}: {exc}", file=sys.stderr)
         return
     with _fig_cache_lock:
         for vid, fig in figures.items():
             _STATE["fig_cache"].setdefault((tier_id, diag_name, vid), fig.to_json().encode())
+=======
+        print(
+            f"[warn] figure build failed for {tier_id}/{diag_name}: {exc}",
+            file=sys.stderr,
+        )
+        return
+    with _fig_cache_lock:
+        for vid, fig in figures.items():
+            _STATE["fig_cache"].setdefault(
+                (tier_id, diag_name, vid), fig.to_json().encode()
+            )
+>>>>>>> origin
 
 
 def _get_figure_json(tier_id: str, diag_name: str, var_id: str) -> bytes | None:
@@ -165,8 +194,12 @@ def _prebuild_all_figures() -> None:
         for diag_name in tier["db_data"]:
             with _fig_cache_lock:
                 already_built = any(
+<<<<<<< HEAD
                     k[0] == tier_id and k[1] == diag_name
                     for k in _STATE["fig_cache"]
+=======
+                    k[0] == tier_id and k[1] == diag_name for k in _STATE["fig_cache"]
+>>>>>>> origin
                 )
             if not already_built:
                 _build_diag_figures(tier_id, diag_name)
@@ -238,7 +271,10 @@ def _build_structure() -> bytes:
                     "type": dtype,
                     "label": _DIAG_LABELS.get(diag_name)
                     or _DIAG_LABELS.get(dtype, diag_name),
+<<<<<<< HEAD
                     "icon": _DIAG_ICONS.get(diag_name) or _DIAG_ICONS.get(dtype, ""),
+=======
+>>>>>>> origin
                     "variables": variables,
                 },
             )
@@ -337,6 +373,10 @@ def serve(
     model_name: str = "",
     user_name: str = "",
     developer: str = "",
+<<<<<<< HEAD
+=======
+    run_info: dict[str, str] | None = None,
+>>>>>>> origin
     host: str = "127.0.0.1",
     port: int = 8765,
     open_browser: bool = True,
@@ -349,6 +389,10 @@ def serve(
         model_name: Model label shown in the report header.
         user_name: Analyst / user name shown in the report header.
         developer: Benchmarking tool developer name.
+<<<<<<< HEAD
+=======
+        run_info: Extra run metadata rendered as chips in the header.
+>>>>>>> origin
         host: Server bind address.
         port: Server port.
         open_browser: If True, open the default web browser automatically.
@@ -356,7 +400,11 @@ def serve(
                    to that location using generate_portable_html().
     """
     print("Loading databases…", flush=True)  # noqa: T201
+<<<<<<< HEAD
     _load_state(db_paths, model_name, user_name, developer)
+=======
+    _load_state(db_paths, model_name, user_name, developer, run_info)
+>>>>>>> origin
     n_tiers = len(_STATE["tiers"])
     print(  # noqa: T201
         f"  Loaded {n_tiers} tier(s): {[t['label'] for t in _STATE['tiers']]}",
@@ -371,6 +419,10 @@ def serve(
             model_name=model_name,
             user_name=user_name,
             developer=developer,
+<<<<<<< HEAD
+=======
+            run_info=run_info,
+>>>>>>> origin
         )
         save_html.write_text(html_content, encoding="utf-8")
         print(f"  HTML saved to {save_html}", flush=True)  # noqa: T201
@@ -381,7 +433,13 @@ def serve(
     print("Press Ctrl-C to stop.\n", flush=True)  # noqa: T201
 
     # Pre-build all figures in background so the first click hits the cache.
+<<<<<<< HEAD
     threading.Thread(target=_prebuild_all_figures, daemon=True, name="fig-prebuild").start()
+=======
+    threading.Thread(
+        target=_prebuild_all_figures, daemon=True, name="fig-prebuild"
+    ).start()
+>>>>>>> origin
 
     if open_browser:
         threading.Timer(0.5, webbrowser.open, args=(url,)).start()

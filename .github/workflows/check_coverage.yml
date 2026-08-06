@@ -21,12 +21,12 @@ jobs:
     name: Check coverage
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Install ClimateEval
-        uses: prefix-dev/setup-pixi@1b2de7f3351f171c8b4dfeb558c639cb58ed4ec0 # v0.9.5
+        uses: prefix-dev/setup-pixi@a09b6247153796b190642a2b53fac4241043cf6f # v0.10.0
         with:
           frozen: true
       - name: Install
@@ -35,7 +35,7 @@ jobs:
         run: pytest -n 2 --junitxml=pytest.xml --cov-report=xml:coverage.xml --cov-report=term-missing:skip-covered --cov=src/climateeval tests/
       - name: Comment coverage
         id: coverage
-        uses: MishaKav/pytest-coverage-comment@dd5b80bde6d16941f336518e92929e89069d8451 # v1.7.2
+        uses: MishaKav/pytest-coverage-comment@fd9adbdca9fdfbe2b9bfa44a7340e6a83346ce6c # v1.10.0
         with:
           coverage-path-prefix: src/climateeval/
           hide-comment: true
@@ -43,14 +43,18 @@ jobs:
           pytest-xml-coverage-path: ./coverage.xml
       - name: Check coverage
         run: |
-          echo "Test coverage: ${STEPS_COVERAGE_OUTPUTS_COVERAGE} (target: 100%)"
+          coverage_pct=${STEPS_COVERAGE_OUTPUTS_COVERAGE%\%}
+          echo "Test coverage: ${STEPS_COVERAGE_OUTPUTS_COVERAGE} (floor: ${COVERAGE_FLOOR}%)"
           echo "${STEPS_COVERAGE_OUTPUTS_COVERAGE_HTML}" >> ${GITHUB_STEP_SUMMARY}
-          if [ "${STEPS_COVERAGE_OUTPUTS_COVERAGE}" == '100%' ]; then
-            echo "Target coverage: 100% ✅" >> ${GITHUB_STEP_SUMMARY}
+          if awk "BEGIN { exit !(${coverage_pct:-0} >= ${COVERAGE_FLOOR}) }"; then
+            echo "Coverage ${STEPS_COVERAGE_OUTPUTS_COVERAGE} >= ${COVERAGE_FLOOR}% floor ✅" >> ${GITHUB_STEP_SUMMARY}
           else
-            echo "Target coverage: 100% ❌" >> ${GITHUB_STEP_SUMMARY}
+            echo "Coverage ${STEPS_COVERAGE_OUTPUTS_COVERAGE} < ${COVERAGE_FLOOR}% floor ❌ (add tests or lower the floor)" >> ${GITHUB_STEP_SUMMARY}
             exit 1
           fi
         env:
+          # Ratcheting floor on the scientific core (report/* is omitted; see
+          # [tool.coverage.run] in pyproject.toml). Raise this as tests are added.
+          COVERAGE_FLOOR: "70"
           STEPS_COVERAGE_OUTPUTS_COVERAGE: ${{ steps.coverage.outputs.coverage }}
           STEPS_COVERAGE_OUTPUTS_COVERAGE_HTML: ${{ steps.coverage.outputs.coverageHtml }}

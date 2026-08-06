@@ -17,6 +17,7 @@ from climateeval._utils import (
     _check_data,
     _extract_level,
     _extract_time_and_region,
+    _get_derived_cube,
     _run_additional_preprocessors,
     _set_lon_to_0_360,
     check_coordinates,
@@ -534,3 +535,41 @@ def test__set_lon_to_0_360_1_bound() -> None:
     )
     assert new_cube.coord("longitude") == expected_lon_coord
     assert cube.coord("longitude") == lon_coord
+
+
+def _named_cube(var_name: str) -> Cube:
+    return Cube(np.array([1.0]), var_name=var_name)
+
+
+def test_get_derived_cube_skips_missing_optional_input(
+    mocker: MockerFixture,
+) -> None:
+    """Optional derivation inputs that are absent are skipped, not raised on."""
+    sentinel = _named_cube("amoc")
+    derive_mock = mocker.patch.object(
+        climateeval._utils,
+        "derive",
+        return_value=sentinel,
+    )
+
+    # amoc derives from msftmz OR msftyz, both optional; supply only msftmz.
+    amoc = Variable("amoc", "amoc", "mon")
+    result = _get_derived_cube(CubeList([_named_cube("msftmz")]), amoc)
+
+    assert result is sentinel
+    # The absent optional input (msftyz) was skipped; derive received msftmz.
+    (derivation_cubes,) = derive_mock.call_args.args
+    assert [cube.var_name for cube in derivation_cubes] == ["msftmz"]
+    assert derive_mock.call_args.kwargs["short_name"] == "amoc"
+
+
+def test_get_derived_cube_raises_on_missing_required_input(
+    mocker: MockerFixture,
+) -> None:
+    """A missing non-optional derivation input still raises."""
+    mocker.patch.object(climateeval._utils, "derive")
+
+    # lwcre derives from rlut and rlutcs, both required; omit rlut.
+    lwcre = Variable("lwcre", "lwcre", "mon")
+    with pytest.raises(ConstraintMismatchError):
+        _get_derived_cube(CubeList([_named_cube("rlutcs")]), lwcre)

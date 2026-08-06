@@ -1,3 +1,4 @@
+# Tier 2 | Mean state vs observations: atmospheric climatology vs ERA5/GPCP/CERES-EBAF + CMIP6.
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.AnnualCycle
   variables: &2d_variables
