@@ -41,6 +41,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 import iris
 import numpy as np
+from esmvalcore.cmor._fixes.shared import fix_ocean_depth_coord
 from iris import NameConstraint
 from iris.cube import CubeList
 from loguru import logger
@@ -134,26 +135,41 @@ class ORAS5(DataSource):
             raise NotImplementedError(msg)
 
     def _load_native_cube(self, files: list[Path], variable: Variable) -> Cube:
-        """Load and CMORize raw ORAS5 files for a 2-D variable."""
+        """Load and CMORize raw ORAS5 files for 2-D or 3-D variables."""
         raw_name, raw_units = self._RAW_VARIABLE_INFO[variable.var_name]
         cube = load_cubes([str(file) for file in files]).extract_cube(
             NameConstraint(var_name=raw_name),
         )
 
-        # Drop the redundant halo cells of the ORCA025 grid so that the data
-        # aligns with the grid (mesh) file.
+        # Drop the redundant halo cells of the ORCA025 grid.
+        # Ellipsis (...) safely handles the extra Z (depth) dimension if present.
         cube = cube[..., :-1, 1:-1]
 
-        # Set variable metadata.
+        # Set variable metadata
         var_info = VARIABLES[variable.var_name]
         cube.var_name = variable.var_name
         cube.long_name = var_info["long_name"]
         cube.units = raw_units
         cube.standard_name = var_info["standard_name"] or None
 
+        # Attach horizontal cell bounds
         self._add_grid_bounds(cube, variable)
 
+        # 2. Call your 3D depth fix here before returning
+        self._fix_depth(cube)
+
         return cube
+
+    def _fix_depth(self, cube: Cube) -> None:
+        """Fix depth coordinate for 3D variables."""
+        # Standardize "levels" naming convention to standard attributes
+        for coord in cube.coords():
+            if "levels" in coord.name():
+                coord.attributes["positive"] = "down"
+
+        # Apply ESMValCore's native correction if a Z-axis exists
+        if cube.coords(axis="Z"):
+            fix_ocean_depth_coord(cube)
 
     def _add_grid_bounds(self, cube: Cube, variable: Variable) -> None:
         """Attach horizontal cell bounds from the ORAS5 grid (mesh) file."""

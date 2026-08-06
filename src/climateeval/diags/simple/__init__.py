@@ -10,6 +10,7 @@ calculate a set of metrics.
 from __future__ import annotations
 
 from climateeval.diags.simple._amoc import AMOCTimeSeries
+from climateeval.diags.simple._amoc import AMOCDepthProfile
 from climateeval.diags.simple._annual_cycle import AnnualCycle
 from climateeval.diags.simple._annual_cycle_spatial_distribution import (
     AnnualCycleSpatialDistribution,
@@ -19,6 +20,7 @@ from climateeval.diags.simple._diurnal_cycle import DiurnalCycle
 from climateeval.diags.simple._gulf_stream import GulfStreamSshGradient
 from climateeval.diags.simple._acc_transport import ACCTransportZonalTransect
 from climateeval.diags.simple._heat_transport import OceanHeatTransportProfile
+from climateeval.diags.simple._depth_profile import DepthProfile
 from climateeval.diags.simple._histogram import Histogram
 from climateeval.diags.simple._map import Map
 from climateeval.diags.simple._nino34 import Nino34
@@ -38,6 +40,7 @@ from climateeval.diags.simple._zonal_profile import ZonalProfileAirPressure
 
 __all__ = [
     "AMOCTimeSeries",
+    "AMOCDepthProfile",
     "AnnualCycle",
     "AnnualCycleSpatialDistribution",
     "AnnualMeanTimeSeries",
@@ -45,6 +48,7 @@ __all__ = [
     "GulfStreamSshGradient",
     "ACCTransportZonalTransect",
     "OceanHeatTransportProfile",
+    "DepthProfile",
     "Histogram",
     "Map",
     "MeanTimeSeries",
