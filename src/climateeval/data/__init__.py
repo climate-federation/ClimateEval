@@ -16,6 +16,7 @@ from climateeval.data._en4 import EN4
 from climateeval.data._era5 import ERA5Hourly, ERA5Monthly
 from climateeval.data._esacci_cloud import ESACCICloud
 from climateeval.data._esacci_oc import ESACCIOC
+from climateeval.data._esacci_seaice import ESACCISeaIceNH, ESACCISeaIceSH
 from climateeval.data._esacci_sst import ESACCISST
 from climateeval.data._esmvaltool_cmorizer import ESMValToolCMORizerDataSource
 from climateeval.data._esmvaltool_intake import (
@@ -66,6 +67,8 @@ __all__ = [
     "ERA5Hourly",
     "ERA5Monthly",
     "ESACCICloud",
+    "ESACCISeaIceNH",
+    "ESACCISeaIceSH",
     "ESMValToolCMORizerDataSource",
     "ESMValToolIntakeDataSource",
     "ESMValToolIntakeDataSourceGenerator",
