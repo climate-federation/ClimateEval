@@ -81,6 +81,7 @@ python scripts/gen_variables_doc.py
 | `swcre` | TOA Shortwave Cloud Radiative Effect |  | `W m-2` | `atmos` | `time lat lon` | yes |
 | `ta` | Air Temperature | `air_temperature` | `K` | `atmos` | `time alevel lat lon` |  |
 | `tas` | Near-Surface Air Temperature | `air_temperature` | `K` | `atmos` | `time lat lon` |  |
+| `tasa` | Near-Surface Air Temperature Anomaly |  | `K` | `atmos` | `time lat lon` |  |
 | `tasmax` | Daily Maximum Near-Surface Air Temperature | `air_temperature` | `K` | `atmos` | `time lat lon` |  |
 | `tasmin` | Daily Minimum Near-Surface Air Temperature | `air_temperature` | `K` | `atmos` | `time lat lon` |  |
 | `tauu` | Surface Downward Eastward Wind Stress | `surface_downward_eastward_stress` | `Pa` | `atmos` | `time lat lon` |  |
