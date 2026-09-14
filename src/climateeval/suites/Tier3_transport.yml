@@ -1,0 +1,8 @@
+# Tier 3 | Feedbacks: implied meridional heat transport partitioning from a
+# piControl run (atmosphere vs ocean, residual method). A separate suite
+# because it needs only piControl, whereas the forced-response and ECS
+# diagnostics require both piControl and abrupt-4xCO2 (a suite passes the
+# same data dict to every diagnostic it contains).
+- name: meridional_heat_transport
+  diagnostic: climateeval.diags.complex.MeridionalHeatTransport
+  additional_diagnostic_kwargs: {}

@@ -54,9 +54,13 @@ python scripts/gen_variables_doc.py
 | `psl` | Sea Level Pressure | `air_pressure_at_mean_sea_level` | `Pa` | `atmos` | `time lat lon` |  |
 | `qep` | Net moisture flux into atmosphere |  | `kg m-2 s-1` | `atmos` | `time lat lon` | yes |
 | `r2` | Coefficient of determination |  | `1` |  |  |  |
+| `rlds` | Surface Downwelling Longwave Radiation | `surface_downwelling_longwave_flux_in_air` | `W m-2` | `atmos` | `time lat lon` |  |
+| `rlus` | Surface Upwelling Longwave Radiation | `surface_upwelling_longwave_flux_in_air` | `W m-2` | `atmos` | `time lat lon` |  |
 | `rlut` | TOA Outgoing Longwave Radiation | `toa_outgoing_longwave_flux` | `W m-2` | `atmos` | `time lat lon` |  |
 | `rlutcs` | TOA Outgoing Clear-Sky Longwave Radiation | `toa_outgoing_longwave_flux_assuming_clear_sky` | `W m-2` | `atmos` | `time lat lon` |  |
+| `rsds` | Surface Downwelling Shortwave Radiation | `surface_downwelling_shortwave_flux_in_air` | `W m-2` | `atmos` | `time lat lon` |  |
 | `rsdt` | TOA Incident Shortwave Radiation | `toa_incoming_shortwave_flux` | `W m-2` | `atmos` | `time lat lon` |  |
+| `rsus` | Surface Upwelling Shortwave Radiation | `surface_upwelling_shortwave_flux_in_air` | `W m-2` | `atmos` | `time lat lon` |  |
 | `rsut` | TOA Outgoing Shortwave Radiation | `toa_outgoing_shortwave_flux` | `W m-2` | `atmos` | `time lat lon` |  |
 | `rsutcs` | TOA Outgoing Clear-Sky Shortwave Radiation | `toa_outgoing_shortwave_flux_assuming_clear_sky` | `W m-2` | `atmos` | `time lat lon` |  |
 | `rtmt` | Net Downward Radiative Flux at Top of Model | `net_downward_radiative_flux_at_top_of_atmosphere_model` | `W m-2` | `atmos` | `time lat lon` |  |
@@ -66,6 +70,8 @@ python scripts/gen_variables_doc.py
 | `swcre` | TOA Shortwave Cloud Radiative Effect |  | `W m-2` | `atmos` | `time lat lon` | yes |
 | `ta` | Air Temperature | `air_temperature` | `K` | `atmos` | `time alevel lat lon` |  |
 | `tas` | Near-Surface Air Temperature | `air_temperature` | `K` | `atmos` | `time lat lon` |  |
+| `tasmax` | Daily Maximum Near-Surface Air Temperature | `air_temperature` | `K` | `atmos` | `time lat lon` |  |
+| `tasmin` | Daily Minimum Near-Surface Air Temperature | `air_temperature` | `K` | `atmos` | `time lat lon` |  |
 | `tauu` | Surface Downward Eastward Wind Stress | `surface_downward_eastward_stress` | `Pa` | `atmos` | `time lat lon` |  |
 | `tauv` | Surface Downward Northward Wind Stress | `surface_downward_northward_stress` | `Pa` | `atmos` | `time lat lon` |  |
 | `thetao` | Sea Water Potential Temperature | `sea_water_potential_temperature` | `degC` | `ocean` | `time olevel lat lon` |  |
