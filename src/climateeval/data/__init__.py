@@ -25,6 +25,7 @@ from climateeval.data._esmvaltool_intake import (
 from climateeval.data._gistemp import GISTEMP
 from climateeval.data._gpcp import GPCP
 from climateeval.data._hadcrut5 import HadCRUT5
+from climateeval.data._hadex3 import HadEX3
 from climateeval.data._hadisst import HadISST
 from climateeval.data._iap import IAP
 from climateeval.data._merra2 import MERRA2
@@ -69,6 +70,7 @@ __all__ = [
     "ESMValToolIntakeDataSource",
     "ESMValToolIntakeDataSourceGenerator",
     "HadCRUT5",
+    "HadEX3",
     "HadISST",
     "NOAAERSSTv5",
     "NOAAGlobalTemp",

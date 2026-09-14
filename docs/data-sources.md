@@ -16,6 +16,7 @@ All live in `climateeval.data`:
 | Precipitation | `GPCP` |
 | Surface temperature | `HadCRUT5`, `GISTEMP`, `BerkeleyEarth`, `NOAAGlobalTemp`, `HadISST` |
 | Land climate | `CRU` |
+| Climate extremes | `HadEX3` |
 | Sea-surface temperature | `ESACCISST`, `NOAAERSSTv5` |
 | Ocean | `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC` |
 | AMOC | `RAPID` |
@@ -40,6 +41,19 @@ matters when a suite needs an absolute field rather than an anomaly:
 | `BerkeleyEarth` | `tas`, `tasa` | global (land + ocean) |
 | `NOAAGlobalTemp` | `tasa` | global (land + ocean) |
 | `CRU` | `tas`, `tasmax`, `tasmin`, `pr`, `clt` | land only |
+
+`HadEX3` covers a field the analyses above do not provide:
+
+| Data source | Variables | Frequency | Coverage |
+|---|---|---|---|
+| `HadEX3` | `txx`, `tnn`, `rx1day`, `rx5day` | `yr` | land only (station-based, incomplete) |
+
+It provides the gridded ETCCDI extremes indices (annual maximum daily maximum
+temperature, annual minimum daily minimum temperature, annual maximum 1-day and
+5-day precipitation), the observational reference for evaluating simulated
+extremes. Its CMORizer also writes monthly versions of the same indices; only
+the annual (`yr`) products are used, since formatted files are stored per
+variable name and requested frequency.
 
 ## Where references come from
 
