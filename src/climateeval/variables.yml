@@ -30,6 +30,12 @@ cli:
   realm: atmos
   standard_name: mass_fraction_of_cloud_ice_in_air
   units: kg kg-1
+bjerknes_correlation:
+  coordinates: []
+  long_name: Bjerknes Compensation Correlation
+  realm: atmos
+  standard_name: ""
+  units: "1"
 clivi:
   coordinates: [time, lat, lon]
   long_name: Ice Water Path
@@ -78,12 +84,36 @@ delta_t_ocean:
   realm: atmos
   standard_name: ""
   units: "K"
+energy_flux_equator_lat:
+  coordinates: []
+  long_name: Energy Flux Equator Latitude
+  realm: atmos
+  standard_name: ""
+  units: "degrees_north"
+enso_teleconnection_corr_pr:
+  coordinates: []
+  long_name: ENSO Precipitation Teleconnection Pattern Correlation
+  realm: atmos
+  standard_name: ""
+  units: "1"
+enso_teleconnection_corr_ts:
+  coordinates: []
+  long_name: ENSO Temperature Teleconnection Pattern Correlation
+  realm: atmos
+  standard_name: ""
+  units: "1"
 evspsbl:
   coordinates: [time, lat, lon]
   long_name: Evaporation Including Sublimation and Transpiration
   realm: atmos
   standard_name: water_evapotranspiration_flux
   units: kg m-2 s-1
+geostrophic_correlation:
+  coordinates: []
+  long_name: Midlatitude Geostrophic Balance Correlation
+  realm: atmos
+  standard_name: ""
+  units: "1"
 hfls:
   coordinates: [time, lat, lon]
   long_name: Surface Upward Latent Heat Flux
@@ -102,12 +132,36 @@ hus:
   realm: atmos
   standard_name: specific_humidity
   units: "1"
+itcz_efe_correlation:
+  coordinates: []
+  long_name: ITCZ Energy Flux Equator Correlation
+  realm: atmos
+  standard_name: ""
+  units: "1"
+itcz_efe_slope:
+  coordinates: []
+  long_name: ITCZ Latitude per Cross-Equatorial Energy Transport
+  realm: atmos
+  standard_name: ""
+  units: "degree PW-1"
 land_ocean_warming_ratio:
   coordinates: []
   long_name: Land-Ocean Warming Ratio
   realm: atmos
   standard_name: ""
   units: "1"
+mjo_east_west_ratio:
+  coordinates: []
+  long_name: MJO Eastward to Westward Power Ratio
+  realm: atmos
+  standard_name: ""
+  units: "1"
+nino34_std:
+  coordinates: []
+  long_name: Nino 3.4 Index Standard Deviation
+  realm: atmos
+  standard_name: ""
+  units: "K"
 omet_peak:
   coordinates: []
   long_name: Oceanic Meridional Energy Transport NH Peak
