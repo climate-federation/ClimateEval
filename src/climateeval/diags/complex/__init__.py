@@ -13,13 +13,21 @@ from climateeval.diags.complex._forced_response import (
     ArcticAmplification,
     LandOceanWarmingRatio,
 )
+from climateeval.diags.complex._forcing import (
+    AerosolERF,
+    Amip4xCO2ERF,
+    GFMIPPatchFeedback,
+)
 from climateeval.diags.complex._tem import TEMDiagnostic
 from climateeval.diags.complex._transport import MeridionalHeatTransport
 
 __all__ = [
     "ECS",
+    "AerosolERF",
+    "Amip4xCO2ERF",
     "ArcticAmplification",
     "ComplexDiagnostic",
+    "GFMIPPatchFeedback",
     "LandOceanWarmingRatio",
     "MeridionalHeatTransport",
     "TEMDiagnostic",
