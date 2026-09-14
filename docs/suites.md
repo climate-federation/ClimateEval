@@ -128,6 +128,9 @@ order to diagnose a model from the basics upward:
 | `Tier3_ecs` | Effective climate sensitivity from abrupt-4xCO2 / piControl experiments. |
 | `Tier3_forced_response` | Equilibrium forced responses (land-ocean warming ratio, Arctic amplification) from abrupt-4xCO2 / piControl. |
 | `Tier3_transport` | Implied meridional heat transport partitioning (atmosphere vs ocean) from a piControl run. |
+| `Tier3_amip_erf` | Fixed-SST effective radiative forcing of quadrupled CO2, from amip-4xCO2 and amip. |
+| `Tier3_patch_feedback` | Dependence of the radiative feedback on where the ocean warms, from the GFMIP SST patch experiments. |
+| `Tier3_aerosol_erf` | Aerosol effective radiative forcing of the DAMIP aerosol-only historical run. |
 
 Open the corresponding file in
 [`src/climateeval/suites/`](../src/climateeval/suites/) to see the exact
@@ -142,7 +145,8 @@ Use these class paths in the `diagnostic:` field. **Simple** diagnostics
 `SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `AMOCTimeSeries`,
 `OceanHeatContentTimeSeries`. **Complex** diagnostics
 (`climateeval.diags.complex.*`): `ECS`, `TEMDiagnostic`,
-`LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`.
+`LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`,
+`Amip4xCO2ERF`, `GFMIPPatchFeedback`, `AerosolERF`.
 
 How each renders in a report (and its coordinate columns) is summarised in
 [Reporting](reporting.md#figure-types).
