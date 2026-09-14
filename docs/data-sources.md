@@ -19,7 +19,8 @@ All live in `climateeval.data`:
 | Ocean | `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC` |
 | AMOC | `RAPID` |
 | Sea ice | `OSI450NH`, `OSI450SH`, `NSIDCG02202SH` |
-| CMIP6 model data | `CMIP6HistoricalR1I1P1F1`, `CMIP6Abrupt4xCO2R1I1P1F1`, `CMIP6PiControlR1I1P1F1` |
+| CMIP6 model data | `CMIP6HistoricalR1I1P1F1`, `CMIP6Abrupt4xCO2R1I1P1F1`, `CMIP6PiControlR1I1P1F1`, `CMIP6HistAerR1I1P1F1`, `CMIP6AmipR1I1P1F1`, `CMIP6Amip4xCO2R1I1P1F1` |
+| CMIP6 paleoclimate (PMIP4) | `CMIP6LgmR1I1P1F1`, `CMIP6MidHoloceneR1I1P1F1`, `CMIP6Lig127kR1I1P1F1` |
 | Generic loaders | `ESMValToolIntakeDataSource`, `ESMValToolCMORizerDataSource` |
 
 `CMIP6*` and `ESMValToolIntake*` also have *generator* variants
@@ -28,6 +29,28 @@ data source on demand.
 
 > Data source *generators* do not yet work with `derived: true` variables
 > ([ESMValCore#2769](https://github.com/ESMValGroup/ESMValCore/issues/2769)).
+
+### CMIP6 experiments
+
+One generator per CMIP6 experiment, all `r1i1p1f1`, all discovering every model
+that published the experiment:
+
+| Class | Experiment (activity) | Typically used for |
+|---|---|---|
+| `CMIP6HistoricalR1I1P1F1` | `historical` (CMIP) | Recent climate, 1979–2014 |
+| `CMIP6PiControlR1I1P1F1` | `piControl` (CMIP) | Internal variability, drift |
+| `CMIP6Abrupt4xCO2R1I1P1F1` | `abrupt-4xCO2` (CMIP) | Climate sensitivity, feedbacks |
+| `CMIP6HistAerR1I1P1F1` | `hist-aer` (DAMIP) | Aerosol-forced historical response |
+| `CMIP6AmipR1I1P1F1` | `amip` (CMIP) | Atmosphere-only, prescribed SSTs |
+| `CMIP6Amip4xCO2R1I1P1F1` | `amip-4xCO2` (CFMIP) | Effective radiative forcing (vs `amip`) |
+| `CMIP6LgmR1I1P1F1` | `lgm` (PMIP) | Last Glacial Maximum, 21 ka BP |
+| `CMIP6MidHoloceneR1I1P1F1` | `midHolocene` (PMIP) | Mid-Holocene, 6 ka BP |
+| `CMIP6Lig127kR1I1P1F1` | `lig127k` (PMIP) | Last Interglacial, 127 ka BP |
+
+Only the `historical` generator preselects a time range; the equilibrium and
+paleoclimate experiments have no common calendar, so they are loaded in full
+and any window is applied downstream (e.g. with the `timerange` variable
+kwarg).
 
 ## Where references come from
 
