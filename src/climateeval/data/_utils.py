@@ -3,10 +3,34 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from loguru import logger
 
 logger = logger.opt(colors=True)
+
+
+def facet_to_str(facet_value: Any) -> str:
+    """Convert a facet value to a string.
+
+    Lists and tuples of facet values (e.g. ``exp = ["historical", "ssp245"]``
+    for experiments that are concatenated into a single time series) are joined
+    with ``-`` so that they can be used in data source IDs and file names.
+
+    Parameters
+    ----------
+    facet_value:
+        Facet value.
+
+    Returns
+    -------
+    :
+        String representation of the facet value.
+
+    """
+    if isinstance(facet_value, list | tuple):
+        return "-".join(str(value) for value in facet_value)
+    return str(facet_value)
 
 
 @dataclass(frozen=True, order=True, kw_only=True)

@@ -19,7 +19,7 @@ All live in `climateeval.data`:
 | Ocean | `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC` |
 | AMOC | `RAPID` |
 | Sea ice | `OSI450NH`, `OSI450SH`, `NSIDCG02202SH` |
-| CMIP6 model data | `CMIP6HistoricalR1I1P1F1`, `CMIP6Abrupt4xCO2R1I1P1F1`, `CMIP6PiControlR1I1P1F1` |
+| CMIP6 model data | `CMIP6HistoricalR1I1P1F1`, `CMIP6HistoricalAllMembers`, `CMIP6HistoricalSSP245`, `CMIP6Abrupt4xCO2R1I1P1F1`, `CMIP6PiControlR1I1P1F1` |
 | Generic loaders | `ESMValToolIntakeDataSource`, `ESMValToolCMORizerDataSource` |
 
 `CMIP6*` and `ESMValToolIntake*` also have *generator* variants
@@ -28,6 +28,25 @@ data source on demand.
 
 > Data source *generators* do not yet work with `derived: true` variables
 > ([ESMValCore#2769](https://github.com/ESMValGroup/ESMValCore/issues/2769)).
+
+### CMIP6 ensembles and scenarios
+
+Most CMIP6 generators are restricted to `r1i1p1f1` and to the historical
+period. Two of them are not:
+
+- `CMIP6HistoricalAllMembers` discovers **every `r*i1p1f1` member** of every
+  model, one data source per member.
+- `CMIP6HistoricalSSP245` does the same, but concatenates `historical` and
+  `ssp245` into a single time series (a list in the `exp` facet, as in an
+  ESMValTool recipe) so the CMIP6 reference extends past 2014. Its time range
+  ends in a wildcard, so models whose scenario run stops early are kept and
+  each data source gets the time range it actually has (members without an
+  `ssp245` run simply end in 2014).
+
+Both put the member into `DataSourceInformation.variant`, so IDs stay unique
+(`CMIP6_MPI-ESM1-2-LR_historical-ssp245_r1i1p1f1`, …). Multi-member reference
+ensembles are what probabilistic scores (e.g. a per-model CRPS) need; the
+single-member generators cannot provide them.
 
 ## Where references come from
 
