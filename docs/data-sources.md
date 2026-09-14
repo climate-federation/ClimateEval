@@ -14,7 +14,8 @@ All live in `climateeval.data`:
 | Reanalysis | `ERA5Monthly`, `ERA5Hourly`, `MERRA2` |
 | Radiation / clouds | `CERESEBAF`, `ESACCICloud` |
 | Precipitation | `GPCP` |
-| Surface temperature | `HadCRUT5`, `HadISST` |
+| Surface temperature | `HadCRUT5`, `GISTEMP`, `BerkeleyEarth`, `NOAAGlobalTemp`, `HadISST` |
+| Land climate | `CRU` |
 | Sea-surface temperature | `ESACCISST`, `NOAAERSSTv5` |
 | Ocean | `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC` |
 | AMOC | `RAPID` |
@@ -28,6 +29,17 @@ data source on demand.
 
 > Data source *generators* do not yet work with `derived: true` variables
 > ([ESMValCore#2769](https://github.com/ESMValGroup/ESMValCore/issues/2769)).
+
+The gridded surface temperature analyses differ in what they provide, which
+matters when a suite needs an absolute field rather than an anomaly:
+
+| Data source | Variables | Coverage |
+|---|---|---|
+| `HadCRUT5` | `tas`, `tasa` | global (land + ocean) |
+| `GISTEMP` | `tasa` | global (land + ocean) |
+| `BerkeleyEarth` | `tas`, `tasa` | global (land + ocean) |
+| `NOAAGlobalTemp` | `tasa` | global (land + ocean) |
+| `CRU` | `tas`, `tasmax`, `tasmin`, `pr`, `clt` | land only |
 
 ## Where references come from
 

@@ -92,7 +92,7 @@ tests/                        # unit/ + integration/ + sample_data/
 ### Data Sources (`src/climateeval/data/`)
 
 - `_base.py` - `DataSource` / `ComplexDataSource` abstract classes and `DataSourceGenerator`; `_utils.py` holds `DataSourceInformation` (provenance: name, category, institute, exp, variant, references, auto-generated `id`).
-- Concrete implementations: `ERA5Monthly`/`ERA5Hourly`, `MERRA2`, `CERESEBAF`, `ESACCICloud`, `GPCP`, `HadCRUT5`, `HadISST`, `ESACCISST`, `NOAAERSSTv5`, `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC`, `RAPID`, `OSI450NH`/`OSI450SH`, `NSIDCG02202SH`, `CMIP6HistoricalR1I1P1F1`/`CMIP6Abrupt4xCO2R1I1P1F1`/`CMIP6PiControlR1I1P1F1`, and the generic `ESMValToolIntakeDataSource` / `ESMValToolCMORizerDataSource`. See [docs/data-sources.md](docs/data-sources.md).
+- Concrete implementations: `ERA5Monthly`/`ERA5Hourly`, `MERRA2`, `CERESEBAF`, `ESACCICloud`, `GPCP`, `HadCRUT5`, `HadISST`, `ESACCISST`, `NOAAERSSTv5`, `GISTEMP`, `BerkeleyEarth`, `NOAAGlobalTemp`, `CRU`, `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC`, `RAPID`, `OSI450NH`/`OSI450SH`, `NSIDCG02202SH`, `CMIP6HistoricalR1I1P1F1`/`CMIP6Abrupt4xCO2R1I1P1F1`/`CMIP6PiControlR1I1P1F1`, and the generic `ESMValToolIntakeDataSource` / `ESMValToolCMORizerDataSource`. See [docs/data-sources.md](docs/data-sources.md).
 
 ### Report (`src/climateeval/report/`)
 
