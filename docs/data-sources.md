@@ -20,7 +20,7 @@ All live in `climateeval.data`:
 | AMOC | `RAPID` |
 | Sea ice | `OSI450NH`, `OSI450SH`, `NSIDCG02202SH` |
 | CMIP6 model data | `CMIP6HistoricalR1I1P1F1`, `CMIP6Abrupt4xCO2R1I1P1F1`, `CMIP6PiControlR1I1P1F1` |
-| Generic loaders | `ESMValToolIntakeDataSource`, `ESMValToolCMORizerDataSource` |
+| Generic loaders | `ESMValToolIntakeDataSource`, `ESMValToolCMORizerDataSource`, `LocalCMORDataSource` |
 
 `CMIP6*` and `ESMValToolIntake*` also have *generator* variants
 (`CMIP6DataSourceGenerator`, `ESMValToolIntakeDataSourceGenerator`) that build a
@@ -41,6 +41,60 @@ data source on demand.
   `intake-esgf`). `cdsapi` needs a `~/.cdsapirc` with your CDS API key.
 - **Direct paths.** A few sources read raw files directly (see the environment
   variables below).
+- **Your own CMOR-compliant files.** `LocalCMORDataSource` serves a directory
+  you staged yourself (see below).
+
+## Locally staged CMOR data
+
+`LocalCMORDataSource` serves a directory of CMOR-compliant NetCDF files through
+the same loader that reads the model being benchmarked
+([`load_cmor_dir`](../src/climateeval/_loader.py)), so it accepts a single file,
+a flat directory, or a CMOR DRS tree (preferred grid and latest version per
+variable). Nothing is downloaded. Two things this makes possible:
+
+- **Perfect-model tests.** A held-out ESM run acts as the *reference* of a
+  suite, so a model is scored against another model instead of against
+  observations.
+- **Locally staged observations.** A reference ClimateEval cannot download (or
+  that must be pinned to a specific local version) can be pointed at directly.
+
+Suites instantiate data sources without arguments, so the path and provenance
+have to live on the class. `LocalCMORDataSource.for_directory()` builds such a
+class; assign it to a module-level name to reference it from a suite YAML:
+
+```python
+# mypackage/references.py
+from climateeval.data import LocalCMORDataSource
+
+HeldOutESM = LocalCMORDataSource.for_directory(
+    "/data/held_out_esm/cmor/Amon",
+    name="HeldOutESM",
+    category="model",          # feeds DataSourceInformation
+    institute="MPI-M",
+    exp="historical",
+    variant="r1i1p1f1",
+    preferred_grid="gn",       # for DRS trees
+)
+```
+
+```yaml
+variables:
+  - id: tas
+    var_name: tas
+    frequency: mon
+    reference_data: mypackage.references.HeldOutESM
+```
+
+The same class can be passed programmatically as the `reference` of a
+`SimpleDiagnosticInputData`. For a one-off run without writing any Python, point
+the shipped `climateeval.data.LocalCMORDataSource` at a directory with the
+`CLIMATEEVAL_LOCAL_CMOR_DIR` environment variable (the default provenance
+`model_LocalCMOR` is then recorded). The constructor takes the same settings
+(`LocalCMORDataSource(path, information=..., preferred_grid=...)`) when a data
+source *instance* is what is needed.
+
+The variable's `timerange` is honoured: files whose CMOR date token does not
+overlap it are skipped, and the exact range is extracted during preprocessing.
 
 ## Provenance: `DataSourceInformation`
 
@@ -75,6 +129,7 @@ Read by the library:
 | `CLIMATEEVAL_ORAS5_RAW_DIR` | `climateeval.data.ORAS5` | Directory of raw ORAS5 NEMO files. |
 | `CLIMATEEVAL_ORAS5_GRID_DIR` | `climateeval.data.ORAS5` | Directory of ORAS5 grid files. |
 | `CLIMATEEVAL_RAPID_FILE` | `climateeval.data.RAPID` | Path to the RAPID AMOC observations file. |
+| `CLIMATEEVAL_LOCAL_CMOR_DIR` | `climateeval.data.LocalCMORDataSource` | Directory (or file, or DRS tree) of locally staged CMOR-compliant data. |
 
 Conventions used by the example scripts (not the library itself):
 `CLIMATEEVAL_DATA_ROOT` (feeds `data_root_dir`) and `CLIMATEEVAL_RESULTS_DIR`

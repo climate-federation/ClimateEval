@@ -24,6 +24,7 @@ from climateeval.data._gpcp import GPCP
 from climateeval.data._hadcrut5 import HadCRUT5
 from climateeval.data._hadisst import HadISST
 from climateeval.data._iap import IAP
+from climateeval.data._local_cmor import LocalCMORDataSource
 from climateeval.data._merra2 import MERRA2
 from climateeval.data._noaa_ersstv5 import NOAAERSSTv5
 from climateeval.data._nsidc_g02202_sh import NSIDCG02202SH
@@ -63,5 +64,6 @@ __all__ = [
     "ESMValToolIntakeDataSourceGenerator",
     "HadCRUT5",
     "HadISST",
+    "LocalCMORDataSource",
     "NOAAERSSTv5",
 ]
