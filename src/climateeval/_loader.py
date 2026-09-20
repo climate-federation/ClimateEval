@@ -18,8 +18,9 @@ from pathlib import Path
 
 import iris
 from iris.cube import CubeList
-from iris.util import equalise_attributes, unify_time_units
 from loguru import logger
+
+from climateeval._combine import concatenate_cubes
 
 _VERSION_RE = re.compile(r"^(v\d+|latest)$")
 
@@ -138,9 +139,11 @@ def load_cmor_dir(
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             loaded = iris.load([str(f) for f in relevant])
-            equalise_attributes(loaded)
-            unify_time_units(loaded)
-            loaded = loaded.concatenate()
+            # Coordinate metadata differs between the files of one CMIP6 leaf
+            # often enough that concatenation silently returns one cube per
+            # file; `concatenate_cubes` reconciles what it safely can and warns
+            # about whatever is left (see climateeval._combine).
+            loaded = concatenate_cubes(loaded, source=str(relevant[0].parent))
         cubes.extend(loaded)
 
     logger.info(f"Loaded {len(cubes)} cube(s) from {path}")
