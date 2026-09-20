@@ -218,6 +218,23 @@ def test_a_variable_that_stays_split_is_reported() -> None:
     assert any("'tas'" in m and "some/leaf" in m for m in messages)
 
 
+def test_two_timeless_fields_of_one_name_are_not_a_split_record() -> None:
+    """A CMORized observation file carries `area` on two grids; not a warning."""
+    messages: list[str] = []
+
+    handle = logger.add(lambda message: messages.append(str(message)), level="WARNING")
+    try:
+        first = _cube(2000)
+        second = _cube(2000)
+        for cube in (first, second):
+            cube.remove_coord("time")
+        second.coord("latitude").points = np.array([-30.0, 30.0])
+        warn_on_split_variables(CubeList([first[0], second[0]]))
+    finally:
+        logger.remove(handle)
+    assert messages == []
+
+
 def test_warn_on_split_variables_is_quiet_when_nothing_is_split() -> None:
     messages: list[str] = []
     handle = logger.add(lambda message: messages.append(str(message)), level="WARNING")

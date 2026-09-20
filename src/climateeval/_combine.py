@@ -293,6 +293,12 @@ def warn_on_split_variables(cubes: Iterable[Cube], source: str = "") -> None:
     for var_name, group in _group_by_variable(cubes).items():
         if len(group) < _A_PAIR:
             continue
+        if not any(cube.coords("time") for cube in group):
+            # Not the failure this is about. Two cubes of one name with no
+            # time axis are two ancillary fields that happen to share a name
+            # (a CMORized observation file carries `area` on two grids), not a
+            # record split in half.
+            continue
         spans = []
         for cube in group:
             if cube.coords("time"):
