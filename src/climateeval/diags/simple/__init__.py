@@ -17,14 +17,10 @@ from climateeval.diags.simple._annual_cycle_spatial_distribution import (
 )
 from climateeval.diags.simple._base import SimpleDiagnostic
 from climateeval.diags.simple._diurnal_cycle import DiurnalCycle
-<<<<<<< HEAD
 from climateeval.diags.simple._chl_bgc import ChlBGCEvaluation
-=======
 from climateeval.diags.simple._gulf_stream import GulfStreamSshGradient
 from climateeval.diags.simple._heat_transport import OceanHeatTransportProfile
 from climateeval.diags.simple._histogram import Histogram
-from climateeval.diags.simple._hovmoller import Hovmoller
->>>>>>> df01f1b (feat(diags): ACC transport, Gulf Stream SSH gradient and ocean heat transport diagnostics (#34))
 from climateeval.diags.simple._map import Map
 from climateeval.diags.simple._nino34 import Nino34
 from climateeval.diags.simple._ohc import OceanHeatContentTimeSeries
@@ -42,11 +38,8 @@ from climateeval.diags.simple._zonal_line import ZonalLine
 from climateeval.diags.simple._zonal_profile import ZonalProfileAirPressure
 
 __all__ = [
-<<<<<<< HEAD
-=======
     "QBO",
     "ACCTransportZonalTransect",
->>>>>>> df01f1b (feat(diags): ACC transport, Gulf Stream SSH gradient and ocean heat transport diagnostics (#34))
     "AMOCTimeSeries",
     "AnnualCycle",
     "ChlBGCEvaluation",
