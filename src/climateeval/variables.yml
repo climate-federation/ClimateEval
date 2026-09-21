@@ -371,3 +371,10 @@ r2:
   realm: ""
   standard_name: ""
   units: "1"
+
+zos:
+  coordinates: [time, lat, lon]
+  long_name: Sea Surface Height Above Geoid
+  realm: ocean
+  standard_name: sea_surface_height_above_geoid
+  units: m

@@ -1,0 +1,53 @@
+- name: annual_cycle
+  diagnostic: climateeval.diags.simple.AnnualCycle
+  variables:
+    - &tos
+      id: tos
+      var_name: tos
+      frequency: mon
+      reference_data: climateeval.data.ESACCISST
+      other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
+    # EN4 is monthly, so salinity gets a real seasonal-cycle reference
+    # (if its `so` is not staged: warn-and-skip, model panel still appears)
+    - &sos_en4
+      id: sos
+      var_name: so
+      frequency: mon
+      units: g kg-1
+      vertical_level:
+        coordinate_name: depth
+        units: m
+        value: 0.0
+        extrapolate: true
+      reference_data: climateeval.data.EN4
+    # SSH: no reference staged (AVISO data source = future addition);
+    # entries without reference_data still plot the model
+    - &zos
+      id: zos
+      var_name: zos
+      frequency: mon
+
+- name: annual_mean_timeseries
+  diagnostic: climateeval.diags.simple.AnnualMeanTimeSeries
+  variables: [*tos, *sos_en4, *zos]
+
+- name: map
+  diagnostic: climateeval.diags.simple.Map
+  variables:
+    - *tos
+    - &sos_woa
+      id: sos_woa
+      var_name: so
+      frequency: mon
+      units: g kg-1
+      vertical_level:
+        coordinate_name: depth
+        units: m
+        value: 0.0
+        extrapolate: true
+      reference_data: climateeval.data.WOA
+    - *zos
+
+- name: zonal_line
+  diagnostic: climateeval.diags.simple.ZonalLine
+  variables: [*tos, *sos_woa, *zos]
