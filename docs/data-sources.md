@@ -73,6 +73,22 @@ matters.
 - **Direct paths.** A few sources read raw files directly (see the environment
   variables below).
 
+### ERA5 variables
+
+`ERA5Monthly` and `ERA5Hourly` can download the variables listed in
+`VARIABLE_MAPPING` in [`_era5.py`](../src/climateeval/data/_era5.py):
+
+| Request | Variables |
+|---|---|
+| Single levels | `clivi`, `clt`, `evspsbl`, `lwp`, `pr`, `prw`, `ps`, `rlut`, `rlutcs`, `tas`, `ts` |
+| Pressure levels | `hus`, `ta`, `ua`, `va`, `zg` |
+
+The raw CDS fields are CMORized by the ESMValTool `native6` ERA5 fixes, which
+also handle unit conversions — e.g. ERA5 serves `geopotential` in m2 s-2, which
+is divided by the standard gravity to give the geopotential height `zg` in m.
+Note that `ts` is the ERA5 skin temperature, which is *not* the same field as
+the near-surface air temperature `tas`.
+
 ## Provenance: `DataSourceInformation`
 
 Every dataset — the model being benchmarked and each reference — is recorded in
