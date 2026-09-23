@@ -75,9 +75,23 @@ VARIABLE_MAPPING: dict[str, str] = {
     "rlutcs": "top_net_thermal_radiation_clear_sky",
     "ta": "temperature",
     "tas": "2m_temperature",
+    "ts": "skin_temperature",
     "ua": "u_component_of_wind",
     "va": "v_component_of_wind",
+    "zg": "geopotential",
 }
+"""Map CMOR variable names to CDS names of the corresponding ERA5 variables.
+
+Note
+----
+The CDS serves some variables in non-CMOR units; these are converted by the
+ESMValTool ``native6`` ERA5 fixes applied in :meth:`ERA5.format`. In
+particular, ERA5 ``geopotential`` (m2 s-2) is divided by the standard gravity
+to give the geopotential height ``zg`` (m), and ``skin_temperature`` provides
+the surface temperature ``ts`` (which is distinct from the near-surface air
+temperature ``tas``).
+
+"""
 
 
 class ERA5(DataSource):
