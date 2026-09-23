@@ -11,7 +11,7 @@ from climateeval.data._cmip6_generators import (
     CMIP6PiControlR1I1P1F1,
 )
 from climateeval.data._en4 import EN4
-from climateeval.data._era5 import ERA5Hourly, ERA5Monthly
+from climateeval.data._era5 import ERA5Daily, ERA5Hourly, ERA5Monthly
 from climateeval.data._esacci_cloud import ESACCICloud
 from climateeval.data._esacci_oc import ESACCIOC
 from climateeval.data._esacci_sst import ESACCISST
@@ -55,6 +55,7 @@ __all__ = [
     "DataSource",
     "DataSourceGenerator",
     "DataSourceInformation",
+    "ERA5Daily",
     "ERA5Hourly",
     "ERA5Monthly",
     "ESACCICloud",

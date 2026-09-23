@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any
 import cdsapi
 import iris
 from esmvalcore.cmor.fix import fix_data, fix_metadata
+from esmvalcore.preprocessor import clip_timerange, daily_statistics
+from iris.coords import CellMethod
 
 from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval._utils import load_cubes
@@ -17,6 +19,10 @@ from climateeval.data._base import DataSource
 from climateeval.data._utils import DataSourceInformation
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from iris.cube import Cube
+
     from climateeval import Variable
 
 ALL_DAYS = [f"{d:02d}" for d in range(1, 32)]
@@ -92,6 +98,38 @@ the surface temperature ``ts`` (which is distinct from the near-surface air
 temperature ``tas``).
 
 """
+
+DAILY_SOURCE_VARIABLES: dict[str, str] = {
+    "tasmax": "tas",
+    "tasmin": "tas",
+}
+"""Map daily variables to the hourly ERA5 variable they are aggregated from.
+
+Daily variables that are not listed here are aggregated from the hourly ERA5
+field of the same name (see :data:`VARIABLE_MAPPING`).
+
+"""
+
+DAILY_OPERATORS: dict[str, str] = {
+    "tasmax": "max",
+    "tasmin": "min",
+}
+"""Map daily variables to the operator used to aggregate the hourly data.
+
+Daily variables that are not listed here are aggregated with the daily
+``mean``. Note that the ESMValTool ``native6`` fixes convert accumulated ERA5
+fields (e.g. total precipitation) to fluxes *before* the aggregation, so their
+daily mean is the daily accumulation divided by the length of the day, i.e. the
+daily precipitation rate in kg m-2 s-1.
+
+"""
+
+_CELL_METHODS: dict[str, str] = {
+    "mean": "mean",
+    "max": "maximum",
+    "min": "minimum",
+}
+"""Map the daily operators to the CF cell method they produce."""
 
 
 class ERA5(DataSource):
@@ -257,3 +295,230 @@ class ERA5Hourly(ERA5):
             "mip": "3hr",  # so far, all supported variables are atmospheric
             "frequency": "1hr",
         }
+
+
+class ERA5Daily(ERA5):
+    """Manage daily ERA5 data.
+
+    Daily data are aggregated from the hourly ERA5 reanalysis: the hourly
+    fields are downloaded one year at a time over the variable's
+    :attr:`~climateeval.Variable.timerange`, CMORized with the ESMValTool
+    ``native6`` hourly fixes, and then reduced to daily statistics with
+    ESMValCore's :func:`~esmvalcore.preprocessor.daily_statistics` (see
+    :data:`DAILY_OPERATORS`). This provides the daily temperature extremes
+    ``tasmax``/``tasmin``, which the CDS does not serve as part of the hourly
+    or monthly reanalysis.
+
+    Note
+    ----
+    Hourly ERA5 is large, so - unlike for :class:`ERA5Monthly` and
+    :class:`ERA5Hourly` - the variable's ``timerange`` must be set explicitly
+    (e.g. ``timerange="1990/2014"``); it defines the years that are requested
+    from the CDS.
+
+    The ESMValTool ``native6`` fixes shift the time stamps of accumulated ERA5
+    fields (e.g. ``pr``) back by 30 minutes so that they label the middle of
+    the accumulation interval. Their last day therefore misses the step that
+    the following year contributes and is aggregated from 23 instead of 24
+    hourly steps; request one additional year if that endpoint matters.
+
+    """
+
+    def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:
+        """Download data.
+
+        One request is sent to the CDS per year of the variable's timerange;
+        the downloaded hourly data are aggregated to daily data by
+        :meth:`format`.
+
+        Note
+        ----
+        This requires a valid API key in ``~/.cdsapirc``. See section "Setup
+        the CDS Api key" at https://cds.climate.copernicus.eu/how-to-api for
+        details.
+
+        """
+        data_root_dir = Path(data_root_dir)
+
+        source_var_name = self._get_source_var_name(variable)
+        if source_var_name not in VARIABLE_MAPPING:
+            msg = f"Variable '{variable.var_name}' is not supported for daily ERA5"
+            raise NotImplementedError(msg)
+
+        # Raw downloaded data will be stored in temporary directory. Our "raw"
+        # data will be the formatted data by ESMValTool.
+        tmp_dir = Path(tempfile.TemporaryDirectory().name)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+
+        # Download data (one request per year)
+        (dataset, request) = self._get_cds_client_retrieve_kwargs(variable)
+        years = request.pop("year")
+        request["variable"] = [VARIABLE_MAPPING[source_var_name]]
+        request["data_format"] = "netcdf"
+        request["download_format"] = "unarchived"
+
+        client = cdsapi.Client()
+        tmp_targets: list[Path] = []
+        for year in years:
+            tmp_target = tmp_dir / f"raw_{self.id}_{variable.var_name}_{year}.nc"
+            client.retrieve(dataset, {**request, "year": [year]}).download(tmp_target)
+            tmp_targets.append(tmp_target)
+
+        # Aggregate to daily data, reformat with ESMValTool and save
+        target = self.format(tmp_targets, variable, data_root_dir=data_root_dir)
+
+        return [target]
+
+    def format(
+        self,
+        input_file: Path | str | Sequence[Path | str],
+        variable: Variable,
+        *,
+        data_root_dir: Path | str,
+    ) -> Path:
+        """Aggregate hourly ERA5 data to daily data and format it.
+
+        Parameters
+        ----------
+        input_file:
+            Raw hourly ERA5 file, or the raw hourly files of all requested
+            years (they are concatenated before the aggregation so that no
+            day is split across two files).
+        variable:
+            Daily variable to produce.
+        data_root_dir:
+            Root directory the formatted file is written to.
+
+        Returns
+        -------
+        :
+            Path of the formatted daily file.
+
+        """
+        data_root_dir = Path(data_root_dir)
+
+        # The hourly data is CMORized with the hourly ESMValTool fixes; these
+        # cannot be applied to the aggregated data, because ESMValCore does not
+        # implement the unit fix of accumulated ERA5 fields for daily data (it
+        # has already been applied to the hourly data here).
+        hourly_facets = self._get_hourly_esmvaltool_facets(variable)
+        cubes = load_cubes(self._as_uris(input_file))
+        with setup_esmvaltool_config_and_logging():
+            cube = fix_metadata(cubes, **hourly_facets)[0]
+            cube = fix_data(cube, **hourly_facets)
+            if cube.coords("expver"):
+                cube.remove_coord("expver")
+            operator = DAILY_OPERATORS.get(variable.var_name, "mean")
+            cube = daily_statistics(cube, operator)
+
+            # Drop the partial day the 30 minute shift of accumulated fields
+            # adds in front of the requested timerange
+            cube = clip_timerange(cube, variable.timerange)
+
+        self._set_daily_metadata(cube, variable, operator)
+
+        era5_facets = self._get_esmvaltool_facets(variable)
+        data_dir = self._get_data_dir(data_root_dir, variable)
+        data_dir.mkdir(parents=True, exist_ok=True)
+        target = data_dir / self._get_output_filename(cube, **era5_facets)
+        iris.save(cube, target)
+
+        return target
+
+    def _get_cds_client_retrieve_kwargs(
+        self,
+        variable: Variable,
+    ) -> tuple[str, dict[str, Any]]:
+        """Get arguments for :meth:`cds.Client.retrieve`.
+
+        The returned ``year`` entry lists all years of the variable's
+        timerange; :meth:`download` sends one request per year.
+
+        """
+        if variable.ndim != 3:  # noqa: PLR2004
+            msg = (
+                f"{variable.ndim}D data (variable '{variable.var_name}') is not "
+                f"supported for daily ERA5"
+            )
+            raise ValueError(msg)
+
+        request: dict[str, Any] = {
+            "product_type": "reanalysis",
+            "year": [str(y) for y in self._get_years(variable)],
+            "month": ALL_MONTHS,
+            "day": ALL_DAYS,
+            "time": ALL_TIMES,
+        }
+
+        return ("reanalysis-era5-single-levels", request)
+
+    def _get_esmvaltool_facets(self, variable: Variable) -> dict[str, Any]:
+        """Get ESMValTool facets of the aggregated daily data."""
+        return {
+            "short_name": variable.var_name,
+            "project": "native6",
+            "dataset": "ERA5",
+            "mip": "day",  # so far, all supported variables are atmospheric
+            "frequency": "day",
+        }
+
+    def _get_hourly_esmvaltool_facets(self, variable: Variable) -> dict[str, Any]:
+        """Get ESMValTool facets of the raw hourly data."""
+        return {
+            "short_name": self._get_source_var_name(variable),
+            "project": "native6",
+            "dataset": "ERA5",
+            "mip": "3hr",  # so far, all supported variables are atmospheric
+            "frequency": "1hr",
+        }
+
+    @staticmethod
+    def _as_uris(input_file: Path | str | Sequence[Path | str]) -> list[str]:
+        """Get a list of URIs from one or more input files."""
+        if isinstance(input_file, (Path, str)):
+            input_file = [input_file]
+        return [str(f) for f in input_file]
+
+    @staticmethod
+    def _get_source_var_name(variable: Variable) -> str:
+        """Get the hourly ERA5 variable a daily variable is aggregated from."""
+        return DAILY_SOURCE_VARIABLES.get(variable.var_name, variable.var_name)
+
+    @staticmethod
+    def _get_years(variable: Variable) -> list[int]:
+        """Get the years of a variable's timerange."""
+        start_end = variable.timerange.split("/")
+        expected_n_bounds = 2
+        if len(start_end) != expected_n_bounds or not all(
+            s[:4].isdigit() for s in start_end
+        ):
+            msg = (
+                f"Daily ERA5 data is aggregated from the hourly reanalysis, which "
+                f"is downloaded one year at a time, so {variable} needs an "
+                f"explicit timerange of the form '<start>/<end>' (e.g. "
+                f"'1990/2014' or '19900101/20141231'), got '{variable.timerange}'"
+            )
+            raise ValueError(msg)
+
+        (start_year, end_year) = (int(s[:4]) for s in start_end)
+        if end_year < start_year:
+            msg = (
+                f"Start year must not be later than end year, got timerange "
+                f"'{variable.timerange}' for {variable}"
+            )
+            raise ValueError(msg)
+
+        return list(range(start_year, end_year + 1))
+
+    @staticmethod
+    def _set_daily_metadata(cube: Cube, variable: Variable, operator: str) -> None:
+        """Set the metadata of the aggregated daily variable.
+
+        Aggregating does not change the units, which have already been
+        CMORized by the hourly ESMValTool fixes, so only the variable names and
+        the cell method need to be updated here.
+        """
+        cube.standard_name = variable.standard_name or None
+        cube.long_name = variable.long_name
+        cube.var_name = variable.var_name
+        cube.cell_methods = (CellMethod(_CELL_METHODS[operator], coords="time"),)
