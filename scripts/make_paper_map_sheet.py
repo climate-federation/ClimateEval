@@ -64,6 +64,12 @@ def frames_from_table(npz_path: Path) -> tuple[pd.DataFrame, pd.DataFrame, list[
         common = np.isfinite(m) & np.isfinite(r)
         if not common.any():
             raise ValueError(f"{v}: model and reference have no valid cell in common")
+        # The builder pivots after dropping missing cells, so a latitude row or a
+        # longitude column with no valid cell would vanish from the map and shift
+        # its neighbours: refuse it here rather than draw a silently misaligned map.
+        if (~common.any(axis=1)).any() or (~common.any(axis=0)).any():
+            raise ValueError(f"{v}: a whole latitude row or longitude column has no "
+                             "valid cell in common; the map would drop it")
         grids[v] = (np.where(common, m, np.nan), np.where(common, r, np.nan))  # same cells everywhere
     la, lo = np.meshgrid(lat, lon, indexing="ij")
     base = {"latitude": la.ravel(), "longitude": lo.ravel()}
@@ -76,7 +82,10 @@ def frames_from_table(npz_path: Path) -> tuple[pd.DataFrame, pd.DataFrame, list[
     variables_df = pd.DataFrame({"id": fields,
                                  "long_name": [str(z[f"long_name.{v}"]) for v in fields],
                                  "units": [str(z[f"units.{v}"]) for v in fields]})
-    title = (f"{z['title']}\n{model} averaging window: {z['window']}; middle panels: "
+    window = str(z["window"]).strip() if z["window"].ndim == 0 else ""
+    if not window:
+        raise ValueError("window must be a non-blank string naming the model averaging window")
+    title = (f"{z['title']}\n{model} averaging window: {window}; middle panels: "
              f"reference calendar-month climatology ({', '.join(sorted(set(refs.values())))})")
     return data_df, variables_df, fields, model, title
 
