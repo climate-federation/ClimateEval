@@ -228,6 +228,12 @@ tas:
   realm: atmos
   standard_name: air_temperature
   units: K
+tasa:
+  coordinates: [time, lat, lon]
+  long_name: Near-Surface Air Temperature Anomaly
+  realm: atmos
+  standard_name: ""
+  units: K
 tasmax:
   coordinates: [time, lat, lon]
   long_name: Daily Maximum Near-Surface Air Temperature
