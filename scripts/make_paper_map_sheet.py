@@ -6,14 +6,17 @@ Usage: make_paper_map_sheet.py <database.ddb> <output-dir>
 The second form draws the SAME sheet from a gridded table instead of a scored
 database, for windows ClimateEval has not scored yet (a partial month against
 the reference's calendar-month climatology).  The npz holds ``lat``, ``lon``
-(1-D, degrees), ``model`` (str), ``title`` (str), ``fields`` (list of var ids)
+(1-D, degrees), ``model`` (str), ``title`` (str), ``window`` (str: the model
+averaging window, rendered into the title mechanically so the partial-window
+caveat cannot be left out), ``fields`` (list of var ids)
 and per field ``model.<var>``, ``ref.<var>`` (2-D, lat x lon), ``ref_name.<var>``,
 ``units.<var>``, ``long_name.<var>``.  No metrics: the bias panel's mean and RMSE
 are computed from the grids by the sheet builder itself.  The table form checks
 what the database form gets from ESMValTool: every grid is (lat, lon) on a
 regular, duplicate-free lat/lon grid, the model id differs from every reference
-name, an all-missing grid is refused, and the model is masked to the reference's
-valid cells so all three panels and their means use the same cells.  Units are
+name, an all-missing grid is refused, and model and reference are both masked
+to their COMMON valid cells (refused when empty) so all three panels and their
+means use the same cells.  Units are
 labels only: the producer must supply model and reference in the same unit.
 The default 600 dpi is for the paper; a checkpoint figure passes a lower dpi.
 
@@ -32,8 +35,12 @@ from climateeval.report._static_figures import build_static_map_sheet
 
 def frames_from_table(npz_path: Path) -> tuple[pd.DataFrame, pd.DataFrame, list[str], str, str]:
     """Long data table + variables table from the gridded npz described above."""
-    z = np.load(npz_path, allow_pickle=True)
-    lat, lon = np.asarray(z["lat"], float).ravel(), np.asarray(z["lon"], float).ravel() % 360.0
+    z = np.load(npz_path)
+    if np.asarray(z["lat"]).ndim != 1 or np.asarray(z["lon"]).ndim != 1:
+        raise ValueError("lat and lon must be 1-D axes")
+    lat, lon = np.asarray(z["lat"], float), np.asarray(z["lon"], float) % 360.0
+    if lat.min() < -90.0 or lat.max() > 90.0:
+        raise ValueError("lat must lie in [-90, 90] degrees")
     for name, ax in (("lat", lat), ("lon", lon)):
         if ax.size < 2 or np.unique(ax).size != ax.size:
             raise ValueError(f"{name} must be 1-D without duplicates (a 0/360 pair counts)")
@@ -54,7 +61,10 @@ def frames_from_table(npz_path: Path) -> tuple[pd.DataFrame, pd.DataFrame, list[
                                  f"{(lat.size, lon.size)}")
             if not np.isfinite(g).any():
                 raise ValueError(f"{label}.{v} is entirely missing")
-        grids[v] = (np.where(np.isfinite(r), m, np.nan), r)   # same cells on all three panels
+        common = np.isfinite(m) & np.isfinite(r)
+        if not common.any():
+            raise ValueError(f"{v}: model and reference have no valid cell in common")
+        grids[v] = (np.where(common, m, np.nan), np.where(common, r, np.nan))  # same cells everywhere
     la, lo = np.meshgrid(lat, lon, indexing="ij")
     base = {"latitude": la.ravel(), "longitude": lo.ravel()}
     rows = [pd.DataFrame({**base, "data_id": model, "data_type": "to_benchmark",
@@ -66,7 +76,9 @@ def frames_from_table(npz_path: Path) -> tuple[pd.DataFrame, pd.DataFrame, list[
     variables_df = pd.DataFrame({"id": fields,
                                  "long_name": [str(z[f"long_name.{v}"]) for v in fields],
                                  "units": [str(z[f"units.{v}"]) for v in fields]})
-    return data_df, variables_df, fields, model, str(z["title"])
+    title = (f"{z['title']}\n{model} averaging window: {z['window']}; middle panels: "
+             f"reference calendar-month climatology ({', '.join(sorted(set(refs.values())))})")
+    return data_df, variables_df, fields, model, title
 
 
 if len(sys.argv) > 1 and sys.argv[1] == "--table":
@@ -83,6 +95,8 @@ if len(sys.argv) > 1 and sys.argv[1] == "--table":
 
 from climateeval.report._db import read_database  # noqa: E402
 
+if len(sys.argv) != 3:
+    sys.exit(__doc__)
 DB = Path(sys.argv[1])
 OUT = Path(sys.argv[2])
 FIELDS_6 = ["clt", "rsut", "swcre", "tas", "pr", "prw"]
