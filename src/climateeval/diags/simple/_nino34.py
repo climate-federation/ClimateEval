@@ -30,7 +30,11 @@ class Nino34(SimpleDiagnostic):
 
     Computes the Oceanic Nino Index time series: monthly sea surface temperature
     anomalies averaged over the Nino 3.4 region (170W-120W, 5S-5N) and smoothed
-    with a 3-month running mean.
+    with a running mean of :attr:`_rolling_window_length` months (3 by default,
+    the operational Oceanic Nino Index definition).
+
+    Subclasses can set ``_rolling_window_length = 1`` to skip the smoothing and
+    obtain the unsmoothed monthly Nino 3.4 anomaly index instead.
     """
 
     _final_coordinates = (Coordinate("time"),)
@@ -40,10 +44,19 @@ class Nino34(SimpleDiagnostic):
     _end_longitude: ClassVar[float] = 240.0
     _start_latitude: ClassVar[float] = -5.0
     _end_latitude: ClassVar[float] = 5.0
+
+    #: Length of the running mean in months; 1 means no smoothing.
     _rolling_window_length: ClassVar[int] = 3
 
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
+        if self._rolling_window_length < 1:
+            msg = (
+                f"'_rolling_window_length' must be at least 1, got "
+                f"{self._rolling_window_length}"
+            )
+            raise ValueError(msg)
+
         with setup_esmvaltool_config_and_logging():
             cube = regrid(
                 cube,
@@ -59,12 +72,15 @@ class Nino34(SimpleDiagnostic):
                 end_latitude=self._end_latitude,
             )
             cube = anomalies(cube, period="month")
-            cube = rolling_window_statistics(
-                cube,
-                coordinate="time",
-                operator="mean",
-                window_length=self._rolling_window_length,
-            )
+            if self._rolling_window_length > 1:
+                # A window of 1 is the unsmoothed index; iris does not accept
+                # a rolling window shorter than two points
+                cube = rolling_window_statistics(
+                    cube,
+                    coordinate="time",
+                    operator="mean",
+                    window_length=self._rolling_window_length,
+                )
             cube = area_statistics(cube, "mean")
             cube = regrid_time(
                 cube,
