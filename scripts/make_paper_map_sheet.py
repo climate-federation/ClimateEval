@@ -1,7 +1,7 @@
 """Compose paper map sheets (model | observations | bias) from a scored .ddb.
 
 Usage: make_paper_map_sheet.py <database.ddb> <output-dir>
-       make_paper_map_sheet.py --table <fields.npz> <output.png>
+       make_paper_map_sheet.py --table <fields.npz> <output.png> [dpi]
 
 The second form draws the SAME sheet from a gridded table instead of a scored
 database, for windows ClimateEval has not scored yet (a partial month against
@@ -9,7 +9,13 @@ the reference's calendar-month climatology).  The npz holds ``lat``, ``lon``
 (1-D, degrees), ``model`` (str), ``title`` (str), ``fields`` (list of var ids)
 and per field ``model.<var>``, ``ref.<var>`` (2-D, lat x lon), ``ref_name.<var>``,
 ``units.<var>``, ``long_name.<var>``.  No metrics: the bias panel's mean and RMSE
-are computed from the grids by the sheet builder itself.
+are computed from the grids by the sheet builder itself.  The table form checks
+what the database form gets from ESMValTool: every grid is (lat, lon) on a
+regular, duplicate-free lat/lon grid, the model id differs from every reference
+name, an all-missing grid is refused, and the model is masked to the reference's
+valid cells so all three panels and their means use the same cells.  Units are
+labels only: the producer must supply model and reference in the same unit.
+The default 600 dpi is for the paper; a checkpoint figure passes a lower dpi.
 
 Writes a 600 dpi PNG and a vector PDF per field set.  The model is displayed
 as "ESM"; that is a presentation override only, so the identifiers in the
@@ -27,16 +33,34 @@ from climateeval.report._static_figures import build_static_map_sheet
 def frames_from_table(npz_path: Path) -> tuple[pd.DataFrame, pd.DataFrame, list[str], str, str]:
     """Long data table + variables table from the gridded npz described above."""
     z = np.load(npz_path, allow_pickle=True)
-    lat, lon = np.asarray(z["lat"], float), np.asarray(z["lon"], float)
+    lat, lon = np.asarray(z["lat"], float).ravel(), np.asarray(z["lon"], float).ravel() % 360.0
+    for name, ax in (("lat", lat), ("lon", lon)):
+        if ax.size < 2 or np.unique(ax).size != ax.size:
+            raise ValueError(f"{name} must be 1-D without duplicates (a 0/360 pair counts)")
+        step = np.diff(np.sort(ax))
+        if not np.allclose(step, step[0], rtol=1e-3):
+            raise ValueError(f"{name} must be regularly spaced: cos-lat weighting assumes it")
     fields = [str(v) for v in z["fields"]]
     model = str(z["model"])
+    refs = {v: str(z[f"ref_name.{v}"]) for v in fields}
+    if model in refs.values():
+        raise ValueError(f"model id {model!r} collides with a reference name")
+    grids = {}
+    for v in fields:
+        m, r = np.asarray(z[f"model.{v}"], float), np.asarray(z[f"ref.{v}"], float)
+        for label, g in (("model", m), ("ref", r)):
+            if g.shape != (lat.size, lon.size):
+                raise ValueError(f"{label}.{v} has shape {g.shape}, expected (lat, lon) = "
+                                 f"{(lat.size, lon.size)}")
+            if not np.isfinite(g).any():
+                raise ValueError(f"{label}.{v} is entirely missing")
+        grids[v] = (np.where(np.isfinite(r), m, np.nan), r)   # same cells on all three panels
     la, lo = np.meshgrid(lat, lon, indexing="ij")
     base = {"latitude": la.ravel(), "longitude": lo.ravel()}
     rows = [pd.DataFrame({**base, "data_id": model, "data_type": "to_benchmark",
-                          **{v: np.asarray(z[f"model.{v}"], float).ravel() for v in fields}})]
-    for ref in sorted({str(z[f"ref_name.{v}"]) for v in fields}):
-        cols = {v: np.asarray(z[f"ref.{v}"], float).ravel() for v in fields
-                if str(z[f"ref_name.{v}"]) == ref}
+                          **{v: grids[v][0].ravel() for v in fields}})]
+    for ref in sorted(set(refs.values())):
+        cols = {v: grids[v][1].ravel() for v in fields if refs[v] == ref}
         rows.append(pd.DataFrame({**base, "data_id": ref, "data_type": "reference", **cols}))
     data_df = pd.concat(rows, ignore_index=True)
     variables_df = pd.DataFrame({"id": fields,
@@ -46,12 +70,15 @@ def frames_from_table(npz_path: Path) -> tuple[pd.DataFrame, pd.DataFrame, list[
 
 
 if len(sys.argv) > 1 and sys.argv[1] == "--table":
+    if len(sys.argv) not in (4, 5):
+        sys.exit(__doc__)
     data_df, variables_df, fields, model, title = frames_from_table(Path(sys.argv[2]))
     fig = build_static_map_sheet(data_df, variables_df, fields, display_names={model: model})
     if fig is None:
         sys.exit("no sheet: no field had both a model and a reference")
     fig.suptitle(title, fontsize=9)
-    out = Path(sys.argv[3]); fig.savefig(out, dpi=150, bbox_inches="tight"); print("wrote", out)
+    out = Path(sys.argv[3]); dpi = int(sys.argv[4]) if len(sys.argv) == 5 else 600
+    fig.savefig(out, dpi=dpi, bbox_inches="tight"); print("wrote", out)
     sys.exit(0)
 
 from climateeval.report._db import read_database  # noqa: E402
