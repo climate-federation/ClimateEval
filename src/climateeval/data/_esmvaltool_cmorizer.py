@@ -30,6 +30,16 @@ class ESMValToolCMORizerDataSource(DataSource):
     _file_prefix_pattern: ClassVar[str] = "*"
     """Prefix to only select specific files."""
 
+    _supported_frequencies: ClassVar[tuple[str, ...] | None] = None
+    """Supported frequencies.
+
+    Formatted files are stored in a directory that is determined by the
+    frequency of the requested variable. CMORizers that write the same variable
+    with more than one frequency therefore have to restrict their output to a
+    single frequency (with :attr:`_file_prefix_pattern`) and declare it here.
+
+    """
+
     _supported_var_names: ClassVar[tuple[str, ...] | None] = None
     """Supported variable names."""
 
@@ -64,12 +74,22 @@ class ESMValToolCMORizerDataSource(DataSource):
         )
 
     def _check_supported_variables(self, variable: Variable) -> None:
-        """Raise an error if a variable is not supported."""
+        """Raise an error if a variable or its frequency is not supported."""
         if (
             self._supported_var_names is not None
             and variable.var_name not in self._supported_var_names
         ):
             msg = f"{self.id} does not provide variable '{variable.var_name}'"
+            raise NotImplementedError(msg)
+        if (
+            self._supported_frequencies is not None
+            and variable.frequency not in self._supported_frequencies
+        ):
+            msg = (
+                f"{self.id} does not provide variable '{variable.var_name}' with "
+                f"frequency '{variable.frequency}' (supported frequencies: "
+                f"{', '.join(self._supported_frequencies)})"
+            )
             raise NotImplementedError(msg)
 
     def _esmvaltool_cmorizer_format(

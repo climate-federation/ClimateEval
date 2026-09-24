@@ -18,6 +18,7 @@ from climateeval.report._common import (
     _get_ref_datasets,
     _sort_datasets,
     _var_label,
+    _weighted_mean,
 )
 from climateeval.report._db import get_density_cols, get_var_cols
 from climateeval.report._style import (
@@ -222,11 +223,25 @@ def build_map_figures(
                     idx = r * ncols + c
                     if idx < len(valid_refs):
                         titles.append(f"<b>{valid_refs[idx]}</b>")
+            # Model | observations | bias, left to right (user request
+            # 2026-09-24): the eye compares the first two, the third carries
+            # the number.  Matches the static three-panel layout.
             for ds in non_ref:
+                mp_t = _pivot_for(ds)
+                bias_note = ""
+                if mp_t is not None:
+                    bmean = _weighted_mean(
+                        mp_t.subtract(ref_pivot).dropna(how="all"),
+                    )
+                    if np.isfinite(bmean):
+                        bias_note = (
+                            f"<br><span style='font-weight:400'>mean "
+                            f"{bmean:+.3g}{f' {units}' if units else ''}</span>"
+                        )
                 titles += [
-                    f"<b>{ref_label}</b>",
                     f"<b>{ds}</b>",
-                    f"<b>{ds}</b> − {ref_label}",
+                    f"<b>{ref_label}</b>",
+                    f"<b>{ds}</b> − {ref_label}{bias_note}",
                 ]
             # Compute shared symmetric bias range across all non-ref datasets
             bias_vals: list[float] = []
@@ -394,13 +409,13 @@ def build_map_figures(
                     else None
                 )
                 ref_name = "" if ref_label is None else ref_label
-                _add_panel(ref_pivot, row, 1, cs, vmin, vmax, ref_cb, ref_name)
-                ref_cb_shown = True
-
                 mp = _pivot_for(ds)
+                if mp is not None:
+                    _add_panel(mp, row, 1, cs, vmin, vmax, None, str(ds))
+                _add_panel(ref_pivot, row, 2, cs, vmin, vmax, ref_cb, ref_name)
+                ref_cb_shown = True
                 if mp is None:
                     continue
-                _add_panel(mp, row, 2, cs, vmin, vmax, None, str(ds))
 
                 bp = mp.subtract(ref_pivot).dropna(how="all").dropna(axis=1, how="all")
                 if bp.empty:
