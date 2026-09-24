@@ -76,6 +76,8 @@ python scripts/gen_variables_doc.py
 | `rsutcs` | TOA Outgoing Clear-Sky Shortwave Radiation | `toa_outgoing_shortwave_flux_assuming_clear_sky` | `W m-2` | `atmos` | `time lat lon` |  |
 | `rtmt` | Net Downward Radiative Flux at Top of Model | `net_downward_radiative_flux_at_top_of_atmosphere_model` | `W m-2` | `atmos` | `time lat lon` |  |
 | `rtnt` | TOA Net downward Total Radiation |  | `W m-2` | `atmos` | `time lat lon` | yes |
+| `rx1day` | Annual/monthly maximum 1-day precipitation |  | `mm` | `atmos` | `time lat lon` |  |
+| `rx5day` | Annual/monthly maximum 5-day precipitation |  | `mm` | `atmos` | `time lat lon` |  |
 | `siconc` | Sea-Ice Area Percentage (Ocean Grid) | `sea_ice_area_fraction` | `%` | `sea_ice` | `time lat lon` |  |
 | `so` | Sea Water Salinity | `sea_water_salinity` | `1E-03` | `ocean` | `time olevel lat lon` |  |
 | `swcre` | TOA Shortwave Cloud Radiative Effect |  | `W m-2` | `atmos` | `time lat lon` | yes |
@@ -87,8 +89,10 @@ python scripts/gen_variables_doc.py
 | `tauu` | Surface Downward Eastward Wind Stress | `surface_downward_eastward_stress` | `Pa` | `atmos` | `time lat lon` |  |
 | `tauv` | Surface Downward Northward Wind Stress | `surface_downward_northward_stress` | `Pa` | `atmos` | `time lat lon` |  |
 | `thetao` | Sea Water Potential Temperature | `sea_water_potential_temperature` | `degC` | `ocean` | `time olevel lat lon` |  |
+| `tnn` | Annual/monthly minimum value of daily minimum temperature |  | `degC` | `atmos` | `time lat lon` |  |
 | `tos` | Sea Surface Temperature | `sea_surface_temperature` | `degC` | `ocean` | `time lat lon` |  |
 | `ts` | Surface Temperature | `surface_temperature` | `K` | `atmos` | `time lat lon` |  |
+| `txx` | Annual/monthly maximum value of daily maximum temperature |  | `degC` | `atmos` | `time lat lon` |  |
 | `ua` | Eastward Wind | `eastward_wind` | `m s-1` | `atmos` | `time alevel lat lon` |  |
 | `uo` | Sea Water X Velocity | `sea_water_x_velocity` | `m s-1` | `ocean` | `time olevel lat lon` |  |
 | `v_star` | TEM Residual Meridional Velocity |  | `m s-1` | `atmos` | `plev lat` |  |
