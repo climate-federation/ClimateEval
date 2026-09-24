@@ -8,7 +8,9 @@ from climateeval.data._ceres_ebaf import CERESEBAF
 from climateeval.data._cmip6_generators import (
     CMIP6Abrupt4xCO2R1I1P1F1,
     CMIP6DataSourceGenerator,
+    CMIP6HistoricalAllMembers,
     CMIP6HistoricalR1I1P1F1,
+    CMIP6HistoricalSSP245,
     CMIP6PiControlR1I1P1F1,
 )
 from climateeval.data._cru import CRU
@@ -58,7 +60,9 @@ __all__ = [
     "BerkeleyEarth",
     "CMIP6Abrupt4xCO2R1I1P1F1",
     "CMIP6DataSourceGenerator",
+    "CMIP6HistoricalAllMembers",
     "CMIP6HistoricalR1I1P1F1",
+    "CMIP6HistoricalSSP245",
     "CMIP6PiControlR1I1P1F1",
     "ComplexDataSource",
     "DataSource",
