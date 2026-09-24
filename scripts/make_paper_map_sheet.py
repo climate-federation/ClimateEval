@@ -47,6 +47,13 @@ def frames_from_table(npz_path: Path) -> tuple[pd.DataFrame, pd.DataFrame, list[
         step = np.diff(np.sort(ax))
         if not np.allclose(step, step[0], rtol=1e-3):
             raise ValueError(f"{name} must be regularly spaced: cos-lat weighting assumes it")
+    # The sheet is drawn on a global projection with a cyclic longitude: a regional
+    # subset would be stretched across the globe, so require full coverage.
+    if not np.isclose(lon.size * float(np.diff(np.sort(lon))[0]), 360.0, rtol=1e-3):
+        raise ValueError("lon must cover the full circle (count x spacing = 360)")
+    dlat = float(np.diff(np.sort(lat))[0])
+    if lat.min() > -90.0 + dlat or lat.max() < 90.0 - dlat:
+        raise ValueError("lat must cover pole to pole (within one grid step)")
     fields = [str(v) for v in z["fields"]]
     model = str(z["model"])
     refs = {v: str(z[f"ref_name.{v}"]) for v in fields}
