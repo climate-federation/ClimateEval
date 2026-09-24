@@ -30,6 +30,7 @@ from climateeval.report._common import (
     _get_ref_datasets,
     _sort_datasets,
     _var_label,
+    _weighted_mean,
 )
 from climateeval.report._db import detect_diag_type, get_var_cols, read_database
 from climateeval.report._style import (
@@ -237,18 +238,6 @@ def _map_levels(vmin: float, vmax: float) -> np.ndarray:
     if vmin == vmax:
         vmin, vmax = vmin - 0.5, vmax + 0.5
     return MaxNLocator(nbins=_MAP_LEVELS).tick_values(vmin, vmax)
-
-
-def _weighted_mean(pivot: pd.DataFrame) -> float:
-    """Area (cos-latitude) weighted mean of a lat×lon pivot."""
-    weights = np.cos(np.deg2rad(pivot.index.to_numpy(dtype=float)))
-    vals = pivot.to_numpy(dtype=float)
-    mask = np.isfinite(vals)
-    w2d = np.broadcast_to(weights[:, None], vals.shape)
-    wsum = (w2d * mask).sum()
-    if wsum == 0:
-        return float("nan")
-    return float(np.nansum(vals * w2d * mask) / wsum)
 
 
 def _weighted_rmse(bias: pd.DataFrame) -> float:
@@ -500,17 +489,14 @@ def build_static_map_figures(
             bias_levels = _map_levels(-babs, babs)
 
         if has_bias and len(non_ref) == 1:
-            # ESMValTool three-panel layout: model | reference, bias below.
+            # Model | observations | bias, left to right in one row (user
+            # request 2026-09-24).  The first two share a colour scale so the
+            # eye can compare them; the third is diverging about zero.
             model = non_ref[0]
-            fig = Figure(figsize=_FIGSIZE, layout="constrained")
-            gridspec = fig.add_gridspec(
-                5,
-                4,
-                height_ratios=[1.0, 1.0, 0.4, 1.0, 1.0],
-            )
-            ax_left = fig.add_subplot(gridspec[0:2, 0:2], projection=projection)
-            ax_right = fig.add_subplot(gridspec[0:2, 2:4], projection=projection)
-            ax_bottom = fig.add_subplot(gridspec[3:5, 1:3], projection=projection)
+            fig = Figure(figsize=(12.0, 3.2), layout="constrained")
+            ax_left = fig.add_subplot(1, 3, 1, projection=projection)
+            ax_right = fig.add_subplot(1, 3, 2, projection=projection)
+            ax_bottom = fig.add_subplot(1, 3, 3, projection=projection)
 
             m_left = _draw_panel(
                 ax_left,

@@ -11,7 +11,7 @@ All live in `climateeval.data`:
 
 | Category | Classes |
 |---|---|
-| Reanalysis | `ERA5Monthly`, `ERA5Hourly`, `MERRA2` |
+| Reanalysis | `ERA5Monthly`, `ERA5Daily`, `ERA5Hourly`, `MERRA2` |
 | Radiation / clouds | `CERESEBAF`, `ESACCICloud` |
 | Precipitation | `GPCP` |
 | Surface temperature | `HadCRUT5`, `GISTEMP`, `BerkeleyEarth`, `NOAAGlobalTemp`, `HadISST` |
@@ -41,6 +41,37 @@ matters when a suite needs an absolute field rather than an anomaly:
 | `NOAAGlobalTemp` | `tasa` | global (land + ocean) |
 | `CRU` | `tas`, `tasmax`, `tasmin`, `pr`, `clt` | land only |
 
+### Daily ERA5
+
+The CDS serves ERA5 as monthly means and as hourly fields, but not as the daily
+statistics that extremes diagnostics need. `ERA5Daily` therefore downloads the
+hourly reanalysis (one CDS request per year), CMORizes it with the ESMValTool
+`native6` hourly fixes and aggregates it with ESMValCore's `daily_statistics`:
+
+| Variable | Hourly ERA5 field | Daily operator |
+|---|---|---|
+| `tas` | `2m_temperature` | mean |
+| `tasmax` | `2m_temperature` | maximum |
+| `tasmin` | `2m_temperature` | minimum |
+| `pr` | `total_precipitation` | mean of the hourly flux |
+
+Any other single-level variable in `VARIABLE_MAPPING` is aggregated with the
+daily mean; add an entry to `DAILY_SOURCE_VARIABLES` / `DAILY_OPERATORS` in
+[`_era5.py`](../src/climateeval/data/_era5.py) to derive a different daily
+statistic. Pressure level variables are not supported.
+
+Hourly ERA5 is large, so - unlike for `ERA5Monthly` and `ERA5Hourly` - the
+variable's `timerange` must be set explicitly (e.g. `timerange: 1990/2014`); it
+defines the years that are requested from the CDS.
+
+The `native6` fixes convert the accumulated ERA5 fields to fluxes and shift
+their time stamps back by 30 minutes (to the middle of the accumulation
+interval), so the daily mean of `pr` is the daily accumulation divided by the
+length of the day, in kg m-2 s-1. The last day of the requested timerange
+misses the step contributed by the following year and is aggregated from 23
+instead of 24 hourly steps; request one additional year if that endpoint
+matters.
+
 ## Where references come from
 
 - **Staged CMORized references.** Most references are read from a directory you
@@ -53,6 +84,22 @@ matters when a suite needs an absolute field rather than an anomaly:
   `intake-esgf`). `cdsapi` needs a `~/.cdsapirc` with your CDS API key.
 - **Direct paths.** A few sources read raw files directly (see the environment
   variables below).
+
+### ERA5 variables
+
+`ERA5Monthly` and `ERA5Hourly` can download the variables listed in
+`VARIABLE_MAPPING` in [`_era5.py`](../src/climateeval/data/_era5.py):
+
+| Request | Variables |
+|---|---|
+| Single levels | `clivi`, `clt`, `evspsbl`, `lwp`, `pr`, `prw`, `ps`, `rlut`, `rlutcs`, `tas`, `ts` |
+| Pressure levels | `hus`, `ta`, `ua`, `va`, `zg` |
+
+The raw CDS fields are CMORized by the ESMValTool `native6` ERA5 fixes, which
+also handle unit conversions — e.g. ERA5 serves `geopotential` in m2 s-2, which
+is divided by the standard gravity to give the geopotential height `zg` in m.
+Note that `ts` is the ERA5 skin temperature, which is *not* the same field as
+the near-surface air temperature `tas`.
 
 ## Provenance: `DataSourceInformation`
 
