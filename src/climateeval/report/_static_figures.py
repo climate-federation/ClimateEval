@@ -14,6 +14,7 @@ diagnostic-type detection as the interactive report.
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -739,9 +740,13 @@ def build_static_map_sheet(  # noqa: PLR0913, PLR0915
         vmin, vmax = _data_range(data_df[var_id], var_id)
         levels = _map_levels(vmin, vmax)
         bias = pivots[model].subtract(ref_pivot, fill_value=None)
-        babs = float(
-            np.nanpercentile(np.abs(bias.to_numpy(dtype=float)), 98) or 0.0,
-        )
+        with warnings.catch_warnings():
+            # An all-NaN bias is a legitimate degenerate case here, and numpy's
+            # "All-NaN slice" warning on stderr is noise in a figure pipeline.
+            warnings.simplefilter("ignore", RuntimeWarning)
+            babs = float(np.nanpercentile(np.abs(bias.to_numpy(dtype=float)), 98))
+        # Catches NaN (all-NaN bias), inf, and an exactly-zero bias, all of
+        # which would otherwise give a degenerate colour scale.
         if not np.isfinite(babs) or babs == 0:
             babs = 1.0
         bias_levels = _map_levels(-babs, babs)
