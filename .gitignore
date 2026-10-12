@@ -39,14 +39,9 @@ MANIFEST
 *.slurm
 *.sbatch
 *.err
-<<<<<<< HEAD
-# ...but keep the committed example submission template
-!examples/ocean/run.slurm
-=======
 # ...but keep the committed example submission templates
 !examples/ocean/run.slurm
 !examples/legoesm/run.slurm
->>>>>>> origin
 *.out
 
 # Installer logs
@@ -235,4 +230,3 @@ __marimo__/
 /*.html
 showcase_output/
 /output/
-legoesm_pg_evals/*
