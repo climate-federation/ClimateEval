@@ -77,8 +77,10 @@
 - name: trend_map
   diagnostic: climateeval.diags.simple.TrendMap
   variables:
-    - *tos
-    - *sos
+    - <<: *tos
+      id: tos_trend
+    - <<: *sos
+      id: sos_trend
 
 - name: zonal_line
   diagnostic: climateeval.diags.simple.ZonalLine

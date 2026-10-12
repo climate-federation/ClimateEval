@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from cf_units import Unit
 from esmvalcore.preprocessor import (
+    annual_statistics,
     climate_statistics,
     convert_units,
     linear_trend,
@@ -35,7 +36,6 @@ class Map(SimpleDiagnostic):
         with setup_esmvaltool_config_and_logging():
             cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
             cube = climate_statistics(cube, "mean", "full")
-            print(cube, flush=True)
         return cube  # noqa: RET504
 
 class TrendMap(SimpleDiagnostic):
@@ -47,6 +47,7 @@ class TrendMap(SimpleDiagnostic):
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
             cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
+            cube = annual_statistics(cube, "mean")
             cube = regrid_time(
                 cube,
                 frequency="yr",
@@ -56,5 +57,4 @@ class TrendMap(SimpleDiagnostic):
             units = cube.units
             cube = linear_trend(cube)
             cube = convert_units(cube, units / Unit("yr"))
-            print(cube, flush=True)
         return cube  # noqa: RET504
