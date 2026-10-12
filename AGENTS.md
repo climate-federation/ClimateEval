@@ -82,7 +82,7 @@ tests/                        # unit/ + integration/ + sample_data/
 
 - `_base.py` - Abstract `Diagnostic` class with the `DiagnosticOutput` dataclass (fields `raw_output`, `metrics`, `variables`, `data_sources` as Ibis tables; `union()` merges outputs). `get_output(data, data_information)` is the entry point.
 - `simple/` - `SimpleDiagnostic` base + the simple diagnostics: `Map`, `ZonalLine`, `ZonalProfileAirPressure`, `AnnualMeanTimeSeries`, `MeanTimeSeries`, `TimeSeriesNoPreprocessing`, `AnnualCycle`, `AnnualCycleSpatialDistribution`, `DiurnalCycle`, `Histogram`, `Hovmoller`, `QBO`, `Nino34`, `SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `AMOCTimeSeries`, `OceanHeatContentTimeSeries`.
-- `complex/` - `ComplexDiagnostic` base + `ECS`, `TEMDiagnostic`.
+- `complex/` - `ComplexDiagnostic` base + `ECS`, `TEMDiagnostic`, `LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`.
 
 ### Suites (`src/climateeval/suites/`)
 
@@ -92,7 +92,7 @@ tests/                        # unit/ + integration/ + sample_data/
 ### Data Sources (`src/climateeval/data/`)
 
 - `_base.py` - `DataSource` / `ComplexDataSource` abstract classes and `DataSourceGenerator`; `_utils.py` holds `DataSourceInformation` (provenance: name, category, institute, exp, variant, references, auto-generated `id`).
-- Concrete implementations: `ERA5Monthly`/`ERA5Hourly`, `MERRA2`, `CERESEBAF`, `ESACCICloud`, `GPCP`, `HadCRUT5`, `HadISST`, `ESACCISST`, `NOAAERSSTv5`, `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC`, `RAPID`, `OSI450NH`/`OSI450SH`, `NSIDCG02202SH`, `CMIP6HistoricalR1I1P1F1`/`CMIP6Abrupt4xCO2R1I1P1F1`/`CMIP6PiControlR1I1P1F1`, and the generic `ESMValToolIntakeDataSource` / `ESMValToolCMORizerDataSource`. See [docs/data-sources.md](docs/data-sources.md).
+- Concrete implementations: `ERA5Monthly`/`ERA5Daily`/`ERA5Hourly`, `MERRA2`, `CERESEBAF`, `ESACCICloud`, `GPCP`, `HadCRUT5`, `HadISST`, `ESACCISST`, `NOAAERSSTv5`, `GISTEMP`, `BerkeleyEarth`, `NOAAGlobalTemp`, `CRU`, `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC`, `RAPID`, `HadEX3`, `OSI450NH`/`OSI450SH`, `NSIDCG02202SH`, `ESACCISeaIceNH`/`ESACCISeaIceSH`, `CMIP6HistoricalR1I1P1F1`/`CMIP6Abrupt4xCO2R1I1P1F1`/`CMIP6PiControlR1I1P1F1`, and the generic `ESMValToolIntakeDataSource` / `ESMValToolCMORizerDataSource`. See [docs/data-sources.md](docs/data-sources.md).
 
 ### Report (`src/climateeval/report/`)
 

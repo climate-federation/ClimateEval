@@ -1,0 +1,9 @@
+# Tier 3 | Feedbacks: equilibrium forced responses and implied energy
+# transport from abrupt-4xCO2 / piControl experiments.
+- name: land_ocean_warming_ratio
+  diagnostic: climateeval.diags.complex.LandOceanWarmingRatio
+  additional_diagnostic_kwargs: {}
+
+- name: arctic_amplification
+  diagnostic: climateeval.diags.complex.ArcticAmplification
+  additional_diagnostic_kwargs: {}

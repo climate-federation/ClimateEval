@@ -1,5 +1,23 @@
 # Atmosphere
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_atmos.json
+amet_peak:
+  coordinates: []
+  long_name: Atmospheric Meridional Energy Transport NH Peak
+  realm: atmos
+  standard_name: ""
+  units: "PW"
+amet_peak_lat:
+  coordinates: []
+  long_name: Atmospheric Meridional Energy Transport NH Peak Latitude
+  realm: atmos
+  standard_name: ""
+  units: "degrees_north"
+arctic_amplification:
+  coordinates: []
+  long_name: Arctic Amplification Factor
+  realm: atmos
+  standard_name: ""
+  units: "1"
 cl:
   coordinates: [time, alevel, lat, lon]
   long_name: Percentage Cloud Cover
@@ -36,6 +54,30 @@ clwvi:
   realm: atmos
   standard_name: atmosphere_mass_content_of_cloud_condensed_water
   units: kg m-2
+delta_t_arctic:
+  coordinates: []
+  long_name: Equilibrium Arctic Warming
+  realm: atmos
+  standard_name: ""
+  units: "K"
+delta_t_global:
+  coordinates: []
+  long_name: Equilibrium Global Warming
+  realm: atmos
+  standard_name: ""
+  units: "K"
+delta_t_land:
+  coordinates: []
+  long_name: Equilibrium Land Warming
+  realm: atmos
+  standard_name: ""
+  units: "K"
+delta_t_ocean:
+  coordinates: []
+  long_name: Equilibrium Ocean Warming
+  realm: atmos
+  standard_name: ""
+  units: "K"
 evspsbl:
   coordinates: [time, lat, lon]
   long_name: Evaporation Including Sublimation and Transpiration
@@ -60,6 +102,24 @@ hus:
   realm: atmos
   standard_name: specific_humidity
   units: "1"
+land_ocean_warming_ratio:
+  coordinates: []
+  long_name: Land-Ocean Warming Ratio
+  realm: atmos
+  standard_name: ""
+  units: "1"
+omet_peak:
+  coordinates: []
+  long_name: Oceanic Meridional Energy Transport NH Peak
+  realm: ocean
+  standard_name: ""
+  units: "PW"
+omet_peak_lat:
+  coordinates: []
+  long_name: Oceanic Meridional Energy Transport NH Peak Latitude
+  realm: ocean
+  standard_name: ""
+  units: "degrees_north"
 pfull:
   coordinates: [time, alevel, lat, lon]
   long_name: Pressure at Model Full-Levels
@@ -96,6 +156,18 @@ psl:
   realm: atmos
   standard_name: air_pressure_at_mean_sea_level
   units: Pa
+rlds:
+  coordinates: [time, lat, lon]
+  long_name: Surface Downwelling Longwave Radiation
+  realm: atmos
+  standard_name: surface_downwelling_longwave_flux_in_air
+  units: W m-2
+rlus:
+  coordinates: [time, lat, lon]
+  long_name: Surface Upwelling Longwave Radiation
+  realm: atmos
+  standard_name: surface_upwelling_longwave_flux_in_air
+  units: W m-2
 rlut:
   coordinates: [time, lat, lon]
   long_name: TOA Outgoing Longwave Radiation
@@ -108,11 +180,23 @@ rlutcs:
   realm: atmos
   standard_name: toa_outgoing_longwave_flux_assuming_clear_sky
   units: W m-2
+rsds:
+  coordinates: [time, lat, lon]
+  long_name: Surface Downwelling Shortwave Radiation
+  realm: atmos
+  standard_name: surface_downwelling_shortwave_flux_in_air
+  units: W m-2
 rsdt:
   coordinates: [time, lat, lon]
   long_name: TOA Incident Shortwave Radiation
   realm: atmos
   standard_name: toa_incoming_shortwave_flux
+  units: W m-2
+rsus:
+  coordinates: [time, lat, lon]
+  long_name: Surface Upwelling Shortwave Radiation
+  realm: atmos
+  standard_name: surface_upwelling_shortwave_flux_in_air
   units: W m-2
 rsut:
   coordinates: [time, lat, lon]
@@ -132,6 +216,18 @@ rtmt:
   realm: atmos
   standard_name: net_downward_radiative_flux_at_top_of_atmosphere_model
   units: W m-2
+rx1day:
+  coordinates: [time, lat, lon]
+  long_name: Annual/monthly maximum 1-day precipitation
+  realm: atmos
+  standard_name: ""
+  units: mm
+rx5day:
+  coordinates: [time, lat, lon]
+  long_name: Annual/monthly maximum 5-day precipitation
+  realm: atmos
+  standard_name: ""
+  units: mm
 ta:
   coordinates: [time, alevel, lat, lon]
   long_name: Air Temperature
@@ -141,6 +237,24 @@ ta:
 tas:
   coordinates: [time, lat, lon]
   long_name: Near-Surface Air Temperature
+  realm: atmos
+  standard_name: air_temperature
+  units: K
+tasa:
+  coordinates: [time, lat, lon]
+  long_name: Near-Surface Air Temperature Anomaly
+  realm: atmos
+  standard_name: ""
+  units: K
+tasmax:
+  coordinates: [time, lat, lon]
+  long_name: Daily Maximum Near-Surface Air Temperature
+  realm: atmos
+  standard_name: air_temperature
+  units: K
+tasmin:
+  coordinates: [time, lat, lon]
+  long_name: Daily Minimum Near-Surface Air Temperature
   realm: atmos
   standard_name: air_temperature
   units: K
@@ -156,12 +270,24 @@ tauv:
   realm: atmos
   standard_name: surface_downward_northward_stress
   units: Pa
+tnn:
+  coordinates: [time, lat, lon]
+  long_name: Annual/monthly minimum value of daily minimum temperature
+  realm: atmos
+  standard_name: ""
+  units: degC
 ts:
   coordinates: [time, lat, lon]
   long_name: Surface Temperature
   realm: atmos
   standard_name: surface_temperature
   units: K
+txx:
+  coordinates: [time, lat, lon]
+  long_name: Annual/monthly maximum value of daily maximum temperature
+  realm: atmos
+  standard_name: ""
+  units: degC
 ua:
   coordinates: [time, alevel, lat, lon]
   long_name: Eastward Wind
