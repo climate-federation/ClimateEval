@@ -1,0 +1,7 @@
+- name: acc_transport_drake
+  diagnostic: climateeval.diags.simple.ACCTransportZonalTransect
+  variables:
+    - id: uo_acc
+      var_name: uo
+      frequency: mon
+      reference_data: climateeval.data.ORAS5

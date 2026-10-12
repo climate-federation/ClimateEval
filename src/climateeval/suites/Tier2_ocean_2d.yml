@@ -1,0 +1,95 @@
+- name: annual_cycle
+  diagnostic: climateeval.diags.simple.AnnualCycle
+  variables:
+    - &mlotst_regrid
+      id: mlotst_labrador_sea
+      var_name: mlotst
+      frequency: mon
+      min_lat: 46.0
+      max_lat: 66.0
+      min_lon: 293.0
+      max_lon: 318.0
+      reference_data: climateeval.data.ORAS5
+      # Regrid the irregular ORAS5 grid to 2x2 (area-weighted) and only then
+      # mask land (mask_landsea does not support irregular grids).
+      additional_preprocessors:
+        esmvalcore.preprocessor.regrid:
+          target_grid: 2x2
+          scheme: area_weighted
+        esmvalcore.preprocessor.mask_landsea:
+          mask_out: land
+    - <<: *mlotst_regrid
+      id: mlotst_weddell_sea
+      min_lat: -77.0
+      max_lat: -60.0
+      min_lon: 294.0
+      max_lon: 344.0
+    - <<: *mlotst_regrid
+      id: mlotst_southern_ocean
+      min_lat: -90.0
+      max_lat: 90.0
+      min_lon: 0.0
+      max_lon: 360.0
+      ar6_regions_mask: [Southern-Ocean]
+
+- name: annual_mean_timeseries
+  diagnostic: climateeval.diags.simple.AnnualMeanTimeSeries
+  variables:
+    # Sea surface temperature
+    - &tos
+      id: tos
+      var_name: tos
+      frequency: mon
+      reference_data: climateeval.data.ESACCISST
+      # other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
+
+- name: nino34
+  diagnostic: climateeval.diags.simple.Nino34
+  variables:
+    # Oceanic Nino Index: SST anomalies over the Nino 3.4 region.
+    - id: tos_nino34
+      var_name: tos
+      frequency: mon
+      reference_data: climateeval.data.ESACCISST
+      # other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
+
+- name: map
+  diagnostic: climateeval.diags.simple.Map
+  variables:
+    - *tos
+    # Sea surface salinity (surface level of 3-D so field, g/kg over ocean).
+    # `so` is only defined over the ocean, and `mask_landsea` (sea_only) does
+    # not support the curvilinear ocean grids many models use, so no land-sea
+    # mask is applied here.
+    - &sos
+      id: sos
+      var_name: sos
+      frequency: mon
+      units: g kg-1
+      # vertical_level:
+      #   coordinate_name: depth
+      #   units: m
+      #   value: 0.0
+      #   extrapolate: true
+      reference_data: climateeval.data.ORAS5
+      # other_data: [climateeval.data.WOA]
+
+- name: trend_map
+  diagnostic: climateeval.diags.simple.TrendMap
+  variables:
+    - *tos
+    - *sos
+
+- name: zonal_line
+  diagnostic: climateeval.diags.simple.ZonalLine
+  variables:
+    - *tos
+    - *sos
+
+- name: ssh_gradient
+  diagnostic: climateeval.diags.simple.SshGradient
+  variables:
+    - id: ssh_gradient
+      var_name: zos
+      frequency: mon
+      reference_data: climateeval.data.ORAS5

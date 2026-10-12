@@ -491,15 +491,12 @@ details > summary:hover { opacity: 0.75; }
 .plot-title-text {
   font-size: 0.88rem; font-weight: 600; color: var(--navy-mid);
 }
-<<<<<<< HEAD
-=======
 .var-id-chip {
   display: inline-block; padding: 1px 7px; margin-left: 6px;
   border-radius: 6px; font-size: 0.7rem; font-weight: 600;
   background: #eef2f7; color: #51637f; border: 1px solid var(--border);
 }
 .plot-title-units { color: var(--muted); font-weight: 500; }
->>>>>>> origin
 
 /* ── Dataset detail box ── */
 .plot-detail-footer {
@@ -578,27 +575,6 @@ details > summary:hover { opacity: 0.75; }
   display: flex; gap: 18px; flex-wrap: wrap; align-items: center;
 }
 .legend-note span { display: flex; align-items: center; gap: 7px; }
-<<<<<<< HEAD
-.ln-solid {
-  display: inline-block; width: 26px; height: 2.5px;
-  background: #555; border-radius: 2px;
-}
-.ln-dash {
-  display: inline-block; width: 26px; height: 2.5px; border-radius: 2px;
-  background: repeating-linear-gradient(to right,#555 0 5px,transparent 5px 9px);
-}
-.ln-dot {
-  display: inline-block; width: 26px; height: 2.5px; border-radius: 2px;
-  background: repeating-linear-gradient(to right,#555 0 2px,transparent 2px 6px);
-}
-.ln-ref-swatch {
-  display: inline-block; width: 14px; height: 14px; border-radius: 3px;
-  background: rgba(192,134,10,0.15); border: 1.5px solid #c0860a; flex-shrink: 0;
-}
-.ln-bias-swatch {
-  display: inline-block; width: 26px; height: 10px; border-radius: 3px; flex-shrink: 0;
-  background: linear-gradient(to right, #2166ac, #f7f7f7, #d6604d);
-=======
 /* line swatches mirror _get_line_properties(): model = coloured solid,
    reference = black solid, other = gray dashed */
 .ln-model {
@@ -616,7 +592,6 @@ details > summary:hover { opacity: 0.75; }
 /* backgrounds are set inline per variable from the plot's colorscales */
 .ln-data-swatch, .ln-bias-swatch {
   display: inline-block; width: 26px; height: 10px; border-radius: 3px; flex-shrink: 0;
->>>>>>> origin
 }
 
 /* ── Search no-results ── */
@@ -627,10 +602,6 @@ details > summary:hover { opacity: 0.75; }
 .search-no-results.visible { display: block; }
 
 /* ── Misc ── */
-<<<<<<< HEAD
-.db-source { font-size: 0.76rem; color: #aab; margin: 0 0 14px; font-style: italic; }
-=======
->>>>>>> origin
 .empty-note { color: #888; font-style: italic; padding: 20px 0; }
 .diag-content { padding: 0; }
 
@@ -798,13 +769,10 @@ function filterDiag(tierId, diagName) {
     }
   });
 
-<<<<<<< HEAD
-=======
   // Category headers only group things in the "All" view; with a single
   // diagnostic selected they just repeat the active filter pill.
   panel.classList.toggle('filtered', diagName !== 'all');
 
->>>>>>> origin
   var toolbar = document.getElementById('toolbar-' + tierId);
   if (toolbar) {
     toolbar.querySelectorAll('.diag-filter-btn').forEach(function(b){ b.classList.remove('active'); });

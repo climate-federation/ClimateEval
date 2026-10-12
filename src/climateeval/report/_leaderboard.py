@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 import html as html_module
-<<<<<<< HEAD
-=======
 from typing import Literal
->>>>>>> origin
 
 import numpy as np
 import pandas as pd
@@ -152,25 +149,11 @@ def _render_detail_table(detail_df: pd.DataFrame, table_id: str) -> str:
 
 def build_scoreboard_figure(
     all_metrics: dict[str, dict[str, pd.DataFrame]],
-<<<<<<< HEAD
-=======
     metric: Literal["weighted_emd", "weighted_rmse"] = "weighted_emd",
->>>>>>> origin
 ) -> go.Figure | None:
     """ClimateBench-style performance scoreboard heatmap.
 
     Rows = models (`data_id`), columns = variables (`var_id`).
-<<<<<<< HEAD
-    Each cell shows the % deviation from the median RMSE:
-
-        deviation_pct = (model_rmse - median_rmse) / median_rmse * 100
-
-    Negative values (blue) = better than median; positive (red) = worse.
-    An "Overall" column shows the mean deviation across all variables.
-    Models are sorted by mean absolute deviation (best first).
-
-    Only uses `weighted_rmse`. Returns None if `weighted_rmse` is not available.
-=======
 
     Each cell shows a relative score calculated as
 
@@ -181,7 +164,6 @@ def build_scoreboard_figure(
     Models are sorted by mean relative score (best first).
 
     Returns None if `metric` is not available.
->>>>>>> origin
     """
     dfs = []
     for tier_metrics in all_metrics.values():
@@ -196,32 +178,6 @@ def build_scoreboard_figure(
 
     detail = pd.concat(dfs, ignore_index=True)
 
-<<<<<<< HEAD
-    if "weighted_rmse" not in detail.columns:
-        return None
-
-    # Compute median RMSE per (diag, var_id) across all data_ids, then
-    # deviation_pct = (model_rmse - median_rmse) / median_rmse * 100
-    rmse_df = detail[["_diag", "var_id", "data_id", "weighted_rmse"]].dropna(
-        subset=["weighted_rmse"],
-    )
-
-    median_rmse = (
-        rmse_df.groupby(["_diag", "var_id"])["weighted_rmse"]
-        .median()
-        .rename("median_rmse")
-    )
-    rmse_df = rmse_df.join(median_rmse, on=["_diag", "var_id"])
-    rmse_df["deviation_pct"] = (
-        (rmse_df["weighted_rmse"] - rmse_df["median_rmse"])
-        / rmse_df["median_rmse"].abs().clip(lower=1e-12)
-        * 100
-    )
-
-    # One deviation per (data_id, var_id) averaged over diagnostics
-    pivot = (
-        rmse_df.groupby(["data_id", "var_id"])["deviation_pct"].mean().unstack("var_id")
-=======
     if metric not in detail.columns:
         return None
 
@@ -243,45 +199,24 @@ def build_scoreboard_figure(
         metric_df.groupby(["data_id", "var_id"])["relative score"]
         .mean()
         .unstack("var_id")
->>>>>>> origin
     )
     if pivot.empty:
         return None
 
-<<<<<<< HEAD
-    # Add "Overall" column (mean deviation across all variables)
-    pivot["Overall"] = pivot.mean(axis=1)
-
-    # Sort models by mean absolute deviation (best = smallest MAD first)
-    pivot = pivot.loc[
-        pivot.drop(columns="Overall").abs().mean(axis=1).sort_values().index
-    ]
-=======
     # Add "Mean relative score" column (mean relative score across all variables)
     pivot["Mean relative score"] = pivot.mean(axis=1)
 
     # Sort models by mean absolute relative score (best = smallest MAD first)
     pivot = pivot.loc[pivot["Mean relative score"].sort_values(ascending=True).index]
->>>>>>> origin
 
     single_model = len(pivot.index) < 2
 
     if single_model:
-<<<<<<< HEAD
-        # Only 1 model: deviation from its own median is always 0 → show raw RMSE instead.
-        raw_pivot = (
-            rmse_df.groupby(["data_id", "var_id"])["weighted_rmse"]
-            .mean()
-            .unstack("var_id")
-        )
-        raw_pivot["Overall"] = raw_pivot.mean(axis=1)
-=======
         # Only 1 model: relative score is always 0 → show raw metric instead.
         raw_pivot = (
             metric_df.groupby(["data_id", "var_id"])[metric].mean().unstack("var_id")
         )
         raw_pivot["Mean relative score"] = raw_pivot.mean(axis=1)
->>>>>>> origin
         z = raw_pivot.values.tolist()
         x_labels = [str(c) for c in raw_pivot.columns]
         y_labels = [str(i) for i in raw_pivot.index]
@@ -292,16 +227,6 @@ def build_scoreboard_figure(
             [f"{v:.3g}" if np.isfinite(v) else "" for v in row]
             for row in raw_pivot.values
         ]
-<<<<<<< HEAD
-        colorscale = [[0, "#2166ac"], [0.5, "#ffffff"], [1, "#d6604d"]]
-        heatmap_kwargs = dict(zmin=0, zmax=zmax, zmid=zmax / 2)
-        colorbar_title = "RMSE<br>(lower = better)"
-        title_note = "(weighted RMSE per variable, blue = lower = better)"
-        hover_suffix = "<extra></extra>"
-        hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.4g}" + hover_suffix
-    else:
-        # Multiple models: show % deviation from the multi-model median RMSE.
-=======
         heatmap_kwargs = dict(zmin=0, zmax=zmax)
         colorbar_title = f"{metric.upper()}<br>(lower = better)"
         title_note = f"(weighted {metric.upper()} per variable, blue = lower = better)"
@@ -310,30 +235,13 @@ def build_scoreboard_figure(
         colorbar_ticks = {}
     else:
         # Multiple models: show relative score.
->>>>>>> origin
         z = pivot.values.tolist()
         x_labels = [str(c) for c in pivot.columns]
         y_labels = [str(i) for i in pivot.index]
         finite_vals = pivot.values[np.isfinite(pivot.values)]
-<<<<<<< HEAD
-        if len(finite_vals) > 0:
-            max_abs = float(np.nanpercentile(np.abs(finite_vals), 98))
-            max_abs = max(max_abs, 1.0)
-            clamp = min(max_abs, 50.0)
-        else:
-            clamp = 50.0
         text_annots = [
-            [
-                (f"+{v:.0f}%" if v > 0 else f"{v:.0f}%") if np.isfinite(v) else ""
-                for v in row
-            ]
-            for row in pivot.values
+            [f"{v:.1%}" if np.isfinite(v) else "" for v in row] for row in pivot.values
         ]
-        colorscale = [[0, "#2166ac"], [0.5, "#ffffff"], [1, "#d6604d"]]
-        heatmap_kwargs = dict(zmid=0, zmin=-clamp, zmax=clamp)
-        colorbar_title = "% deviation<br>from median"
-        title_note = "(% deviation from median RMSE, blue = better)"
-=======
         mintext = "▼-1" if len(finite_vals) > 0 and np.min(finite_vals) < 1.0 else "-1"
         colorbar_ticks = {
             "tickvals": [-1.0, -0.5, 0.0, 0.5, 1.0],
@@ -342,7 +250,6 @@ def build_scoreboard_figure(
         heatmap_kwargs = dict(zmin=-1.0, zmax=1.0)
         colorbar_title = "Relative score (blue = better)"
         title_note = f"Relative score = 1 - weighted {metric.upper()} / median weighted {metric.upper()}"
->>>>>>> origin
         hover_tmpl = "%{y}<br><b>%{x}</b>: %{z:.1f}%<extra></extra>"
 
     fig = go.Figure(
@@ -350,11 +257,7 @@ def build_scoreboard_figure(
             z=z,
             x=x_labels,
             y=y_labels,
-<<<<<<< HEAD
-            colorscale=colorscale,
-=======
             colorscale="RdBu",
->>>>>>> origin
             **heatmap_kwargs,
             text=text_annots,
             texttemplate="%{text}",
@@ -364,11 +267,7 @@ def build_scoreboard_figure(
                 "title": {"text": colorbar_title, "side": "right"},
                 "thickness": 14,
                 "len": 0.8,
-<<<<<<< HEAD
-                **({"ticksuffix": "%"} if not single_model else {}),
-=======
                 **colorbar_ticks,
->>>>>>> origin
             },
             xgap=2,
             ygap=2,

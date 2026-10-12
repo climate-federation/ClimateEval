@@ -1,0 +1,47 @@
+- name: depth_profile
+  diagnostic: climateeval.diags.simple.DepthProfile
+  diagnostic_kwargs:
+    lats: [26.5, 26.5]
+    lons: [-80.0, -15.0]
+  variables:
+    - id: thetao
+      var_name: thetao
+      frequency: mon
+      # reference_data: climateeval.data.ORAS5
+      reference_data: climateeval.data.IAP
+      # other_data: [climateeval.data.IAP, climateeval.data.EN4]
+      other_data: [climateeval.data.EN4]
+    - id: so
+      var_name: so
+      units: g kg-1
+      frequency: mon
+      reference_data: climateeval.data.ORAS5
+      other_data: [climateeval.data.WOA]
+
+- name: ohc
+  diagnostic: climateeval.diags.simple.OceanHeatContentTimeSeries
+  variables:
+    # Global ocean heat content anomaly, derived from potential temperature
+    # (phcint). Anomalies are relative to the diagnostic's fixed reference
+    # period, so the input data must cover it. EN4/IAP provide the reference
+    # potential temperature from which phcint is derived.
+    - &ohc
+      id: phcint_total
+      var_name: phcint
+      frequency: mon
+      reference_data: climateeval.data.IAP
+      other_data: [climateeval.data.EN4]
+    - <<: *ohc
+      id: phcint_300m
+      additional_preprocessors:
+        esmvalcore.preprocessor.extract_volume:
+          z_min: 0.0
+          z_max: 300.0
+          interval_bounds: left_closed
+    - <<: *ohc
+      id: phcint_2000m
+      additional_preprocessors:
+        esmvalcore.preprocessor.extract_volume:
+          z_min: 0.0
+          z_max: 2000.0
+          interval_bounds: left_closed

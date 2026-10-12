@@ -64,6 +64,7 @@ class AMOCDepthProfile(SimpleDiagnostic):
     """
 
     _final_coordinates = (Coordinate("depth"),)
+    _units: ClassVar[str] = "Tg s-1"
 
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""

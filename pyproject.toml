@@ -196,12 +196,6 @@ future-annotations = true
     "INP001",     # File is part of an implicit namespace package
     "T201",       # `print` found
 ]
-<<<<<<< HEAD
-# The report module is grafted from the `ap/webserver_html` branch and is
-# maintained/linted there; relax style rules for it here so it can be used
-# unchanged.
-=======
->>>>>>> origin
 "src/climateeval/report/*.py" = [
     "ARG001", "B007", "B023", "B905", "BLE001", "C408", "C901", "COM812",
     "E501", "E702", "ERA001", "FBT001", "I001", "PD010", "PD011", "PD101",

@@ -9,11 +9,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-<<<<<<< HEAD
-
-from climateeval.report._db import detect_diag_type, read_database
-from climateeval.report._figures import _DIAG_ICONS, _DIAG_LABELS, _FIGURE_BUILDERS
-=======
 from plotly.colors import sample_colorscale
 
 from climateeval.report._db import detect_diag_type, read_database
@@ -24,16 +19,12 @@ from climateeval.report._figures import (
     _diag_category,
 )
 from climateeval.report._common import _var_label
->>>>>>> origin
 from climateeval.report._leaderboard import (
     _render_detail_table,
     _render_summary_table,
     build_leaderboard_data,
     build_scoreboard_figure,
 )
-<<<<<<< HEAD
-from climateeval.report._style import _CSS, _JS
-=======
 from climateeval.report._style import (
     _CSS,
     _JS,
@@ -41,7 +32,6 @@ from climateeval.report._style import (
     _colorscale_for,
     _tier_accent,
 )
->>>>>>> origin
 
 if TYPE_CHECKING:
     import plotly.graph_objects as go
@@ -51,8 +41,6 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 
-<<<<<<< HEAD
-=======
 def _render_app_header(
     model_name: str,
     user_name: str,
@@ -95,14 +83,11 @@ def _css_gradient(colorscale: str) -> str:
     return f"linear-gradient(to right, {', '.join(colors)})"
 
 
->>>>>>> origin
 def _stem_to_label(stem: str) -> str:
     s = re.sub(r"([a-zA-Z])(\d)", r"\1 \2", stem)
     return s.replace("_", " ").replace("-", " ").title()
 
 
-<<<<<<< HEAD
-=======
 def _var_title(vid: str, long_name: str, units: str) -> tuple[str, str]:
     """Return (tooltip text, title-bar inner HTML) for a variable.
 
@@ -123,7 +108,6 @@ def _var_title(vid: str, long_name: str, units: str) -> tuple[str, str]:
     return tooltip, title_html
 
 
->>>>>>> origin
 def _plotly_js_tag(offline: bool) -> str:
     if offline:
         import plotly as _plotly
@@ -287,11 +271,6 @@ def render_diagnostic_section(
                 terms.append(str(row.get("standard_name", pd.Series([""])).values[0]))
         return " ".join(terms).lower()
 
-<<<<<<< HEAD
-    var_buttons = "".join(
-        f"<button class='var-pill {'active' if v == first_var else ''}' "
-        f"data-var='{html_module.escape(v)}' title='{html_module.escape(v)}' "
-=======
     def _title_parts(v: str) -> tuple[str, str]:
         long_name, units = (
             _var_label(v, variables_df)
@@ -306,7 +285,6 @@ def render_diagnostic_section(
         f"<button class='var-pill {'active' if v == first_var else ''}' "
         f"data-var='{html_module.escape(v)}' "
         f"title='{html_module.escape(title_parts[v][0])}' "
->>>>>>> origin
         f'onclick=\'showVarPanel("{scope_id}", "{v}")\'>'
         f"{html_module.escape(_btn_label(v))}</button>"
         for v in var_cols
@@ -317,21 +295,6 @@ def render_diagnostic_section(
         if data_df is not None and not data_df.empty
         else "Unknown"
     )
-<<<<<<< HEAD
-    if _diag_type in ("Map", "ZonalProfile"):
-        legend_note = (
-            "<div class='legend-note'>"
-            "<span><span class='ln-ref-swatch'></span>Reference (left column)</span>"
-            "<span><span class='ln-bias-swatch'></span>Bias = model − reference (right column, RdBu r)</span>"
-            "</div>"
-        )
-    else:
-        legend_note = (
-            "<div class='legend-note'>"
-            "<span><span class='ln-solid'></span>Model</span>"
-            "<span><span class='ln-dash'></span>Reference</span>"
-            "<span><span class='ln-dot'></span>Other</span>"
-=======
     is_2d = _diag_type in ("Map", "ZonalProfile")
     if is_2d:
         # Rendered per variable panel: swatches mirror each plot's colormaps.
@@ -358,7 +321,6 @@ def render_diagnostic_section(
             "</span>Model (middle column)</span>"
             f"<span><span class='ln-bias-swatch' style='background:{bias_grad}'>"
             "</span>Bias = model − reference (right column)</span>"
->>>>>>> origin
             "</div>"
         )
 
@@ -370,11 +332,7 @@ def render_diagnostic_section(
         height = fig.layout.height or 440
         active_cls = "active" if var_id == first_var else ""
         search_key = html_module.escape(_search_terms(var_id))
-<<<<<<< HEAD
-        btn_label = html_module.escape(_btn_label(var_id))
-=======
         title_html = title_parts[var_id][1]
->>>>>>> origin
 
         detail_html = _build_detail_html(
             var_id,
@@ -394,22 +352,14 @@ def render_diagnostic_section(
                 f"</div>"
             )
 
-<<<<<<< HEAD
-=======
         panel_legend = _map_legend_note(var_id) if is_2d else ""
->>>>>>> origin
         plot_panels += (
             f"<div class='plot-panel {active_cls}' id='{panel_id}' "
             f"data-graph='{graph_id}' data-search='{search_key}'>"
             f"<div class='plot-title-bar'>"
-<<<<<<< HEAD
-            f"<span class='plot-title-text'>{btn_label}</span>"
-            f"</div>"
-=======
             f"<span class='plot-title-text'>{title_html}</span>"
             f"</div>"
             f"{panel_legend}"
->>>>>>> origin
             f"<div id='{graph_id}' style='height:{height}px;width:100%;'></div>"
             f"<script type='application/json' id='figdata-{graph_id}'>{fig.to_json()}</script>"
             f"{detail_block}"
@@ -531,8 +481,6 @@ def _build_figures_for_tier(
     return diag_sections, tier_metrics, diag_types
 
 
-<<<<<<< HEAD
-=======
 def _grouped_diag_sections(
     diag_names: list[str],
     diag_types: dict[str, str],
@@ -573,7 +521,6 @@ def _wrap_sections_by_category(
     return out
 
 
->>>>>>> origin
 def _render_tier_panel(
     tier_id: str,
     db_path: Path,
@@ -591,12 +538,6 @@ def _render_tier_panel(
             dname,
         )
 
-<<<<<<< HEAD
-    def _icon(dname: str) -> str:
-        return _DIAG_ICONS.get(dname) or _DIAG_ICONS.get(diag_types.get(dname, ""), "")
-
-=======
->>>>>>> origin
     # Toolbar: All + per-diagnostic filter buttons + search
     filter_btns = (
         f"<button class='diag-filter-btn active' data-diag='all' "
@@ -604,18 +545,10 @@ def _render_tier_panel(
     )
     for dname in diag_names:
         label = _label(dname)
-<<<<<<< HEAD
-        icon = _icon(dname)
-        filter_btns += (
-            f"<button class='diag-filter-btn' data-diag='{dname}' "
-            f'onclick=\'filterDiag("{tier_id}","{dname}")\'>'
-            f"{icon} {label}</button>"
-=======
         filter_btns += (
             f"<button class='diag-filter-btn' data-diag='{dname}' "
             f'onclick=\'filterDiag("{tier_id}","{dname}")\'>'
             f"{label}</button>"
->>>>>>> origin
         )
 
     search_svg = (
@@ -632,20 +565,6 @@ def _render_tier_panel(
         f"<input class='search-input' type='text' placeholder='Search plots…' "
         f"oninput='searchPlots(this.value)'>"
         f"</div>"
-<<<<<<< HEAD
-        f"</div>"
-    )
-
-    # Panel: stacked diagnostic sections
-    sections_html = ""
-    for dname, (content, _) in diag_sections.items():
-        label = _label(dname)
-        icon = _icon(dname)
-        sections_html += (
-            f"<div class='diag-section' data-diag='{dname}' id='diag-sec-{tier_id}-{dname}'>"
-            f"<div class='diag-section-header'>"
-            f"<span class='diag-section-icon'>{icon}</span>"
-=======
         f"<span class='toolbar-db' title='{html_module.escape(str(db_path))}'>"
         f"{html_module.escape(db_path.name)}</span>"
         f"</div>"
@@ -658,23 +577,15 @@ def _render_tier_panel(
         section_html_by_diag[dname] = (
             f"<div class='diag-section' data-diag='{dname}' id='diag-sec-{tier_id}-{dname}'>"
             f"<div class='diag-section-header'>"
->>>>>>> origin
             f"<span class='diag-section-title'>{label}</span>"
             f"</div>"
             f"{content}"
             f"</div>"
         )
-<<<<<<< HEAD
-
-    panel_html = (
-        f"<div class='content-panel' id='panel-{tier_id}' data-type='tier'>"
-        f"<p class='db-source'>{html_module.escape(str(db_path))}</p>"
-=======
     sections_html = _wrap_sections_by_category(section_html_by_diag, diag_types)
 
     panel_html = (
         f"<div class='content-panel' id='panel-{tier_id}' data-type='tier'>"
->>>>>>> origin
         f"{sections_html}"
         f"<div class='search-no-results'>No plots match your search.</div>"
         f"</div>"
@@ -690,10 +601,6 @@ def generate_portable_html(
     model_name: str = "",
     user_name: str = "",
     developer: str = "",
-<<<<<<< HEAD
-) -> str:
-    """Read one or more databases and produce a self-contained HTML string."""
-=======
     run_info: dict[str, str] | None = None,
 ) -> str:
     """Read one or more databases and produce a self-contained HTML string.
@@ -701,7 +608,6 @@ def generate_portable_html(
     ``run_info`` is extra run metadata (e.g. model data path, time range)
     rendered as chips in the page header.
     """
->>>>>>> origin
     from climateeval.report._figures import _coastlines
 
     _coastlines()
@@ -749,18 +655,11 @@ def generate_portable_html(
         "<div class='sidebar-section-label'>Tiers</div>"
     )
     for tier_id, label, *_ in tiers:
-<<<<<<< HEAD
-        sidebar_items += (
-            f"<div class='sidebar-item' data-section='{tier_id}' "
-            f"onclick='sidebarNav(\"{tier_id}\")'>"
-            f"<span class='sidebar-icon'>📂</span>"
-=======
         accent, badge = _tier_accent(label)
         sidebar_items += (
             f"<div class='sidebar-item' data-section='{tier_id}' "
             f"onclick='sidebarNav(\"{tier_id}\")'>"
             f"<span class='tier-badge' style='background:{accent};'>{badge}</span>"
->>>>>>> origin
             f"{html_module.escape(label)}"
             f"</div>"
         )
@@ -787,55 +686,20 @@ def generate_portable_html(
         all_toolbars += toolbar_html
         all_panels += panel_html
 
-<<<<<<< HEAD
-    # ── Header chips ──
-    chips = ""
-    if model_name:
-        chips += f"<span class='header-chip'><span>Model</span> <strong>{html_module.escape(model_name)}</strong></span>"
-    if user_name:
-        chips += f"<span class='header-chip'><span>User</span> <strong>{html_module.escape(user_name)}</strong></span>"
-    developer_str = developer or "diffESM Benchmarking"
-    chips += f"<span class='header-chip'><span>Tool</span> <strong>{html_module.escape(developer_str)}</strong></span>"
-    chips += f"<span class='header-chip'><span>Generated</span> <strong>{now}</strong></span>"
-
-    logo_svg = (
-        '<svg width="26" height="26" viewBox="0 0 26 26" fill="none" '
-        'xmlns="http://www.w3.org/2000/svg">'
-        '<circle cx="13" cy="13" r="11" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
-        '<path d="M2 13 Q7 7 13 13 Q19 19 24 13" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
-        '<path d="M2 13 Q7 19 13 13 Q19 7 24 13" stroke="#93c5fd" stroke-width="1" fill="none" stroke-dasharray="2 2"/>'
-        "</svg>"
-    )
-=======
     header_html = _render_app_header(model_name, user_name, developer, run_info, now)
->>>>>>> origin
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<<<<<<< HEAD
-  <title>ESM Benchmarking Report</title>
-=======
   <title>ClimateEval Report</title>
->>>>>>> origin
   <style>{_CSS}</style>
 </head>
 <body>
 <div class="app-shell">
 
-<<<<<<< HEAD
-  <header class="app-header">
-    <div class="header-logo">{logo_svg}</div>
-    <div class="header-title">
-      <h1>ESM Benchmarking Report</h1>
-      <div class="header-meta">{chips}</div>
-    </div>
-  </header>
-=======
   {header_html}
->>>>>>> origin
 
   <div class="app-body" id="appBody">
 
@@ -872,10 +736,7 @@ def build_html_shell(
     model_name: str = "",
     user_name: str = "",
     developer: str = "",
-<<<<<<< HEAD
-=======
     run_info: dict[str, str] | None = None,
->>>>>>> origin
 ) -> str:
     """Render the full HTML shell for the web server (sidebar + empty content panels).
 
@@ -886,20 +747,13 @@ def build_html_shell(
         model_name: Model label shown in the report header.
         user_name: Analyst / user name shown in the report header.
         developer: Benchmarking tool developer name.
-<<<<<<< HEAD
-=======
         run_info: Extra run metadata rendered as chips in the header.
->>>>>>> origin
 
     Returns
     -------
         Full HTML string for the shell page served at GET /.
     """
     from climateeval.report._db import get_var_cols
-<<<<<<< HEAD
-    from climateeval.report._figures import _var_label
-=======
->>>>>>> origin
 
     now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -916,18 +770,11 @@ def build_html_shell(
     for tier in tiers:
         tid = tier["id"]
         tlabel = html_module.escape(tier["label"])
-<<<<<<< HEAD
-        sidebar_items += (
-            f"<div class='sidebar-item' data-section='{tid}' "
-            f"onclick='sidebarNav(\"{tid}\")'>"
-            f"<span class='sidebar-icon'>📂</span>{tlabel}"
-=======
         accent, badge = _tier_accent(tier["label"])
         sidebar_items += (
             f"<div class='sidebar-item' data-section='{tid}' "
             f"onclick='sidebarNav(\"{tid}\")'>"
             f"<span class='tier-badge' style='background:{accent};'>{badge}</span>{tlabel}"
->>>>>>> origin
             f"</div>"
         )
 
@@ -960,12 +807,6 @@ def build_html_shell(
     def _diag_label(diag_name: str, dtype: str) -> str:
         return _DIAG_LABELS.get(diag_name) or _DIAG_LABELS.get(dtype, diag_name)
 
-<<<<<<< HEAD
-    def _diag_icon(diag_name: str, dtype: str) -> str:
-        return _DIAG_ICONS.get(diag_name) or _DIAG_ICONS.get(dtype, "")
-
-=======
->>>>>>> origin
     def _render_shell_diagnostic(
         tier_id: str,
         diag_name: str,
@@ -981,13 +822,6 @@ def build_html_shell(
         def _btn_label(v: dict) -> str:
             return v["id"]
 
-<<<<<<< HEAD
-        var_buttons = "".join(
-            "<button class='var-pill {active}' data-var='{vid}' title='{vid}' "
-            'onclick=\'showVarPanel("{scope}", "{vid}")\'>{label}</button>'.format(
-                active="active" if v["id"] == first_var else "",
-                vid=html_module.escape(v["id"]),
-=======
         title_parts = {
             v["id"]: _var_title(v["id"], v["long_name"], v["units"]) for v in variables
         }
@@ -998,7 +832,6 @@ def build_html_shell(
                 active="active" if v["id"] == first_var else "",
                 vid=html_module.escape(v["id"]),
                 tooltip=html_module.escape(title_parts[v["id"]][0]),
->>>>>>> origin
                 scope=scope_id,
                 label=html_module.escape(_btn_label(v)),
             )
@@ -1012,20 +845,12 @@ def build_html_shell(
             graph_id = f"graph-{scope_id}-{vid}"
             api_url = f"/api/figure/{tier_id}/{diag_name}/{vid}"
             active = "active" if vid == first_var else ""
-<<<<<<< HEAD
-            panels += (
-                f"<div class='plot-panel {active}' id='{panel_id}' "
-                f"data-graph='{graph_id}' data-search='{html_module.escape(vid.lower())}'>"
-                f"<div class='plot-title-bar'>"
-                f"<span class='plot-title-text'>{html_module.escape(_btn_label(v))}</span>"
-=======
             search_key = html_module.escape(f"{vid} {v['long_name']}".lower())
             panels += (
                 f"<div class='plot-panel {active}' id='{panel_id}' "
                 f"data-graph='{graph_id}' data-search='{search_key}'>"
                 f"<div class='plot-title-bar'>"
                 f"<span class='plot-title-text'>{title_parts[vid][1]}</span>"
->>>>>>> origin
                 f"</div>"
                 f"<div id='{graph_id}' style='height:{height}px;width:100%;' "
                 f"data-api-url='{html_module.escape(api_url)}'></div>"
@@ -1046,11 +871,7 @@ def build_html_shell(
 
         # Collect diagnostics with variables
         diags_for_toolbar: list[tuple[str, str]] = []  # (diag_name, dtype)
-<<<<<<< HEAD
-        sections_html = ""
-=======
         section_html_by_diag: dict[str, str] = {}
->>>>>>> origin
 
         for diag_name, tables in db_data.items():
             if "raw_output" not in tables:
@@ -1071,30 +892,17 @@ def build_html_shell(
 
             diags_for_toolbar.append((diag_name, dtype))
             label = _diag_label(diag_name, dtype)
-<<<<<<< HEAD
-            icon = _diag_icon(diag_name, dtype)
-            content = _render_shell_diagnostic(tier_id, diag_name, dtype, variables)
-            sections_html += (
-                f"<div class='diag-section' data-diag='{diag_name}' "
-                f"id='diag-sec-{tier_id}-{diag_name}'>"
-                f"<div class='diag-section-header'>"
-                f"<span class='diag-section-icon'>{icon}</span>"
-=======
             content = _render_shell_diagnostic(tier_id, diag_name, dtype, variables)
             section_html_by_diag[diag_name] = (
                 f"<div class='diag-section' data-diag='{diag_name}' "
                 f"id='diag-sec-{tier_id}-{diag_name}'>"
                 f"<div class='diag-section-header'>"
->>>>>>> origin
                 f"<span class='diag-section-title'>{html_module.escape(label)}</span>"
                 f"</div>"
                 f"{content}"
                 f"</div>"
             )
-<<<<<<< HEAD
-=======
         sections_html = _wrap_sections_by_category(section_html_by_diag, diag_types)
->>>>>>> origin
 
         # Toolbar
         filter_btns = (
@@ -1103,18 +911,10 @@ def build_html_shell(
         )
         for dname, dtype in diags_for_toolbar:
             label = _diag_label(dname, dtype)
-<<<<<<< HEAD
-            icon = _diag_icon(dname, dtype)
-            filter_btns += (
-                f"<button class='diag-filter-btn' data-diag='{dname}' "
-                f'onclick=\'filterDiag("{tier_id}","{dname}")\'>'
-                f"{icon} {html_module.escape(label)}</button>"
-=======
             filter_btns += (
                 f"<button class='diag-filter-btn' data-diag='{dname}' "
                 f'onclick=\'filterDiag("{tier_id}","{dname}")\'>'
                 f"{html_module.escape(label)}</button>"
->>>>>>> origin
             )
 
         search_svg = (
@@ -1129,55 +929,18 @@ def build_html_shell(
             f"<div class='search-wrap'>{search_svg}"
             f"<input class='search-input' type='text' placeholder='Search plots…' "
             f"oninput='searchPlots(this.value)'></div>"
-<<<<<<< HEAD
-=======
             f"<span class='toolbar-db' title='{html_module.escape(str(tier['db_path']))}'>"
             f"{html_module.escape(Path(tier['db_path']).name)}</span>"
->>>>>>> origin
             f"</div>"
         )
         all_panels += (
             f"<div class='content-panel' id='panel-{tier_id}' data-type='tier'>"
-<<<<<<< HEAD
-            f"<p class='db-source'>{html_module.escape(str(tier['db_path']))}</p>"
-=======
->>>>>>> origin
             f"{sections_html}"
             f"<div class='search-no-results'>No plots match your search.</div>"
             f"</div>"
         )
 
-<<<<<<< HEAD
-    # ── Header chips ──
-    chips = ""
-    if model_name:
-        chips += (
-            f"<span class='header-chip'><span>Model</span> "
-            f"<strong>{html_module.escape(model_name)}</strong></span>"
-        )
-    if user_name:
-        chips += (
-            f"<span class='header-chip'><span>User</span> "
-            f"<strong>{html_module.escape(user_name)}</strong></span>"
-        )
-    dev_str = developer or "diffESM Benchmarking"
-    chips += (
-        f"<span class='header-chip'><span>Tool</span> "
-        f"<strong>{html_module.escape(dev_str)}</strong></span>"
-    )
-    chips += f"<span class='header-chip'><span>Generated</span> <strong>{now}</strong></span>"
-
-    logo_svg = (
-        '<svg width="26" height="26" viewBox="0 0 26 26" fill="none" '
-        'xmlns="http://www.w3.org/2000/svg">'
-        '<circle cx="13" cy="13" r="11" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
-        '<path d="M2 13 Q7 7 13 13 Q19 19 24 13" stroke="#60a5fa" stroke-width="1.5" fill="none"/>'
-        '<path d="M2 13 Q7 19 13 13 Q19 7 24 13" stroke="#93c5fd" stroke-width="1" fill="none" stroke-dasharray="2 2"/>'
-        "</svg>"
-    )
-=======
     header_html = _render_app_header(model_name, user_name, developer, run_info, now)
->>>>>>> origin
 
     # In server mode, serve Plotly.js via the /plotly.js endpoint so the HTML
     # shell stays small and loads instantly.
@@ -1273,27 +1036,13 @@ function _esc(s) {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<<<<<<< HEAD
-  <title>ESM Benchmarking Report</title>
-=======
   <title>ClimateEval Report</title>
->>>>>>> origin
   <style>{_CSS}</style>
 </head>
 <body>
 <div class="app-shell">
 
-<<<<<<< HEAD
-  <header class="app-header">
-    <div class="header-logo">{logo_svg}</div>
-    <div class="header-title">
-      <h1>ESM Benchmarking Report</h1>
-      <div class="header-meta">{chips}</div>
-    </div>
-  </header>
-=======
   {header_html}
->>>>>>> origin
 
   <div class="app-body" id="appBody">
 

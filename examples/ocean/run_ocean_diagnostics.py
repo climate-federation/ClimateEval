@@ -77,82 +77,46 @@ MODEL_INFO = DataSourceInformation(
 # because its reference (RAPID) only starts in 2004.
 # ---------------------------------------------------------------------------
 RUNS = (
-<<<<<<< HEAD
-    # (
-    #     "Tier2_seaice_monthly",
-    #     (("siconc", "SImon"),),
-    #     "19970101/20091231",
-    #     "seaice.ddb",
-    # ),
-    # (
-    #     "Tier2_ocean_monthly",
-    #     (("tos", "Omon"), ("so", "Omon"), ("thetao", "Omon")),
-    #     "19790101/19891231",
-    #     "ocean_ohc.ddb",
-    # ),
-    # (
-    #     "Tier2_ocean_monthly",
-    #     (
-    #         ("chl", "Omon"),
-    #         ("tos", "Omon"),
-    #         ("so", "Omon"),
-    #         ("mlotst", "Omon"),
-    #         ("zos", "Omon"),
-    #     ),
-    #     "19970101/20001231",
-    #     "ocean_sst.ddb",
-    # ),
-    # (
-    #     "Tier2_ocean_monthly",
-    #     (("msftmz", "Omon"),),
-    #     "20040101/20141231",
-    #     "ocean_amoc.ddb",
-    # ),
     (
-        "Tier2_ocean_monthly",
-        (
-            ("tos", "Omon"),
-            ("thetao", "Omon"),
-            ("siconc", "SImon"),
-            ("so", "Omon"),
-            ("mlotst", "Omon"),
-            ("zos", "Omon"),
-            ("msftmz", "Omon"),
-            ("uo", "Omon"),
-            ("hfbasin", "Omon"),
-        ),
-        "19800101/19841231",
-        "ocean_add.ddb",
-=======
-    (
-        "Tier2_sea_ice_monthly",
+        "Tier2_seaice_monthly",
         (("siconc", "SImon"),),
-        "19970101/20091231",
+        "19970101/20071231",
         "seaice.ddb",
     ),
     (
-        "Tier2_ocean_monthly",
-        (("tos", "Omon"), ("so", "Omon"), ("thetao", "Omon")),
-        "19790101/19891231",
-        "ocean_ohc.ddb",
-    ),
-    (
-        "Tier2_ocean_monthly",
+        "Tier2_ocean_3d",
         (
-            ("chl", "Omon"),
-            ("tos", "Omon"),
             ("so", "Omon"),
-            ("mlotst", "Omon"),
+            ("thetao", "Omon"),
         ),
-        "19970101/20091231",
-        "ocean_sst.ddb",
+        "19790101/19821231",
+        "ocean_3d.ddb",
     ),
     (
-        "Tier2_ocean_monthly",
-        (("msftmz", "Omon"),),
-        "20040101/20141231",
+        "Tier2_ocean_acc",
+        (("uo", "Omon"),),
+        "19850101/19901231",
+        "ocean_acc.ddb",
+    ),
+    (
+        "Tier2_ocean_amoc",
+        (
+            ("msftmz", "Omon"),
+            ("hfbasin", "Omon"),
+        ),
+        "20050101/20131231",
         "ocean_amoc.ddb",
->>>>>>> origin
+    ),
+    (
+        "Tier2_ocean_2d",
+        (
+            ("mlotst", "Omon"),
+            ("zos", "Omon"),
+            ("tos", "Omon"),
+            ("sos", "Omon"),
+        ),
+        "19850101/19901231",
+        "ocean_2d.ddb",
     ),
 )
 
@@ -163,16 +127,11 @@ def model_files(var: str, mip: str) -> list[str]:
     pattern = f"{MODEL_VERSION}/{var}_{mip}_*.nc"
     files = sorted(str(path) for path in base.glob(pattern))
     if not files:
-<<<<<<< HEAD
         pattern = f"*/{var}_{mip}_*.nc"
         files = sorted(str(path) for path in base.glob(pattern))
         if not files:
             msg = f"No model files found for '{var}' ({mip}): {base / pattern}"
             raise FileNotFoundError(msg)
-=======
-        msg = f"No model files found for '{var}' ({mip}): {base / pattern}"
-        raise FileNotFoundError(msg)
->>>>>>> origin
     return files
 
 
