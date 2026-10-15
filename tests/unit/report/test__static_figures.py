@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import ibis
 import pandas as pd
+import pytest
 
 from climateeval.report._figures import _FIGURE_BUILDERS
 from climateeval.report._static_figures import (
@@ -429,3 +430,58 @@ def test_portrait_returns_none_without_metrics() -> None:
 
 def test_registry_covers_all_interactive_figure_types() -> None:
     assert set(_STATIC_FIGURE_BUILDERS) == set(_FIGURE_BUILDERS)
+
+
+def _sheet_df() -> pd.DataFrame:
+    """Two variables, one model and one reference, on a small lat/lon grid."""
+    rows = [
+        {
+            "data_id": ds,
+            "data_type": dtype,
+            "latitude": lat,
+            "longitude": lon,
+            "tas": 280.0 + offset,
+            "pr": 2.0 + offset,
+        }
+        for offset, (ds, dtype) in enumerate(
+            {"ERA5": "reference", "MODEL": "to_benchmark"}.items(),
+        )
+        for lat in (-30.0, 0.0, 30.0)
+        for lon in (0.0, 90.0, 180.0, 270.0)
+    ]
+    return pd.DataFrame(rows)
+
+
+def test_map_sheet_uses_display_names_without_touching_ids() -> None:
+    from climateeval.report._static_figures import build_static_map_sheet
+
+    data_df = _sheet_df()
+    fig = build_static_map_sheet(
+        data_df,
+        VARIABLES_DF,
+        ["tas", "pr"],
+        display_names={"MODEL": "ESM", "ERA5": "ERA5-obs"},
+    )
+    assert fig is not None
+    titles = [ax.get_title() for ax in fig.axes if ax.get_title()]
+    joined = " ".join(titles)
+    assert "ESM" in joined
+    assert "ERA5-obs" in joined
+    # The override is presentation only: the frame keeps the real identifiers.
+    assert set(data_df["data_id"]) == {"ERA5", "MODEL"}
+    assert "MODEL" not in joined
+
+
+def test_map_sheet_refuses_rows_with_different_models() -> None:
+    from climateeval.report._static_figures import build_static_map_sheet
+
+    data_df = _sheet_df()
+    # Give "pr" a second model so the two rows disagree on whose data is drawn.
+    other = data_df[data_df["data_id"] == "MODEL"].copy()
+    other["data_id"] = "MODEL-B"
+    other["tas"] = float("nan")
+    data_df = pd.concat([data_df, other], ignore_index=True)
+    data_df.loc[data_df["data_id"] == "MODEL", "pr"] = float("nan")
+
+    with pytest.raises(ValueError, match="one model across all rows"):
+        build_static_map_sheet(data_df, VARIABLES_DF, ["tas", "pr"])

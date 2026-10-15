@@ -21,7 +21,7 @@ from loguru import logger
 
 from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval.data._base import DataSource, DataSourceGenerator
-from climateeval.data._utils import DataSourceInformation
+from climateeval.data._utils import DataSourceInformation, facet_to_str
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -180,11 +180,11 @@ class ESMValToolIntakeDataSourceGenerator(DataSourceGenerator):
             new_esmvaltool_dataset_facets = dict(dataset.facets)
             references = self._get_references(**new_esmvaltool_dataset_facets)
             new_data_source_information = DataSourceInformation(
-                name=new_esmvaltool_dataset_facets["dataset"],
-                category=new_esmvaltool_dataset_facets["project"],
-                institute=new_esmvaltool_dataset_facets["institute"],
-                exp=new_esmvaltool_dataset_facets["exp"],
-                variant=new_esmvaltool_dataset_facets["ensemble"],
+                name=facet_to_str(new_esmvaltool_dataset_facets["dataset"]),
+                category=facet_to_str(new_esmvaltool_dataset_facets["project"]),
+                institute=facet_to_str(new_esmvaltool_dataset_facets["institute"]),
+                exp=facet_to_str(new_esmvaltool_dataset_facets["exp"]),
+                variant=facet_to_str(new_esmvaltool_dataset_facets["ensemble"]),
                 references=references,
             )
 

@@ -59,9 +59,41 @@ def test_map_figures_bias_layout_syncs_all_panels() -> None:
     data_df = _map_df({"ERA5": "reference", "MODEL": "to_benchmark"})
     figures = build_map_figures(data_df, VARIABLES_DF)
     fig = figures["tas"]
-    # reference | model | bias columns
+    # model | reference | bias columns
     assert len(_axis_layout(fig, "xaxis")) == 3
     _assert_all_axes_matched(fig)
+
+
+def test_map_figures_put_model_left_reference_middle_bias_right() -> None:
+    # _map_df offsets each dataset by its insertion order, so MODEL sits
+    # exactly +1 K above ERA5 everywhere: the bias annotation is exact.
+    data_df = _map_df({"ERA5": "reference", "MODEL": "to_benchmark"})
+    fig = build_map_figures(data_df, VARIABLES_DF)["tas"]
+    titles = [ann.text for ann in fig.layout.annotations if ann.text]
+    assert len(titles) == 3
+    assert "MODEL" in titles[0] and "ERA5" not in titles[0]
+    assert "ERA5" in titles[1] and "MODEL" not in titles[1]
+    assert "MODEL</b> − ERA5" in titles[2]
+    assert "mean +1 K" in titles[2]
+
+    # The titles could be swapped without the traces, or the reverse, so
+    # check the drawn data by SCREEN POSITION: _map_df puts MODEL exactly
+    # 1 K above ERA5.  fig.data is in insertion order, which a column swap
+    # does not change, so order the panels by their x-axis domain instead.
+    import numpy as np
+
+    def _left_edge(trace: object) -> float:
+        axis = getattr(trace, "xaxis", None) or "x"
+        return fig.layout[f"xaxis{axis[1:]}"].domain[0]
+
+    heatmaps = [tr for tr in fig.data if tr.type == "heatmap"]
+    assert len(heatmaps) == 3
+    panels = [
+        np.asarray(tr.z, dtype=float)
+        for tr in sorted(heatmaps, key=_left_edge)
+    ]
+    assert np.allclose(panels[0] - panels[1], 1.0)  # left − middle = model − obs
+    assert np.allclose(panels[2], 1.0)  # right column is the bias itself
 
 
 def test_map_figures_no_reference_grid_syncs_all_panels() -> None:
