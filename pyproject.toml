@@ -4,6 +4,9 @@ version = "0.0.1"
 description = "Framework for evaluating and benchmarking Earth System Model output"
 authors = [
     {name = "Manuel Schlund", email = "manuel.schlund@dlr.de"},
+    {name = "Aytaç Paçal", email = "aytac.pacal@uni-tuebingen.de"},
+    {name = "Veronika Eyring"},
+    {name = "Duncan Watson-Parris"},
 ]
 readme = "README.md"
 requires-python = ">=3.12"
