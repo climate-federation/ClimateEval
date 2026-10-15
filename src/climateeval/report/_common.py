@@ -99,3 +99,15 @@ def _combine_pivots(pivots: list[pd.DataFrame]) -> pd.DataFrame | None:
     with np.errstate(invalid="ignore"):
         mean_vals = np.nanmean(stacked, axis=0)
     return pd.DataFrame(mean_vals, index=idx, columns=cols)
+
+
+def _weighted_mean(pivot: pd.DataFrame) -> float:
+    """Area (cos-latitude) weighted mean of a lat×lon pivot."""
+    weights = np.cos(np.deg2rad(pivot.index.to_numpy(dtype=float)))
+    vals = pivot.to_numpy(dtype=float)
+    mask = np.isfinite(vals)
+    w2d = np.broadcast_to(weights[:, None], vals.shape)
+    wsum = (w2d * mask).sum()
+    if wsum == 0:
+        return float("nan")
+    return float(np.nansum(vals * w2d * mask) / wsum)

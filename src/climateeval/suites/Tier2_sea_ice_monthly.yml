@@ -9,7 +9,8 @@
 #
 # Hemispheres are selected with min_lat/max_lat. Single-month evaluation uses
 # an `extract_month` additional preprocessor. References are CMORized via
-# ESMValTool: OSI-450 (per hemisphere), HadISST and NSIDC-G02202 (SH only).
+# ESMValTool: OSI-450 and ESACCI-SEAICE (per hemisphere), HadISST and
+# NSIDC-G02202 (SH only).
 
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.SeaIceAreaAnnualCycle
@@ -20,14 +21,17 @@
       min_lat: 30.0
       max_lat: 90.0
       reference_data: climateeval.data.OSI450NH
-      other_data: [climateeval.data.HadISST]
+      other_data: [climateeval.data.HadISST, climateeval.data.ESACCISeaIceNH]
     - id: siconc_sh
       var_name: siconc
       frequency: mon
       min_lat: -90.0
       max_lat: -30.0
       reference_data: climateeval.data.OSI450SH
-      other_data: [climateeval.data.HadISST, climateeval.data.NSIDCG02202SH]
+      other_data:
+        - climateeval.data.HadISST
+        - climateeval.data.NSIDCG02202SH
+        - climateeval.data.ESACCISeaIceSH
 
 - name: annual_mean_timeseries
   diagnostic: climateeval.diags.simple.SeaIceAreaTimeSeries
@@ -42,7 +46,7 @@
         esmvalcore.preprocessor.extract_month:
           month: 9
       reference_data: climateeval.data.OSI450NH
-      other_data: [climateeval.data.HadISST]
+      other_data: [climateeval.data.HadISST, climateeval.data.ESACCISeaIceNH]
     # Southern Hemisphere February sea-ice minimum.
     - id: siconc_sh_feb
       var_name: siconc
@@ -53,7 +57,10 @@
         esmvalcore.preprocessor.extract_month:
           month: 2
       reference_data: climateeval.data.OSI450SH
-      other_data: [climateeval.data.HadISST, climateeval.data.NSIDCG02202SH]
+      other_data:
+        - climateeval.data.HadISST
+        - climateeval.data.NSIDCG02202SH
+        - climateeval.data.ESACCISeaIceSH
 
 - name: map
   diagnostic: climateeval.diags.simple.Map

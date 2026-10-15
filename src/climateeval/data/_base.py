@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from loguru import logger
 
 from climateeval._utils import get_prepared_cube, load_cubes
+from climateeval.data._utils import facet_to_str
 from climateeval.exceptions import DownloadError
 
 if TYPE_CHECKING:
@@ -128,7 +129,7 @@ class DataSource(ABC):
         """Get data- and variable-specific subdirectory."""
         return data_root_dir / self.id / variable.frequency / variable.var_name
 
-    def _get_output_filename(self, cube: Cube, **facets: str) -> str:
+    def _get_output_filename(self, cube: Cube, **facets: Any) -> str:
         """Get output file name."""
         suffix = ".nc"
         if cube.coords("time"):
@@ -145,10 +146,10 @@ class DataSource(ABC):
         for facet_key, facet_value in facets.items():
             if facet_key == "timerange":
                 continue
-            normalized_facets[facet_key] = facet_value.replace(" ", "-")
-        prefix = "_".join(
-            str(facet_value) for facet_value in normalized_facets.values()
-        )
+            # Facet values may be lists (e.g. `exp = ["historical", "ssp245"]`
+            # for experiments that are concatenated into a single time series)
+            normalized_facets[facet_key] = facet_to_str(facet_value).replace(" ", "-")
+        prefix = "_".join(normalized_facets.values())
 
         return f"{prefix}{suffix}"
 

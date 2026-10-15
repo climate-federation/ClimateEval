@@ -14,6 +14,7 @@ diagnostic-type detection as the interactive report.
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -30,6 +31,7 @@ from climateeval.report._common import (
     _get_ref_datasets,
     _sort_datasets,
     _var_label,
+    _weighted_mean,
 )
 from climateeval.report._db import detect_diag_type, get_var_cols, read_database
 from climateeval.report._style import (
@@ -39,7 +41,7 @@ from climateeval.report._style import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Callable, Iterable, Mapping, Sequence
     from pathlib import Path
 
     import matplotlib.axes
@@ -239,18 +241,6 @@ def _map_levels(vmin: float, vmax: float) -> np.ndarray:
     return MaxNLocator(nbins=_MAP_LEVELS).tick_values(vmin, vmax)
 
 
-def _weighted_mean(pivot: pd.DataFrame) -> float:
-    """Area (cos-latitude) weighted mean of a lat×lon pivot."""
-    weights = np.cos(np.deg2rad(pivot.index.to_numpy(dtype=float)))
-    vals = pivot.to_numpy(dtype=float)
-    mask = np.isfinite(vals)
-    w2d = np.broadcast_to(weights[:, None], vals.shape)
-    wsum = (w2d * mask).sum()
-    if wsum == 0:
-        return float("nan")
-    return float(np.nansum(vals * w2d * mask) / wsum)
-
-
 def _weighted_rmse(bias: pd.DataFrame) -> float:
     """Area-weighted RMSE from a bias (model − reference) pivot."""
     sq = bias**2
@@ -306,6 +296,64 @@ def _stats_text(
     )
 
 
+def _labeller(display_names: Mapping[str, str] | None) -> Callable[[object], str]:
+    """Return a function mapping a dataset id to its displayed name.
+
+    Presentation only.  Nothing downstream of the title string sees it, so the
+    scoring, the metrics and the output paths keep the real identifier.
+    """
+    names = dict(display_names or {})
+    return lambda ds: names.get(str(ds), str(ds))
+
+
+def _cyclic(pivot: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return (lons, lats, values), wrapping the seam for global grids."""
+    lons = pivot.columns.to_numpy(dtype=float)
+    lats = pivot.index.to_numpy(dtype=float)
+    vals = pivot.to_numpy(dtype=float)
+    if lons.size >= 2:
+        spacing = float(np.median(np.diff(lons)))
+        if (lons.max() - lons.min()) + 2 * spacing >= 360.0:  # noqa: PLR2004
+            vals = np.concatenate([vals, vals[:, :1]], axis=1)
+            lons = np.append(lons, lons[0] + 360.0)
+    return lons, lats, vals
+
+
+def _draw_map_panel(  # noqa: PLR0913
+    axes: matplotlib.axes.Axes,
+    pivot: pd.DataFrame,
+    *,
+    title: str,
+    cmap: str,
+    levels: np.ndarray,
+    extent: tuple | None,
+    transform: object,
+    title_fontsize: float = _MAP_FONTSIZE,
+) -> object:
+    """Filled contours with coastlines; the one map panel both builders draw."""
+    lons, lats, vals = _cyclic(pivot)
+    mappable = axes.contourf(
+        lons,
+        lats,
+        vals,
+        levels=levels,
+        cmap=cmap,
+        extend="both",
+        transform=transform,
+    )
+    # multi_datasets.py rasterizes map collections (smaller PDF/SVG output)
+    for collection in axes.collections:
+        collection.set_rasterized(True)
+    axes.coastlines(linewidth=0.5)
+    axes.gridlines(**_GRIDLINE_KWARGS)
+    if extent is None:
+        axes.set_global()
+    else:
+        axes.set_extent(extent, crs=transform)
+    axes.set_title(title, fontsize=title_fontsize)
+    return mappable
+
+
 def _annotate_bias_panel(  # noqa: PLR0913
     stats_text: Callable,
     axes: matplotlib.axes.Axes,
@@ -357,6 +405,7 @@ def build_static_map_figures(
     data_df: pd.DataFrame,
     variables_df: pd.DataFrame,
     metrics_df: pd.DataFrame | None = None,
+    display_names: Mapping[str, str] | None = None,
 ) -> dict[str, Figure]:
     """Global maps on a Robinson projection, ESMValTool monitor style.
 
@@ -365,7 +414,13 @@ def build_static_map_figures(
     a common colorbar, bias below). With several datasets the reference is
     shown once followed by one bias panel per dataset; without a reference a
     plain grid of absolute maps on a common colorbar is drawn.
+
+    ``display_names`` maps a dataset id to the name shown in panel titles.  It
+    is presentation only: the ids in the data, the metrics and the output file
+    names are untouched, so a figure can say "ESM" while the record still says
+    what the run actually was.
     """
+    display = _labeller(display_names)
     try:
         import cartopy.crs as ccrs
     except ImportError:  # pragma: no cover - cartopy ships with esmvaltool
@@ -388,18 +443,6 @@ def build_static_map_figures(
             return proj, (0, 360, -90, float(lats.max()))
         return ccrs.Robinson(central_longitude=10), None
 
-    def _cyclic(pivot: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Return (lons, lats, values), wrapping the seam for global grids."""
-        lons = pivot.columns.to_numpy(dtype=float)
-        lats = pivot.index.to_numpy(dtype=float)
-        vals = pivot.to_numpy(dtype=float)
-        if lons.size >= 2:
-            spacing = float(np.median(np.diff(lons)))
-            if (lons.max() - lons.min()) + 2 * spacing >= 360.0:  # noqa: PLR2004
-                vals = np.concatenate([vals, vals[:, :1]], axis=1)
-                lons = np.append(lons, lons[0] + 360.0)
-        return lons, lats, vals
-
     def _draw_panel(
         axes: matplotlib.axes.Axes,
         pivot: pd.DataFrame,
@@ -410,27 +453,16 @@ def build_static_map_figures(
         extent: tuple | None,
         title_fontsize: float = _MAP_FONTSIZE,
     ) -> object:
-        lons, lats, vals = _cyclic(pivot)
-        mappable = axes.contourf(
-            lons,
-            lats,
-            vals,
-            levels=levels,
+        return _draw_map_panel(
+            axes,
+            pivot,
+            title=title,
             cmap=cmap,
-            extend="both",
+            levels=levels,
+            extent=extent,
             transform=transform,
+            title_fontsize=title_fontsize,
         )
-        # multi_datasets.py rasterizes map collections (smaller PDF/SVG output)
-        for collection in axes.collections:
-            collection.set_rasterized(True)
-        axes.coastlines(linewidth=0.5)
-        axes.gridlines(**_GRIDLINE_KWARGS)
-        if extent is None:
-            axes.set_global()
-        else:
-            axes.set_extent(extent, crs=transform)
-        axes.set_title(title, fontsize=title_fontsize)
-        return mappable
 
     def _add_cbar(
         fig: Figure,
@@ -500,22 +532,19 @@ def build_static_map_figures(
             bias_levels = _map_levels(-babs, babs)
 
         if has_bias and len(non_ref) == 1:
-            # ESMValTool three-panel layout: model | reference, bias below.
+            # Model | observations | bias, left to right in one row (user
+            # request 2026-09-24).  The first two share a colour scale so the
+            # eye can compare them; the third is diverging about zero.
             model = non_ref[0]
-            fig = Figure(figsize=_FIGSIZE, layout="constrained")
-            gridspec = fig.add_gridspec(
-                5,
-                4,
-                height_ratios=[1.0, 1.0, 0.4, 1.0, 1.0],
-            )
-            ax_left = fig.add_subplot(gridspec[0:2, 0:2], projection=projection)
-            ax_right = fig.add_subplot(gridspec[0:2, 2:4], projection=projection)
-            ax_bottom = fig.add_subplot(gridspec[3:5, 1:3], projection=projection)
+            fig = Figure(figsize=(12.0, 3.2), layout="constrained")
+            ax_left = fig.add_subplot(1, 3, 1, projection=projection)
+            ax_right = fig.add_subplot(1, 3, 2, projection=projection)
+            ax_bottom = fig.add_subplot(1, 3, 3, projection=projection)
 
             m_left = _draw_panel(
                 ax_left,
                 pivots[model],
-                title=str(model),
+                title=display(model),
                 cmap=cmap,
                 levels=levels,
                 extent=extent,
@@ -523,7 +552,7 @@ def build_static_map_figures(
             _draw_panel(
                 ax_right,
                 ref_pivot,
-                title=str(ref_label),
+                title=display(ref_label),
                 cmap=cmap,
                 levels=levels,
                 extent=extent,
@@ -539,7 +568,7 @@ def build_static_map_figures(
             m_bias = _draw_panel(
                 ax_bottom,
                 biases[model],
-                title=f"{model} − {ref_label}",
+                title=f"{display(model)} − {display(ref_label)}",
                 cmap=bias_cmap,
                 levels=bias_levels,
                 extent=extent,
@@ -568,13 +597,13 @@ def build_static_map_figures(
             # carry only the dataset name and the bias reference moves to the
             # figure title.
             if has_bias:
-                panels = [(str(ref_label), ref_pivot, cmap, levels, False, None)] + [
-                    (str(ds), biases[ds], bias_cmap, bias_levels, True, ds)
+                panels = [(display(ref_label), ref_pivot, cmap, levels, False, None)] + [
+                    (display(ds), biases[ds], bias_cmap, bias_levels, True, ds)
                     for ds in non_ref
                 ]
             else:
                 panels = [
-                    (str(ds), pivots[ds], cmap, levels, False, None) for ds in pivots
+                    (display(ds), pivots[ds], cmap, levels, False, None) for ds in pivots
                 ]
             ncols = min(len(panels), 3)
             nrows = (len(panels) + ncols - 1) // ncols
@@ -621,13 +650,161 @@ def build_static_map_figures(
                 label = f"Δ{cbar_label}" if is_bias else cbar_label
                 _add_cbar(fig, mappable, ax_list, label)
 
-        sup = f"{long_name} — bias vs {ref_label}" if has_bias else long_name
+        sup = f"{long_name} — bias vs {display(ref_label)}" if has_bias else long_name
         if has_bias and len(non_ref) == 1:
             sup = long_name  # the three-panel bias title already names the reference
         fig.suptitle(sup, fontsize=_MAP_FONTSIZE + 2)
         figures[var_id] = fig
 
     return figures
+
+
+def build_static_map_sheet(  # noqa: PLR0913, PLR0915
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    var_ids: Sequence[str],
+    *,
+    metrics_df: pd.DataFrame | None = None,
+    display_names: Mapping[str, str] | None = None,
+    panel_width: float = 4.2,
+    panel_height: float = 2.0,
+) -> Figure | None:
+    """One sheet: a row per variable, columns model | observations | bias.
+
+    Built for figures that go into a paper rather than into the report, so the
+    column headings are drawn once at the top instead of on every row, and the
+    row label carries the variable name.  Each middle panel still names its own
+    reference dataset, because the references differ per row.
+
+    Returns None when no requested variable has both a model and a reference.
+    """
+    try:
+        import cartopy.crs as ccrs
+    except ImportError:  # pragma: no cover - cartopy ships with esmvaltool
+        logger.warning("cartopy is not installed — skipping the map sheet")
+        return None
+
+    display = _labeller(display_names)
+    transform = ccrs.PlateCarree()
+    projection = ccrs.Robinson(central_longitude=10)
+
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_datasets_all = _get_ref_datasets(data_df, metrics_df)
+
+    rows = []
+    for var_id in var_ids:
+        if var_id not in data_df.columns:
+            logger.warning("Skipping {} in the sheet: not in this database", var_id)
+            continue
+        pivots = {
+            ds: piv
+            for ds in all_datasets
+            if (piv := _map_pivot(data_df, ds, var_id)) is not None
+        }
+        valid_refs = [r for r in ref_datasets_all if r in pivots]
+        ref_pivot = _combine_pivots([pivots[r] for r in valid_refs])
+        non_ref = [ds for ds in pivots if ds not in valid_refs]
+        if ref_pivot is None or len(non_ref) != 1:
+            logger.warning(
+                "Skipping {} in the sheet: needs one model and a reference", var_id
+            )
+            continue
+        rows.append((var_id, non_ref[0], pivots, ref_pivot, valid_refs))
+
+    if not rows:
+        return None
+
+    # The column headings are drawn once, so they can only name one model.
+    # Rows that resolved to different models would be silently mislabelled.
+    models = {row[1] for row in rows}
+    if len(models) > 1:
+        msg = (
+            "build_static_map_sheet needs one model across all rows; the "
+            f"requested variables resolve to {sorted(map(str, models))}"
+        )
+        raise ValueError(msg)
+
+    fig = Figure(
+        figsize=(3 * panel_width, len(rows) * panel_height + 0.6),
+        layout="constrained",
+    )
+    grid = fig.add_gridspec(len(rows), 3)
+
+    for r, (var_id, model, pivots, ref_pivot, valid_refs) in enumerate(rows):
+        long_name, units = _var_label(var_id, variables_df)
+        cbar_label = f"{var_id} [{units}]" if units else var_id
+        cmap = _mpl_cmap(_colorscale_for(var_id))
+        bias_cmap = _mpl_cmap(_bias_colorscale_for(var_id))
+        ref_name = valid_refs[0] if len(valid_refs) == 1 else "Multi-obs mean"
+
+        vmin, vmax = _data_range(data_df[var_id], var_id)
+        levels = _map_levels(vmin, vmax)
+        bias = pivots[model].subtract(ref_pivot, fill_value=None)
+        with warnings.catch_warnings():
+            # An all-NaN bias is a legitimate degenerate case here, and numpy's
+            # "All-NaN slice" warning on stderr is noise in a figure pipeline.
+            warnings.simplefilter("ignore", RuntimeWarning)
+            babs = float(np.nanpercentile(np.abs(bias.to_numpy(dtype=float)), 98))
+        # Catches NaN (all-NaN bias), inf, and an exactly-zero bias, all of
+        # which would otherwise give a degenerate colour scale.
+        if not np.isfinite(babs) or babs == 0:
+            babs = 1.0
+        bias_levels = _map_levels(-babs, babs)
+
+        axes = [fig.add_subplot(grid[r, c], projection=projection) for c in range(3)]
+        m_data = _draw_map_panel(
+            axes[0], pivots[model], title="", cmap=cmap, levels=levels,
+            extent=None, transform=transform,
+        )
+        _draw_map_panel(
+            axes[1], ref_pivot, title=display(ref_name), cmap=cmap, levels=levels,
+            extent=None, transform=transform,
+        )
+        m_bias = _draw_map_panel(
+            axes[2], bias, title="", cmap=bias_cmap, levels=bias_levels,
+            extent=None, transform=transform,
+        )
+
+        cb_data = fig.colorbar(m_data, ax=axes[:2], orientation="vertical",
+                               aspect=12, pad=0.01)
+        cb_data.set_label(cbar_label, fontsize=_MAP_FONTSIZE)
+        cb_data.ax.tick_params(labelsize=_MAP_FONTSIZE)
+        cb_bias = fig.colorbar(m_bias, ax=axes[2], orientation="vertical",
+                               aspect=12, pad=0.01)
+        cb_bias.set_label(f"\u0394{cbar_label}", fontsize=_MAP_FONTSIZE)
+        cb_bias.ax.tick_params(labelsize=_MAP_FONTSIZE)
+
+        _stats_text(axes[0], 0.0, 0.95, _fmt_stat(_weighted_mean(pivots[model]), units))
+        _stats_text(axes[1], 0.0, 0.95, _fmt_stat(_weighted_mean(ref_pivot), units))
+        _annotate_bias_panel(
+            _stats_text,
+            axes[2],
+            bias=bias,
+            model_pivot=pivots[model],
+            ref_pivot=ref_pivot,
+            units=units,
+            metrics=_map_metrics_for(metrics_df, var_id, model),
+        )
+        axes[0].text(
+            -0.04, 0.5, long_name, transform=axes[0].transAxes,
+            rotation=90, va="center", ha="right", fontsize=_MAP_FONTSIZE + 1,
+        )
+        if r == 0:
+            headings = (
+                display(model),
+                "Observations",
+                f"{display(model)} \u2212 observations",
+            )
+            for axis, heading in zip(axes, headings, strict=True):
+                axis.set_title(
+                    heading
+                    if axis is not axes[1]
+                    else f"{heading}\n{display(ref_name)}",
+                    fontsize=_MAP_FONTSIZE + 2,
+                    fontweight="bold",
+                )
+
+    return fig
 
 
 # ---------------------------------------------------------------------------
@@ -1575,6 +1752,7 @@ def generate_static_plots(
     *,
     formats: Iterable[str] = ("png",),
     dpi: int = 300,
+    display_names: Mapping[str, str] | None = None,
 ) -> list[Path]:
     """Render static figures from result databases into *out_dir*.
 
@@ -1588,6 +1766,8 @@ def generate_static_plots(
         out_dir: Output directory (created if missing).
         formats: Image formats understood by matplotlib (e.g. "png", "pdf").
         dpi: Resolution for raster formats (ESMValTool default: 300).
+        display_names: Dataset id to the name shown in panel titles. Affects
+            rendered text only; ids, metrics and file names are unchanged.
 
     Returns
     -------
@@ -1625,7 +1805,12 @@ def generate_static_plots(
                     diag_type,
                 )
                 continue
-            figures = builder(data_df, variables_df, metrics_df)
+            # Only the map builder has titles worth overriding so far; give the
+            # others the keyword when they grow one.
+            if display_names and builder is build_static_map_figures:
+                figures = builder(data_df, variables_df, metrics_df, display_names)
+            else:
+                figures = builder(data_df, variables_df, metrics_df)
             diag_dir = (
                 out_dir / _safe_filename(db_path.stem) / _safe_filename(diag_name)
             )
