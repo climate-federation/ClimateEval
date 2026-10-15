@@ -1,0 +1,66 @@
+cff-version: 1.2.0
+message: "If you use ClimateEval, please cite it using the metadata below."
+title: "ClimateEval"
+abstract: >-
+  A community diagnostic repository for the evaluation of Earth System Models
+  during model development.
+type: software
+authors:
+  - family-names: "Paçal"
+    given-names: "Aytaç"
+  - family-names: "Eyring"
+    given-names: "Veronika"
+  - family-names: "Watson-Parris"
+    given-names: "Duncan"
+repository-code: "https://github.com/climate-federation/ClimateEval"
+license: Apache-2.0
+keywords:
+  - Earth System Model evaluation
+  - climate model benchmarking
+  - ESMValTool
+  - ESMValCore
+preferred-citation:
+  type: article
+  title: "ClimateBench v2.0: Probabilistic Climate Model Benchmarking"
+  journal: "arXiv preprint"
+  year: 2026
+  identifiers:
+    - type: other
+      value: "arXiv:2610.04558"
+  url: "https://arxiv.org/abs/2610.04558"
+  authors:
+    - {family-names: "Watson-Parris", given-names: "Duncan"}
+    - {family-names: "Tobin", given-names: "Willa"}
+    - {family-names: "Paçal", given-names: "Aytaç"}
+    - {family-names: "Schlund", given-names: "Manuel"}
+    - {family-names: "Balaji", given-names: "V."}
+    - {family-names: "Bowman", given-names: "Kevin"}
+    - {family-names: "Bretherton", given-names: "Chris"}
+    - {family-names: "Caldwell", given-names: "Peter M."}
+    - {family-names: "Chapman", given-names: "Will"}
+    - {family-names: "Collins", given-names: "William D."}
+    - {family-names: "Elsaesser", given-names: "Gregory S."}
+    - {family-names: "Gentine", given-names: "Pierre"}
+    - {family-names: "Hewitt", given-names: "Helene"}
+    - {family-names: "Hoyer", given-names: "Stephan"}
+    - {family-names: "Keeling", given-names: "Ralph"}
+    - {family-names: "Koldunov", given-names: "Nikolay"}
+    - {family-names: "Lawrence", given-names: "David M."}
+    - {family-names: "Lessig", given-names: "Christian"}
+    - {family-names: "Lunt", given-names: "Daniel J."}
+    - {family-names: "Neelin", given-names: "J. David"}
+    - {family-names: "Pritchard", given-names: "Mike"}
+    - {family-names: "Purkey", given-names: "Sarah"}
+    - {family-names: "Schmidt", given-names: "Gavin"}
+    - {family-names: "Schneider", given-names: "Tapio"}
+    - {family-names: "Schulz", given-names: "Michael"}
+    - {family-names: "Shaw", given-names: "Tiffany"}
+    - {family-names: "Simpson", given-names: "Isla R."}
+    - {family-names: "Stephens", given-names: "Graeme"}
+    - {family-names: "Subramanian", given-names: "Aneesh C."}
+    - {family-names: "Teixeira", given-names: "Joao"}
+    - {family-names: "Tierney", given-names: "Jessica"}
+    - {family-names: "Williams", given-names: "Andrew I. L."}
+    - {family-names: "Zanna", given-names: "Laure"}
+    - {family-names: "Eyring", given-names: "Veronika"}
+    - {family-names: "Yu", given-names: "Rose"}

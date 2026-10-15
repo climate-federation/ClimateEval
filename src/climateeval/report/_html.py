@@ -313,16 +313,31 @@ def render_diagnostic_section(
     def _map_legend_note(var_id: str) -> str:
         data_grad = _css_gradient(_colorscale_for(var_id))
         bias_grad = _css_gradient(_bias_colorscale_for(var_id))
-        return (
-            "<div class='legend-note'>"
-            f"<span><span class='ln-data-swatch' style='background:{data_grad}'>"
-            "</span>Reference (left column)</span>"
-            f"<span><span class='ln-data-swatch' style='background:{data_grad}'>"
-            "</span>Model (middle column)</span>"
-            f"<span><span class='ln-bias-swatch' style='background:{bias_grad}'>"
-            "</span>Bias = model − reference (right column)</span>"
-            "</div>"
+        # Maps put the model first; zonal profiles still draw reference then
+        # bias, so they get their own wording rather than the map's.
+        if _diag_type == "Map":
+            columns = (
+                (data_grad, "ln-data-swatch", "Model (left column)"),
+                (
+                    data_grad,
+                    "ln-data-swatch",
+                    "Observations, named per panel (middle column)",
+                ),
+                (bias_grad, "ln-bias-swatch", "Bias = model − observations "
+                 "(right column)"),
+            )
+        else:
+            columns = (
+                (data_grad, "ln-data-swatch", "Observations (left column)"),
+                (bias_grad, "ln-bias-swatch", "Bias = model − observations "
+                 "(right column)"),
+            )
+        spans = "".join(
+            f"<span><span class='{cls}' style='background:{grad}'>"
+            f"</span>{text}</span>"
+            for grad, cls, text in columns
         )
+        return f"<div class='legend-note'>{spans}</div>"
 
     plot_panels = ""
     for var_id, fig in figures.items():
