@@ -53,6 +53,15 @@ ClimateEval provides the diagnostics behind the
   suites are plain Python classes and YAML files, so new contributions are
   easy to add and share.
 
+## Lead Authors
+
+- **Dr. Aytaç Paçal**, University of Tübingen, connAIx Research School for Applied AI, Heilbronn & Tübingen AI Center, Germany
+- **Prof. Dr. Veronika Eyring**, University of Tübingen, connAIx Research School for Applied AI, Heilbronn & Tübingen AI Center, Germany
+- **Prof. Dr. Duncan Watson-Paris**, Scripps Institution of Oceanography, University of California & Halicioglu Data Science Institute, University of California, San Diego, USA
+
+See the [contributors page](https://github.com/climate-federation/ClimateEval/graphs/contributors)
+for everyone who has contributed to ClimateEval.
+
 ## Documentation
 
 Full documentation is in [`docs/`](docs/README.md):
@@ -195,14 +204,6 @@ If you use ClimateEval in your work, please cite the ClimateBench v2.0 paper
 As the preprocessing is based on ESMValCore, please also cite
 [Righi et al. (2020)](https://doi.org/10.5194/gmd-13-1179-2020).
 
-## Authors
-
-- Aytaç Paçal
-- Veronika Eyring
-- Duncan Watson-Parris
-
-See the [contributors page](https://github.com/climate-federation/ClimateEval/graphs/contributors)
-for everyone who has contributed to ClimateEval.
 
 ## License
 
