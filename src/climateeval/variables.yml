@@ -246,6 +246,18 @@ rtmt:
   realm: atmos
   standard_name: net_downward_radiative_flux_at_top_of_atmosphere_model
   units: W m-2
+rx1day:
+  coordinates: [time, lat, lon]
+  long_name: Annual/monthly maximum 1-day precipitation
+  realm: atmos
+  standard_name: ""
+  units: mm
+rx5day:
+  coordinates: [time, lat, lon]
+  long_name: Annual/monthly maximum 5-day precipitation
+  realm: atmos
+  standard_name: ""
+  units: mm
 ta:
   coordinates: [time, alevel, lat, lon]
   long_name: Air Temperature
@@ -257,6 +269,12 @@ tas:
   long_name: Near-Surface Air Temperature
   realm: atmos
   standard_name: air_temperature
+  units: K
+tasa:
+  coordinates: [time, lat, lon]
+  long_name: Near-Surface Air Temperature Anomaly
+  realm: atmos
+  standard_name: ""
   units: K
 tasmax:
   coordinates: [time, lat, lon]
@@ -282,6 +300,12 @@ tauv:
   realm: atmos
   standard_name: surface_downward_northward_stress
   units: Pa
+tnn:
+  coordinates: [time, lat, lon]
+  long_name: Annual/monthly minimum value of daily minimum temperature
+  realm: atmos
+  standard_name: ""
+  units: degC
 toa_net_drift:
   coordinates: []
   long_name: TOA Net Downward Radiation Drift
@@ -306,6 +330,12 @@ ts:
   realm: atmos
   standard_name: surface_temperature
   units: K
+txx:
+  coordinates: [time, lat, lon]
+  long_name: Annual/monthly maximum value of daily maximum temperature
+  realm: atmos
+  standard_name: ""
+  units: degC
 ua:
   coordinates: [time, alevel, lat, lon]
   long_name: Eastward Wind
