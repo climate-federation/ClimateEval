@@ -1,5 +1,47 @@
 # Atmosphere
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_atmos.json
+aerosol_delta_n:
+  coordinates: []
+  long_name: Aerosol-Only TOA Net Downward Radiation Anomaly
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
+aerosol_delta_t:
+  coordinates: []
+  long_name: Aerosol-Only Near-Surface Air Temperature Anomaly
+  realm: atmos
+  standard_name: ""
+  units: "K"
+aerosol_erf:
+  coordinates: []
+  long_name: Aerosol Effective Radiative Forcing
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
+aerosol_lambda:
+  coordinates: []
+  long_name: Climate Feedback Parameter Used for the Aerosol Forcing
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
+aerosol_parallel_segment:
+  coordinates: []
+  long_name: Parallel piControl Segment Used for the Aerosol Anomalies
+  realm: atmos
+  standard_name: ""
+  units: "1"
+aerosol_window_first_year:
+  coordinates: []
+  long_name: First Year of the Aerosol Evaluation Window
+  realm: atmos
+  standard_name: ""
+  units: "1"
+aerosol_window_last_year:
+  coordinates: []
+  long_name: Last Year of the Aerosol Evaluation Window
+  realm: atmos
+  standard_name: ""
+  units: "1"
 amet_peak:
   coordinates: []
   long_name: Atmospheric Meridional Energy Transport NH Peak
@@ -12,6 +54,12 @@ amet_peak_lat:
   realm: atmos
   standard_name: ""
   units: "degrees_north"
+amip_4xco2_erf:
+  coordinates: []
+  long_name: Fixed-SST Effective Radiative Forcing of Quadrupled CO2
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
 arctic_amplification:
   coordinates: []
   long_name: Arctic Amplification Factor
@@ -120,6 +168,24 @@ omet_peak_lat:
   realm: ocean
   standard_name: ""
   units: "degrees_north"
+patch_feedback_difference:
+  coordinates: []
+  long_name: East minus West Pacific SST Patch Feedback Difference
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
+patch_feedback_ep:
+  coordinates: []
+  long_name: East Pacific SST Patch Feedback
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
+patch_feedback_wp:
+  coordinates: []
+  long_name: West Pacific SST Patch Feedback
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
 pfull:
   coordinates: [time, alevel, lat, lon]
   long_name: Pressure at Model Full-Levels

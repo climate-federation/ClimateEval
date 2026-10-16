@@ -18,8 +18,16 @@ python scripts/gen_variables_doc.py
 
 | Variable | Long name | Standard name | Units | Realm | Coordinates | Derived |
 | --- | --- | --- | --- | --- | --- | --- |
+| `aerosol_delta_n` | Aerosol-Only TOA Net Downward Radiation Anomaly |  | `W m-2` | `atmos` |  |  |
+| `aerosol_delta_t` | Aerosol-Only Near-Surface Air Temperature Anomaly |  | `K` | `atmos` |  |  |
+| `aerosol_erf` | Aerosol Effective Radiative Forcing |  | `W m-2` | `atmos` |  |  |
+| `aerosol_lambda` | Climate Feedback Parameter Used for the Aerosol Forcing |  | `W m-2 K-1` | `atmos` |  |  |
+| `aerosol_parallel_segment` | Parallel piControl Segment Used for the Aerosol Anomalies |  | `1` | `atmos` |  |  |
+| `aerosol_window_first_year` | First Year of the Aerosol Evaluation Window |  | `1` | `atmos` |  |  |
+| `aerosol_window_last_year` | Last Year of the Aerosol Evaluation Window |  | `1` | `atmos` |  |  |
 | `amet_peak` | Atmospheric Meridional Energy Transport NH Peak |  | `PW` | `atmos` |  |  |
 | `amet_peak_lat` | Atmospheric Meridional Energy Transport NH Peak Latitude |  | `degrees_north` | `atmos` |  |  |
+| `amip_4xco2_erf` | Fixed-SST Effective Radiative Forcing of Quadrupled CO2 |  | `W m-2` | `atmos` |  |  |
 | `amoc` | AMOC at the Rapid array (26.5 N) |  | `kg s-1` | `ocean` | `time` | yes |
 | `arctic_amplification` | Arctic Amplification Factor |  | `1` | `atmos` |  |  |
 | `asr` | Absorbed shortwave radiation |  | `W m-2` | `atmos` | `time lat lon` | yes |
@@ -55,6 +63,9 @@ python scripts/gen_variables_doc.py
 | `omet_peak` | Oceanic Meridional Energy Transport NH Peak |  | `PW` | `ocean` |  |  |
 | `omet_peak_lat` | Oceanic Meridional Energy Transport NH Peak Latitude |  | `degrees_north` | `ocean` |  |  |
 | `p_value` | p-value |  | `1` |  |  |  |
+| `patch_feedback_difference` | East minus West Pacific SST Patch Feedback Difference |  | `W m-2 K-1` | `atmos` |  |  |
+| `patch_feedback_ep` | East Pacific SST Patch Feedback |  | `W m-2 K-1` | `atmos` |  |  |
+| `patch_feedback_wp` | West Pacific SST Patch Feedback |  | `W m-2 K-1` | `atmos` |  |  |
 | `pfull` | Pressure at Model Full-Levels | `air_pressure` | `Pa` | `atmos` | `time alevel lat lon` |  |
 | `phalf` | Pressure on Model Half-Levels | `air_pressure` | `Pa` | `atmos` | `time alevel lat lon` |  |
 | `phcint` | Integrated Ocean Heat Content from Potential Temperature | `integral_wrt_depth_of_sea_water_potential_temperature_expressed_as_heat_content` | `J m-2` | `ocean` | `time olevel lat lon` | yes |
