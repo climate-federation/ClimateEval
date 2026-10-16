@@ -221,6 +221,7 @@ __marimo__/
 
 # pixi environments
 .pixi/*
+*pixi*
 !.pixi/config.toml
 
 # Output files
@@ -229,4 +230,3 @@ __marimo__/
 /*.html
 showcase_output/
 /output/
-legoesm_pg_evals/*

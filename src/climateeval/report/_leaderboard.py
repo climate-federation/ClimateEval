@@ -239,6 +239,9 @@ def build_scoreboard_figure(
         x_labels = [str(c) for c in pivot.columns]
         y_labels = [str(i) for i in pivot.index]
         finite_vals = pivot.values[np.isfinite(pivot.values)]
+        text_annots = [
+            [f"{v:.1%}" if np.isfinite(v) else "" for v in row] for row in pivot.values
+        ]
         mintext = "▼-1" if len(finite_vals) > 0 and np.min(finite_vals) < 1.0 else "-1"
         colorbar_ticks = {
             "tickvals": [-1.0, -0.5, 0.0, 0.5, 1.0],

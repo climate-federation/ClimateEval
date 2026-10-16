@@ -1,0 +1,30 @@
+
+- name: amoc_timeseries
+  diagnostic: climateeval.diags.simple.AMOCTimeSeries
+  variables:
+    # AMOC at the RAPID array (26.5N). Derived (by ESMValTool) from the
+    # meridional overturning mass streamfunction (msftmz/msftyz) for models;
+    # the RAPID array provides the observed amoc directly as the reference.
+    - id: amoc
+      var_name: amoc
+      frequency: mon
+      reference_data: climateeval.data.RAPID
+
+- name: amoc_profile
+  diagnostic: climateeval.diags.simple.AMOCDepthProfile
+  variables:
+    # AMOC at the RAPID array (26.5N). Derived (by ESMValTool) from the
+    # meridional overturning mass streamfunction (msftmz/msftyz) for models;
+    # the RAPID array provides the observed amoc directly as the reference.
+    - id: msftmz
+      var_name: msftmz
+      frequency: mon
+      reference_data: climateeval.data.RAPID
+
+- name: atlantic_heat_transport_26n
+  diagnostic: climateeval.diags.simple.AtlanticHeatTransportTimeseries
+  variables:
+    - id: oht_26.5n
+      var_name: hfbasin
+      frequency: mon
+      reference_data: climateeval.data.RAPID

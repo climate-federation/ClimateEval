@@ -1213,6 +1213,211 @@ def build_zonal_line_figures(
     return figures
 
 
+def build_depth_profile_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, go.Figure]:
+    """Depth profile line plots, one figure per variable, all datasets overlaid.
+
+    When a single reference dataset is available, a second panel shows the bias
+    (dataset − reference) as a function of depth for every non-reference
+    dataset.
+    """
+    figures: dict[str, go.Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_dataset = _get_ref_dataset(data_df, metrics_df)
+
+    def _series_for(dataset: str, var_id: str) -> pd.Series | None:
+        grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+        cols = list(dict.fromkeys(["depth", var_id]))
+        sub = grp[cols]
+        if sub.empty:
+            return None
+        return sub.groupby("depth")[var_id].mean().sort_index()
+
+    # DYNAMISCHE TIEFENACHSE: Extrahiert die tatsächlichen Tiefenwerte aus den Daten
+    unique_depths = sorted(data_df["depth"].dropna().unique())
+    if unique_depths:
+        max_d = max(unique_depths)
+        if max_d > 1000:
+            step = 1000 if max_d > 2000 else 500
+            depth_tickvals = list(range(0, int(max_d) + step, step))
+        else:
+            depth_tickvals = [0, 200, 400, 600, 800, 1000]
+        depth_ticktext = [f"{d}" for d in depth_tickvals]
+    else:
+        depth_tickvals = [0, 1000, 2000, 3000, 4000, 5000]
+        depth_ticktext = ["0", "1000", "2000", "3000", "4000", "5000"]
+
+    for var_id in get_var_cols(data_df):
+        # FILTER: Überspringt die Generierung, wenn die Variable selbst "depth" ist
+        if var_id == "depth" or data_df[var_id].isna().all():
+            continue
+
+        long_name, units = _var_label(var_id, variables_df)
+
+        ref_series = _series_for(ref_dataset, var_id) if ref_dataset else None
+        non_ref = [d for d in all_datasets if d != ref_dataset]
+        has_bias = ref_series is not None and any(
+            _series_for(d, var_id) is not None for d in non_ref
+        )
+
+        if has_bias:
+            fig = make_subplots(
+                rows=2,
+                cols=1,
+                shared_xaxes=False,
+                shared_yaxes=True,
+                vertical_spacing=0.08,
+                row_heights=[0.65, 0.35],
+                subplot_titles=("", f"Bias (dataset − {ref_dataset})"),
+            )
+        else:
+            fig = go.Figure()
+
+        try:
+            _plot_hlines(fig, variables_df, var_id)
+            if hasattr(fig, "layout") and fig.layout.shapes:
+                for shape in fig.layout.shapes:
+                    if (
+                        shape.type == "line"
+                        and shape.y0 is not None
+                        and shape.y1 is not None
+                    ):
+                        shape.x0, shape.x1 = shape.y0, shape.y1
+                        shape.y0, shape.y1 = 0, 1
+                        shape.xref = "x"
+                        shape.yref = "y domain"
+        except IndexError:
+            pass
+
+        color_idx = 0
+        for dataset in all_datasets:
+            series = _series_for(dataset, var_id)
+            if series is None:
+                continue
+            grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+            dtype = grp["data_type"].iloc[0]
+
+            trace = go.Scatter(
+                x=series.values.tolist(),
+                y=series.index.tolist(),
+                mode="lines",
+                name=str(dataset),
+                legendgroup=str(dataset),
+                hovertemplate=(
+                    f"<b>{dataset}</b><br>depth: %{{y:.1f}}m<br>"
+                    f"{var_id}: %{{x:.4g}} {units}<extra></extra>"
+                ),
+                **_get_line_properties(dtype, color_idx),
+            )
+            if has_bias:
+                fig.add_trace(trace, row=1, col=1)
+            else:
+                fig.add_trace(trace)
+
+            if dtype == "to_benchmark":
+                color_idx += 1
+
+        if has_bias:
+            color_idx = 0
+            for dataset in all_datasets:
+                if dataset == ref_dataset:
+                    continue
+                series = _series_for(dataset, var_id)
+                if series is None:
+                    continue
+                grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+                dtype = grp["data_type"].iloc[0]
+
+                common = series.index.intersection(ref_series.index)
+                if common.empty:
+                    continue
+                bias = (series.loc[common] - ref_series.loc[common]).dropna()
+                if bias.empty:
+                    continue
+                fig.add_trace(
+                    go.Scatter(
+                        x=bias.values.tolist(),
+                        y=bias.index.tolist(),
+                        mode="lines",
+                        name=str(dataset),
+                        legendgroup=str(dataset),
+                        hovertemplate=(
+                            f"<b>{dataset} − {ref_dataset}</b><br>"
+                            f"depth: %{{y:.1f}}m<br>"
+                            f"Δ{var_id}: %{{x:.4g}} {units}"
+                            "<extra></extra>"
+                        ),
+                        **_get_line_properties(dtype, color_idx),
+                    ),
+                    row=2,
+                    col=1,
+                )
+                if dtype == "to_benchmark":
+                    color_idx += 1
+            fig.add_vline(
+                x=0,
+                line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
+                row=2,
+                col=1,
+            )
+
+        title_str = f"<b>{long_name}</b>" + (f"  [{units}]" if units else "")
+        layout_kwargs = {
+            "title": {
+                "text": title_str,
+                "font": {"size": 14},
+                "x": 0.02,
+                "xanchor": "left",
+            },
+            "legend": {
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": 1.02,
+                "xanchor": "right",
+                "x": 1,
+                "bgcolor": "rgba(255,255,255,0.85)",
+                "bordercolor": "#ddd",
+                "borderwidth": 1,
+                "font": {"size": 11},
+            },
+            "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
+        }
+
+        y_kwargs_full = dict(
+            title_text="Depth",
+            tickvals=depth_tickvals,
+            ticktext=depth_ticktext,
+            autorange="reversed",
+            **_AXIS_STYLE,
+        )
+
+        if has_bias:
+            fig.update_yaxes(**y_kwargs_full, row=1, col=1)
+            fig.update_yaxes(
+                autorange="reversed",
+                tickvals=depth_tickvals,
+                ticktext=depth_ticktext,
+                **_AXIS_STYLE,
+                row=2,
+                col=1,
+            )
+            fig.update_xaxes(title_text=units, **_AXIS_STYLE, row=1, col=1)
+            fig.update_xaxes(title_text=f"Δ{units}", **_AXIS_STYLE, row=2, col=1)
+            layout_kwargs["height"] = 560
+        else:
+            layout_kwargs["yaxis"] = y_kwargs_full
+            layout_kwargs["xaxis"] = dict(title_text=units, **_AXIS_STYLE)
+            layout_kwargs["height"] = 420
+
+        fig.update_layout(**_base_layout(**layout_kwargs))
+        figures[var_id] = fig
+
+    return figures
+
+
 def build_zonal_profile_figures(
     data_df: pd.DataFrame,
     variables_df: pd.DataFrame,
@@ -2232,6 +2437,7 @@ _FIGURE_BUILDERS = {
     "ZonalProfile": build_zonal_profile_figures,
     "Hovmoller": build_hovmoller_figures,
     "QBO": build_qbo_figures,
+    "DepthProfile": build_depth_profile_figures,
     "Histogram": build_histogram_figures,
     "Scalar": build_bar_figures,
 }
@@ -2245,6 +2451,7 @@ _DIAG_LABELS = {
     "ZonalProfile": "Zonal Profile",
     "Hovmoller": "Hovmöller",
     "QBO": "QBO",
+    "DepthProfile": "Depth Profile",
     "Histogram": "Histogram",
     "Scalar": "Scalar",
 }
@@ -2252,7 +2459,7 @@ _DIAG_LABELS = {
 # Plot-type categories — group diagnostics by the kind of view they present, so
 # related plots cluster together in the report (issue #17).
 _DIAG_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Spatial maps & profiles", ("Map", "ZonalProfile", "ZonalLine")),
+    ("Spatial maps & profiles", ("Map", "ZonalProfile", "ZonalLine", "DepthProfile")),
     (
         "Time series & cycles",
         ("TimeSeries", "AnnualCycle", "DiurnalCycle", "Hovmoller", "QBO"),

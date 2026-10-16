@@ -81,6 +81,8 @@ class ORAS5(DataSource):
         "zos": ("sossheig", "m"),
         "hfds": ("sohefldo", "W m-2"),
         "uo": ("vozocrte", "m s-1"),
+        "thetao": ("votemper", "degC"),
+        "so": ("vosaline", "0.001"),
     }
 
     _GRID_BY_VAR: ClassVar[dict[str, str]] = {"uo": "u", "tauuo": "u", "vo": "v"}

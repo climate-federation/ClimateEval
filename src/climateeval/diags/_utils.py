@@ -36,6 +36,13 @@ PLEV19_LEVELS: list[float] = [
     100.0,
 ]
 
+DEPTH_LEVELS: list[float] = [
+    0.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0, 200.0, 
+    300.0, 400.0, 500.0, 600.0,700.0, 800.0, 900.0, 1000.0, 1200.0, 1400.0,
+    1800.0, 2200.0, 2600.0, 3000.0, 3400.0, 3800.0, 4200.0, 4600.0, 5000.0, 
+    5400.0, 5800.0, 5995.0,
+]
+
 
 def union(*tables: ibis.Table) -> ibis.Table:
     """Create union of tables (accounts for different schemas)."""

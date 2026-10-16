@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from climateeval import Variable
 
 
-class GulfStreamSshGradient(SimpleDiagnostic):
+class SshGradient(SimpleDiagnostic):
     """Manage Gulf Stream separation diagnostics using SSH gradients.
 
     Computes the horizontal gradient magnitude of Sea Surface Height (SSH)
