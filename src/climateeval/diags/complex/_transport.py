@@ -188,12 +188,36 @@ class MeridionalHeatTransport(ComplexDiagnostic):
         lat_min: float,
         lat_max: float,
     ) -> tuple[float, float]:
-        """Get (peak value, peak latitude) within a NH latitude band."""
+        """Get (peak value, peak latitude) within a NH latitude band.
+
+        The peak is refined to sub-gridscale precision by fitting a parabola
+        through the band's argmax and its two neighbours and returning the
+        vertex (three-point parabolic interpolation). On the common 2° grid
+        the plain argmax quantises the reported latitude to grid lines, so
+        models whose true peaks differ by a fraction of a cell were reported
+        as identical, or on opposite sides of a bound that falls between two
+        grid lines. Falls back to the grid-cell value when the argmax sits at
+        an edge of the band or the three points are flat/collinear.
+        """
         mask = (latitudes >= lat_min) & (latitudes <= lat_max)
         if not mask.any():
             return float("nan"), float("nan")
-        idx = int(np.nanargmax(np.where(mask, profile, -np.inf)))
-        return float(profile[idx]), float(latitudes[idx])
+        band_profile = np.asarray(profile, dtype=float)[mask]
+        band_lats = np.asarray(latitudes, dtype=float)[mask]
+        i = int(np.nanargmax(band_profile))
+        peak_value, peak_lat = float(band_profile[i]), float(band_lats[i])
+        if i == 0 or i == band_profile.size - 1:
+            return peak_value, peak_lat
+        y0, y1, y2 = band_profile[i - 1], band_profile[i], band_profile[i + 1]
+        denom = y0 - 2.0 * y1 + y2
+        if not np.isfinite(denom) or denom == 0.0:
+            return peak_value, peak_lat
+        half_step = 0.5 * (band_lats[i + 1] - band_lats[i - 1])
+        delta = 0.5 * (y0 - y2) / denom
+        return (
+            float(y1 - 0.25 * (y0 - y2) * delta),
+            float(peak_lat + delta * half_step),
+        )
 
     def _get_other_data(self) -> Generator[ComplexDataSource]:
         """Get the CMIP6 r1i1p1f1 piControl reference ensemble (as in ECS)."""

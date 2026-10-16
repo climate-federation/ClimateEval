@@ -128,6 +128,9 @@ order to diagnose a model from the basics upward:
 | `Tier3_ecs` | Effective climate sensitivity from abrupt-4xCO2 / piControl experiments. |
 | `Tier3_forced_response` | Equilibrium forced responses (land-ocean warming ratio, Arctic amplification) from abrupt-4xCO2 / piControl. |
 | `Tier3_transport` | Implied meridional heat transport partitioning (atmosphere vs ocean) from a piControl run. |
+| `Tier3_daily_dynamics` | Midlatitude geostrophic balance and the MJO eastward power ratio, from daily output. |
+| `Tier3_coupled_variability` | Bjerknes compensation of the atmospheric and oceanic heat transports and ENSO teleconnection patterns, from a piControl run. |
+| `Tier3_itcz_efe` | Seasonal migration of the ITCZ with the cross-equatorial atmospheric energy transport, from a historical run. |
 
 Open the corresponding file in
 [`src/climateeval/suites/`](../src/climateeval/suites/) to see the exact
@@ -142,7 +145,9 @@ Use these class paths in the `diagnostic:` field. **Simple** diagnostics
 `SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `AMOCTimeSeries`,
 `OceanHeatContentTimeSeries`. **Complex** diagnostics
 (`climateeval.diags.complex.*`): `ECS`, `TEMDiagnostic`,
-`LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`.
+`LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`,
+`GeostrophicBalance`, `MJOEastWestPowerRatio`, `ITCZEnergyFluxEquator`,
+`BjerknesCompensation`, `ENSOTeleconnectionPatterns`.
 
 How each renders in a report (and its coordinate columns) is summarised in
 [Reporting](reporting.md#figure-types).

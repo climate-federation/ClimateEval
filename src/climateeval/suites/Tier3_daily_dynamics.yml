@@ -1,0 +1,11 @@
+# Tier 3 | Dynamics: large-scale balance and intraseasonal propagation from
+# daily output (midlatitude geostrophic balance, MJO eastward power). A
+# separate suite because these diagnostics take a `day` experiment, and a
+# suite passes the same data dict to every diagnostic it contains.
+- name: geostrophic_balance
+  diagnostic: climateeval.diags.complex.GeostrophicBalance
+  additional_diagnostic_kwargs: {}
+
+- name: mjo_east_west_power_ratio
+  diagnostic: climateeval.diags.complex.MJOEastWestPowerRatio
+  additional_diagnostic_kwargs: {}
