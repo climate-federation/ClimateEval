@@ -25,6 +25,7 @@ from ncdata.iris_xarray import cubes_from_xarray
 from xarray import Dataset
 
 from climateeval import NO_LEVEL
+from climateeval._combine import normalise_coordinates, warn_on_split_variables
 from climateeval._config import (
     setup_esmvaltool_config_and_logging,
     setup_iris_combine_policy,
@@ -144,9 +145,37 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
 
 
 def load_cubes(uris: str | Path | Iterable[str] | Iterable[Path]) -> CubeList:
-    """Load Iris cubes."""
+    """Load Iris cubes.
+
+    Files of one variable whose *coordinate* metadata disagrees (a per-file
+    ``time_origin``, a capitalised ``long_name``, two calendar spellings, a
+    float32/float64 grid) do not combine, and iris returns several cubes for
+    that variable rather than failing. When that happens, reload without
+    combining, reconcile the coordinates (:mod:`climateeval._combine`) and
+    combine again; anything still split is reported as a warning naming the
+    variable.
+    """
     with setup_iris_combine_policy():
-        return iris.load(uris)
+        cubes = iris.load(uris)
+        if _has_split_variables(cubes):
+            raw = CubeList(iris.load_raw(uris))
+            normalise_coordinates(raw)
+            combined = raw.combine()
+            if len(combined) <= len(cubes):
+                cubes = combined
+    warn_on_split_variables(cubes)
+    return cubes
+
+
+def _has_split_variables(cubes: Iterable[Cube]) -> bool:
+    """Whether any variable is represented by more than one cube."""
+    seen: set[str] = set()
+    for cube in cubes:
+        key = cube.var_name or cube.name()
+        if key in seen:
+            return True
+        seen.add(key)
+    return False
 
 
 def str_to_object(object_str: str) -> Any:
