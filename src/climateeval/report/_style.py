@@ -725,6 +725,46 @@ table.lb tr.is-model:hover td { background: var(--accent-tint-2); }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .seg button:focus-visible { outline-offset: -2px; }
 
+/* ── Figure range controls (Hovmöller time / longitude windows) ── */
+.fig-ranges {
+  display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; margin: 0 0 12px;
+}
+.range-ctl { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.range-ctl input[type="text"] {
+  width: 96px; padding: 3px 6px; font: 12px var(--mono); color: var(--text);
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 4px;
+}
+.range-ctl input[type="text"]:focus { border-color: var(--accent); outline: none; }
+.range-ctl input[type="text"].invalid { border-color: var(--danger); }
+.range-reset {
+  background: none; border: 1px solid var(--border-strong); border-radius: var(--radius);
+  padding: 3px 10px; font-size: 12px; color: var(--text-2); cursor: pointer;
+}
+.range-reset:hover { background: var(--surface-2); color: var(--text); }
+.dual-range { position: relative; width: 220px; height: 20px; flex-shrink: 0; }
+.dual-range .track {
+  position: absolute; left: 0; right: 0; top: 8.5px; height: 3px;
+  background: var(--border-strong); border-radius: 2px;
+}
+.dual-range .fill { position: absolute; top: 8.5px; height: 3px; background: var(--accent); border-radius: 2px; }
+.dual-range input[type="range"] {
+  position: absolute; left: 0; top: 0; width: 100%; height: 20px; margin: 0;
+  background: none; pointer-events: none; -webkit-appearance: none; appearance: none;
+}
+.dual-range input[type="range"]::-webkit-slider-runnable-track { height: 20px; background: transparent; }
+.dual-range input[type="range"]::-moz-range-track { background: transparent; }
+.dual-range input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; pointer-events: auto; cursor: pointer;
+  width: 14px; height: 14px; margin-top: 3px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--accent);
+}
+.dual-range input[type="range"]::-moz-range-thumb {
+  pointer-events: auto; cursor: pointer; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--accent);
+}
+.dual-range input[type="range"]:focus-visible { outline: none; }
+.dual-range input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--accent-tint-2); }
+
 /* ── Search no-results ── */
 .search-no-results { display: none; padding: 48px 0; text-align: center; color: var(--muted); }
 .search-no-results.visible { display: block; }
@@ -1004,6 +1044,7 @@ function _renderToggles(div, figData) {
   if (!menus.length) return;
   figData.layout.updatemenus = [];
   var state = meta.groups.map(function() { return 0; });
+  div._toggleState = state;
   var old = div.previousElementSibling;
   if (old && old.classList.contains('fig-toggles')) old.remove();
   var bar = document.createElement('div');
@@ -1012,7 +1053,11 @@ function _renderToggles(div, figData) {
     var ref = meta.buttons[state[0]][state[1]];
     var btn = menus[ref[0]] && menus[ref[0]].buttons[ref[1]];
     if (!btn) return;
+    div._rangesBusy = true;
     Plotly.update(div, _themeFig(btn.args[0] || {}), _themeFig(btn.args[1] || {}));
+    div._rangesBusy = false;
+    // the update resets the axes to autorange; put the chosen windows back
+    if (div._applyRanges) div._applyRanges();
     bar.querySelectorAll('.seg').forEach(function(seg, g) {
       seg.querySelectorAll('button').forEach(function(b, o) {
         b.setAttribute('aria-pressed', state[g] === o ? 'true' : 'false');
@@ -1038,9 +1083,200 @@ function _renderToggles(div, figData) {
   div.parentNode.insertBefore(bar, div);
 }
 
+// ---------------------------------------------------------------------------
+// Range controls (Hovmöller): a dual-handle slider and from/to text boxes per
+// coordinate. layout.meta.ranges gives the extents and the axes of each
+// panel; which coordinate sits on which axis follows the toggle state
+// (Lon × Time: lon on x, time on y). Slider, boxes, plot zoom and toggles
+// all keep each other in step.
+// ---------------------------------------------------------------------------
+var _DAY = 86400000;
+function _isoDay(ms) { return new Date(ms).toISOString().slice(0, 10); }
+function _parseDay(s) {
+  s = String(s).trim();
+  var m = /^(\d{4})(?:-(\d{1,2}))?(?:-(\d{1,2}))?/.exec(s);
+  if (!m) return NaN;
+  var ms = Date.UTC(+m[1], m[2] ? +m[2] - 1 : 0, m[3] ? +m[3] : 1);
+  return isNaN(ms) ? NaN : ms;
+}
+
+function _renderRanges(div, figData) {
+  var meta = figData.layout.meta.ranges;
+  var old = div.previousElementSibling;
+  if (old && old.classList.contains('fig-ranges')) old.remove();
+  var bar = document.createElement('div');
+  bar.className = 'fig-ranges';
+
+  // each coordinate: numeric domain [lo, hi] (dates as ms), current window
+  var coords = {};
+  ['lon', 'time'].forEach(function(key) {
+    var spec = meta[key];
+    if (!spec) return;
+    var isDate = spec.type === 'date';
+    var lo = isDate ? _parseDay(spec.min) : +spec.min;
+    var hi = isDate ? _parseDay(spec.max) : +spec.max;
+    coords[key] = {
+      spec: spec, isDate: isDate, lo: lo, hi: hi, cur: [lo, hi],
+      step: isDate ? _DAY : (hi - lo > 20 ? 1 : (hi - lo) / 200),
+      fmt: function(v) { return isDate ? _isoDay(v) : (Math.round(v * 10) / 10).toString(); },
+      parse: function(s) { return isDate ? _parseDay(s) : parseFloat(String(s).replace(/[^0-9.+-]/g, '')); },
+      plotVal: function(v) { return isDate ? _isoDay(v) : v; }
+    };
+  });
+
+  function axisFor(key) {
+    // toggle group 0: 0 = Lon × Time (lon on x), 1 = Time × Lon (lon on y)
+    var swapped = div._toggleState && div._toggleState[0] === 1;
+    return (key === 'lon') === !swapped ? 'x' : 'y';
+  }
+  function orderedRange(key, lo, hi) {
+    var c = coords[key];
+    var reversed;
+    if (key === 'lon') reversed = !!(div._toggleState && div._toggleState[1] === 1);  // E → W
+    else reversed = axisFor('time') === 'y';  // time runs downwards on the y axis
+    var a = c.plotVal(lo), b = c.plotVal(hi);
+    return reversed ? [b, a] : [a, b];
+  }
+  function isFull(key) {
+    var c = coords[key];
+    return c.cur[0] <= c.lo && c.cur[1] >= c.hi;
+  }
+
+  // push the current windows into every panel's axes
+  function applyRanges() {
+    if (typeof Plotly === 'undefined' || !div.data) return;
+    var patch = {};
+    Object.keys(coords).forEach(function(key) {
+      var ax = axisFor(key);
+      meta.panels.forEach(function(p) {
+        var name = p[ax];
+        if (isFull(key)) {
+          // back to the figure's own autorange, direction included
+          var src = (div.layout && div.layout[name]) || {};
+          var rev = (key === 'lon' && div._toggleState && div._toggleState[1] === 1) ||
+                    (key === 'time' && ax === 'y');
+          patch[name + '.autorange'] = rev ? 'reversed' : true;
+          void src;
+        } else {
+          patch[name + '.range'] = orderedRange(key, coords[key].cur[0], coords[key].cur[1]);
+        }
+      });
+    });
+    div._rangesBusy = true;
+    Plotly.relayout(div, patch).then(function() { div._rangesBusy = false; },
+                                    function() { div._rangesBusy = false; });
+  }
+  div._applyRanges = applyRanges;
+
+  var widgets = {};
+  Object.keys(coords).forEach(function(key) {
+    var c = coords[key];
+    var ctl = document.createElement('div');
+    ctl.className = 'range-ctl';
+    var label = document.createElement('span');
+    label.textContent = c.spec.label;
+    var from = document.createElement('input');
+    from.type = 'text'; from.setAttribute('aria-label', c.spec.label + ' from');
+    var to = document.createElement('input');
+    to.type = 'text'; to.setAttribute('aria-label', c.spec.label + ' to');
+    var dual = document.createElement('div');
+    dual.className = 'dual-range';
+    var track = document.createElement('div'); track.className = 'track';
+    var fill = document.createElement('div'); fill.className = 'fill';
+    var sLo = document.createElement('input'); var sHi = document.createElement('input');
+    [sLo, sHi].forEach(function(s, i) {
+      s.type = 'range'; s.min = c.lo; s.max = c.hi; s.step = c.step;
+      s.setAttribute('aria-label', c.spec.label + (i ? ' to' : ' from'));
+    });
+    dual.appendChild(track); dual.appendChild(fill); dual.appendChild(sLo); dual.appendChild(sHi);
+    var dash = document.createElement('span'); dash.textContent = '–';
+    ctl.appendChild(label); ctl.appendChild(from); ctl.appendChild(dual); ctl.appendChild(to);
+    if (c.spec.unit) { var u = document.createElement('span'); u.textContent = c.spec.unit; ctl.appendChild(u); }
+    bar.appendChild(ctl);
+    widgets[key] = {from: from, to: to, sLo: sLo, sHi: sHi, fill: fill};
+
+    function show() {
+      from.value = c.fmt(c.cur[0]); to.value = c.fmt(c.cur[1]);
+      sLo.value = c.cur[0]; sHi.value = c.cur[1];
+      var span = c.hi - c.lo || 1;
+      fill.style.left = ((c.cur[0] - c.lo) / span * 100) + '%';
+      fill.style.width = ((c.cur[1] - c.cur[0]) / span * 100) + '%';
+      from.classList.remove('invalid'); to.classList.remove('invalid');
+      // keep the upper thumb reachable when both sit at the same end
+      sHi.style.zIndex = c.cur[0] >= c.hi - c.step ? 3 : 2;
+    }
+    widgets[key].show = show;
+
+    function setWindow(lo, hi, apply) {
+      lo = Math.max(c.lo, Math.min(c.hi, lo));
+      hi = Math.max(c.lo, Math.min(c.hi, hi));
+      if (lo > hi) { var t = lo; lo = hi; hi = t; }
+      c.cur = [lo, hi];
+      show();
+      if (apply !== false) applyRanges();
+    }
+    widgets[key].setWindow = setWindow;
+
+    sLo.addEventListener('input', function() { setWindow(Math.min(+sLo.value, c.cur[1]), c.cur[1]); });
+    sHi.addEventListener('input', function() { setWindow(c.cur[0], Math.max(+sHi.value, c.cur[0])); });
+    function fromText(input, which) {
+      var v = c.parse(input.value);
+      if (isNaN(v)) { input.classList.add('invalid'); return; }
+      if (which === 0) setWindow(v, c.cur[1]); else setWindow(c.cur[0], v);
+    }
+    from.addEventListener('change', function() { fromText(from, 0); });
+    to.addEventListener('change', function() { fromText(to, 1); });
+    [from, to].forEach(function(inp) {
+      inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+    });
+    show();
+  });
+
+  var reset = document.createElement('button');
+  reset.type = 'button'; reset.className = 'range-reset'; reset.textContent = 'Full range';
+  reset.addEventListener('click', function() {
+    Object.keys(coords).forEach(function(key) {
+      widgets[key].setWindow(coords[key].lo, coords[key].hi, false);
+    });
+    applyRanges();
+  });
+  bar.appendChild(reset);
+  div.parentNode.insertBefore(bar, div);
+
+  // the plot's own zoom / pan / reset moves the controls
+  function onRelayout(ev) {
+    if (div._rangesBusy || !ev) return;
+    var p0 = meta.panels[0];
+    Object.keys(coords).forEach(function(key) {
+      var c = coords[key];
+      var name = p0[axisFor(key)];
+      var lo, hi;
+      if (ev[name + '.autorange'] || (ev[name] && ev[name].autorange)) {
+        lo = c.lo; hi = c.hi;
+      } else if (ev[name + '.range[0]'] !== undefined) {
+        lo = ev[name + '.range[0]']; hi = ev[name + '.range[1]'];
+      } else if (ev[name + '.range']) {
+        lo = ev[name + '.range'][0]; hi = ev[name + '.range'][1];
+      } else if (ev[name] && ev[name].range) {
+        lo = ev[name].range[0]; hi = ev[name].range[1];
+      } else return;
+      lo = c.isDate ? _parseDay(lo) : +lo; hi = c.isDate ? _parseDay(hi) : +hi;
+      if (isNaN(lo) || isNaN(hi)) return;
+      widgets[key].setWindow(Math.min(lo, hi), Math.max(lo, hi), false);
+    });
+  }
+  // Plotly's event emitter exists once the plot is drawn
+  var tries = 0;
+  (function hook() {
+    if (div.on) div.on('plotly_relayout', onRelayout);
+    else if (tries++ < 50) setTimeout(hook, 100);
+  })();
+}
+
 function _applyFigData(div, figData) {
   var meta = figData.layout.meta || {};
   if (meta.toggles) _renderToggles(div, figData);
+  if (meta.ranges) _renderRanges(div, figData);
   if (meta.responsive) {
     _applyGrid(div, figData, true);
     _watchGrid(div, figData);

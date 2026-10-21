@@ -206,7 +206,10 @@ usable directly from Python too.
   colorbars on a wide screen, stacked in one column with the colorbars at the
   bottom on a narrow one.
 - **Hovmöller.** Two toggles above the plot choose the axes (longitude × time
-  or time × longitude) and the direction (W → E or E → W).
+  or time × longitude) and the direction (W → E or E → W). Below them, a
+  slider and a from/to box per coordinate set the longitude window and the
+  time period; slider, boxes and the plot's own zoom follow each other, and
+  *Full range* restores the whole extent.
 - **Tiers.** The toolbar tabs select one diagnostic or *All*; in the *All*
   view the diagnostics are grouped by plot type (spatial, temporal, …).
   Figures render as they scroll into view. A long variable row starts

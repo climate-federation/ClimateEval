@@ -1926,6 +1926,20 @@ def build_hovmoller_figures(
         def _ax(prefix: str, i: int) -> str:
             return prefix if i == 0 else f"{prefix}{i + 1}"
 
+        # Extents of the two coordinates, for the page's range controls
+        # (sliders + text boxes above the plot; see _renderRanges in _JS).
+        lon_lo = float(min(pv.columns.min() for pv in pivots))
+        lon_hi = float(max(pv.columns.max() for pv in pivots))
+        time_lo = min(str(pv.index.min()) for pv in pivots)
+        time_hi = max(str(pv.index.max()) for pv in pivots)
+        ranges_meta = {
+            "lon": {"label": "Longitude", "min": lon_lo, "max": lon_hi, "unit": "°"},
+            "time": {"label": "Time", "min": time_lo, "max": time_hi, "type": "date"},
+            "panels": [
+                {"x": _ax("xaxis", i), "y": _ax("yaxis", i)} for i in range(nrows)
+            ],
+        }
+
         # Trace-data args for each orientation
         lon_x_trace = {
             "x": [pv.columns.tolist() for pv in pivots],
@@ -2061,6 +2075,7 @@ def build_hovmoller_figures(
                     ],
                     "buttons": [[[0, 0], [0, 1]], [[1, 0], [1, 1]]],
                 },
+                "ranges": ranges_meta,
             },
         )
         figures[var_id] = fig
