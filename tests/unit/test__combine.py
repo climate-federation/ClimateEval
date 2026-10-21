@@ -161,6 +161,49 @@ def test_gregorian_and_proleptic_gregorian_are_unified_after_1582() -> None:
     assert result[0].coord("time").units.calendar == "standard"
 
 
+def test_calendar_spellings_with_different_epochs_are_unified() -> None:
+    """EC-Earth3: the historical and SSP files differ in calendar *and* epoch.
+
+    `unify_time_units` picks one epoch per calendar, so it has to run after
+    the calendars have been unified, or the records stay split on the epoch.
+    """
+    first = _cube(2000, calendar="gregorian")
+    second = _cube(2001, calendar="proleptic_gregorian")
+    second.coord("time").convert_units(
+        Unit("days since 1850-01-01", calendar="proleptic_gregorian"),
+    )
+    assert _n_concatenated([first.copy(), second.copy()]) == 2
+
+    result = concatenate_cubes(CubeList([first, second]))
+    assert len(result) == 1
+    time = result[0].coord("time")
+    assert time.units.calendar == "standard"
+    assert time.units.num2date(time.points[12]).year == 2001
+
+
+def test_convertible_units_are_converted_not_relabelled() -> None:
+    """One file in degC among files in K: the values must be converted."""
+    cubes = CubeList([_cube(2000), _cube(2001), _cube(2002)])
+    cubes[1].units = "degC"
+    for cube in cubes:
+        cube.data[:] = 1.0
+    result = concatenate_cubes(cubes)
+    assert len(result) == 1
+    assert result[0].units == "K"
+    np.testing.assert_allclose(result[0].data[0, 0, 0], 1.0)
+    np.testing.assert_allclose(result[0].data[12, 0, 0], 274.15)
+    np.testing.assert_allclose(result[0].data[24, 0, 0], 1.0)
+
+
+def test_incompatible_units_are_never_relabelled() -> None:
+    """`K` and `m` under one `var_name` is not one variable; it must stay split."""
+    cubes = CubeList([_cube(2000), _cube(2001)])
+    cubes[1].units = "m"
+    result = concatenate_cubes(cubes)
+    assert len(result) == 2
+    assert {str(cube.units) for cube in result} == {"K", "m"}
+
+
 def test_a_real_calendar_difference_is_never_papered_over() -> None:
     """`standard` vs `noleap` (NESM3) is a different calendar, not a spelling."""
     cubes = CubeList([_cube(2000, calendar="standard"), _cube(2001, calendar="noleap")])

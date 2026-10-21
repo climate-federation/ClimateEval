@@ -222,6 +222,14 @@ def _unify_calendars(coords: Sequence[Coord]) -> None:
         coord.units = Unit(coord.units.origin, calendar="standard")
 
 
+def _majority(values: Sequence[Any]) -> Any | None:
+    """Return the most common value by spelling, or ``None`` if they all agree."""
+    if len({str(value) for value in values}) < _A_PAIR:
+        return None
+    winner = Counter(str(value) for value in values).most_common(1)[0][0]
+    return next(v for v in values if str(v) == winner)
+
+
 def _unify_cube_names(cubes: Sequence[Cube]) -> None:
     """Give cubes of one variable one set of names.
 
@@ -232,15 +240,35 @@ def _unify_cube_names(cubes: Sequence[Cube]) -> None:
     """
     if len({cube.var_name for cube in cubes}) != 1 or cubes[0].var_name is None:
         return
-    for attribute in ("standard_name", "long_name", "units"):
-        values = [getattr(cube, attribute) for cube in cubes]
-        if len({str(value) for value in values}) < _A_PAIR:
+    for attribute in ("standard_name", "long_name"):
+        chosen = _majority([getattr(cube, attribute) for cube in cubes])
+        if chosen is None:
             continue
-        winner = Counter(str(value) for value in values).most_common(1)[0][0]
-        chosen = next(v for v in values if str(v) == winner)
         for cube in cubes:
             with contextlib.suppress(ValueError):
                 setattr(cube, attribute, chosen)
+    _unify_cube_units(cubes)
+
+
+def _unify_cube_units(cubes: Sequence[Cube]) -> None:
+    """Give cubes of one variable one unit, converting the data where needed.
+
+    Two spellings of one unit (``K``/``kelvin``) are only relabelled. Two
+    *different* but convertible units (``K``/``degC``, ``1``/``%``) are
+    converted to the majority unit, so that the values keep their meaning. Two
+    incompatible units are left alone: that is not one variable, and the
+    concatenation must fail loudly rather than relabel the data.
+    """
+    chosen = _majority([cube.units for cube in cubes])
+    if chosen is None:
+        return
+    if not all(cube.units.is_convertible(chosen) for cube in cubes):
+        return
+    for cube in cubes:
+        if cube.units == chosen:
+            cube.units = chosen
+        else:
+            cube.convert_units(chosen)
 
 
 def normalise_coordinates(cubes: CubeList) -> CubeList:
@@ -321,8 +349,12 @@ def concatenate_cubes(cubes: CubeList, source: str = "") -> CubeList:
     from iris.util import equalise_attributes, unify_time_units  # noqa: PLC0415
 
     equalise_attributes(cubes)
-    unify_time_units(cubes)
     normalise_coordinates(cubes)
+    # After `normalise_coordinates`, so that two calendar spellings it has
+    # just unified share one epoch too: `unify_time_units` picks one epoch
+    # *per calendar*, and the historical and SSP files of one run (EC-Earth3)
+    # differ in both.
+    unify_time_units(cubes)
     result = cubes.concatenate()
     warn_on_split_variables(result, source)
     return result
