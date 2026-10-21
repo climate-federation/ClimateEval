@@ -9,6 +9,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pandas as pd
 
 from climateeval.report._common import (
@@ -174,16 +176,118 @@ def _get_line_properties(dtype: str, color_idx: int) -> dict:
             "showlegend": True,
             "zorder": 2,
         }
-    # "other"
+    # "other": the comparison bundle, grey dashed; listed in the legend so
+    # every drawn line is explained (_finish_legends collapses a big bundle
+    # into one entry)
     return {
         "line": {
             "color": _OTHER_LINE_COLOR,
             "dash": "dash",
             "width": 1.5,
         },
-        "showlegend": False,
+        "showlegend": True,
         "zorder": 0,
     }
+
+
+# Legend centred below the axes, as in the static figures. Plotly grows the
+# bottom margin to fit however many rows the dataset names need; the paper
+# offset is recomputed per figure by _finish_legends so that the gap between
+# the plot and the legend stays at least _LEGEND_GAP_PX (room for the tick
+# labels and the x-axis title) for legends up to _LEGEND_MAX_PX tall.
+_LEGEND_GAP_PX = 62
+_LEGEND_MAX_PX = 80  # four rows of entries
+_LEGEND_BELOW = {
+    "orientation": "h",
+    "yanchor": "top",
+    "y": -0.2,
+    "xanchor": "center",
+    "x": 0.5,
+    "bgcolor": "rgba(255,255,255,0.85)",
+    "bordercolor": "#ddd",
+    "borderwidth": 1,
+    "font": {"size": 11},
+}
+
+# More comparison datasets than this share a single legend entry.
+_MAX_OTHER_LEGEND = 8
+
+
+def _is_other_trace(trace: Any) -> bool:
+    line = getattr(trace, "line", None)
+    return line is not None and line.color == _OTHER_LINE_COLOR and line.dash == "dash"
+
+
+def _place_legend_below(fig: go.Figure) -> None:
+    """Turn a below-the-axes legend's pixel gap into the paper offset Plotly wants."""
+    legend = fig.layout.legend
+    height = fig.layout.height
+    if legend.orientation != "h" or legend.y is None or legend.y >= 0 or not height:
+        return
+    # Plotly sets the bottom margin to legend height + offset, where the
+    # offset is this paper fraction of the plot height that remains; solving
+    # that for the fraction gives a fixed pixel gap below the plot.
+    margin = fig.layout.margin
+    top = margin.t if margin.t is not None else 100
+    available = height - top
+    legend.y = -_LEGEND_GAP_PX / max(available - _LEGEND_MAX_PX - _LEGEND_GAP_PX, 50)
+
+
+def _finish_legends(figures: dict[str, go.Figure]) -> dict[str, go.Figure]:
+    """Make every drawn line explainable from the legend.
+
+    Traces that share a legend group (a dataset's main and bias panel lines)
+    keep one entry. When the grey dashed comparison bundle has more than
+    ``_MAX_OTHER_LEGEND`` datasets, its entries are replaced by a single
+    "n other datasets" entry that toggles the whole bundle.
+    """
+    for fig in figures.values():
+        _place_legend_below(fig)
+        others: list[str] = []
+        for trace in fig.data:
+            if _is_other_trace(trace):
+                key = trace.legendgroup or trace.name or ""
+                if key not in others:
+                    others.append(key)
+        collapse = len(others) > _MAX_OTHER_LEGEND
+        seen: set[str] = set()
+        for trace in fig.data:
+            if trace.showlegend is False:
+                continue
+            key = trace.legendgroup or trace.name
+            if not key:
+                continue
+            if collapse and _is_other_trace(trace):
+                trace.legendgroup = "other"
+                trace.showlegend = False
+                continue
+            trace.showlegend = key not in seen
+            seen.add(key)
+        if collapse:
+            fig.add_trace(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="lines",
+                    name=f"{len(others)} other datasets",
+                    legendgroup="other",
+                    showlegend=True,
+                    hoverinfo="skip",
+                    line=_get_line_properties("other", 0)["line"],
+                )
+            )
+    return figures
+
+
+def _with_finished_legends(
+    builder: Callable[..., dict[str, go.Figure]],
+) -> Callable[..., dict[str, go.Figure]]:
+    def build(*args: Any, **kwargs: Any) -> dict[str, go.Figure]:
+        return _finish_legends(builder(*args, **kwargs))
+
+    build.__name__ = builder.__name__
+    build.__doc__ = builder.__doc__
+    return build
 
 
 def _base_layout(**kwargs: Any) -> dict:
@@ -715,17 +819,7 @@ def build_timeseries_figures(
                 "x": 0.02,
                 "xanchor": "left",
             },
-            "legend": {
-                "orientation": "h",
-                "yanchor": "bottom",
-                "y": 1.02,
-                "xanchor": "right",
-                "x": 1,
-                "bgcolor": "rgba(255,255,255,0.85)",
-                "bordercolor": "#ddd",
-                "borderwidth": 1,
-                "font": {"size": 11},
-            },
+            "legend": _LEGEND_BELOW,
             "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
         }
         if has_bias:
@@ -893,17 +987,7 @@ def build_annual_cycle_figures(
                 "x": 0.02,
                 "xanchor": "left",
             },
-            "legend": {
-                "orientation": "h",
-                "yanchor": "bottom",
-                "y": 1.02,
-                "xanchor": "right",
-                "x": 1,
-                "bgcolor": "rgba(255,255,255,0.85)",
-                "bordercolor": "#ddd",
-                "borderwidth": 1,
-                "font": {"size": 11},
-            },
+            "legend": _LEGEND_BELOW,
             "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
         }
         if has_bias:
@@ -1060,17 +1144,7 @@ def build_diurnal_cycle_figures(
                 "x": 0.02,
                 "xanchor": "left",
             },
-            "legend": {
-                "orientation": "h",
-                "yanchor": "bottom",
-                "y": 1.02,
-                "xanchor": "right",
-                "x": 1,
-                "bgcolor": "rgba(255,255,255,0.85)",
-                "bordercolor": "#ddd",
-                "borderwidth": 1,
-                "font": {"size": 11},
-            },
+            "legend": _LEGEND_BELOW,
             "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
         }
         if has_bias:
@@ -1250,17 +1324,7 @@ def build_zonal_line_figures(
                 "x": 0.02,
                 "xanchor": "left",
             },
-            "legend": {
-                "orientation": "h",
-                "yanchor": "bottom",
-                "y": 1.02,
-                "xanchor": "right",
-                "x": 1,
-                "bgcolor": "rgba(255,255,255,0.85)",
-                "bordercolor": "#ddd",
-                "borderwidth": 1,
-                "font": {"size": 11},
-            },
+            "legend": _LEGEND_BELOW,
             "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
         }
         x_kwargs_full = dict(
@@ -1620,17 +1684,7 @@ def build_bar_figures(
                 },
                 height=max(300 + 18 * len(sub), 400),
                 margin={"t": 70, "b": 50, "l": 240, "r": 80},
-                legend={
-                    "orientation": "h",
-                    "yanchor": "bottom",
-                    "y": 1.02,
-                    "xanchor": "right",
-                    "x": 1,
-                    "bgcolor": "rgba(255,255,255,0.85)",
-                    "bordercolor": "#ddd",
-                    "borderwidth": 1,
-                    "font": {"size": 11},
-                },
+                legend=_LEGEND_BELOW,
             ),
             xaxis={
                 **_AXIS_STYLE,
@@ -1718,17 +1772,7 @@ def build_histogram_figures(
                     "x": 0.02,
                     "xanchor": "left",
                 },
-                legend={
-                    "orientation": "h",
-                    "yanchor": "bottom",
-                    "y": 1.02,
-                    "xanchor": "right",
-                    "x": 1,
-                    "bgcolor": "rgba(255,255,255,0.85)",
-                    "bordercolor": "#ddd",
-                    "borderwidth": 1,
-                    "font": {"size": 11},
-                },
+                legend=_LEGEND_BELOW,
                 margin={"t": 80, "b": 60, "l": 70, "r": 30},
                 height=440,
             ),
@@ -2305,17 +2349,7 @@ def build_qbo_figures(
                 },
                 margin={"t": 80, "b": 60, "l": 80, "r": 90},
                 height=panel_height,
-                legend={
-                    "orientation": "h",
-                    "yanchor": "bottom",
-                    "y": -0.15,
-                    "xanchor": "center",
-                    "x": 0.4,
-                    "bgcolor": "rgba(255,255,255,0.85)",
-                    "bordercolor": "#ddd",
-                    "borderwidth": 1,
-                    "font": {"size": 11},
-                },
+                legend=_LEGEND_BELOW,
             ),
         )
         figures[var_id] = fig
@@ -2324,16 +2358,19 @@ def build_qbo_figures(
 
 
 _FIGURE_BUILDERS = {
-    "Map": build_map_figures,
-    "TimeSeries": build_timeseries_figures,
-    "AnnualCycle": build_annual_cycle_figures,
-    "DiurnalCycle": build_diurnal_cycle_figures,
-    "ZonalLine": build_zonal_line_figures,
-    "ZonalProfile": build_zonal_profile_figures,
-    "Hovmoller": build_hovmoller_figures,
-    "QBO": build_qbo_figures,
-    "Histogram": build_histogram_figures,
-    "Scalar": build_bar_figures,
+    name: _with_finished_legends(builder)
+    for name, builder in {
+        "Map": build_map_figures,
+        "TimeSeries": build_timeseries_figures,
+        "AnnualCycle": build_annual_cycle_figures,
+        "DiurnalCycle": build_diurnal_cycle_figures,
+        "ZonalLine": build_zonal_line_figures,
+        "ZonalProfile": build_zonal_profile_figures,
+        "Hovmoller": build_hovmoller_figures,
+        "QBO": build_qbo_figures,
+        "Histogram": build_histogram_figures,
+        "Scalar": build_bar_figures,
+    }.items()
 }
 
 # Display names for diagnostics keyed by their `name:` in the suite, used for
