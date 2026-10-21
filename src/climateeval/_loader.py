@@ -24,6 +24,11 @@ from climateeval._combine import concatenate_cubes
 
 _VERSION_RE = re.compile(r"^(v\d+|latest)$")
 
+#: CMOR trailing date token: ``<start>-<end>`` at any CMOR precision (``YYYY``
+#: for ``yr`` up to ``YYYYMMDDHHMMSS`` for ``subhr``) with the optional
+#: ``-clim`` suffix of climatology files. Anything else is not a date range.
+_DATE_TOKEN_RE = re.compile(r"^(\d{4,14})-(\d{4,14})(?:-clim)?$")
+
 
 def _timerange_years(timerange: str | None) -> tuple[int, int] | None:
     """Parse an ISO-like timerange (``19900101/20091231``) into years."""
@@ -39,19 +44,18 @@ def _timerange_years(timerange: str | None) -> tuple[int, int] | None:
 def _overlaps_years(filename: str, years: tuple[int, int] | None) -> bool:
     """Check the CMOR filename date token against a year range.
 
-    Files whose trailing token is not a parseable ``<start>-<end>`` date range
-    are included to be safe.
+    The comparison is at year precision, inclusive at both ends, so a file
+    that merely straddles the window is kept. Files whose trailing token is
+    not a ``<start>-<end>`` date range (``fx`` fields, observational products
+    with their own naming, a version such as ``v5-1``) are included to be safe.
     """
     if years is None:
         return True
-    date_token = Path(filename).stem.rsplit("_", 1)[-1]
-    if "-" not in date_token:
+    match = _DATE_TOKEN_RE.match(Path(filename).stem.rsplit("_", 1)[-1])
+    if match is None:
         return True
-    start_str, end_str = date_token.split("-", 1)
-    try:
-        return int(end_str[:4]) >= years[0] and int(start_str[:4]) <= years[1]
-    except ValueError:
-        return True
+    start_str, end_str = match.groups()
+    return int(end_str[:4]) >= years[0] and int(start_str[:4]) <= years[1]
 
 
 def _select_drs_leaves(leaf_dirs: list[Path], preferred_grid: str) -> list[Path]:
