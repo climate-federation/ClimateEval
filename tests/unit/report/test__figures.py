@@ -4,7 +4,9 @@ import re
 
 import pandas as pd
 
+from climateeval.report._db import detect_diag_type, get_var_cols
 from climateeval.report._figures import (
+    build_depth_profile_figures,
     build_map_figures,
     build_qbo_figures,
     build_zonal_profile_figures,
@@ -88,10 +90,7 @@ def test_map_figures_put_model_left_reference_middle_bias_right() -> None:
 
     heatmaps = [tr for tr in fig.data if tr.type == "heatmap"]
     assert len(heatmaps) == 3
-    panels = [
-        np.asarray(tr.z, dtype=float)
-        for tr in sorted(heatmaps, key=_left_edge)
-    ]
+    panels = [np.asarray(tr.z, dtype=float) for tr in sorted(heatmaps, key=_left_edge)]
     assert np.allclose(panels[0] - panels[1], 1.0)  # left − middle = model − obs
     assert np.allclose(panels[2], 1.0)  # right column is the bias itself
 
@@ -156,3 +155,45 @@ def test_qbo_figures_sync_heatmap_rows_only() -> None:
         assert "matches" not in x_axes[name]
     for name in ("yaxis2", "yaxis4"):
         assert "matches" not in y_axes[name]
+
+
+def _depth_profile_df(datasets: dict[str, str]) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "depth": depth,
+                "ta": 20.0 + off - depth / 200.0,
+                "data_id": ds,
+                "data_type": dt,
+            }
+            for off, (ds, dt) in enumerate(datasets.items())
+            for depth in (0.0, 100.0, 500.0, 1000.0, 2000.0)
+        ],
+    )
+
+
+def test_depth_profile_detected_with_depth_as_coordinate() -> None:
+    df = _depth_profile_df({"IAP": "reference", "MODEL": "to_benchmark"})
+    assert detect_diag_type(df.columns.tolist()) == "DepthProfile"
+    assert get_var_cols(df) == ["ta"]
+
+
+def test_depth_profile_figures_profiles_plus_bias_panel_depth_downwards() -> None:
+    df = _depth_profile_df({"IAP": "reference", "MODEL": "to_benchmark"})
+    figures = build_depth_profile_figures(df, VARIABLES_DF)
+    assert list(figures) == ["ta"]
+    fig = figures["ta"]
+    # Two profiles (model first, then reference) and one bias trace
+    assert [trace.name for trace in fig.data] == ["MODEL", "IAP", "MODEL"]
+    assert fig.layout.yaxis.autorange == "reversed"
+    assert fig.layout.yaxis2.autorange == "reversed"
+    bias = fig.data[2]
+    assert list(bias.y) == [0.0, 100.0, 500.0, 1000.0, 2000.0]
+    assert all(abs(value - 1.0) < 1e-9 for value in bias.x)
+
+
+def test_depth_profile_figures_without_reference_single_panel() -> None:
+    df = _depth_profile_df({"MODEL": "to_benchmark"})
+    fig = build_depth_profile_figures(df, VARIABLES_DF)["ta"]
+    assert len(fig.data) == 1
+    assert fig.layout.yaxis.autorange == "reversed"

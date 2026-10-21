@@ -11,6 +11,7 @@ from climateeval.report._static_figures import (
     _STATIC_FIGURE_BUILDERS,
     build_static_annual_cycle_figures,
     build_static_bar_figures,
+    build_static_depth_profile_figures,
     build_static_diurnal_cycle_figures,
     build_static_histogram_figures,
     build_static_hovmoller_figures,
@@ -180,6 +181,27 @@ def test_zonal_line_draws_one_line_per_dataset_vs_latitude() -> None:
     axes = figures["tas"].axes[0]
     assert len(axes.get_lines()) == 2
     assert axes.get_xlabel() == "latitude [°N]"
+
+
+def test_depth_profile_draws_one_line_per_dataset_surface_on_top() -> None:
+    rows = [
+        {
+            "depth": depth,
+            "tas": 20.0 + off - depth / 200.0,
+            "data_id": ds,
+            "data_type": dt,
+        }
+        for off, (ds, dt) in enumerate(
+            {"IAP": "reference", "MODEL": "to_benchmark"}.items(),
+        )
+        for depth in (0.0, 100.0, 500.0, 1000.0, 2000.0)
+    ]
+    figures = build_static_depth_profile_figures(pd.DataFrame(rows), VARIABLES_DF)
+    axes = figures["tas"].axes[0]
+    assert len(axes.get_lines()) == 2
+    assert axes.get_ylabel() == "depth [m]"
+    assert axes.get_xlabel() == "tas [K]"
+    assert axes.yaxis_inverted()
 
 
 def _profile_df(datasets: dict[str, str]) -> pd.DataFrame:

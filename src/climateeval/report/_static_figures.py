@@ -597,13 +597,16 @@ def build_static_map_figures(
             # carry only the dataset name and the bias reference moves to the
             # figure title.
             if has_bias:
-                panels = [(display(ref_label), ref_pivot, cmap, levels, False, None)] + [
+                panels = [
+                    (display(ref_label), ref_pivot, cmap, levels, False, None)
+                ] + [
                     (display(ds), biases[ds], bias_cmap, bias_levels, True, ds)
                     for ds in non_ref
                 ]
             else:
                 panels = [
-                    (display(ds), pivots[ds], cmap, levels, False, None) for ds in pivots
+                    (display(ds), pivots[ds], cmap, levels, False, None)
+                    for ds in pivots
                 ]
             ncols = min(len(panels), 3)
             nrows = (len(panels) + ncols - 1) // ncols
@@ -753,24 +756,41 @@ def build_static_map_sheet(  # noqa: PLR0913, PLR0915
 
         axes = [fig.add_subplot(grid[r, c], projection=projection) for c in range(3)]
         m_data = _draw_map_panel(
-            axes[0], pivots[model], title="", cmap=cmap, levels=levels,
-            extent=None, transform=transform,
+            axes[0],
+            pivots[model],
+            title="",
+            cmap=cmap,
+            levels=levels,
+            extent=None,
+            transform=transform,
         )
         _draw_map_panel(
-            axes[1], ref_pivot, title=display(ref_name), cmap=cmap, levels=levels,
-            extent=None, transform=transform,
+            axes[1],
+            ref_pivot,
+            title=display(ref_name),
+            cmap=cmap,
+            levels=levels,
+            extent=None,
+            transform=transform,
         )
         m_bias = _draw_map_panel(
-            axes[2], bias, title="", cmap=bias_cmap, levels=bias_levels,
-            extent=None, transform=transform,
+            axes[2],
+            bias,
+            title="",
+            cmap=bias_cmap,
+            levels=bias_levels,
+            extent=None,
+            transform=transform,
         )
 
-        cb_data = fig.colorbar(m_data, ax=axes[:2], orientation="vertical",
-                               aspect=12, pad=0.01)
+        cb_data = fig.colorbar(
+            m_data, ax=axes[:2], orientation="vertical", aspect=12, pad=0.01
+        )
         cb_data.set_label(cbar_label, fontsize=_MAP_FONTSIZE)
         cb_data.ax.tick_params(labelsize=_MAP_FONTSIZE)
-        cb_bias = fig.colorbar(m_bias, ax=axes[2], orientation="vertical",
-                               aspect=12, pad=0.01)
+        cb_bias = fig.colorbar(
+            m_bias, ax=axes[2], orientation="vertical", aspect=12, pad=0.01
+        )
         cb_bias.set_label(f"\u0394{cbar_label}", fontsize=_MAP_FONTSIZE)
         cb_bias.ax.tick_params(labelsize=_MAP_FONTSIZE)
 
@@ -786,8 +806,14 @@ def build_static_map_sheet(  # noqa: PLR0913, PLR0915
             metrics=_map_metrics_for(metrics_df, var_id, model),
         )
         axes[0].text(
-            -0.04, 0.5, long_name, transform=axes[0].transAxes,
-            rotation=90, va="center", ha="right", fontsize=_MAP_FONTSIZE + 1,
+            -0.04,
+            0.5,
+            long_name,
+            transform=axes[0].transAxes,
+            rotation=90,
+            va="center",
+            ha="right",
+            fontsize=_MAP_FONTSIZE + 1,
         )
         if r == 0:
             headings = (
@@ -1002,6 +1028,47 @@ def build_static_zonal_line_figures(
         axes.set_xlabel("latitude [°N]")
         ylabel = f"{var_id} [{units}]" if units else var_id
         _finish_line_axes(axes, title=long_name, ylabel=ylabel)
+        figures[var_id] = fig
+
+    return figures
+
+
+def build_static_depth_profile_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,
+) -> dict[str, Figure]:
+    """Depth profiles (value vs depth, surface at the top), one line per dataset."""
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+    ref_datasets = _get_ref_datasets(data_df, metrics_df)
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+
+        fig, axes = _new_figure()
+        color_idx = 0
+        for dataset in all_datasets:
+            grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+            if grp.empty:
+                continue
+            series = grp.groupby("depth")[var_id].mean().sort_index()
+            dtype = grp["data_type"].iloc[0]
+            ref_idx = ref_datasets.index(dataset) if dataset in ref_datasets else 0
+            axes.plot(
+                series.values,
+                series.index,
+                label=None if dtype == "other" else str(dataset),
+                **_line_kwargs(dtype, color_idx, ref_idx),
+            )
+            if dtype == "to_benchmark":
+                color_idx += 1
+
+        axes.invert_yaxis()
+        xlabel = f"{var_id} [{units}]" if units else var_id
+        _finish_line_axes(axes, title=long_name, ylabel="depth [m]", xlabel=xlabel)
         figures[var_id] = fig
 
     return figures
@@ -1715,6 +1782,7 @@ def build_static_portrait_figure(
 # message) by generate_static_plots().
 _STATIC_FIGURE_BUILDERS: dict[str, Callable] = {
     "AnnualCycle": build_static_annual_cycle_figures,
+    "DepthProfile": build_static_depth_profile_figures,
     "DiurnalCycle": build_static_diurnal_cycle_figures,
     "Histogram": build_static_histogram_figures,
     "Hovmoller": build_static_hovmoller_figures,

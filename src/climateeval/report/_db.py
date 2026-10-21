@@ -48,6 +48,7 @@ def get_var_cols(data_df: pd.DataFrame) -> list[str]:
         "longitude",
         "time",
         "air_pressure",
+        "depth",
         "month_number",
         "hour",
     }
@@ -87,6 +88,7 @@ def detect_diag_type(columns: list[str]) -> str:
         "longitude",
         "time",
         "air_pressure",
+        "depth",
         "month_number",
         "hour",
     }

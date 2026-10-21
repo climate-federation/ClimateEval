@@ -1236,7 +1236,7 @@ def build_depth_profile_figures(
             return None
         return sub.groupby("depth")[var_id].mean().sort_index()
 
-    # DYNAMISCHE TIEFENACHSE: Extrahiert die tatsächlichen Tiefenwerte aus den Daten
+    # Depth axis ticks: derived from the depth values actually present.
     unique_depths = sorted(data_df["depth"].dropna().unique())
     if unique_depths:
         max_d = max(unique_depths)
@@ -1251,8 +1251,7 @@ def build_depth_profile_figures(
         depth_ticktext = ["0", "1000", "2000", "3000", "4000", "5000"]
 
     for var_id in get_var_cols(data_df):
-        # FILTER: Überspringt die Generierung, wenn die Variable selbst "depth" ist
-        if var_id == "depth" or data_df[var_id].isna().all():
+        if data_df[var_id].isna().all():
             continue
 
         long_name, units = _var_label(var_id, variables_df)
