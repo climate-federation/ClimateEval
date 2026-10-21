@@ -25,8 +25,11 @@ from climateeval.report._common import (
 from climateeval.report._db import get_density_cols, get_var_cols
 from climateeval.report._style import (
     _AXIS_STYLE,
+    _OTHER_COLORS,
+    _OTHER_DASHES,
     _OTHER_LINE_COLOR,
     _PLOT_FONT,
+    _REFERENCE_COLORS,
     _SEABORN_COLORS,
     _bias_colorscale_for,
     _colorscale_for,
@@ -145,12 +148,12 @@ def _tag_responsive_grid(
     }
 
 
-def _get_line_properties(dtype: str, color_idx: int) -> dict:
+def _get_line_properties(dtype: str, idx: int) -> dict:
     """Return line styling for 1D plots based on data type.
 
     Args:
         dtype: One of "reference", "to_benchmark", or "other"
-        color_idx: Index into seaborn color palette (for to_benchmark only)
+        idx: Position of the dataset among those of the same type
 
     Returns
     -------
@@ -159,35 +162,54 @@ def _get_line_properties(dtype: str, color_idx: int) -> dict:
     if dtype == "reference":
         return {
             "line": {
-                "color": "black",
+                "color": _REFERENCE_COLORS[idx % len(_REFERENCE_COLORS)],
                 "dash": "solid",
-                "width": 2,
+                "width": 2.2,
             },
             "showlegend": True,
             "zorder": 1,
+            "meta": {"role": dtype},
         }
     if dtype == "to_benchmark":
         return {
             "line": {
-                "color": _SEABORN_COLORS[color_idx % len(_SEABORN_COLORS)],
+                "color": _SEABORN_COLORS[idx % len(_SEABORN_COLORS)],
                 "dash": "solid",
-                "width": 2,
+                "width": 2.6,
             },
             "showlegend": True,
             "zorder": 2,
+            "meta": {"role": dtype},
         }
-    # "other": the comparison bundle, grey dashed; listed in the legend so
-    # every drawn line is explained (_finish_legends collapses a big bundle
-    # into one entry)
+    # "other": a compared model, thin with its own colour + dash pair; listed
+    # in the legend so every drawn line is explained (_finish_legends
+    # collapses a big bundle into one entry)
     return {
         "line": {
-            "color": _OTHER_LINE_COLOR,
-            "dash": "dash",
+            "color": _OTHER_COLORS[idx % len(_OTHER_COLORS)],
+            "dash": _OTHER_DASHES[idx % len(_OTHER_DASHES)],
             "width": 1.5,
         },
         "showlegend": True,
         "zorder": 0,
+        "meta": {"role": "other"},
     }
+
+
+def _line_styles(data_df: pd.DataFrame, datasets: list) -> dict:
+    """Line properties per dataset, numbered within each data type.
+
+    Assigned once per figure so a dataset keeps its style in every panel
+    (main and bias) whatever is skipped in between.
+    """
+    dtypes = data_df.drop_duplicates("data_id").set_index("data_id")["data_type"]
+    counts: dict[str, int] = {}
+    styles = {}
+    for dataset in datasets:
+        dtype = str(dtypes.get(dataset, "other"))
+        styles[dataset] = _get_line_properties(dtype, counts.get(dtype, 0))
+        counts[dtype] = counts.get(dtype, 0) + 1
+    return styles
 
 
 # Legend centred below the axes, as in the static figures. Plotly grows the
@@ -214,8 +236,8 @@ _MAX_OTHER_LEGEND = 8
 
 
 def _is_other_trace(trace: Any) -> bool:
-    line = getattr(trace, "line", None)
-    return line is not None and line.color == _OTHER_LINE_COLOR and line.dash == "dash"
+    meta = getattr(trace, "meta", None)
+    return isinstance(meta, dict) and meta.get("role") == "other"
 
 
 def _place_legend_below(fig: go.Figure) -> None:
@@ -273,7 +295,8 @@ def _finish_legends(figures: dict[str, go.Figure]) -> dict[str, go.Figure]:
                     legendgroup="other",
                     showlegend=True,
                     hoverinfo="skip",
-                    line=_get_line_properties("other", 0)["line"],
+                    line={"color": _OTHER_LINE_COLOR, "dash": "dash", "width": 1.5},
+                    meta={"role": "other"},
                 )
             )
     return figures
@@ -743,13 +766,13 @@ def build_timeseries_figures(
         n_times = data_df["time"].nunique()
         ts_mode = "lines+markers" if n_times < 3 else "lines"
 
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-            dtype = grp["data_type"].iloc[0]
+            grp["data_type"].iloc[0]
 
             trace = go.Scatter(
                 x=series.index,
@@ -757,18 +780,14 @@ def build_timeseries_figures(
                 mode=ts_mode,
                 name=str(dataset),
                 legendgroup=str(dataset),
-                **_get_line_properties(dtype, color_idx),
+                **styles[dataset],
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
 
-            if dtype == "to_benchmark":
-                color_idx += 1
-
         if has_bias:
-            color_idx = 0
             for dataset in all_datasets:
                 if dataset == ref_dataset:
                     continue
@@ -776,7 +795,7 @@ def build_timeseries_figures(
                 if series is None:
                     continue
                 grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-                dtype = grp["data_type"].iloc[0]
+                grp["data_type"].iloc[0]
                 common = series.index.intersection(ref_series.index)
                 if common.empty:
                     continue
@@ -797,13 +816,11 @@ def build_timeseries_figures(
                             f"Δ{var_id}: %{{y:.4g}} {units}"
                             "<extra></extra>"
                         ),
-                        **_get_line_properties(dtype, color_idx),
+                        **styles[dataset],
                     ),
                     row=2,
                     col=1,
                 )
-                if dtype == "to_benchmark":
-                    color_idx += 1
             fig.add_hline(
                 y=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
@@ -899,13 +916,13 @@ def build_annual_cycle_figures(
 
         _plot_hlines(fig, variables_df, var_id)
 
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-            dtype = grp["data_type"].iloc[0]
+            grp["data_type"].iloc[0]
 
             trace = go.Scatter(
                 x=series.index.tolist(),
@@ -920,18 +937,14 @@ def build_annual_cycle_figures(
                     f"{var_id}: %{{y:.4g}} {units}"
                     "<extra></extra>"
                 ),
-                **_get_line_properties(dtype, color_idx),
+                **styles[dataset],
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
 
-            if dtype == "to_benchmark":
-                color_idx += 1
-
         if has_bias:
-            color_idx = 0
             for dataset in all_datasets:
                 if dataset == ref_dataset:
                     continue
@@ -939,7 +952,7 @@ def build_annual_cycle_figures(
                 if series is None:
                     continue
                 grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-                dtype = grp["data_type"].iloc[0]
+                grp["data_type"].iloc[0]
 
                 aligned = series.reindex(ref_series.index)
                 bias = (aligned - ref_series).dropna()
@@ -959,13 +972,11 @@ def build_annual_cycle_figures(
                             f"Δ{var_id}: %{{y:.4g}} {units}"
                             "<extra></extra>"
                         ),
-                        **_get_line_properties(dtype, color_idx),
+                        **styles[dataset],
                     ),
                     row=2,
                     col=1,
                 )
-                if dtype == "to_benchmark":
-                    color_idx += 1
             fig.add_hline(
                 y=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
@@ -1056,13 +1067,13 @@ def build_diurnal_cycle_figures(
 
         _plot_hlines(fig, variables_df, var_id)
 
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-            dtype = grp["data_type"].iloc[0]
+            grp["data_type"].iloc[0]
 
             trace = go.Scatter(
                 x=series.index.tolist(),
@@ -1077,18 +1088,14 @@ def build_diurnal_cycle_figures(
                     f"{var_id}: %{{y:.4g}} {units}"
                     "<extra></extra>"
                 ),
-                **_get_line_properties(dtype, color_idx),
+                **styles[dataset],
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
 
-            if dtype == "to_benchmark":
-                color_idx += 1
-
         if has_bias:
-            color_idx = 0
             for dataset in all_datasets:
                 if dataset == ref_dataset:
                     continue
@@ -1096,7 +1103,7 @@ def build_diurnal_cycle_figures(
                 if series is None:
                     continue
                 grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-                dtype = grp["data_type"].iloc[0]
+                grp["data_type"].iloc[0]
 
                 aligned = series.reindex(ref_series.index)
                 bias = (aligned - ref_series).dropna()
@@ -1116,13 +1123,11 @@ def build_diurnal_cycle_figures(
                             f"Δ{var_id}: %{{y:.4g}} {units}"
                             "<extra></extra>"
                         ),
-                        **_get_line_properties(dtype, color_idx),
+                        **styles[dataset],
                     ),
                     row=2,
                     col=1,
                 )
-                if dtype == "to_benchmark":
-                    color_idx += 1
             fig.add_hline(
                 y=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
@@ -1217,13 +1222,13 @@ def build_zonal_line_figures(
 
         _plot_hlines(fig, variables_df, var_id)
 
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-            dtype = grp["data_type"].iloc[0]
+            grp["data_type"].iloc[0]
 
             trace = go.Scatter(
                 x=series.index.tolist(),
@@ -1235,15 +1240,12 @@ def build_zonal_line_figures(
                     f"<b>{dataset}</b><br>lat: %{{x:.1f}}°<br>"
                     f"{var_id}: %{{y:.4g}} {units}<extra></extra>"
                 ),
-                **_get_line_properties(dtype, color_idx),
+                **styles[dataset],
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
-
-            if dtype == "to_benchmark":
-                color_idx += 1
 
         for lat_ref, label in [(0, "Equator"), (23.5, "N Tropic"), (-23.5, "S Tropic")]:
             line_kwargs = {
@@ -1273,7 +1275,6 @@ def build_zonal_line_figures(
                 )
 
         if has_bias:
-            color_idx = 0
             for dataset in all_datasets:
                 if dataset == ref_dataset:
                     continue
@@ -1281,7 +1282,7 @@ def build_zonal_line_figures(
                 if series is None:
                     continue
                 grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-                dtype = grp["data_type"].iloc[0]
+                grp["data_type"].iloc[0]
 
                 common = series.index.intersection(ref_series.index)
                 if common.empty:
@@ -1302,13 +1303,11 @@ def build_zonal_line_figures(
                             f"Δ{var_id}: %{{y:.4g}} {units}"
                             "<extra></extra>"
                         ),
-                        **_get_line_properties(dtype, color_idx),
+                        **styles[dataset],
                     ),
                     row=2,
                     col=1,
                 )
-                if dtype == "to_benchmark":
-                    color_idx += 1
             fig.add_hline(
                 y=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
@@ -1725,27 +1724,12 @@ def build_histogram_figures(
         long_name, units = _var_label(var_id, variables_df)
 
         fig = go.Figure()
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
 
         for dataset in all_datasets:
             ds_sub = sub[sub["data_id"] == dataset].sort_values(var_id)
             if ds_sub.empty:
                 continue
-            dtype = ds_sub["data_type"].iloc[0]
-
-            if dtype == "reference":
-                line_color = "black"
-                dash = "solid"
-                width = 2
-            elif dtype == "to_benchmark":
-                line_color = _SEABORN_COLORS[color_idx % len(_SEABORN_COLORS)]
-                dash = "solid"
-                width = 2
-                color_idx += 1
-            else:
-                line_color = _OTHER_LINE_COLOR
-                dash = "dash"
-                width = 1.5
 
             fig.add_trace(
                 go.Scatter(
@@ -1754,7 +1738,8 @@ def build_histogram_figures(
                     mode="lines",
                     name=str(dataset),
                     legendgroup=str(dataset),
-                    line={"color": line_color, "dash": dash, "width": width},
+                    line=styles[dataset]["line"],
+                    meta=styles[dataset]["meta"],
                     hovertemplate=(
                         f"<b>{dataset}</b><br>"
                         f"{var_id}: %{{x:.4g}} {units}<br>"
@@ -2224,10 +2209,10 @@ def build_qbo_figures(
             fig.update_yaxes(matches="y", row=row_i, col=1)
 
         # ---- Amplitude profile (right column, spans all heatmap rows) ------
-        color_idx = 0
+        styles = _line_styles(data_df, ds_order)
         for ds in ds_order:
             sub = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
-            dtype = sub["data_type"].iloc[0]
+            sub["data_type"].iloc[0]
             std_profile = (
                 sub.assign(plev_hpa=lambda df: (df["air_pressure"] / 100).round(1))
                 .groupby("plev_hpa")[var_id]
@@ -2236,7 +2221,7 @@ def build_qbo_figures(
             )
             if std_profile.empty:
                 continue
-            lp = _get_line_properties(dtype, color_idx)
+            lp = styles[ds]
             fig.add_trace(
                 go.Scatter(
                     x=std_profile.values.tolist(),
@@ -2246,6 +2231,7 @@ def build_qbo_figures(
                     legendgroup=str(ds),
                     showlegend=False,
                     line=lp["line"],
+                    meta=lp["meta"],
                     hovertemplate=(
                         f"<b>{ds}</b><br>pressure: %{{y:.0f}} hPa<br>"
                         f"σ({var_id}): %{{x:.3g}} {units}<extra></extra>"
@@ -2254,8 +2240,6 @@ def build_qbo_figures(
                 row=1,
                 col=2,
             )
-            if dtype == "to_benchmark":
-                color_idx += 1
         fig.update_yaxes(
             type="log",
             autorange="reversed",
@@ -2288,11 +2272,11 @@ def build_qbo_figures(
         )
 
         # ---- QBO index: ua at ~50 hPa vs time (bottom full-width row) ------
-        color_idx = 0
+        styles = _line_styles(data_df, ds_order)
         _50hpa_pa = 5000.0
         for ds in ds_order:
             sub = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
-            dtype = sub["data_type"].iloc[0]
+            sub["data_type"].iloc[0]
             avail = sub["air_pressure"].unique()
             target = avail[int(np.argmin(np.abs(avail - _50hpa_pa)))]
             idx_sub = sub[sub["air_pressure"] == target][["time", var_id]].sort_values(
@@ -2301,7 +2285,7 @@ def build_qbo_figures(
             if idx_sub.empty:
                 continue
             label_hpa = round(target / 100)
-            lp = _get_line_properties(dtype, color_idx)
+            lp = styles[ds]
             fig.add_trace(
                 go.Scatter(
                     x=idx_sub["time"].astype(str).str[:7].tolist(),
@@ -2311,6 +2295,7 @@ def build_qbo_figures(
                     legendgroup=str(ds),
                     showlegend=True,
                     line=lp["line"],
+                    meta=lp["meta"],
                     hovertemplate=(
                         f"<b>{ds}</b><br>%{{x}}<br>"
                         f"{var_id} @ {label_hpa} hPa: %{{y:.3g}} {units}<extra></extra>"
@@ -2319,8 +2304,6 @@ def build_qbo_figures(
                 row=nrows,
                 col=1,
             )
-            if dtype == "to_benchmark":
-                color_idx += 1
         fig.add_hline(
             y=0,
             line={"color": "rgba(0,0,0,0.40)", "width": 1, "dash": "dot"},

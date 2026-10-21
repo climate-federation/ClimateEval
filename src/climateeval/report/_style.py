@@ -43,6 +43,14 @@ _SEABORN_COLORS = [
     "#000000",  # black
 ]
 _OTHER_LINE_COLOR = "#9a9a94"
+# References: solid dark lines, black first.
+_REFERENCE_COLORS = ["#000000", "#6b6b66", "#8c564b", "#7b3294"]
+# Compared ("other") models: thin lines, each a distinct colour + dash pair.
+# The palette starts away from the benchmarked model's blue, and the colour
+# and dash cycles have different lengths so the pairs stay distinct for 30
+# datasets.
+_OTHER_COLORS = ["#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#0072B2"]
+_OTHER_DASHES = ["dash", "dot", "dashdot", "longdash", "longdashdot"]
 
 # ---------------------------------------------------------------------------
 # Colorscales
@@ -764,7 +772,7 @@ var _DARK_COLORS = {
   '#dce9f5': '#1c242e',
   'black': '#f2f2ee', '#000': '#f2f2ee', '#000000': '#f2f2ee',
   '#1b1b19': '#e6e6e2', '#333': '#d0d0cb', '#333333': '#d0d0cb', '#555': '#b0b0aa',
-  '#1e2535': '#d8dde8', '#4b4b47': '#c0c0ba', '#7a7a74': '#9c9c96',
+  '#1e2535': '#d8dde8', '#4b4b47': '#c0c0ba', '#7a7a74': '#9c9c96', '#6b6b66': '#c8c8c2',
   '#9a9a94': '#77776f', '#aaa': '#6e6e68', '#aaaaaa': '#6e6e68',
   '#ececea': '#2e2e2b', '#e3e3df': '#3a3a36', '#ddd': '#3b3b37', '#dddddd': '#3b3b37',
   '#bbb': '#4a4a45', '#bbbbbb': '#4a4a45', '#cfcfca': '#45453f',

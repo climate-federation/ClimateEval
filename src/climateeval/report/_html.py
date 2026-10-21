@@ -494,9 +494,9 @@ def render_diagnostic_section(
         # reference = black solid, other = gray dashed.
         legend_note = (
             "<div class='legend-note'>"
-            "<span><span class='ln-model'></span>Model</span>"
-            "<span><span class='ln-refline'></span>Reference</span>"
-            "<span><span class='ln-other'></span>Other</span>"
+            "<span><span class='ln-model'></span>Benchmarked model: solid, thick</span>"
+            "<span><span class='ln-refline'></span>Reference: solid, dark</span>"
+            "<span><span class='ln-other'></span>Compared models: thin, own colour and dash</span>"
             "</div>"
         )
 
