@@ -12,6 +12,7 @@ from climateeval.data import DataSourceInformation
 from climateeval.diags.complex import AerosolERF, Amip4xCO2ERF, GFMIPPatchFeedback
 from climateeval.diags.complex._branch_time import (
     branch_year_in_parent,
+    normalise_time_units,
     parallel_control_window,
 )
 from climateeval.diags.complex._forcing import clip_window_to_record
@@ -151,6 +152,20 @@ def test_clip_window_to_record() -> None:
         clip_window_to_record(window, 2020, 1850)
 
 
+def test_normalise_time_units() -> None:
+    assert (
+        normalise_time_units("days since 1850-01-01-00-00-00")
+        == "days since 1850-01-01 00:00:00"
+    )
+    for untouched in (
+        "days since 1850-01-01",
+        "days since 1850-01-01 00:00:00",
+        "days since 0001-1-1",
+        "not a time unit",
+    ):
+        assert normalise_time_units(untouched) == untouched
+
+
 def test_parallel_control_window() -> None:
     # A child starting in 1850 that branched from control year 3200
     assert parallel_control_window(
@@ -173,6 +188,15 @@ def test_branch_year_in_parent() -> None:
     }
     cubes = _experiment(np.zeros(3), attributes=attributes)
     assert branch_year_in_parent(cubes) == 1880
+    # The MOHC spelling of the clock time (HadGEM3-GC31, UKESM1; 360_day)
+    mohc = _experiment(
+        np.zeros(3),
+        attributes={
+            "branch_time_in_parent": 10800.0,
+            "parent_time_units": "days since 1850-01-01-00-00-00",
+        },
+    )
+    assert branch_year_in_parent(mohc) == 1880
     # Missing or undecodable metadata is reported as "unknown", not an error
     assert branch_year_in_parent(_experiment(np.zeros(3))) is None
     assert (
@@ -245,6 +269,32 @@ def test_gfmip_patch_feedback() -> None:
     assert row["patch_feedback_ep"] == pytest.approx(-2.0, abs=1e-3)
     assert row["patch_feedback_wp"] == pytest.approx(-0.8, abs=1e-3)
     assert row["patch_feedback_difference"] == pytest.approx(-1.2, abs=1e-3)
+
+
+def test_gfmip_patch_feedback_without_warming_is_nan() -> None:
+    """A patch run that does not warm the surface has no feedback."""
+    n_years = 10
+    amip_flux = np.full(n_years, 0.5)
+    amip_temperature = np.full(n_years, 288.0)
+    data = {
+        "amip": _experiment(amip_flux, amip_temperature, temperature_name="ts"),
+        # The amip run handed in twice as the east patch: dTs is exactly zero
+        "patch_ep": _experiment(amip_flux, amip_temperature, temperature_name="ts"),
+        "patch_wp": _experiment(
+            amip_flux - 0.8,
+            amip_temperature + 1.0,
+            temperature_name="ts",
+        ),
+    }
+    diag = GFMIPPatchFeedback(
+        "gfmip_patch_feedback",
+        fail_on_missing_data=True,
+        download_missing_data=False,
+    )
+    row = _row(diag.get_output(data, _info("amip")))
+    assert np.isnan(row["patch_feedback_ep"])
+    assert np.isnan(row["patch_feedback_difference"])
+    assert row["patch_feedback_wp"] == pytest.approx(-0.8, abs=1e-3)
 
 
 # ---------------------------------------------------------------------------

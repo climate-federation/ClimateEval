@@ -94,9 +94,13 @@ class _ForcingDiagnostic(ScalarExperimentDiagnostic):
     """Manage diagnostics of the TOA response to a prescribed perturbation.
 
     All of them contrast the global-mean TOA net flux of two or more
-    experiments, so none has a single data key and none has a CMIP6
-    comparison ensemble: the archive holds no ``r1i1p1f1`` ensemble of the
-    fixed-SST and patch experiments.
+    experiments, so none has a single data key, and none wires a CMIP6
+    comparison ensemble yet: the GFMIP patch runs are not in the archive at
+    all, and the multi-experiment ensembles of the other two (``amip`` with
+    ``amip-4xCO2``; ``piControl``, ``abrupt-4xCO2`` and ``hist-aer``) need a
+    multi-experiment variant of
+    :meth:`~climateeval.diags.complex._scalar.ScalarExperimentDiagnostic._get_other_data`
+    as :class:`~climateeval.diags.complex.ECS` has.
     """
 
     def _toa_net_time_mean(self, data: CubeList | Dataset) -> float:
@@ -160,6 +164,9 @@ class GFMIPPatchFeedback(_ForcingDiagnostic):
 
     _required_data_keys = ("amip", "patch_ep", "patch_wp")
 
+    _min_patch_warming: ClassVar[float] = 1e-6
+    """Smallest global-mean |dTs| (K) the feedback is formed from."""
+
     _ts: ClassVar[Variable] = Variable("ts", "ts", "mon")
     _input_variables: ClassVar[tuple[Variable, ...]] = (*_TOA_VARIABLES, _ts)
 
@@ -205,12 +212,26 @@ class GFMIPPatchFeedback(_ForcingDiagnostic):
         patch: CubeList | Dataset,
         reference: CubeList | Dataset,
     ) -> float:
-        """Get the feedback of one patch experiment against the amip run."""
+        """Get the feedback of one patch experiment against the amip run.
+
+        A patch that does not change the global-mean surface temperature
+        (the wrong run, or the same run twice) has no defined feedback; the
+        result is then NaN and a warning says so, rather than a division by
+        zero taking the whole suite down.
+        """
         delta_flux = self._toa_net_time_mean(patch) - self._toa_net_time_mean(reference)
         delta_temperature = float(
             self._global_annual_mean(patch, self._ts).mean()
             - self._global_annual_mean(reference, self._ts).mean(),
         )
+        if not abs(delta_temperature) > self._min_patch_warming:
+            logger.warning(
+                f"Diagnostic '{self.name}': the patch experiment warms the "
+                f"global-mean surface by {delta_temperature:.2e} K relative to "
+                f"the amip run (|dTs| <= {self._min_patch_warming:.0e} K), so "
+                f"its feedback is undefined and reported as NaN",
+            )
+            return float("nan")
         return delta_flux / delta_temperature
 
 
@@ -234,6 +255,11 @@ class AerosolERF(_ForcingDiagnostic):
     segment falls outside the control record, the control's long-term mean
     is used instead and a warning is logged; ``aerosol_parallel_segment``
     records which of the two was used.
+
+    The first year of the supplied ``hist-aer`` record is taken as the year
+    it branched from the control (``branch_time_in_child`` is not used: some
+    models fill it wrongly), so the record must start at its branch point -
+    do not cut its first years away with the loader's ``timerange``.
 
     Additional keyword arguments
     ----------------------------
@@ -392,9 +418,8 @@ class AerosolERF(_ForcingDiagnostic):
         :class:`~climateeval.diags.complex.ECS`. Only the slope is used, so
         the choice of control baseline does not matter here.
         """
-        temperature = self._global_annual_mean(data, self._tas)
-        flux = self._toa_net_global_annual_mean(data)
-        n_years = min(temperature.size, flux.size, self._gregory_years)
+        temperature, flux, _years = self._aligned_series(data)
+        n_years = min(temperature.size, self._gregory_years)
         regression = stats.linregress(
             temperature[:n_years] - control_temperature,
             flux[:n_years] - control_flux,
