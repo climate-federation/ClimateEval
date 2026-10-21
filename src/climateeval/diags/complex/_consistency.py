@@ -58,11 +58,11 @@ class EnergyBalance(ScalarExperimentDiagnostic):
     net downward flux ``N = rsdt - rsut - rlut`` has to be close to zero and
     free of secular drift, otherwise the run is still equilibrating and any
     forced response computed against it is biased. Both statistics are
-    evaluated over the last ``evaluation_years`` years of the control - the
-    segment contemporaneous with a historical branch point - so a model still
-    equilibrating early in its control is not penalised. Well-behaved CMIP6
-    controls have a mean of order 0.1 W m-2 and a drift well below
-    0.1 W m-2 per decade.
+    evaluated over the last ``evaluation_years`` years of the control - a
+    proxy for the segment a historical run branches from (the actual branch
+    point varies between models) - so a model still equilibrating early in
+    its control is not penalised. Well-behaved CMIP6 controls have a mean of
+    order 0.1 W m-2 and a drift well below 0.1 W m-2 per decade.
 
     Additional keyword arguments
     ----------------------------
@@ -339,7 +339,8 @@ class PrecipitationBuoyancy(ScalarExperimentDiagnostic):
     optional observational reference is truncated the same way. That
     reference is the same statistic computed from GPCP precipitation and ERA5
     temperature and humidity over ``observation_timerange``, and is emitted
-    as ``precip_buoyancy_slope_obs`` when those data can be obtained. ERA5 is
+    as ``precip_buoyancy_slope_obs`` when those data can be obtained; it is
+    computed once and repeated for every ensemble member. ERA5 is
     served without geopotential height, so the reference column uses the
     hydrostatic height of its own temperature and humidity profiles
     (:func:`~climateeval.diags._physics.hydrostatic_height`); the missing
@@ -403,6 +404,8 @@ class PrecipitationBuoyancy(ScalarExperimentDiagnostic):
                 self._default_observation_timerange,
             ),
         )
+        self._observed_slope_cache: float | None = None
+        self._observed_slope_known: bool = False
 
     def _calculate_raw_output(
         self,
@@ -492,7 +495,18 @@ class PrecipitationBuoyancy(ScalarExperimentDiagnostic):
         return column, ta
 
     def _observed_slope(self) -> float | None:
-        """Get the GPCP/ERA5 reference slope, or ``None`` if unobtainable."""
+        """Get the GPCP/ERA5 reference slope, or ``None`` if unobtainable.
+
+        The slope is computed once per diagnostic and reused for the
+        benchmarked model and every member of the comparison ensemble.
+        """
+        if not self._observed_slope_known:
+            self._observed_slope_cache = self._compute_observed_slope()
+            self._observed_slope_known = True
+        return self._observed_slope_cache
+
+    def _compute_observed_slope(self) -> float | None:
+        """Compute the GPCP/ERA5 reference slope, or ``None`` if unobtainable."""
         if not self._use_observations:
             return None
         try:

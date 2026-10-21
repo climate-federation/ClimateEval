@@ -40,9 +40,6 @@ VIRTUAL_TEMPERATURE_FACTOR = 0.608
 _MIN_REGRESSION_POINTS = 3
 """Fewest valid pairs a regression is computed from."""
 
-_MIN_COLUMN_LEVELS = 2
-"""Fewest pressure levels a column integral is computed from."""
-
 
 def running_mean_drift(annual_series: np.ndarray, window: int = 10) -> float:
     """Drift per decade of the running mean of an annual series.
@@ -73,7 +70,7 @@ def running_mean_drift(annual_series: np.ndarray, window: int = 10) -> float:
     values = np.asarray(annual_series, dtype=float)
     if values.size < window + 2:
         msg = (
-            f"need more than {window + 2} annual values for the {window}-year "
+            f"need at least {window + 2} annual values for the {window}-year "
             f"running mean, got {values.size}"
         )
         raise ValueError(msg)
