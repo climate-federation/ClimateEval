@@ -191,6 +191,33 @@ figures. The uploader is a thin wrapper over Swift's RESTful API in
 [`src/climateeval/_share.py`](../src/climateeval/_share.py) (`share_file()`),
 usable directly from Python too.
 
+## Reading the report
+
+- **Theme.** The switch at the top right offers *Auto* (follow the operating
+  system), *Light* and *Dark*. The choice is remembered in the browser. The
+  figures follow the theme too, in the server and in the portable HTML.
+- **Lines.** In every 1-D plot the benchmarked model is a thick solid line in
+  its own colour, references are solid lines in dark colours (black first), and
+  each compared dataset is a thin line with its own colour + dash pair. Every
+  drawn line is named in the legend below the axes; with more than eight
+  compared datasets a single "n other datasets" entry stands for the bundle
+  and toggles it as a whole. The static PNG/PDF export uses the same scheme.
+- **Maps.** Map grids fit the width of the card: side by side with vertical
+  colorbars on a wide screen, stacked in one column with the colorbars at the
+  bottom on a narrow one.
+- **Hovmöller.** Two toggles above the plot choose the axes (longitude × time
+  or time × longitude) and the direction (W → E or E → W).
+- **Tiers.** The toolbar tabs select one diagnostic or *All*; in the *All*
+  view the diagnostics are grouped by plot type (spatial, temporal, …).
+  Figures render as they scroll into view. A long variable row starts
+  collapsed to two rows behind *Show all*.
+- **Leaderboard.** The header says which model is benchmarked, which datasets
+  it is compared with and which references score it. Every dataset is scored
+  against the same reference per variable; reference datasets appear in the
+  table as a yardstick but are not ranked. Hover the ⓘ icons for the metric
+  definitions. In the scoreboard a relative score above zero (blue) means a
+  smaller error than the median dataset, below zero (red) a larger one.
+
 ## Figure types
 
 The report auto-detects how to plot each diagnostic from its output coordinates.
@@ -214,7 +241,7 @@ Multi-panel figures have linked zoom: box-zooming or panning one panel of a
 `Map`, `ZonalProfile`, or `QBO` figure applies the same view to its sibling
 panels (e.g. reference, model, and bias maps stay aligned), and double-click
 or "Reset axes" restores all panels together. Hovmöller panels stay
-independent because of their axis-swap buttons.
+independent because of their axis and direction toggles.
 
 The coordinate columns each diagnostic writes are listed in
 [Output schema](output-schema.md).

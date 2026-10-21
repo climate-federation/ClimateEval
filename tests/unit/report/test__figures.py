@@ -88,10 +88,7 @@ def test_map_figures_put_model_left_reference_middle_bias_right() -> None:
 
     heatmaps = [tr for tr in fig.data if tr.type == "heatmap"]
     assert len(heatmaps) == 3
-    panels = [
-        np.asarray(tr.z, dtype=float)
-        for tr in sorted(heatmaps, key=_left_edge)
-    ]
+    panels = [np.asarray(tr.z, dtype=float) for tr in sorted(heatmaps, key=_left_edge)]
     assert np.allclose(panels[0] - panels[1], 1.0)  # left − middle = model − obs
     assert np.allclose(panels[2], 1.0)  # right column is the bias itself
 
