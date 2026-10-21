@@ -330,7 +330,7 @@ def _draw_map_panel(  # noqa: PLR0913
     transform: object,
     title_fontsize: float = _MAP_FONTSIZE,
 ) -> object:
-    """Filled contours with coastlines; the one map panel both builders draw."""
+    """Draw filled contours with coastlines, the one map panel both builders use."""
     lons, lats, vals = _cyclic(pivot)
     mappable = axes.contourf(
         lons,
@@ -597,13 +597,16 @@ def build_static_map_figures(
             # carry only the dataset name and the bias reference moves to the
             # figure title.
             if has_bias:
-                panels = [(display(ref_label), ref_pivot, cmap, levels, False, None)] + [
+                panels = [
+                    (display(ref_label), ref_pivot, cmap, levels, False, None)
+                ] + [
                     (display(ds), biases[ds], bias_cmap, bias_levels, True, ds)
                     for ds in non_ref
                 ]
             else:
                 panels = [
-                    (display(ds), pivots[ds], cmap, levels, False, None) for ds in pivots
+                    (display(ds), pivots[ds], cmap, levels, False, None)
+                    for ds in pivots
                 ]
             ncols = min(len(panels), 3)
             nrows = (len(panels) + ncols - 1) // ncols
@@ -753,24 +756,41 @@ def build_static_map_sheet(  # noqa: PLR0913, PLR0915
 
         axes = [fig.add_subplot(grid[r, c], projection=projection) for c in range(3)]
         m_data = _draw_map_panel(
-            axes[0], pivots[model], title="", cmap=cmap, levels=levels,
-            extent=None, transform=transform,
+            axes[0],
+            pivots[model],
+            title="",
+            cmap=cmap,
+            levels=levels,
+            extent=None,
+            transform=transform,
         )
         _draw_map_panel(
-            axes[1], ref_pivot, title=display(ref_name), cmap=cmap, levels=levels,
-            extent=None, transform=transform,
+            axes[1],
+            ref_pivot,
+            title=display(ref_name),
+            cmap=cmap,
+            levels=levels,
+            extent=None,
+            transform=transform,
         )
         m_bias = _draw_map_panel(
-            axes[2], bias, title="", cmap=bias_cmap, levels=bias_levels,
-            extent=None, transform=transform,
+            axes[2],
+            bias,
+            title="",
+            cmap=bias_cmap,
+            levels=bias_levels,
+            extent=None,
+            transform=transform,
         )
 
-        cb_data = fig.colorbar(m_data, ax=axes[:2], orientation="vertical",
-                               aspect=12, pad=0.01)
+        cb_data = fig.colorbar(
+            m_data, ax=axes[:2], orientation="vertical", aspect=12, pad=0.01
+        )
         cb_data.set_label(cbar_label, fontsize=_MAP_FONTSIZE)
         cb_data.ax.tick_params(labelsize=_MAP_FONTSIZE)
-        cb_bias = fig.colorbar(m_bias, ax=axes[2], orientation="vertical",
-                               aspect=12, pad=0.01)
+        cb_bias = fig.colorbar(
+            m_bias, ax=axes[2], orientation="vertical", aspect=12, pad=0.01
+        )
         cb_bias.set_label(f"\u0394{cbar_label}", fontsize=_MAP_FONTSIZE)
         cb_bias.ax.tick_params(labelsize=_MAP_FONTSIZE)
 
@@ -786,8 +806,14 @@ def build_static_map_sheet(  # noqa: PLR0913, PLR0915
             metrics=_map_metrics_for(metrics_df, var_id, model),
         )
         axes[0].text(
-            -0.04, 0.5, long_name, transform=axes[0].transAxes,
-            rotation=90, va="center", ha="right", fontsize=_MAP_FONTSIZE + 1,
+            -0.04,
+            0.5,
+            long_name,
+            transform=axes[0].transAxes,
+            rotation=90,
+            va="center",
+            ha="right",
+            fontsize=_MAP_FONTSIZE + 1,
         )
         if r == 0:
             headings = (

@@ -38,6 +38,7 @@ from climateeval.report._html import build_html_shell, generate_portable_html
 from climateeval.report._leaderboard import (
     build_leaderboard_data,
     build_scoreboard_figure,
+    dataset_roles,
 )
 
 # ---------------------------------------------------------------------------
@@ -106,6 +107,7 @@ def _load_state(
 
     _STATE["tiers"] = tiers
     _STATE["all_metrics"] = all_metrics
+    _STATE["roles"] = dataset_roles(tier["db_data"] for tier in tiers)
     _STATE["html_shell"] = build_html_shell(
         tiers,
         all_metrics,
@@ -187,7 +189,9 @@ def _build_leaderboard_json() -> bytes:
     """Return the leaderboard payload (scoreboard figure + summary rows) as JSON bytes."""
     payload: dict[str, Any] = {}
 
-    scoreboard_fig = build_scoreboard_figure(_STATE["all_metrics"])
+    scoreboard_fig = build_scoreboard_figure(
+        _STATE["all_metrics"], roles=_STATE.get("roles")
+    )
     if scoreboard_fig is not None:
         payload["scoreboard"] = json.loads(scoreboard_fig.to_json())
 

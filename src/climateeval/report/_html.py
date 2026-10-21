@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html as html_module
+import json
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,10 +22,17 @@ from climateeval.report._figures import (
 )
 from climateeval.report._common import _var_label
 from climateeval.report._leaderboard import (
+    METRIC_INFO,
+    SCORE_INFO,
     _render_detail_table,
     _render_summary_table,
     build_leaderboard_data,
     build_scoreboard_figure,
+    dataset_roles,
+    detail_header,
+    info_icon,
+    render_compare_line,
+    role_badge,
 )
 from climateeval.report._style import (
     _CSS,
@@ -86,17 +94,6 @@ _LEADERBOARD_ICON = (
     '<rect x="10.75" y="5.5" width="2.5" height="8" rx=".5"/></svg>'
 )
 
-_SCORE_EXPLANATION = (
-    "Relative score = 1 &minus; metric / median metric across models, per "
-    "variable, averaged over diagnostics. Blue is better than the median, red "
-    "worse; the boxed column is the mean over variables."
-)
-_OVERALL_EXPLANATION = (
-    "Overall score = mean of the min&ndash;max normalised weighted RMSE, Pearson "
-    "r and Earth Mover&rsquo;s Distance over every diagnostic and variable. "
-    "100&nbsp;% is the best possible."
-)
-
 
 def _render_sidebar(tiers: list[tuple[str, str]]) -> str:
     """Render the sidebar navigation: leaderboard, then one entry per tier."""
@@ -126,26 +123,37 @@ def _render_leaderboard_cards(
     scoreboard_html: str,
     summary_html: str,
     detail_html: str,
+    roles: dict[str, dict[str, str]] | None = None,
+    model_name: str = "",
 ) -> str:
-    """Lay out the leaderboard panel: scoreboard card, ranking card, full table."""
+    """Lay out the leaderboard panel: comparison line, scoreboard, ranking, table."""
     legend = (
         "<div class='lb-legend'><span>worse than median</span>"
         "<span class='lb-legend-scale' aria-hidden='true'></span>"
         "<span>better than median</span></div>"
     )
+    relative_label, relative_text = SCORE_INFO["relative"]
+    overall_label, overall_text = SCORE_INFO["overall"]
+    metric_line = " &middot; ".join(
+        f"{label}{info_icon(text)}" for label, text in METRIC_INFO.values()
+    )
     return (
         "<h2 class='section-heading'>Leaderboard</h2>"
-        "<p class='section-subheading'>How the benchmarked model compares with the "
-        "references and the comparison models across every diagnostic.</p>"
+        "<p class='section-subheading'>Every dataset is scored against the same "
+        "reference per variable; the benchmarked model is highlighted. Metrics: "
+        f"{metric_line}.</p>"
+        f"{render_compare_line(roles, model_name)}"
         "<div class='lb-section'>"
         "<div class='lb-card'>"
-        "<div class='lb-card-title'>Performance scoreboard</div>"
-        f"<p class='lb-card-sub'>{_SCORE_EXPLANATION}</p>"
+        f"<div class='lb-card-title'>Performance scoreboard{info_icon(relative_text)}</div>"
+        f"<p class='lb-card-sub'>{relative_label} per variable, weighted EMD. "
+        "Rows are sorted best first; the benchmarked model is in bold.</p>"
         f"{scoreboard_html}{legend}"
         "</div>"
         "<div class='lb-card'>"
-        "<div class='lb-card-title'>Overall ranking</div>"
-        f"<p class='lb-card-sub'>{_OVERALL_EXPLANATION}</p>"
+        f"<div class='lb-card-title'>Overall ranking{info_icon(overall_text)}</div>"
+        f"<p class='lb-card-sub'>{overall_label} over all diagnostics and variables, "
+        "100 % is the best possible.</p>"
         f"{summary_html}"
         "</div>"
         "<div class='detail-section'>"
@@ -541,6 +549,8 @@ def render_diagnostic_section(
 def render_leaderboard_section(
     all_metrics: dict[str, dict[str, pd.DataFrame]],
     table_suffix: str = "",
+    roles: dict[str, dict[str, str]] | None = None,
+    model_name: str = "",
 ) -> str:
     """Render the leaderboard HTML section including scoreboard figure."""
     summary_df, detail_df = build_leaderboard_data(all_metrics)
@@ -549,12 +559,12 @@ def render_leaderboard_section(
             "<h2 class='section-heading'>Leaderboard</h2>"
             "<p class='empty-note'>No metrics data found.</p>"
         )
-    summary_html = _render_summary_table(summary_df, f"lb-summary{table_suffix}")
-    detail_html = _render_detail_table(detail_df, f"lb-detail{table_suffix}")
+    summary_html = _render_summary_table(summary_df, f"lb-summary{table_suffix}", roles)
+    detail_html = _render_detail_table(detail_df, f"lb-detail{table_suffix}", roles)
 
     # Build scoreboard heatmap (uses same figdata- convention as diagnostic plots)
     scoreboard_html = ""
-    scoreboard_fig = build_scoreboard_figure(all_metrics)
+    scoreboard_fig = build_scoreboard_figure(all_metrics, roles=roles)
     if scoreboard_fig is not None:
         sb_graph_id = f"scoreboard-graph{table_suffix}"
         sb_fig_json = scoreboard_fig.to_json()
@@ -564,16 +574,23 @@ def render_leaderboard_section(
             f"<script type='application/json' id='figdata-{sb_graph_id}'>{sb_fig_json}</script>"
             f"<script>"
             f"(function(){{"
+            f"function draw(){{"
             f"var el=document.getElementById('{sb_graph_id}');"
             f"var fd=JSON.parse(document.getElementById('figdata-{sb_graph_id}').textContent);"
             f"fd.layout.autosize=true;"
             f"Plotly.newPlot(el,fd.data,fd.layout,{{responsive:true,displayModeBar:false}});"
+            f"}}"
+            # Plotly.js is loaded at the end of the body; draw once it is there.
+            f"if(typeof Plotly==='undefined'){{window.addEventListener('load',draw);}}"
+            f"else{{draw();}}"
             f"}})();"
             f"</script>"
             f"</div>"
         )
 
-    return _render_leaderboard_cards(scoreboard_html, summary_html, detail_html)
+    return _render_leaderboard_cards(
+        scoreboard_html, summary_html, detail_html, roles, model_name
+    )
 
 
 def _build_figures_for_tier(
@@ -741,12 +758,14 @@ def generate_portable_html(
         ]
     ] = []
     all_metrics: dict[str, dict[str, pd.DataFrame]] = {}
+    all_db_data: list[dict[str, dict[str, pd.DataFrame]]] = []
 
     for tier_idx, db_path in enumerate(db_paths):
         label = _stem_to_label(db_path.stem)
         db_data = read_database(db_path)
         if not db_data:
             continue
+        all_db_data.append(db_data)
 
         tier_id = f"tier{tier_idx}"
         diag_sections, tier_metrics, diag_types = _build_figures_for_tier(
@@ -766,9 +785,12 @@ def generate_portable_html(
     sidebar_items = _render_sidebar([(tier_id, label) for tier_id, label, *_ in tiers])
 
     # ── Leaderboard panel ──
+    roles = dataset_roles(all_db_data)
     lb_panel = (
         "<div class='content-panel active' id='panel-leaderboard'>"
-        + render_leaderboard_section(all_metrics, table_suffix="-main")
+        + render_leaderboard_section(
+            all_metrics, table_suffix="-main", roles=roles, model_name=model_name
+        )
         + "</div>"
     )
 
@@ -861,6 +883,7 @@ def build_html_shell(
     sidebar_items = _render_sidebar([(tier["id"], tier["label"]) for tier in tiers])
 
     # ── Leaderboard panel (figures fetched via JS on load) ──
+    roles = dataset_roles(tier["db_data"] for tier in tiers)
     lb_panel = (
         "<div class='content-panel active' id='panel-leaderboard'>"
         + _render_leaderboard_cards(
@@ -869,8 +892,22 @@ def build_html_shell(
             "</div>",
             "<div id='lb-summary-container'></div>",
             "<div id='lb-detail-container'></div>",
+            roles,
+            model_name,
         )
         + "</div>"
+    )
+    # The JS table renderers need the roles, header labels and badges.
+    lb_meta_json = json.dumps(
+        {
+            "roles": roles,
+            "badges": {did: role_badge(did, roles) for did in roles},
+            "headers": {
+                col: detail_header(col)
+                for col in ("data_id", "tier", "diagnostic", "var_id", *METRIC_INFO)
+            },
+            "overallHeader": detail_header("overall"),
+        }
     )
 
     # ── Tier panels ──
@@ -1003,6 +1040,7 @@ def build_html_shell(
     # Raw string: the \" inside the JS must reach the browser as an escape.
     lb_js = r"""
 <script>
+var _lbMeta = __LB_META__;
 (function() {
   fetch('/api/leaderboard')
     .then(function(r) { return r.json(); })
@@ -1021,13 +1059,17 @@ def build_html_shell(
     .catch(function(e) { console.warn('Leaderboard load failed:', e); });
 })();
 
+function _isModel(ds) {
+  return !!(_lbMeta.roles[ds] && _lbMeta.roles[ds].role === 'to_benchmark');
+}
+
 function _renderSummaryTable(rows) {
   var medals = {1:'medal-1', 2:'medal-2', 3:'medal-3'};
   var html = "<div class='lb-table-wrap'><table class='lb' id='lb-summary'>"
     + "<thead><tr>"
     + "<th class='sortable' onclick='sortTable(\"lb-summary\",0,true)'>Rank</th>"
-    + "<th class='sortable' onclick='sortTable(\"lb-summary\",1,false)'>Data Source</th>"
-    + "<th class='sortable' onclick='sortTable(\"lb-summary\",2,true)'>Overall Score</th>"
+    + "<th class='sortable' onclick='sortTable(\"lb-summary\",1,false)'>Dataset</th>"
+    + "<th class='sortable' onclick='sortTable(\"lb-summary\",2,true)'>" + _lbMeta.overallHeader + "</th>"
     + "</tr></thead><tbody>";
   rows.forEach(function(row) {
     var rank = row['Rank'] || 0;
@@ -1035,9 +1077,9 @@ function _renderSummaryTable(rows) {
     var sc   = typeof row['Overall Score'] === 'number' ? row['Overall Score'] : 0;
     var pct  = (sc * 100).toFixed(1);
     var cls  = medals[rank] || '';
-    html += "<tr>"
+    html += "<tr class='" + (_isModel(ds) ? 'is-model' : '') + "'>"
       + "<td class='rank " + cls + "'>" + rank + "</td>"
-      + "<td>" + _esc(ds) + "</td>"
+      + "<td>" + _esc(ds) + (_lbMeta.badges[ds] || '') + "</td>"
       + "<td class='score-cell bar-cell'>"
       + "<div class='bar-bg' style='width:" + pct + "%;'></div>"
       + "<span class='bar-val'>" + pct + "%</span>"
@@ -1056,11 +1098,11 @@ function _renderDetailTable(rows) {
   keys.forEach(function(k, i) {
     var num = !strCols[k];
     html += "<th class='sortable' onclick='sortTable(\"lb-detail\"," + i + "," + num + ")'>"
-      + _esc(k) + "</th>";
+      + (_lbMeta.headers[k] || _esc(k)) + "</th>";
   });
   html += "</tr></thead><tbody>";
   rows.forEach(function(row) {
-    html += "<tr>";
+    html += "<tr class='" + (_isModel(row['data_id']) ? 'is-model' : '') + "'>";
     keys.forEach(function(k) {
       var v = row[k];
       if (v === null || v === undefined) {
@@ -1120,6 +1162,6 @@ function _esc(s) {
 
 {plotly_tag}
 <script>{_JS}</script>
-{lb_js}
+{lb_js.replace("__LB_META__", lb_meta_json)}
 </body>
 </html>"""

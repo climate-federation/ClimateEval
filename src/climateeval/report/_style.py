@@ -556,6 +556,48 @@ details > summary::before { content: "▸"; font-size: 11px; transition: transfo
 details[open] > summary::before { transform: rotate(90deg); }
 details > summary:hover { text-decoration: underline; }
 
+/* ── Info tooltips ── */
+.info-tip {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; margin-left: 6px; border-radius: 50%;
+  border: 1px solid var(--border-strong); color: var(--muted);
+  font: 600 10px/1 var(--mono); cursor: help; vertical-align: middle;
+  text-transform: none; letter-spacing: 0;
+}
+.info-tip:hover, .info-tip:focus-visible { color: var(--accent-ink); border-color: var(--accent); }
+.info-tip .tip {
+  display: none; position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%);
+  width: 280px; padding: 8px 10px; background: var(--text); color: #fff;
+  font: 400 12px/1.45 var(--font); text-transform: none; letter-spacing: 0;
+  border-radius: var(--radius); white-space: normal; text-align: left;
+  z-index: 400; box-shadow: 0 2px 8px rgba(0,0,0,.18); pointer-events: none;
+}
+.info-tip:hover .tip, .info-tip:focus-visible .tip { display: block; }
+th .info-tip .tip { left: auto; right: 0; transform: none; }
+
+/* ── Leaderboard: who is compared ── */
+.lb-compare {
+  display: flex; flex-wrap: wrap; gap: 10px 32px; margin: 0 0 20px; padding: 12px 16px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 13px; color: var(--text-2); max-width: 1100px;
+}
+.lb-compare dt {
+  color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  margin: 0 0 2px;
+}
+.lb-compare dd { margin: 0; }
+.lb-compare strong { color: var(--accent-ink); font-weight: 600; }
+.lb-role {
+  display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  border: 1px solid var(--border); color: var(--muted); background: var(--surface);
+  vertical-align: middle; font-family: var(--font);
+}
+.lb-role-model { color: var(--accent-ink); border-color: var(--accent-tint-2); background: var(--accent-tint); }
+table.lb tr.is-model td { background: var(--accent-tint); font-weight: 600; }
+table.lb tr.is-model td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+table.lb tr.is-model:hover td { background: var(--accent-tint-2); }
+
 /* ── Search no-results ── */
 .search-no-results { display: none; padding: 48px 0; text-align: center; color: var(--muted); }
 .search-no-results.visible { display: block; }
