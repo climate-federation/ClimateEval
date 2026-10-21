@@ -11,6 +11,7 @@ mean do not (Schlund et al. 2020, https://doi.org/10.5194/esd-11-1233-2020).
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 from cf_units import Unit
@@ -21,6 +22,38 @@ if TYPE_CHECKING:
     from xarray import Dataset
 
 logger = logger.opt(colors=True)
+
+_DASHED_CLOCK_TIME_UNITS = re.compile(
+    r"^(?P<unit>\w+ since \d{1,4}-\d{1,2}-\d{1,2})-(\d{1,2})-(\d{1,2})-(\d{1,2})$",
+)
+"""Time units spelled ``days since 1850-01-01-00-00-00``.
+
+The MOHC models (HadGEM3-GC31, UKESM1) write ``parent_time_units`` with the
+clock time joined on by dashes, which ``cf_units`` cannot parse (ESMValCore
+carries the same fix for these models).
+"""
+
+
+def normalise_time_units(units: str) -> str:
+    """Get a time-unit string in a spelling ``cf_units`` can parse.
+
+    Parameters
+    ----------
+    units:
+        Time units as found in the global attributes.
+
+    Returns
+    -------
+    :
+        The units with a dashed clock time (``...-00-00-00``) rewritten as
+        ``... 00:00:00``; any other string unchanged.
+
+    """
+    match = _DASHED_CLOCK_TIME_UNITS.match(units.strip())
+    if match is None:
+        return units
+    hour, minute, second = match.group(2, 3, 4)
+    return f"{match.group('unit')} {hour}:{minute}:{second}"
 
 
 def global_attribute(data: CubeList | Dataset, key: str) -> Any:
@@ -119,11 +152,12 @@ def branch_year_in_parent(
         )
         return None
     child_calendar = calendar(data)
+    time_units = normalise_time_units(str(parent_time_units))
     try:
         unit = (
-            Unit(str(parent_time_units), calendar=child_calendar)
+            Unit(time_units, calendar=child_calendar)
             if child_calendar
-            else Unit(str(parent_time_units))
+            else Unit(time_units)
         )
         return int(unit.num2date(float(branch_time)).year)
     except Exception as exc:  # noqa: BLE001 - malformed metadata is common
