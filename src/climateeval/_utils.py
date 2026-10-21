@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import iris
@@ -35,7 +36,6 @@ from climateeval.exceptions import CoordinateError, MissingDataError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from pathlib import Path
 
     from iris.cube import Cube
 
@@ -155,10 +155,12 @@ def load_cubes(uris: str | Path | Iterable[str] | Iterable[Path]) -> CubeList:
     combine again; anything still split is reported as a warning naming the
     variable.
     """
+    # The URIs are read twice below; a generator would be exhausted.
+    uri_list: list[str | Path] = [uris] if isinstance(uris, (str, Path)) else list(uris)
     with setup_iris_combine_policy():
-        cubes = iris.load(uris)
+        cubes = iris.load(uri_list)
         if _has_split_variables(cubes):
-            raw = CubeList(iris.load_raw(uris))
+            raw = CubeList(iris.load_raw(uri_list))
             normalise_coordinates(raw)
             combined = raw.combine()
             if len(combined) <= len(cubes):
@@ -168,9 +170,17 @@ def load_cubes(uris: str | Path | Iterable[str] | Iterable[Path]) -> CubeList:
 
 
 def _has_split_variables(cubes: Iterable[Cube]) -> bool:
-    """Whether any variable is represented by more than one cube."""
+    """Whether any time-dependent variable is represented by more than one cube.
+
+    Timeless fields are not counted (same criterion as
+    :func:`climateeval._combine.warn_on_split_variables`): two ancillary
+    fields that share a name are not a split record, and reloading for them
+    would only double the cost of every load of such a file.
+    """
     seen: set[str] = set()
     for cube in cubes:
+        if not cube.coords("time"):
+            continue
         key = cube.var_name or cube.name()
         if key in seen:
             return True
