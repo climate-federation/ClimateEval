@@ -25,7 +25,7 @@ Each variable definition has:
 | `id` | yes | Identifier for this variable within the diagnostic (also the output column name). |
 | `var_name` | yes | CMIP variable name; must exist in [`variables.yml`](variables.md). |
 | `frequency` | yes | Temporal frequency, e.g. `mon`. |
-| `reference_data` | usually | The reference `DataSource` class, e.g. `climateeval.data.ERA5Monthly`. |
+| `reference_data` | usually | The reference `DataSource` class, e.g. `climateeval.data.ERA5Monthly`. Use [`LocalCMORDataSource`](data-sources.md#locally-staged-cmor-data) to point at your own CMOR-compliant files (e.g. a held-out model, for perfect-model tests). |
 | `other_data` | no | List of additional `DataSource` classes to show alongside the reference. |
 | `vertical_level` | no | Select a level for 3-D variables: `{coordinate_name, units, value}`. |
 | `units` | no | Override/convert the variable's units, e.g. `mm day-1`. |
