@@ -598,6 +598,20 @@ table.lb tr.is-model td { background: var(--accent-tint); font-weight: 600; }
 table.lb tr.is-model td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
 table.lb tr.is-model:hover td { background: var(--accent-tint-2); }
 
+/* ── Figure toggles (segmented controls above a plot) ── */
+.fig-toggles { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0 0 10px; align-items: center; }
+.seg-wrap { display: inline-flex; align-items: center; gap: 8px; }
+.seg-label { font-size: 12px; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius); overflow: hidden; }
+.seg button {
+  background: var(--surface); border: none; border-left: 1px solid var(--border-strong);
+  padding: 4px 12px; font-size: 12.5px; color: var(--text-2); cursor: pointer; line-height: 1.4;
+}
+.seg button:first-child { border-left: none; }
+.seg button:hover { background: var(--surface-2); color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; font-weight: 600; }
+.seg button:focus-visible { outline-offset: -2px; }
+
 /* ── Search no-results ── */
 .search-no-results { display: none; padding: 48px 0; text-align: center; color: var(--muted); }
 .search-no-results.visible { display: block; }
@@ -640,12 +654,168 @@ table.lb tr.is-model:hover td { background: var(--accent-tint-2); }
 
 _JS = """
 var _rendered = {};
+var _PLOT_CONFIG = {responsive:true, displayModeBar:true, displaylogo:false};
+
+// ---------------------------------------------------------------------------
+// Responsive subplot grids (maps): side by side when the card is wide enough,
+// stacked in one column with the colorbars along the bottom when it is not.
+// The figure's layout.meta.responsive (written by _tag_responsive_grid in
+// _figures.py) lists the panels, their axes and their title annotations.
+// ---------------------------------------------------------------------------
+function _gridLayout(figData, width) {
+  var meta = figData.layout.meta.responsive;
+  var layout = JSON.parse(JSON.stringify(figData.layout));
+  var wide = width >= meta.wideMinWidth;
+  var cols = wide ? meta.cols : 1;
+  var margin = wide ? meta.marginWide : meta.marginNarrow;
+  var nPanels = meta.panels.length;
+  var rows = wide ? meta.rows : nPanels;
+  var cbN = meta.colorbars.length;
+  var cbBand = wide ? 0 : (cbN ? 34 + 44 * cbN : 0);  // px reserved under the panels
+  // stacked panels each carry their own tick labels, so they need more air
+  // two-line bias titles plus the tick labels of the panel above need ~56px
+  var hgapPx = 24, vgapPx = wide ? 56 : 64;
+  var plotW = Math.max(width - margin.l - margin.r, 200);
+  // stacked panels are capped in width so a wide-but-not-wide-enough card
+  // does not produce a very tall column of huge maps
+  var usableW = wide ? plotW : Math.min(plotW, 640);
+  var panelW = (usableW - hgapPx * (cols - 1)) / cols;
+  var panelH = panelW * meta.aspect;
+  var plotH = rows * panelH + vgapPx * (rows - 1);
+  var height = Math.round(margin.t + margin.b + cbBand + plotH);
+  var hgap = hgapPx / plotW, vgap = vgapPx / plotH;
+  var cellW = ((usableW / plotW) - hgap * (cols - 1)) / cols;
+  var xOffset = (1 - usableW / plotW) / 2;  // centre a capped stack
+  var cellH = (1 - vgap * (rows - 1)) / rows;
+  // paper fraction of the band below the panels (narrow mode only)
+  var band = cbBand / (plotH + cbBand);
+  var panelArea = 1 - band;
+
+  meta.panels.forEach(function(p, i) {
+    var r = wide ? p.row - 1 : i;
+    var c = wide ? p.col - 1 : 0;
+    var x0 = xOffset + c * (cellW + hgap), x1 = x0 + cellW;
+    var yTop = 1 - r * (cellH + vgap) * panelArea;
+    var yBot = yTop - cellH * panelArea;
+    layout[p.x] = layout[p.x] || {}; layout[p.y] = layout[p.y] || {};
+    layout[p.x].domain = [x0, x1];
+    layout[p.y].domain = [Math.max(yBot, 0), yTop];
+    if (p.ann !== null && layout.annotations && layout.annotations[p.ann]) {
+      layout.annotations[p.ann].x = (x0 + x1) / 2;
+      layout.annotations[p.ann].y = yTop;
+    }
+  });
+  layout.margin = margin;
+  layout.height = height;
+  delete layout.width;
+  layout.autosize = true;
+  return {layout: layout, wide: wide, band: band};
+}
+
+function _gridColorbars(figData, wide, band) {
+  var meta = figData.layout.meta.responsive;
+  var cbN = meta.colorbars.length;
+  return meta.colorbars.map(function(ti, k) {
+    var orig = figData.data[ti].colorbar || {};
+    if (wide) return JSON.parse(JSON.stringify(orig));
+    var cb = JSON.parse(JSON.stringify(orig));
+    cb.orientation = 'h';
+    cb.x = 0.5; cb.xanchor = 'center';
+    cb.len = 0.9; cb.thickness = 12;
+    // stack the bars inside the band reserved below the panels (paper
+    // fraction [0, band]), first bar nearest the panels
+    cb.y = band * (cbN - k - 0.5) / cbN;
+    cb.yanchor = 'middle';
+    if (cb.title) cb.title.side = 'right';
+    return cb;
+  });
+}
+
+function _applyGrid(div, figData, first) {
+  var width = div.clientWidth || div.parentNode.clientWidth || 900;
+  var res = _gridLayout(figData, width);
+  var data = figData.data.map(function(t) { return t; });
+  var cbs = _gridColorbars(figData, res.wide, res.band);
+  var meta = figData.layout.meta.responsive;
+  meta.colorbars.forEach(function(ti, k) {
+    data[ti] = Object.assign({}, figData.data[ti], {colorbar: cbs[k]});
+  });
+  div.style.height = res.layout.height + 'px';
+  // A full re-plot rather than Plotly.react: react keeps the previous
+  // colorbars' margin pushers alive, and a vertical bar's pusher applied to
+  // the much taller stacked layout swallows half the figure.
+  if (!first) Plotly.purge(div);
+  Plotly.newPlot(div, data, res.layout, _PLOT_CONFIG);
+  div._gridWidth = width;
+}
+
+function _watchGrid(div, figData) {
+  if (typeof ResizeObserver === 'undefined') return;
+  var pending = null;
+  var ro = new ResizeObserver(function() {
+    var w = div.clientWidth;
+    if (!w || Math.abs(w - (div._gridWidth || 0)) < 4) return;
+    clearTimeout(pending);
+    pending = setTimeout(function() { _applyGrid(div, figData, false); }, 120);
+  });
+  ro.observe(div);
+}
+
+// ---------------------------------------------------------------------------
+// Segmented toggles (Hovmöller axes / direction) in place of Plotly buttons.
+// layout.meta.toggles.groups lists the controls; .buttons[i][j] names the
+// updatemenu button whose arguments realise option i of group 0 with option j
+// of group 1.
+// ---------------------------------------------------------------------------
+function _renderToggles(div, figData) {
+  var meta = figData.layout.meta.toggles;
+  var menus = figData.layout.updatemenus || [];
+  if (!menus.length) return;
+  figData.layout.updatemenus = [];
+  var state = meta.groups.map(function() { return 0; });
+  var bar = document.createElement('div');
+  bar.className = 'fig-toggles';
+  function apply() {
+    var ref = meta.buttons[state[0]][state[1]];
+    var btn = menus[ref[0]] && menus[ref[0]].buttons[ref[1]];
+    if (!btn) return;
+    Plotly.update(div, btn.args[0] || {}, btn.args[1] || {});
+    bar.querySelectorAll('.seg').forEach(function(seg, g) {
+      seg.querySelectorAll('button').forEach(function(b, o) {
+        b.setAttribute('aria-pressed', state[g] === o ? 'true' : 'false');
+      });
+    });
+  }
+  meta.groups.forEach(function(group, g) {
+    var wrap = document.createElement('div');
+    wrap.className = 'seg-wrap';
+    var label = document.createElement('span');
+    label.className = 'seg-label'; label.textContent = group.label;
+    var seg = document.createElement('div');
+    seg.className = 'seg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', group.label);
+    group.options.forEach(function(opt, o) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.textContent = opt;
+      b.setAttribute('aria-pressed', o === 0 ? 'true' : 'false');
+      b.addEventListener('click', function() { if (state[g] !== o) { state[g] = o; apply(); } });
+      seg.appendChild(b);
+    });
+    wrap.appendChild(label); wrap.appendChild(seg); bar.appendChild(wrap);
+  });
+  div.parentNode.insertBefore(bar, div);
+}
 
 function _applyFigData(div, figData) {
-  // Only set autosize if the figure has no explicit width (maps have explicit width).
+  var meta = figData.layout.meta || {};
+  if (meta.toggles) _renderToggles(div, figData);
+  if (meta.responsive) {
+    _applyGrid(div, figData, true);
+    _watchGrid(div, figData);
+    return;
+  }
+  // Only set autosize if the figure has no explicit width.
   if (!figData.layout.width) figData.layout.autosize = true;
-  Plotly.newPlot(div, figData.data, figData.layout,
-    {responsive:true, displayModeBar:true, displaylogo:false});
+  Plotly.newPlot(div, figData.data, figData.layout, _PLOT_CONFIG);
 }
 
 function renderPanel(panelId) {

@@ -80,6 +80,69 @@ def _sync_subplot_axes(fig: go.Figure) -> None:
     fig.update_yaxes(matches="y")
 
 
+def _tag_responsive_grid(
+    fig: go.Figure,
+    nrows: int,
+    ncols: int,
+    *,
+    aspect: float,
+    wide_min_width: int,
+    margin_wide: dict[str, int],
+    margin_narrow: dict[str, int],
+) -> None:
+    """Describe a subplot grid in ``layout.meta`` so the page can re-flow it.
+
+    The report's JavaScript reads this to lay the panels out side by side when
+    the card is at least ``wide_min_width`` pixels wide, and stacked in one
+    column with the colorbars along the bottom when it is narrower. Each
+    panel is listed with its axis names, its grid cell and the index of its
+    subplot-title annotation; colorbar-bearing traces are listed by index.
+    """
+    panels: list[dict[str, Any]] = []
+    anns = list(fig.layout.annotations)
+    for r in range(1, nrows + 1):
+        for c in range(1, ncols + 1):
+            sp = fig.get_subplot(r, c)
+            if sp is None:
+                continue
+            x0, x1 = sp.xaxis.domain
+            _y0, y1 = sp.yaxis.domain
+            ann_idx = next(
+                (
+                    i
+                    for i, a in enumerate(anns)
+                    if a.xref == "paper"
+                    and a.yref == "paper"
+                    and abs(a.x - (x0 + x1) / 2) < 1e-6
+                    and abs(a.y - y1) < 1e-6
+                ),
+                None,
+            )
+            panels.append(
+                {
+                    "x": sp.xaxis.plotly_name,
+                    "y": sp.yaxis.plotly_name,
+                    "row": r,
+                    "col": c,
+                    "ann": ann_idx,
+                },
+            )
+    colorbars = [i for i, tr in enumerate(fig.data) if getattr(tr, "showscale", False)]
+    fig.layout.meta = {
+        **(fig.layout.meta or {}),
+        "responsive": {
+            "rows": nrows,
+            "cols": ncols,
+            "aspect": aspect,
+            "wideMinWidth": wide_min_width,
+            "marginWide": margin_wide,
+            "marginNarrow": margin_narrow,
+            "panels": panels,
+            "colorbars": colorbars,
+        },
+    }
+
+
 def _get_line_properties(dtype: str, color_idx: int) -> dict:
     """Return line styling for 1D plots based on data type.
 
@@ -507,6 +570,18 @@ def build_map_figures(
                 ann.borderpad = 3
             else:
                 ann.font = {"size": 11, "color": "#333"}
+
+        # In the page the grid re-flows with the card width (see _JS); the
+        # explicit width above is the fallback for figures shown elsewhere.
+        _tag_responsive_grid(
+            fig,
+            nrows,
+            ncols,
+            aspect=0.5,
+            wide_min_width=ncols * 250 + (190 if has_bias else 120),
+            margin_wide={"t": 80, "b": 50, "l": 50, "r": 125 if has_bias else 75},
+            margin_narrow={"t": 80, "b": 50, "l": 50, "r": 30},
+        )
 
         figures[var_id] = fig
 
@@ -1828,7 +1903,12 @@ def build_hovmoller_figures(
         time_x_layout_ew: dict[str, Any] = {}  # Time × Lon, E → W
         for i in range(nrows):
             xa, ya = _ax("xaxis", i), _ax("yaxis", i)
-            _lon_we = {"title": {"text": "Longitude"}, **lon_ticks, **_AXIS_STYLE}
+            _lon_we = {
+                "title": {"text": "Longitude"},
+                "autorange": True,
+                **lon_ticks,
+                **_AXIS_STYLE,
+            }
             _lon_ew = {
                 "title": {"text": "Longitude"},
                 "autorange": "reversed",
@@ -1919,6 +1999,18 @@ def build_hovmoller_figures(
                     ],
                 },
             ],
+            # The page replaces the four Plotly buttons with two segmented
+            # toggles (axes, direction); each combination maps onto one of the
+            # buttons above, so the arguments are stored only once.
+            meta={
+                "toggles": {
+                    "groups": [
+                        {"label": "Axes", "options": ["Lon × Time", "Time × Lon"]},
+                        {"label": "Direction", "options": ["W → E", "E → W"]},
+                    ],
+                    "buttons": [[[0, 0], [0, 1]], [[1, 0], [1, 1]]],
+                },
+            },
         )
         figures[var_id] = fig
 
