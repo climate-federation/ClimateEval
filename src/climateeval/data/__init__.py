@@ -37,6 +37,7 @@ from climateeval.data._hadcrut5 import HadCRUT5
 from climateeval.data._hadex3 import HadEX3
 from climateeval.data._hadisst import HadISST
 from climateeval.data._iap import IAP
+from climateeval.data._local_cmor import LocalCMORDataSource
 from climateeval.data._merra2 import MERRA2
 from climateeval.data._noaa_ersstv5 import NOAAERSSTv5
 from climateeval.data._noaaglobaltemp import NOAAGlobalTemp
@@ -92,6 +93,7 @@ __all__ = [
     "HadCRUT5",
     "HadEX3",
     "HadISST",
+    "LocalCMORDataSource",
     "NOAAERSSTv5",
     "NOAAGlobalTemp",
 ]
