@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import yaml
+from esmvalcore.cmor import table as cmor_table
 from esmvalcore.preprocessor._derive import get_required  # not part of public API yet
 from loguru import logger
 
@@ -246,11 +247,32 @@ class Variable:
                 return "E1hr"
             if self.var_name in ("ps", "tas"):
                 return "AERhr"
+        if self.frequency == "day" and self._is_cfday_only():
+            return "CFday"
         if self.frequency in ("3hr", "day", "fx"):
             return self.frequency
         if self.frequency == "mon":
             return "Amon"
         return ""
+
+    def _is_cfday_only(self) -> bool:
+        """Check whether CMIP6 defines this daily variable only in table CFday.
+
+        Decided from the CMIP6 CMOR tables shipped with ESMValCore (the PCMDI
+        cmip6-cmor-tables, ``CMIP6_day.json`` vs ``CMIP6_CFday.json``): e.g.
+        ``ps``, ``rsut``, ``rsdt``, ``rsutcs`` and ``rlutcs`` have no ``day``
+        entry, so daily output of them is only found under ``CFday``.
+        """
+        # The tables are loaded with the ESMValCore configuration; read the
+        # module attribute afterwards, loading rebinds it.
+        with setup_esmvaltool_config_and_logging():
+            cmip6 = cmor_table.CMOR_TABLES.get("CMIP6")
+        if cmip6 is None:
+            return False
+        return (
+            cmip6.get_variable("day", self.var_name) is None
+            and cmip6.get_variable("CFday", self.var_name) is not None
+        )
 
     def get_preprocessing_settings(self) -> dict[str, Any]:
         """Get preprocessing settings."""

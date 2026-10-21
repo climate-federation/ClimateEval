@@ -362,6 +362,10 @@ def test_get_required_variables_not_derived() -> None:
         ("pr", "yr", ""),
         ("pr", "mon", "Amon"),
         ("pr", "day", "day"),
+        # CMIP6 defines daily ps (and e.g. rsut) only in the CFday table
+        ("ps", "day", "CFday"),
+        ("rsut", "day", "CFday"),
+        ("ps", "mon", "Amon"),
         ("pr", "3hr", "3hr"),
         ("pr", "1hr", "E1hr"),
         ("tas", "yr", ""),
