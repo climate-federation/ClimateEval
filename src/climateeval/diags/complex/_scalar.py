@@ -39,7 +39,9 @@ if TYPE_CHECKING:
 
     from xarray import Dataset
 
-    from climateeval.data import DataSourceGenerator
+    from climateeval.data._esmvaltool_intake import (
+        ESMValToolIntakeDataSourceGenerator,
+    )
 
 logger = logger.opt(colors=True)
 
@@ -105,7 +107,9 @@ class ScalarExperimentDiagnostic(ComplexDiagnostic):
     _output_variables: ClassVar[tuple[Variable, ...]] = ()
     """Scalars emitted by the diagnostic, in output-column order."""
 
-    _other_data_generator: ClassVar[type[DataSourceGenerator] | None] = None
+    _other_data_generator: ClassVar[
+        type[ESMValToolIntakeDataSourceGenerator] | None
+    ] = None
     """Generator of the CMIP6 comparison ensemble (``None``: no other data)."""
 
     _other_data_exp: ClassVar[str] = ""
