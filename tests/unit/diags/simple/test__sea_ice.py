@@ -111,8 +111,12 @@ def test_extent_counts_ice_covered_cells_fully(
     np.testing.assert_allclose(extent.data, 2.0 * area.data, rtol=1e-5)
 
 
-@pytest.mark.parametrize("extent_cls", _EXTENT_DIAGNOSTICS)
+@pytest.mark.parametrize(
+    ("area_cls", "extent_cls"),
+    zip(_AREA_DIAGNOSTICS, _EXTENT_DIAGNOSTICS, strict=True),
+)
 def test_extent_ignores_masked_cells(
+    area_cls: type[SeaIceAreaAnnualCycle | SeaIceAreaTimeSeries],
     extent_cls: type[SeaIceExtentAnnualCycle | SeaIceExtentTimeSeries],
     variables_and_data: dict[Variable, SimpleDiagnosticInputData],
     variable_siconc: Variable,
@@ -127,9 +131,16 @@ def test_extent_ignores_masked_cells(
     diagnostic = extent_cls("diagnostic", variables_and_data)
     extent = diagnostic._safely_preprocess(cube_siconc, variable_siconc)
     masked_extent = diagnostic._safely_preprocess(cube_masked, variable_siconc)
+    masked_area = area_cls("diagnostic", variables_and_data)._safely_preprocess(
+        cube_masked,
+        variable_siconc,
+    )
 
     assert np.all(masked_extent.data < extent.data)
     assert np.all(masked_extent.data > 0.0)
+    # On a fully ice-covered field, extent and area agree, so the masked cells
+    # are excluded from both in exactly the same way
+    np.testing.assert_allclose(masked_extent.data, masked_area.data, rtol=1e-5)
 
 
 @pytest.mark.parametrize(
