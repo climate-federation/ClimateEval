@@ -671,7 +671,10 @@ function _gridLayout(figData, width) {
   var nPanels = meta.panels.length;
   var rows = wide ? meta.rows : nPanels;
   var cbN = meta.colorbars.length;
-  var cbBand = wide ? 0 : (cbN ? 34 + 44 * cbN : 0);  // px reserved under the panels
+  // px reserved under the panels: room for the last panel's tick labels and
+  // axis title, then one row per horizontal colorbar
+  var cbRow = 48, cbPad = 64;
+  var cbBand = wide ? 0 : (cbN ? cbPad + cbRow * cbN : 0);
   // stacked panels each carry their own tick labels, so they need more air
   // two-line bias titles plus the tick labels of the panel above need ~56px
   var hgapPx = 24, vgapPx = wide ? 56 : 64;
@@ -704,17 +707,24 @@ function _gridLayout(figData, width) {
       layout.annotations[p.ann].x = (x0 + x1) / 2;
       layout.annotations[p.ann].y = yTop;
     }
+    if (!wide) {
+      // stacked: only the last panel carries the x-axis title; every panel
+      // keeps its own tick labels
+      var src = figData.layout[p.x] || {};
+      layout[p.x].title = (i === nPanels - 1) ? (src.title || {text: 'Longitude'}) : {text: ''};
+    }
   });
   layout.margin = margin;
   layout.height = height;
   delete layout.width;
   layout.autosize = true;
-  return {layout: layout, wide: wide, band: band};
+  return {layout: layout, wide: wide, band: band, paperH: plotH + cbBand, cbRow: cbRow};
 }
 
-function _gridColorbars(figData, wide, band) {
+function _gridColorbars(figData, res) {
   var meta = figData.layout.meta.responsive;
   var cbN = meta.colorbars.length;
+  var wide = res.wide;
   return meta.colorbars.map(function(ti, k) {
     var orig = figData.data[ti].colorbar || {};
     if (wide) return JSON.parse(JSON.stringify(orig));
@@ -722,9 +732,9 @@ function _gridColorbars(figData, wide, band) {
     cb.orientation = 'h';
     cb.x = 0.5; cb.xanchor = 'center';
     cb.len = 0.9; cb.thickness = 12;
-    // stack the bars inside the band reserved below the panels (paper
-    // fraction [0, band]), first bar nearest the panels
-    cb.y = band * (cbN - k - 0.5) / cbN;
+    // stack the bars in the lower rows of the band reserved below the
+    // panels, first bar nearest the panels
+    cb.y = (cbN - k - 0.5) * res.cbRow / res.paperH;
     cb.yanchor = 'middle';
     if (cb.title) cb.title.side = 'right';
     return cb;
@@ -735,7 +745,7 @@ function _applyGrid(div, figData, first) {
   var width = div.clientWidth || div.parentNode.clientWidth || 900;
   var res = _gridLayout(figData, width);
   var data = figData.data.map(function(t) { return t; });
-  var cbs = _gridColorbars(figData, res.wide, res.band);
+  var cbs = _gridColorbars(figData, res);
   var meta = figData.layout.meta.responsive;
   meta.colorbars.forEach(function(ti, k) {
     data[ti] = Object.assign({}, figData.data[ti], {colorbar: cbs[k]});
