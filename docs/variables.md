@@ -23,8 +23,11 @@ python scripts/gen_variables_doc.py
 | `amoc` | AMOC at the Rapid array (26.5 N) |  | `kg s-1` | `ocean` | `time` | yes |
 | `arctic_amplification` | Arctic Amplification Factor |  | `1` | `atmos` |  |  |
 | `asr` | Absorbed shortwave radiation |  | `W m-2` | `atmos` | `time lat lon` | yes |
+| `atmospheric_energy_residual` | Atmospheric Energy Budget Residual |  | `W m-2` | `atmos` |  |  |
 | `chl` | Mass Concentration of Total Phytoplankton Expressed as Chlorophyll in Sea Water | `mass_concentration_of_phytoplankton_expressed_as_chlorophyll_in_sea_water` | `kg m-3` | `ocnBgchem` | `time olevel lat lon` |  |
 | `cl` | Percentage Cloud Cover | `cloud_area_fraction_in_atmosphere_layer` | `%` | `atmos` | `time alevel lat lon` |  |
+| `clausius_clapeyron_scaling` | Clausius-Clapeyron Scaling of the Water Vapor Path |  | `% K-1` | `atmos` |  |  |
+| `clear_sky_lw_feedback` | Clear-Sky Longwave Feedback Parameter |  | `W m-2 K-1` | `atmos` |  |  |
 | `cli` | Mass Fraction of Cloud Ice | `mass_fraction_of_cloud_ice_in_air` | `kg kg-1` | `atmos` | `time alevel lat lon` |  |
 | `clivi` | Ice Water Path | `atmosphere_mass_content_of_cloud_ice` | `kg m-2` | `atmos` | `time lat lon` |  |
 | `clt` | Total Cloud Cover Percentage | `cloud_area_fraction` | `%` | `atmos` | `time lat lon` |  |
@@ -59,6 +62,8 @@ python scripts/gen_variables_doc.py
 | `phalf` | Pressure on Model Half-Levels | `air_pressure` | `Pa` | `atmos` | `time alevel lat lon` |  |
 | `phcint` | Integrated Ocean Heat Content from Potential Temperature | `integral_wrt_depth_of_sea_water_potential_temperature_expressed_as_heat_content` | `J m-2` | `ocean` | `time olevel lat lon` | yes |
 | `pr` | Precipitation | `precipitation_flux` | `kg m-2 s-1` | `atmos` | `time lat lon` |  |
+| `precip_buoyancy_slope` | Tropical Precipitation-Buoyancy Regression Slope |  | `mm day-1 (MJ m-2)-1` | `atmos` |  |  |
+| `precip_buoyancy_slope_obs` | Observed Tropical Precipitation-Buoyancy Regression Slope |  | `mm day-1 (MJ m-2)-1` | `atmos` |  |  |
 | `prw` | Water Vapor Path | `atmosphere_mass_content_of_water_vapor` | `kg m-2` | `atmos` | `time lat lon` |  |
 | `ps` | Surface Air Pressure | `surface_air_pressure` | `Pa` | `atmos` | `time lat lon` |  |
 | `psi_star` | TEM Residual Mass Streamfunction |  | `kg s-1` | `atmos` | `plev lat` |  |
@@ -90,6 +95,9 @@ python scripts/gen_variables_doc.py
 | `tauv` | Surface Downward Northward Wind Stress | `surface_downward_northward_stress` | `Pa` | `atmos` | `time lat lon` |  |
 | `thetao` | Sea Water Potential Temperature | `sea_water_potential_temperature` | `degC` | `ocean` | `time olevel lat lon` |  |
 | `tnn` | Annual/monthly minimum value of daily minimum temperature |  | `degC` | `atmos` | `time lat lon` |  |
+| `toa_net_drift` | TOA Net Downward Radiation Drift |  | `W m-2 (10 yr)-1` | `atmos` |  |  |
+| `toa_net_mean` | TOA Net Downward Radiation Mean |  | `W m-2` | `atmos` |  |  |
+| `toa_net_n_years` | Number of Years Used for the TOA Energy Balance |  | `1` | `atmos` |  |  |
 | `tos` | Sea Surface Temperature | `sea_surface_temperature` | `degC` | `ocean` | `time lat lon` |  |
 | `ts` | Surface Temperature | `surface_temperature` | `K` | `atmos` | `time lat lon` |  |
 | `txx` | Annual/monthly maximum value of daily maximum temperature |  | `degC` | `atmos` | `time lat lon` |  |
@@ -101,6 +109,7 @@ python scripts/gen_variables_doc.py
 | `w_dia` | Diabatic Vertical Velocity (thermodynamic residual) |  | `Pa s-1` | `atmos` | `plev lat` |  |
 | `w_star` | TEM Residual Vertical Velocity (omega) |  | `Pa s-1` | `atmos` | `plev lat` |  |
 | `wap` | Omega (=dp/dt) | `lagrangian_tendency_of_air_pressure` | `Pa s-1` | `atmos` | `time alevel lat lon` |  |
+| `water_budget_residual` | Global Water Budget Residual |  | `mm day-1` | `atmos` |  |  |
 | `zg` | Geopotential Height | `geopotential_height` | `m` | `atmos` | `time alevel lat lon` |  |
 | `zos` | Sea Surface Height Above Geoid | `sea_surface_height_above_geoid` | `m` | `ocean` | `time lat lon` |  |
 

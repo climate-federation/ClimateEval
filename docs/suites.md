@@ -110,6 +110,7 @@ order to diagnose a model from the basics upward:
 |---|---|
 | `Tier1_sanity_checks` | Global-mean fluxes and state within physically reasonable ranges. |
 | `Tier1_consistency_checks` | Conservation of dry-air mass, water vapour and moisture flux. |
+| `Tier1_control_consistency` | Energy balance and drift, water- and atmospheric-energy-budget closure and Clausius-Clapeyron scaling of a piControl run. |
 
 ### Tier 2 — mean state vs observations
 
@@ -127,6 +128,7 @@ order to diagnose a model from the basics upward:
 | `Tier3_atmosphere_subdaily` | Sub-daily precipitation: diurnal cycle and intensity histograms. |
 | `Tier3_ecs` | Effective climate sensitivity from abrupt-4xCO2 / piControl experiments. |
 | `Tier3_forced_response` | Equilibrium forced responses (land-ocean warming ratio, Arctic amplification) from abrupt-4xCO2 / piControl. |
+| `Tier3_covariances` | Thermodynamic covariances of a historical run: clear-sky longwave feedback and the tropical precipitation-buoyancy relationship. |
 | `Tier3_transport` | Implied meridional heat transport partitioning (atmosphere vs ocean) from a piControl run. |
 
 Open the corresponding file in
@@ -143,7 +145,9 @@ Use these class paths in the `diagnostic:` field. **Simple** diagnostics
 `SeaIceExtentTimeSeries`, `AMOCTimeSeries`,
 `OceanHeatContentTimeSeries`. **Complex** diagnostics
 (`climateeval.diags.complex.*`): `ECS`, `TEMDiagnostic`,
-`LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`.
+`LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`,
+`EnergyBalance`, `BudgetClosure`, `ClausiusClapeyronScaling`,
+`ClearSkyLongwaveFeedback`, `PrecipitationBuoyancy`.
 
 How each renders in a report (and its coordinate columns) is summarised in
 [Reporting](reporting.md#figure-types).
