@@ -518,8 +518,9 @@ button { font-family: inherit; }
   margin: 0 -20px 16px; padding: 16px 20px 0; border-bottom: 1px solid var(--border);
 }
 .var-nav { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 12px; }
-/* many variables: two rows until expanded (pill 25px + gap 4px) */
-.var-nav.many:not(.expanded) { max-height: 54px; overflow: hidden; }
+/* many variables: two rows until expanded; the height is set from the real
+   pill height by _syncVarNavs so no partial row is ever clipped */
+.var-nav.many:not(.expanded) { overflow: hidden; }
 .var-nav-more {
   display: block; margin: -4px 0 8px; padding: 2px 0; background: none; border: none;
   font-size: 12px; color: var(--accent-ink); cursor: pointer;
@@ -1296,18 +1297,28 @@ function toggleVarNav(btn) {
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
   var n = nav.querySelectorAll('.var-pill').length;
   btn.textContent = open ? 'Show fewer' : 'Show all ' + n;
+  _syncVarNavs();
 }
-// The button is only needed while the collapsed nav actually hides buttons,
-// which depends on the card width.
+// A collapsed nav shows exactly two rows of pills (measured, so fonts and zoom
+// do not matter); the button is only shown while rows are actually hidden.
+var _VAR_NAV_ROWS = 2, _VAR_NAV_GAP = 4;
 function _syncVarNavs() {
   document.querySelectorAll('.var-nav.many').forEach(function(nav) {
     var btn = nav.nextElementSibling;
     if (!btn || !btn.classList.contains('var-nav-more')) return;
     var pills = nav.querySelectorAll('.var-pill');
-    var last = pills[pills.length - 1];
-    var overflow = nav.classList.contains('expanded') ||
-      (last && last.getBoundingClientRect().bottom > nav.getBoundingClientRect().bottom + 1);
-    btn.style.display = overflow ? '' : 'none';
+    if (!pills.length) return;
+    var first = pills[0], last = pills[pills.length - 1];
+    if (nav.classList.contains('expanded')) {
+      nav.style.maxHeight = '';
+      btn.style.display = '';
+      return;
+    }
+    var padBottom = parseFloat(getComputedStyle(nav).paddingBottom) || 0;
+    var rowH = first.offsetHeight;
+    nav.style.maxHeight = (_VAR_NAV_ROWS * rowH + (_VAR_NAV_ROWS - 1) * _VAR_NAV_GAP + padBottom) + 'px';
+    var hidden = last.getBoundingClientRect().bottom > nav.getBoundingClientRect().bottom - padBottom + 1;
+    btn.style.display = hidden ? '' : 'none';
   });
 }
 window.addEventListener('resize', function() { clearTimeout(window._vnT); window._vnT = setTimeout(_syncVarNavs, 150); });
