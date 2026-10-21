@@ -1864,7 +1864,7 @@ def build_hovmoller_figures(
         )
         panel_height = max(400, 320 * nrows)
         # buttons sit just above the panel titles, below the figure title
-        _btn_y = 1.0 + 26.0 / max(panel_height - 170, 100)
+        _btn_y = 1.0 + 22.0 / max(panel_height - 170, 100)
         fig.update_layout(
             **_base_layout(
                 title={
@@ -1872,6 +1872,8 @@ def build_hovmoller_figures(
                     "font": {"size": 14},
                     "x": 0.02,
                     "xanchor": "left",
+                    "y": 0.985,
+                    "yanchor": "top",
                 },
                 margin={"t": 110, "b": 60, "l": 90, "r": 90},
                 height=panel_height,
