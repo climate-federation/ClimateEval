@@ -10,7 +10,7 @@ import pytest
 from iris.coords import DimCoord
 from iris.cube import Cube
 
-from climateeval._loader import load_cmor_dir
+from climateeval._loader import _overlaps_years, _timerange_years, load_cmor_dir
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -99,3 +99,56 @@ def test_drs_tree_prefers_native_grid_and_latest_version(tmp_path: Path) -> None
 
 def test_empty_dir_returns_empty(tmp_path: Path) -> None:
     assert len(load_cmor_dir(tmp_path)) == 0
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [
+        # Every CMOR precision, inside the window
+        ("tas_Ayr_M_hist_r1_gn_2015-2025.nc", True),
+        ("tos_Omon_M_hist_r1_gn_201501-201512.nc", True),
+        ("tas_day_M_hist_r1_gn_20150101-20251231.nc", True),
+        ("tas_6hrLev_M_hist_r1_gn_201501010600-202512311800.nc", True),
+        ("tas_Amon_M_hist_r1_gn_201501-202512-clim.nc", True),
+        ("CMIP6_X_hist_r1_20150116000000-20251216000000.nc", True),
+        # Outside the window
+        ("tas_Amon_M_hist_r1_gn_200001-201412.nc", False),
+        ("tas_Amon_M_hist_r1_gn_202601-203012.nc", False),
+        # Straddling either end, or touching the boundary year, is kept
+        ("tas_Amon_M_hist_r1_gn_201001-201812.nc", True),
+        ("tas_Amon_M_hist_r1_gn_202001-203012.nc", True),
+        ("tas_Amon_M_hist_r1_gn_201001-201501.nc", True),
+        ("tas_Amon_M_hist_r1_gn_202512-203012.nc", True),
+        # Not a date range: never dropped
+        ("areacella_fx_M_hist_r1_gn.nc", True),
+        ("ERA5_tas_v5-1.nc", True),
+        ("OBS_HadISST_2000-01.nc", True),
+        ("tas_1-2.nc", True),
+        ("some-name.nc", True),
+    ],
+)
+def test_overlaps_years(filename: str, expected: bool) -> None:
+    assert _overlaps_years(filename, (2015, 2025)) is expected
+
+
+@pytest.mark.parametrize(
+    ("timerange", "expected"),
+    [
+        (None, None),
+        ("*", None),
+        ("2015/2025", (2015, 2025)),
+        ("201501/202512", (2015, 2025)),
+        ("20150101/20251231", (2015, 2025)),
+        ("20150101T0000/20251231T2359", (2015, 2025)),
+        # Wildcards and durations are not narrowed: everything is loaded
+        ("2015/*", None),
+        ("*/2025", None),
+        ("20150101/P10Y", None),
+        ("P10Y/20251231", None),
+    ],
+)
+def test_timerange_years(
+    timerange: str | None,
+    expected: tuple[int, int] | None,
+) -> None:
+    assert _timerange_years(timerange) == expected

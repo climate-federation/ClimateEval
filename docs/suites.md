@@ -141,7 +141,8 @@ Use these class paths in the `diagnostic:` field. **Simple** diagnostics
 (`climateeval.diags.simple.*`): `Map`, `ZonalLine`, `ZonalProfileAirPressure`,
 `AnnualMeanTimeSeries`, `AnnualCycle`, `AnnualCycleSpatialDistribution`,
 `DiurnalCycle`, `Histogram`, `Hovmoller`, `QBO`, `Nino34`,
-`SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `AMOCTimeSeries`,
+`SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `SeaIceExtentAnnualCycle`,
+`SeaIceExtentTimeSeries`, `AMOCTimeSeries`,
 `OceanHeatContentTimeSeries`. **Complex** diagnostics
 (`climateeval.diags.complex.*`): `ECS`, `TEMDiagnostic`,
 `LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`,
@@ -150,6 +151,12 @@ Use these class paths in the `diagnostic:` field. **Simple** diagnostics
 
 How each renders in a report (and its coordinate columns) is summarised in
 [Reporting](reporting.md#figure-types).
+
+Sea ice comes in two flavours: the `SeaIceArea*` diagnostics integrate the
+sea-ice concentration (the area actually covered by ice), the `SeaIceExtent*`
+ones sum the area of every cell whose concentration reaches 15 % — the NSIDC /
+OSI SAF **extent**, which is how most sea-ice observations are reported. Both
+take the same variables and render as the same figure types.
 
 ## Writing a custom suite
 
