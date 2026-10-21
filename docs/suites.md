@@ -17,6 +17,7 @@ A suite file is a **list of diagnostics**. Each entry has:
 | `name` | A label for this diagnostic instance, unique within the suite. It becomes the attached-database name in the output (see [Output schema](output-schema.md)). |
 | `diagnostic` | The fully-qualified diagnostic class, e.g. `climateeval.diags.simple.Map`. |
 | `variables` | A list of variable definitions (below). |
+| `diagnostic_kwargs` | Optional keyword arguments passed to the diagnostic's constructor (e.g. the section way points of `DepthProfile`). |
 
 Each variable definition has:
 
@@ -117,7 +118,11 @@ order to diagnose a model from the basics upward:
 | Suite | Focus |
 |---|---|
 | `Tier2_atmosphere_monthly` | Atmospheric climatology (annual cycle, maps, zonal means/profiles, time series) vs ERA5/GPCP/CERES-EBAF + CMIP6. |
-| `Tier2_ocean_monthly` | Ocean climatology: SST, salinity, chlorophyll, mixed-layer depth, Niño 3.4, AMOC, ocean heat content. |
+| `Tier2_ocean_monthly` | Ocean climatology: SST, salinity, chlorophyll, mixed-layer depth, Niño 3.4, AMOC (time series and depth profile), ocean heat content, temperature/salinity depth profiles, ACC transport, SSH gradient, ocean heat transport. |
+| `Tier2_ocean_2d` | The 2-D surface part of `Tier2_ocean_monthly` (MLD, SST, SSS, trend maps, SSH gradient, Niño 3.4). |
+| `Tier2_ocean_3d` | The 3-D part of `Tier2_ocean_monthly` (temperature/salinity depth profiles, ocean heat content). |
+| `Tier2_ocean_acc` | ACC transport through Drake Passage. |
+| `Tier2_ocean_amoc` | AMOC time series and depth profile, Atlantic heat transport at the RAPID array (26.5N). |
 | `Tier2_sea_ice_monthly` | Sea-ice area: annual cycle, seasonal minimum (NH September / SH February), maps. |
 
 ### Tier 3 — variability, processes & feedbacks

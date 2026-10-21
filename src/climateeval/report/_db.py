@@ -48,6 +48,7 @@ def get_var_cols(data_df: pd.DataFrame) -> list[str]:
         "longitude",
         "time",
         "air_pressure",
+        "depth",
         "month_number",
         "hour",
     }
@@ -69,6 +70,8 @@ def detect_diag_type(columns: list[str]) -> str:
         return "Hovmoller"
     if "time" in cols and "air_pressure" in cols:
         return "QBO"
+    if "depth" in cols:
+        return "DepthProfile"
     if "latitude" in cols:
         return "ZonalLine"
     if "time" in cols:
@@ -85,6 +88,7 @@ def detect_diag_type(columns: list[str]) -> str:
         "longitude",
         "time",
         "air_pressure",
+        "depth",
         "month_number",
         "hour",
     }

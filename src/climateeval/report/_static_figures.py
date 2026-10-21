@@ -1038,6 +1038,42 @@ def build_static_zonal_line_figures(
     return figures
 
 
+def build_static_depth_profile_figures(
+    data_df: pd.DataFrame,
+    variables_df: pd.DataFrame,
+    metrics_df: pd.DataFrame | None = None,  # noqa: ARG001
+) -> dict[str, Figure]:
+    """Depth profiles (value vs depth, surface at the top), one line per dataset."""
+    figures: dict[str, Figure] = {}
+    all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
+
+    for var_id in get_var_cols(data_df):
+        if data_df[var_id].isna().all():
+            continue
+        long_name, units = _var_label(var_id, variables_df)
+
+        fig, axes = _new_figure()
+        styles = _line_styles(data_df, all_datasets)
+        for dataset in all_datasets:
+            grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
+            if grp.empty:
+                continue
+            series = grp.groupby("depth")[var_id].mean().sort_index()
+            axes.plot(
+                series.values,
+                series.index,
+                label=str(dataset),
+                **styles[dataset],
+            )
+
+        axes.invert_yaxis()
+        xlabel = f"{var_id} [{units}]" if units else var_id
+        _finish_line_axes(axes, title=long_name, ylabel="depth [m]", xlabel=xlabel)
+        figures[var_id] = fig
+
+    return figures
+
+
 def build_static_zonal_profile_figures(
     data_df: pd.DataFrame,
     variables_df: pd.DataFrame,
@@ -1737,6 +1773,7 @@ def build_static_portrait_figure(
 # message) by generate_static_plots().
 _STATIC_FIGURE_BUILDERS: dict[str, Callable] = {
     "AnnualCycle": build_static_annual_cycle_figures,
+    "DepthProfile": build_static_depth_profile_figures,
     "DiurnalCycle": build_static_diurnal_cycle_figures,
     "Histogram": build_static_histogram_figures,
     "Hovmoller": build_static_hovmoller_figures,

@@ -3,11 +3,16 @@
 This example runs the ClimateEval ocean and sea-ice diagnostics on a CMIP6 model
 and produces a self-contained interactive HTML report. The diagnostics covered:
 
-- **SST, salinity, chlorophyll** — maps, zonal-mean lines, annual-mean time series
+- **SST, salinity** — maps, trend maps, zonal-mean lines, annual-mean time series
+- **SSH gradient** — Gulf Stream separation diagnostic, benchmarked against ORAS5
 - **Mixed-layer depth** — annual cycle in the Labrador Sea, Weddell Sea, Southern Ocean
 - **Niño 3.4** — the Oceanic Niño Index
 - **Sea-ice area** — annual cycle and time series (NH September / SH February)
-- **AMOC** — Atlantic overturning, benchmarked against RAPID
+- **Temperature / salinity depth profiles** — Atlantic section at 26.5N, benchmarked
+  against IAP/EN4 and ORAS5/WOA
+- **ACC transport** — through Drake Passage, benchmarked against ORAS5
+- **AMOC** — Atlantic overturning (time series and depth profile) and heat
+  transport at 26.5N, benchmarked against RAPID
 - **Ocean heat content** — full / 0–300 m / 0–2000 m, benchmarked against EN4 and IAP
 
 Everything below assumes you are on **DKRZ Levante**, where the observational
@@ -54,6 +59,8 @@ with sensible Levante defaults — override only if those files move:
 export CLIMATEEVAL_ORAS5_RAW_DIR=/work/bd1083/b382555/extraobsraw/Tier2/ORAS5/data
 export CLIMATEEVAL_ORAS5_GRID_DIR=/work/bd1083/b382555/extraobsraw/Tier2/ORAS5/grids
 export CLIMATEEVAL_RAPID_FILE=/work/bd0854/DATA/ESMValTool2/OBS/Tier3/RAPID/OBS6_RAPID_exp_2024.1a_Omon_amoc_2004_2024.nc
+export CLIMATEEVAL_RAPID_MSFTMZ_FILE=/work/bd1083/b382555/OBS_RAPID_Omon_msftmz_2004_2024.nc
+export CLIMATEEVAL_RAPID_HFBASIN_FILE=/work/bd1083/b382555/OBS_RAPID_Omon_hfbasin_2004_2024.nc
 ```
 
 > **Note on ORAS5.** ClimateEval ships its own ORAS5 loader
@@ -62,8 +69,8 @@ export CLIMATEEVAL_RAPID_FILE=/work/bd0854/DATA/ESMValTool2/OBS/Tier3/RAPID/OBS6
 > merged to ESMValCore `main`, but this makes no difference to these runs — they
 > use the built-in loader either way. Once ClimateEval pins an ESMValCore
 > *release* containing that fix, the custom loader could be retired in favour of
-> the standard CMORizer path (which would also add 3-D variable support; the
-> built-in loader currently handles 2-D surface fields such as `mlotst` only).
+> the standard CMORizer path. The built-in loader handles 2-D surface fields
+> (e.g. `mlotst`, `sos`, `zos`) and 3-D variables (e.g. `so`, `uo`).
 
 ## 3. Run the diagnostics
 
@@ -75,12 +82,13 @@ export CLIMATEEVAL_RESULTS_DIR=~/ocean_results
 python run_ocean_diagnostics.py
 ```
 
-This writes four databases and the report into `CLIMATEEVAL_RESULTS_DIR`:
+This writes five databases and the report into `CLIMATEEVAL_RESULTS_DIR`:
 
 ```
 seaice.ddb
-ocean_ohc.ddb
-ocean_sst.ddb
+ocean_2d.ddb
+ocean_3d.ddb
+ocean_acc.ddb
 ocean_amoc.ddb
 report.html      # self-contained — open in any browser
 ```
@@ -112,8 +120,8 @@ from pathlib import Path
 from climateeval.report import generate_portable_html
 
 results = Path("~/ocean_results").expanduser()
-dbs = [results / f for f in ("seaice.ddb", "ocean_ohc.ddb",
-                             "ocean_sst.ddb", "ocean_amoc.ddb")]
+dbs = [results / f for f in ("seaice.ddb", "ocean_2d.ddb", "ocean_3d.ddb",
+                             "ocean_acc.ddb", "ocean_amoc.ddb")]
 html = generate_portable_html(dbs, offline=True, model_name="MPI-ESM1-2-LR")
 (results / "report.html").write_text(html)
 ```
@@ -132,7 +140,8 @@ The example is configured for MPI-ESM1-2-LR. To evaluate another model, edit the
   variant) recorded in the report.
 
 Pick a variant that actually contains **all** the required variables
-(`siconc`, `tos`, `so`, `thetao`, `chl`, `msftmz`, `mlotst`). Then re-run
+(`siconc`, `tos`, `sos`, `zos`, `mlotst`, `so`, `thetao`, `uo`, `msftmz`,
+`hfbasin`). Then re-run
 step 3 — staging and references stay the same.
 
 ### Notes

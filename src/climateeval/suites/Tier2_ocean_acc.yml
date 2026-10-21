@@ -1,0 +1,11 @@
+# Tier 2 | Mean state vs observations: ACC transport through Drake Passage.
+#
+# Shipped separately from Tier2_ocean_monthly because the 3-D velocity field is
+# expensive to process (see examples/ocean).
+- name: acc_transport_drake
+  diagnostic: climateeval.diags.simple.ACCTransportZonalTransect
+  variables:
+    - id: uo_acc
+      var_name: uo
+      frequency: mon
+      reference_data: climateeval.data.ORAS5

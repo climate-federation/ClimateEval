@@ -2,15 +2,22 @@
 
 The RAPID-MOCHA-WBTS array measures the Atlantic Meridional Overturning
 Circulation at 26.5N. ESMValTool does not ship a CMORizer for it, but a
-CMORized ``amoc`` file is distributed as an OBS6 Tier 3 dataset. This module
-loads that file directly with Iris (the ``amoc`` variable is provided directly,
-so it is not derived).
+CMORized ``amoc`` file is distributed as an OBS6 Tier 3 dataset; locally
+CMORized files of the overturning streamfunction (``msftmz``) and of the
+northward ocean heat transport (``hfbasin``) at the array are available on
+Levante as well. This module loads those files directly with Iris (the
+variables are provided directly, so they are not derived).
 
 Staging the data
 ----------------
-Point ClimateEval at the CMORized RAPID ``amoc`` file with the
-``CLIMATEEVAL_RAPID_FILE`` environment variable. It defaults to the file staged
-on Levante at the ESMValTool OBS6 Tier 3 location.
+Point ClimateEval at the CMORized RAPID file of each variable with the
+corresponding environment variable:
+
+- ``CLIMATEEVAL_RAPID_FILE``: the ``amoc`` file,
+- ``CLIMATEEVAL_RAPID_MSFTMZ_FILE``: the ``msftmz`` file,
+- ``CLIMATEEVAL_RAPID_HFBASIN_FILE``: the ``hfbasin`` file.
+
+They default to the files staged on Levante.
 """
 
 from __future__ import annotations
@@ -49,14 +56,24 @@ class RAPID(DataSource):
         references=("https://doi.org/10.5285/223b34a3-2dc5-3fdc-e063-6c86abc0f730",),
     )
 
-    #: Variables provided directly (not derived) by the CMORized RAPID file.
-    _supported_var_names: ClassVar[tuple[str, ...]] = ("amoc",)
+    #: Environment variable pointing at the CMORized RAPID file per variable.
+    _FILE_ENVS: ClassVar[dict[str, str]] = {
+        "amoc": "CLIMATEEVAL_RAPID_FILE",
+        "msftmz": "CLIMATEEVAL_RAPID_MSFTMZ_FILE",
+        "hfbasin": "CLIMATEEVAL_RAPID_HFBASIN_FILE",
+    }
+    #: Default (Levante) location of the CMORized RAPID file per variable.
+    _DEFAULT_FILES: ClassVar[dict[str, str]] = {
+        "amoc": (
+            "/work/bd0854/DATA/ESMValTool2/OBS/Tier3/RAPID/"
+            "OBS6_RAPID_exp_2024.1a_Omon_amoc_2004_2024.nc"
+        ),
+        "msftmz": "/work/bd1083/b382555/OBS_RAPID_Omon_msftmz_2004_2024.nc",
+        "hfbasin": "/work/bd1083/b382555/OBS_RAPID_Omon_hfbasin_2004_2024.nc",
+    }
 
-    _FILE_ENV: ClassVar[str] = "CLIMATEEVAL_RAPID_FILE"
-    _DEFAULT_FILE: ClassVar[str] = (
-        "/work/bd0854/DATA/ESMValTool2/OBS/Tier3/RAPID/"
-        "OBS6_RAPID_exp_2024.1a_Omon_amoc_2004_2024.nc"
-    )
+    #: Variables provided directly (not derived) by the CMORized RAPID files.
+    _supported_var_names: ClassVar[tuple[str, ...]] = tuple(_DEFAULT_FILES)
 
     def get_cube(
         self,
@@ -69,14 +86,15 @@ class RAPID(DataSource):
         logger.debug(f"Loading {variable} of {self.id}")
         self._check_supported_variables(variable)
 
-        file = Path(os.environ.get(self._FILE_ENV, self._DEFAULT_FILE))
+        file_env = self._FILE_ENVS[variable.var_name]
+        file = Path(os.environ.get(file_env, self._DEFAULT_FILES[variable.var_name]))
         if not file.is_file():
             msg = f"RAPID file {file} not found for {variable} of {self.id}"
             raise MissingDataError(msg)
 
         with setup_esmvaltool_config_and_logging():
-            # The RAPID file already contains the CMORized `amoc` variable, so
-            # get_prepared_cube extracts it directly rather than deriving it.
+            # The RAPID files already contain the CMORized variables, so
+            # get_prepared_cube extracts them directly rather than deriving them.
             cube = load_cubes([str(file)]).extract_cube(
                 NameConstraint(var_name=variable.var_name),
             )
@@ -85,12 +103,14 @@ class RAPID(DataSource):
     def download(self, variable: Variable, data_root_dir: Path | str) -> list[Path]:  # noqa: ARG002
         """Download data.
 
-        RAPID cannot be downloaded automatically; stage the CMORized ``amoc``
-        file manually and point ClimateEval at it (see the module docs).
+        RAPID cannot be downloaded automatically; stage the CMORized files
+        manually and point ClimateEval at them (see the module docs).
         """
+        file_env = self._FILE_ENVS.get(variable.var_name, "CLIMATEEVAL_RAPID_*_FILE")
         msg = (
             f"{self.id} cannot be downloaded automatically; stage the CMORized "
-            f"RAPID amoc file and set {self._FILE_ENV} (see climateeval.data._rapid)"
+            f"RAPID {variable.var_name} file and set {file_env} (see "
+            f"climateeval.data._rapid)"
         )
         raise DownloadError(msg)
 

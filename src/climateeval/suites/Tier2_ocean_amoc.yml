@@ -1,0 +1,35 @@
+# Tier 2 | Mean state vs observations: AMOC and Atlantic heat transport at the RAPID array (26.5N).
+#
+# The AMOC part of Tier2_ocean_monthly, shipped separately because its
+# reference (RAPID) only starts in 2004 (see examples/ocean).
+- name: amoc_timeseries
+  diagnostic: climateeval.diags.simple.AMOCTimeSeries
+  variables:
+    # AMOC at the RAPID array (26.5N). Derived (by ESMValTool) from the
+    # meridional overturning mass streamfunction (msftmz/msftyz) for models;
+    # the RAPID array provides the observed amoc directly as the reference.
+    - id: amoc
+      var_name: amoc
+      frequency: mon
+      reference_data: climateeval.data.RAPID
+
+- name: amoc_profile
+  diagnostic: climateeval.diags.simple.AMOCDepthProfile
+  variables:
+    # Climatological AMOC streamfunction vs depth at the RAPID array (26.5N),
+    # from the meridional overturning mass streamfunction (msftmz). The RAPID
+    # msftmz reference is a locally CMORized file (see climateeval.data.RAPID).
+    - id: msftmz
+      var_name: msftmz
+      frequency: mon
+      reference_data: climateeval.data.RAPID
+
+- name: atlantic_heat_transport_26n
+  diagnostic: climateeval.diags.simple.AtlanticHeatTransportTimeseries
+  variables:
+    # Annual-mean Atlantic heat transport at the RAPID array (26.5N). The RAPID
+    # hfbasin reference is a locally CMORized file (see climateeval.data.RAPID).
+    - id: oht_26n
+      var_name: hfbasin
+      frequency: mon
+      reference_data: climateeval.data.RAPID

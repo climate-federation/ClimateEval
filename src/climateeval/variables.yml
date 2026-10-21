@@ -504,6 +504,12 @@ so:
   realm: ocean
   standard_name: sea_water_salinity
   units: "1E-03"
+sos:
+  coordinates: [time, lat, lon]
+  long_name: Sea Surface Salinity
+  realm: ocean
+  standard_name: sea_surface_salinity
+  units: "1E-03"
 hfbasin:
   coordinates: [time, basin, lat]
   long_name: Northward Ocean Heat Transport

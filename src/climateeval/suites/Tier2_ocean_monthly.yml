@@ -1,4 +1,8 @@
-# Tier 2 | Mean state vs observations: ocean climatology (SST, salinity, chl, MLD, Nino3.4, AMOC, OHC).
+# Tier 2 | Mean state vs observations: ocean climatology (SST, salinity, chl, MLD, Nino3.4, AMOC, OHC, depth profiles, ACC, SSH gradient, OHT).
+#
+# The 2-D, 3-D, ACC and AMOC parts are also shipped as separate suites
+# (Tier2_ocean_2d, Tier2_ocean_3d, Tier2_ocean_acc, Tier2_ocean_amoc) so they
+# can be run with different time ranges (see examples/ocean).
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.AnnualCycle
   variables:
@@ -76,7 +80,7 @@
       reference_data: climateeval.data.ESACCISST
       other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
 
-- name: amoc
+- name: amoc_timeseries
   diagnostic: climateeval.diags.simple.AMOCTimeSeries
   variables:
     # AMOC at the RAPID array (26.5N). Derived (by ESMValTool) from the
@@ -86,6 +90,36 @@
       var_name: amoc
       frequency: mon
       reference_data: climateeval.data.RAPID
+
+- name: amoc_profile
+  diagnostic: climateeval.diags.simple.AMOCDepthProfile
+  variables:
+    # Climatological AMOC streamfunction vs depth at the RAPID array (26.5N),
+    # from the meridional overturning mass streamfunction (msftmz). The RAPID
+    # msftmz reference is a locally CMORized file (see climateeval.data.RAPID).
+    - id: msftmz
+      var_name: msftmz
+      frequency: mon
+      reference_data: climateeval.data.RAPID
+
+- name: depth_profile
+  diagnostic: climateeval.diags.simple.DepthProfile
+  # Mean profile of the zonal section across the Atlantic at 26.5N.
+  diagnostic_kwargs:
+    lats: [26.5, 26.5]
+    lons: [-80.0, -15.0]
+  variables:
+    - id: thetao
+      var_name: thetao
+      frequency: mon
+      reference_data: climateeval.data.IAP
+      other_data: [climateeval.data.EN4]
+    - id: so
+      var_name: so
+      units: g kg-1
+      frequency: mon
+      reference_data: climateeval.data.ORAS5
+      other_data: [climateeval.data.WOA]
 
 - name: ohc
   diagnostic: climateeval.diags.simple.OceanHeatContentTimeSeries
@@ -134,7 +168,14 @@
         units: m
         value: 0.0
         extrapolate: true
-      reference_data: climateeval.data.WOA
+      reference_data: climateeval.data.ORAS5
+      other_data: [climateeval.data.WOA]
+
+- name: trend_map
+  diagnostic: climateeval.diags.simple.TrendMap
+  variables:
+    - *tos
+    - *sos
 
 - name: zonal_line
   diagnostic: climateeval.diags.simple.ZonalLine
@@ -143,10 +184,10 @@
     - *tos
     - *sos
 
-- name: gulf_stream_ssh
-  diagnostic: climateeval.diags.simple.GulfStreamSshGradient
+- name: ssh_gradient
+  diagnostic: climateeval.diags.simple.SshGradient
   variables:
-    - id: ssh_gulf_stream
+    - id: ssh_gradient
       var_name: zos
       frequency: mon
       reference_data: climateeval.data.ORAS5
@@ -159,11 +200,22 @@
       frequency: mon
       reference_data: climateeval.data.ORAS5
 
-# Run model-only: hfbasin is not provided by ORAS5 (and RAPID, which measures
-# it at 26.5N, has no CMORizer yet), so no reference dataset is attached.
-- name: atlantic_heat_transport_26n
-  diagnostic: climateeval.diags.simple.OceanHeatTransportProfile
+# Zonal profile of the Atlantic northward ocean heat transport. Run model-only:
+# hfbasin is not provided by ORAS5, and RAPID only measures it at 26.5N (see
+# atlantic_heat_transport_26n below).
+- name: ocean_heat_transport_atlantic
+  diagnostic: climateeval.diags.simple.OceanHeatTransportZonal
   variables:
     - id: oht_atlantic
       var_name: hfbasin
       frequency: mon
+
+# Annual-mean Atlantic heat transport at the RAPID array (26.5N). The RAPID
+# hfbasin reference is a locally CMORized file (see climateeval.data.RAPID).
+- name: atlantic_heat_transport_26n
+  diagnostic: climateeval.diags.simple.AtlanticHeatTransportTimeseries
+  variables:
+    - id: oht_26n
+      var_name: hfbasin
+      frequency: mon
+      reference_data: climateeval.data.RAPID

@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import ibis
+import iris
+import numpy as np
 from loguru import logger
+
+if TYPE_CHECKING:
+    from iris.cube import Cube
 
 logger = logger.opt(colors=True)
 
@@ -35,6 +40,73 @@ PLEV19_LEVELS: list[float] = [
     500.0,
     100.0,
 ]
+
+#: Common depth levels (m) that ocean depth profiles are interpolated onto.
+DEPTH_LEVELS: list[float] = [
+    0.0,
+    20.0,
+    40.0,
+    60.0,
+    80.0,
+    100.0,
+    120.0,
+    140.0,
+    160.0,
+    180.0,
+    200.0,
+    300.0,
+    400.0,
+    500.0,
+    600.0,
+    700.0,
+    800.0,
+    900.0,
+    1000.0,
+    1200.0,
+    1400.0,
+    1800.0,
+    2200.0,
+    2600.0,
+    3000.0,
+    3400.0,
+    3800.0,
+    4200.0,
+    4600.0,
+    5000.0,
+    5400.0,
+    5800.0,
+    5995.0,
+]
+
+ATLANTIC_BASIN: str = "atlantic_arctic_ocean"
+"""Name of the Atlantic basin along CMOR ``basin`` coordinates."""
+
+RAPID_LATITUDE: float = 26.5
+"""Latitude (degrees north) of the RAPID-MOCHA-WBTS array."""
+
+
+def extract_basin_at_latitude(cube: Cube, basin: str, latitude: float) -> Cube:
+    """Extract one basin of a ``basin``-dimensioned cube at a given latitude.
+
+    Selects ``basin`` along the CMOR ``basin`` coordinate (standard name
+    ``region``) and the grid latitude closest to ``latitude``. Both become
+    scalar coordinates; the string-valued basin coordinate is removed since it
+    cannot be stored in the output tables.
+    """
+    basin_cube = cube.extract(iris.Constraint(region=basin))
+    if basin_cube is None:
+        msg = f"Basin '{basin}' not found in cube {cube.summary(shorten=True)}"
+        raise ValueError(msg)
+    if basin_cube.coords("region"):
+        basin_cube.remove_coord("region")
+    lat_coord = basin_cube.coord("latitude")
+    lat_dims = basin_cube.coord_dims(lat_coord)
+    if lat_dims:
+        closest_idx = int(np.argmin(np.abs(lat_coord.points - latitude)))
+        indices: list[slice | int] = [slice(None)] * basin_cube.ndim
+        indices[lat_dims[0]] = closest_idx
+        basin_cube = basin_cube[tuple(indices)]
+    return basin_cube
 
 
 def union(*tables: ibis.Table) -> ibis.Table:

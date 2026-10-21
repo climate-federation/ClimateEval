@@ -251,7 +251,9 @@ Read by the library:
 | `CLIMATEEVAL_COORDINATES_FILE` | `_variable.py` | Override the packaged `coordinates.yml`. |
 | `CLIMATEEVAL_ORAS5_RAW_DIR` | `climateeval.data.ORAS5` | Directory of raw ORAS5 NEMO files. |
 | `CLIMATEEVAL_ORAS5_GRID_DIR` | `climateeval.data.ORAS5` | Directory of ORAS5 grid files. |
-| `CLIMATEEVAL_RAPID_FILE` | `climateeval.data.RAPID` | Path to the RAPID AMOC observations file. |
+| `CLIMATEEVAL_RAPID_FILE` | `climateeval.data.RAPID` | Path to the CMORized RAPID `amoc` file. |
+| `CLIMATEEVAL_RAPID_MSFTMZ_FILE` | `climateeval.data.RAPID` | Path to the CMORized RAPID `msftmz` (overturning streamfunction) file. |
+| `CLIMATEEVAL_RAPID_HFBASIN_FILE` | `climateeval.data.RAPID` | Path to the CMORized RAPID `hfbasin` (heat transport) file. |
 | `CLIMATEEVAL_LOCAL_CMOR_DIR` | `climateeval.data.LocalCMORDataSource` | Directory (or file, or DRS tree) of locally staged CMOR-compliant data. |
 
 Conventions used by the example scripts (not the library itself):

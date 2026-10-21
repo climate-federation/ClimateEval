@@ -105,6 +105,7 @@ python scripts/gen_variables_doc.py
 | `rx5day` | Annual/monthly maximum 5-day precipitation |  | `mm` | `atmos` | `time lat lon` |  |
 | `siconc` | Sea-Ice Area Percentage (Ocean Grid) | `sea_ice_area_fraction` | `%` | `sea_ice` | `time lat lon` |  |
 | `so` | Sea Water Salinity | `sea_water_salinity` | `1E-03` | `ocean` | `time olevel lat lon` |  |
+| `sos` | Sea Surface Salinity | `sea_surface_salinity` | `1E-03` | `ocean` | `time lat lon` |  |
 | `swcre` | TOA Shortwave Cloud Radiative Effect |  | `W m-2` | `atmos` | `time lat lon` | yes |
 | `ta` | Air Temperature | `air_temperature` | `K` | `atmos` | `time alevel lat lon` |  |
 | `tas` | Near-Surface Air Temperature | `air_temperature` | `K` | `atmos` | `time lat lon` |  |

@@ -120,7 +120,7 @@ written = generate_static_plots(
 )
 ```
 
-All ten figure types below have a static counterpart (registered in
+All eleven figure types below have a static counterpart (registered in
 [`src/climateeval/report/_static_figures.py`](../src/climateeval/report/_static_figures.py)).
 Layout rules for the 2-D types follow `multi_datasets.py`: with a single
 benchmarked model and a reference, maps and zonal profiles use the three-panel
@@ -232,6 +232,7 @@ The supported types (registered in
 | `Map` | 🗺 Map | 2-D heatmap with coastlines; reference and model−reference bias. |
 | `ZonalProfile` | 🌡 Zonal Profile | 2-D pressure × latitude heatmap; reference and bias. |
 | `ZonalLine` | 〰 Zonal Mean | 1-D line, zonal mean vs. latitude. |
+| `DepthProfile` | Depth Profile | 1-D line, value vs. depth (surface at the top); bias panel below when a reference is available. |
 | `TimeSeries` | 📈 Time Series | 1-D line over time. |
 | `AnnualCycle` | 📅 Annual Cycle | 1-D line, monthly climatology. |
 | `DiurnalCycle` | 🌅 Diurnal Cycle | 1-D line, hourly climatology (local solar time). |
