@@ -18,12 +18,30 @@ arctic_amplification:
   realm: atmos
   standard_name: ""
   units: "1"
+atmospheric_energy_residual:
+  coordinates: []
+  long_name: Atmospheric Energy Budget Residual
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
 cl:
   coordinates: [time, alevel, lat, lon]
   long_name: Percentage Cloud Cover
   realm: atmos
   standard_name: cloud_area_fraction_in_atmosphere_layer
   units: "%"
+clausius_clapeyron_scaling:
+  coordinates: []
+  long_name: Clausius-Clapeyron Scaling of the Water Vapor Path
+  realm: atmos
+  standard_name: ""
+  units: "% K-1"
+clear_sky_lw_feedback:
+  coordinates: []
+  long_name: Clear-Sky Longwave Feedback Parameter
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
 cli:
   coordinates: [time, alevel, lat, lon]
   long_name: Mass Fraction of Cloud Ice
@@ -192,6 +210,18 @@ pr:
   realm: atmos
   standard_name: precipitation_flux
   units: kg m-2 s-1
+precip_buoyancy_slope:
+  coordinates: []
+  long_name: Tropical Precipitation-Buoyancy Regression Slope
+  realm: atmos
+  standard_name: ""
+  units: "mm day-1 (MJ m-2)-1"
+precip_buoyancy_slope_obs:
+  coordinates: []
+  long_name: Observed Tropical Precipitation-Buoyancy Regression Slope
+  realm: atmos
+  standard_name: ""
+  units: "mm day-1 (MJ m-2)-1"
 prw:
   coordinates: [time, lat, lon]
   long_name: Water Vapor Path
@@ -330,6 +360,24 @@ tnn:
   realm: atmos
   standard_name: ""
   units: degC
+toa_net_drift:
+  coordinates: []
+  long_name: TOA Net Downward Radiation Drift
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 (10 yr)-1"
+toa_net_mean:
+  coordinates: []
+  long_name: TOA Net Downward Radiation Mean
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
+toa_net_n_years:
+  coordinates: []
+  long_name: Number of Years Used for the TOA Energy Balance
+  realm: atmos
+  standard_name: ""
+  units: "1"
 ts:
   coordinates: [time, lat, lon]
   long_name: Surface Temperature
@@ -360,6 +408,12 @@ wap:
   realm: atmos
   standard_name: lagrangian_tendency_of_air_pressure
   units: Pa s-1
+water_budget_residual:
+  coordinates: []
+  long_name: Global Water Budget Residual
+  realm: atmos
+  standard_name: ""
+  units: "mm day-1"
 zg:
   coordinates: [time, alevel, lat, lon]
   long_name: Geopotential Height

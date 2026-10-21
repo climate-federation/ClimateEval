@@ -8,6 +8,13 @@ defined for each diagnostic separately.
 from __future__ import annotations
 
 from climateeval.diags.complex._base import ComplexDiagnostic
+from climateeval.diags.complex._consistency import (
+    BudgetClosure,
+    ClausiusClapeyronScaling,
+    ClearSkyLongwaveFeedback,
+    EnergyBalance,
+    PrecipitationBuoyancy,
+)
 from climateeval.diags.complex._dynamics import (
     GeostrophicBalance,
     MJOEastWestPowerRatio,
@@ -29,12 +36,17 @@ __all__ = [
     "ECS",
     "ArcticAmplification",
     "BjerknesCompensation",
+    "BudgetClosure",
+    "ClausiusClapeyronScaling",
+    "ClearSkyLongwaveFeedback",
     "ComplexDiagnostic",
     "ENSOTeleconnectionPatterns",
+    "EnergyBalance",
     "GeostrophicBalance",
     "ITCZEnergyFluxEquator",
     "LandOceanWarmingRatio",
     "MJOEastWestPowerRatio",
     "MeridionalHeatTransport",
+    "PrecipitationBuoyancy",
     "TEMDiagnostic",
 ]

@@ -1,0 +1,16 @@
+# Tier 1 | Physical consistency of an unforced control run: global energy
+# balance and drift, water- and atmospheric-energy-budget closure, and the
+# Clausius-Clapeyron scaling of the column water vapour. A separate suite
+# because these diagnostics take a piControl experiment (a suite passes the
+# same data dict to every diagnostic it contains).
+- name: energy_balance
+  diagnostic: climateeval.diags.complex.EnergyBalance
+  additional_diagnostic_kwargs: {}
+
+- name: budget_closure
+  diagnostic: climateeval.diags.complex.BudgetClosure
+  additional_diagnostic_kwargs: {}
+
+- name: clausius_clapeyron_scaling
+  diagnostic: climateeval.diags.complex.ClausiusClapeyronScaling
+  additional_diagnostic_kwargs: {}

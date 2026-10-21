@@ -28,6 +28,8 @@ from climateeval.diags.simple._qbo import QBO
 from climateeval.diags.simple._sea_ice import (
     SeaIceAreaAnnualCycle,
     SeaIceAreaTimeSeries,
+    SeaIceExtentAnnualCycle,
+    SeaIceExtentTimeSeries,
 )
 from climateeval.diags.simple._timeseries import (
     AnnualMeanTimeSeries,
@@ -56,6 +58,8 @@ __all__ = [
     "OceanHeatTransportProfile",
     "SeaIceAreaAnnualCycle",
     "SeaIceAreaTimeSeries",
+    "SeaIceExtentAnnualCycle",
+    "SeaIceExtentTimeSeries",
     "SimpleDiagnostic",
     "SimpleDiagnosticInputData",
     "TimeSeriesNoPreprocessing",
