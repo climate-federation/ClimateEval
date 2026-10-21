@@ -9,14 +9,8 @@ import ibis
 
 def main() -> None:
     """Run example script."""
-<<<<<<< HEAD:db_example.py
-    # root = Path.home() / "ClimateEval"
-    root = Path.cwd()
-    # db_path = root / "Tier1_ecs.ddb"
-=======
     root = Path.home() / "ClimateEval"
     # db_path = root / "Tier3_ecs.ddb"
->>>>>>> origin:examples/quickstart/db_example.py
     # db_path = root / "Tier1_consistency_checks.ddb"
     db_path = root / "Tier1_sanity_checks.ddb"
     # db_path = root / "Tier2_atmosphere_monthly.ddb"
@@ -39,9 +33,9 @@ def main() -> None:
                 # print(table.count().to_pandas())
                 # print((table.count().to_pandas(), len(table.schema())))
                 print(table.to_pandas())
-                html_path = root / f"{full_name}.html"
-                print(table.to_pandas().to_html(html_path))
-                print(f"Wrote {html_path}")
+                # html_path = root / f"{full_name}.html"
+                # print(table.to_pandas().to_html(html_path))
+                # print(f"Wrote {html_path}")
                 print()
 
 

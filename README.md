@@ -112,10 +112,6 @@ Now you can use `pixi shell`/`pixi shell --frozen` to launch a shell in your
 pixi environment or `pixi run ...`/`pixi run --frozen ...` to run commands in
 your pixi environment.
 
-<<<<<<< HEAD
-## Examples
-
-=======
 ## Quick start
 
 Benchmark your model against ERA5, GPCP, CERES-EBAF and CMIP6 historical models
@@ -141,7 +137,6 @@ interactive server instead of writing files. Run `climateeval --help` or see
   a suite on a model and inspect the results database.
 - [`examples/legoesm`](examples/legoesm/README.md) — benchmark an external
   (non-CMIP archive) model against observations and build a report.
->>>>>>> origin
 - [`examples/ocean`](examples/ocean/README.md) — run the ocean and sea-ice
   diagnostics on a CMIP6 model and produce an interactive HTML report (staging
   the observational references, running the suites, and switching to a

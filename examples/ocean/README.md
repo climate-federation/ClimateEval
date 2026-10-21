@@ -56,8 +56,6 @@ export CLIMATEEVAL_ORAS5_GRID_DIR=/work/bd1083/b382555/extraobsraw/Tier2/ORAS5/g
 export CLIMATEEVAL_RAPID_FILE=/work/bd0854/DATA/ESMValTool2/OBS/Tier3/RAPID/OBS6_RAPID_exp_2024.1a_Omon_amoc_2004_2024.nc
 ```
 
-<<<<<<< HEAD
-=======
 > **Note on ORAS5.** ClimateEval ships its own ORAS5 loader
 > (`climateeval.data.ORAS5`) that reads the raw NEMO files directly, independent
 > of ESMValCore. The equivalent ESMValCore on-the-fly `native6` ORAS5 fix is now
@@ -67,7 +65,6 @@ export CLIMATEEVAL_RAPID_FILE=/work/bd0854/DATA/ESMValTool2/OBS/Tier3/RAPID/OBS6
 > the standard CMORizer path (which would also add 3-D variable support; the
 > built-in loader currently handles 2-D surface fields such as `mlotst` only).
 
->>>>>>> origin
 ## 3. Run the diagnostics
 
 Point the runner at your staged references and an output directory, then run it:
