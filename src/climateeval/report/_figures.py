@@ -1510,6 +1510,7 @@ def build_bar_figures(
             text=[f"{v:.3g}" for v in x_vals],
             textposition="outside",
             cliponaxis=False,
+            showlegend=False,
             hovertemplate="%{y}: %{x:.4g}<extra></extra>",
         )
 
@@ -1862,6 +1863,8 @@ def build_hovmoller_figures(
             f"  [{units}]" if units else ""
         )
         panel_height = max(400, 320 * nrows)
+        # buttons sit just above the panel titles, below the figure title
+        _btn_y = 1.0 + 26.0 / max(panel_height - 170, 100)
         fig.update_layout(
             **_base_layout(
                 title={
@@ -1879,7 +1882,7 @@ def build_hovmoller_figures(
                     **_btn_style,
                     "x": 0.0,
                     "xanchor": "left",
-                    "y": 1.0,
+                    "y": _btn_y,
                     "yanchor": "bottom",
                     "buttons": [
                         {
@@ -1898,7 +1901,7 @@ def build_hovmoller_figures(
                     **_btn_style,
                     "x": 0.55,
                     "xanchor": "left",
-                    "y": 1.0,
+                    "y": _btn_y,
                     "yanchor": "bottom",
                     "buttons": [
                         {
@@ -2238,6 +2241,36 @@ _FIGURE_BUILDERS = {
     "Histogram": build_histogram_figures,
     "Scalar": build_bar_figures,
 }
+
+# Display names for diagnostics keyed by their `name:` in the suite, used for
+# the toolbar tabs and card titles. Diagnostics not listed here get their
+# name prettified (annual_cycle -> "Annual Cycle"); the plot type is shown
+# separately as a chip, so several diagnostics of one type stay telling apart.
+_DIAG_NAME_LABELS: dict[str, str] = {
+    "amoc": "AMOC",
+    "nino34": "Niño 3.4",
+    "ohc": "Ocean Heat Content",
+    "ecs": "ECS",
+    "qbo": "QBO",
+    "hovmoller": "Hovmöller",
+    "timeseries": "Time Series",
+    "annual_mean_timeseries": "Annual Mean Time Series",
+    "zonal_line": "Zonal Mean",
+    "zonal_profile": "Zonal Profile",
+    "performance_metrics": "Performance Metrics",
+}
+
+
+def _diag_display_label(diag_name: str, dtype: str = "") -> str:
+    """Human-readable label for a diagnostic: explicit, else prettified name."""
+    key = diag_name.lower()
+    if key in _DIAG_NAME_LABELS:
+        return _DIAG_NAME_LABELS[key]
+    pretty = diag_name.replace("_", " ").replace("-", " ").strip()
+    if not pretty:
+        return _DIAG_LABELS.get(dtype, dtype)
+    return " ".join(w if w.isupper() else w.capitalize() for w in pretty.split())
+
 
 _DIAG_LABELS = {
     "Map": "Map",

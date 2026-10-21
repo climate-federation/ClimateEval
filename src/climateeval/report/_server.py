@@ -30,8 +30,8 @@ import pandas as pd
 
 from climateeval.report._common import _var_label
 from climateeval.report._db import detect_diag_type, get_var_cols, read_database
+from climateeval.report._figures import _diag_display_label
 from climateeval.report._figures import (
-    _DIAG_LABELS,
     _FIGURE_BUILDERS,
 )
 from climateeval.report._html import build_html_shell, generate_portable_html
@@ -245,8 +245,7 @@ def _build_structure() -> bytes:
                 {
                     "name": diag_name,
                     "type": dtype,
-                    "label": _DIAG_LABELS.get(diag_name)
-                    or _DIAG_LABELS.get(dtype, diag_name),
+                    "label": _diag_display_label(diag_name, dtype),
                     "variables": variables,
                 },
             )

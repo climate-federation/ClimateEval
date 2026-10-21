@@ -17,6 +17,7 @@ from climateeval.report._figures import (
     _DIAG_LABELS,
     _FIGURE_BUILDERS,
     _diag_category,
+    _diag_display_label,
 )
 from climateeval.report._common import _var_label
 from climateeval.report._leaderboard import (
@@ -682,11 +683,7 @@ def _render_tier_panel(
     diag_types = diag_types or {}
 
     def _label(dname: str) -> str:
-        # First try direct name, then fall back to detected type
-        return _DIAG_LABELS.get(dname) or _DIAG_LABELS.get(
-            diag_types.get(dname, ""),
-            dname,
-        )
+        return _diag_display_label(dname, diag_types.get(dname, ""))
 
     toolbar_html = _render_toolbar(
         tier_id,
@@ -881,7 +878,7 @@ def build_html_shell(
     all_panels = lb_panel
 
     def _diag_label(diag_name: str, dtype: str) -> str:
-        return _DIAG_LABELS.get(diag_name) or _DIAG_LABELS.get(dtype, diag_name)
+        return _diag_display_label(diag_name, dtype)
 
     def _render_shell_diagnostic(
         tier_id: str,
