@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 from esmvalcore.preprocessor import extract_levels, extract_region
+from iris.exceptions import ConstraintMismatchError
 from loguru import logger
 
 from climateeval import Variable
@@ -314,11 +315,11 @@ class GeostrophicBalance(ScalarExperimentDiagnostic):
             surface_pressure = np.squeeze(
                 as_float_array(self._prepared_cube(data, self._ps).data),
             )
-        except Exception as exc:  # noqa: BLE001 - ps is genuinely optional
+        except ConstraintMismatchError:  # ps is genuinely optional
             logger.warning(
-                f"Diagnostic '{self.name}': no daily surface pressure "
-                f"({type(exc).__name__}: {exc}); the geostrophic balance is "
-                f"evaluated without masking sub-surface grid points",
+                f"Diagnostic '{self.name}': no daily surface pressure ('ps') in "
+                f"the data; the geostrophic balance is evaluated without masking "
+                f"sub-surface grid points",
             )
             return wind, height
         n_time = min(wind.shape[0], surface_pressure.shape[0])
