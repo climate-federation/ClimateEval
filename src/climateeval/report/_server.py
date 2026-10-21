@@ -30,14 +30,15 @@ import pandas as pd
 
 from climateeval.report._common import _var_label
 from climateeval.report._db import detect_diag_type, get_var_cols, read_database
+from climateeval.report._figures import _diag_display_label
 from climateeval.report._figures import (
-    _DIAG_LABELS,
     _FIGURE_BUILDERS,
 )
 from climateeval.report._html import build_html_shell, generate_portable_html
 from climateeval.report._leaderboard import (
     build_leaderboard_data,
     build_scoreboard_figure,
+    dataset_roles,
 )
 
 # ---------------------------------------------------------------------------
@@ -106,6 +107,7 @@ def _load_state(
 
     _STATE["tiers"] = tiers
     _STATE["all_metrics"] = all_metrics
+    _STATE["roles"] = dataset_roles(tier["db_data"] for tier in tiers)
     _STATE["html_shell"] = build_html_shell(
         tiers,
         all_metrics,
@@ -187,11 +189,15 @@ def _build_leaderboard_json() -> bytes:
     """Return the leaderboard payload (scoreboard figure + summary rows) as JSON bytes."""
     payload: dict[str, Any] = {}
 
-    scoreboard_fig = build_scoreboard_figure(_STATE["all_metrics"])
+    scoreboard_fig = build_scoreboard_figure(
+        _STATE["all_metrics"], roles=_STATE.get("roles")
+    )
     if scoreboard_fig is not None:
         payload["scoreboard"] = json.loads(scoreboard_fig.to_json())
 
-    summary_df, detail_df = build_leaderboard_data(_STATE["all_metrics"])
+    summary_df, detail_df = build_leaderboard_data(
+        _STATE["all_metrics"], _STATE.get("roles")
+    )
     if not summary_df.empty:
         payload["summary"] = json.loads(summary_df.to_json(orient="records"))
     if not detail_df.empty:
@@ -229,6 +235,10 @@ def _build_structure() -> bytes:
 
             variables = []
             for var_id in get_var_cols(data_df):
+                # Histogram figures are keyed by the binned variable; the
+                # density columns are their y-values, not variables of their own.
+                if dtype == "Histogram" and var_id.startswith("density_"):
+                    continue
                 if data_df[var_id].isna().all():
                     continue
                 long_name, units = _var_label(var_id, variables_df)
@@ -241,8 +251,7 @@ def _build_structure() -> bytes:
                 {
                     "name": diag_name,
                     "type": dtype,
-                    "label": _DIAG_LABELS.get(diag_name)
-                    or _DIAG_LABELS.get(dtype, diag_name),
+                    "label": _diag_display_label(diag_name, dtype),
                     "variables": variables,
                 },
             )

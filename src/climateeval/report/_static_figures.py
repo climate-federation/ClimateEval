@@ -35,6 +35,8 @@ from climateeval.report._common import (
 )
 from climateeval.report._db import detect_diag_type, get_var_cols, read_database
 from climateeval.report._style import (
+    _OTHER_COLORS,
+    _REFERENCE_COLORS,
     _SEABORN_COLORS,
     _bias_colorscale_for,
     _colorscale_for,
@@ -56,14 +58,14 @@ _SAVEFIG_KWARGS = {"bbox_inches": "tight", "orientation": "landscape"}
 _GRIDLINE_KWARGS = {"color": "darkgray", "linewidth": 0.5, "alpha": 0.3}
 _LEGEND_KWARGS = {"loc": "upper center", "borderaxespad": 0.0}
 
-# Line styling per data_type, following the ICONEval timeseries/annual-cycle
-# plot_kwargs: the benchmarked model drawn on top, observations/references in
-# black (linestyle distinguishes multiple references), auxiliary datasets
-# (e.g. a CMIP6 ensemble) as a thin light-gray background bundle.
-_BENCHMARK_KWARGS = {"linewidth": 1.25, "zorder": 2.5}
-_REFERENCE_KWARGS = {"color": "black", "linewidth": 1.0, "zorder": 2.4}
-_OTHER_KWARGS = {"color": "lightgray", "linewidth": 0.75, "zorder": 1.0}
-_REFERENCE_LINESTYLES = ["solid", "dashed", "dashdot", "dotted"]
+# Line styling per data_type, the same scheme as the interactive report
+# (_figures._get_line_properties): the benchmarked model drawn on top as a
+# solid line in its palette colour, references solid in dark colours (black
+# first), compared datasets thin with a distinct colour + dash pair each.
+_BENCHMARK_KWARGS = {"linewidth": 1.25, "linestyle": "solid", "zorder": 2.5}
+_REFERENCE_KWARGS = {"linewidth": 1.0, "linestyle": "solid", "zorder": 2.4}
+_OTHER_KWARGS = {"linewidth": 0.75, "zorder": 1.0}
+_OTHER_LINESTYLES = ["dashed", "dotted", "dashdot", (0, (6, 2)), (0, (6, 2, 1, 2))]
 
 _SEABORN_STYLE = "ticks"  # multi_datasets.py seaborn_settings default
 
@@ -76,19 +78,38 @@ def _new_figure() -> tuple[Figure, matplotlib.axes.Axes]:
     return fig, axes
 
 
-def _line_kwargs(dtype: str, color_idx: int, ref_idx: int) -> dict:
-    """Return matplotlib plot kwargs for a dataset line."""
+def _line_kwargs(dtype: str, idx: int) -> dict:
+    """Return matplotlib plot kwargs for the ``idx``-th dataset of a type."""
     if dtype == "reference":
         return {
             **_REFERENCE_KWARGS,
-            "linestyle": _REFERENCE_LINESTYLES[ref_idx % len(_REFERENCE_LINESTYLES)],
+            "color": _REFERENCE_COLORS[idx % len(_REFERENCE_COLORS)],
         }
     if dtype == "to_benchmark":
         return {
             **_BENCHMARK_KWARGS,
-            "color": _SEABORN_COLORS[color_idx % len(_SEABORN_COLORS)],
+            "color": _SEABORN_COLORS[idx % len(_SEABORN_COLORS)],
         }
-    return dict(_OTHER_KWARGS)
+    return {
+        **_OTHER_KWARGS,
+        "color": _OTHER_COLORS[idx % len(_OTHER_COLORS)],
+        "linestyle": _OTHER_LINESTYLES[idx % len(_OTHER_LINESTYLES)],
+    }
+
+
+def _line_styles(data_df: pd.DataFrame, datasets: Iterable) -> dict:
+    """Line kwargs per dataset, numbered within each data type.
+
+    Assigned once per figure so a dataset keeps its look in every panel.
+    """
+    dtypes = data_df.drop_duplicates("data_id").set_index("data_id")["data_type"]
+    counts: dict[str, int] = {}
+    styles = {}
+    for dataset in datasets:
+        dtype = str(dtypes.get(dataset, "other"))
+        styles[dataset] = _line_kwargs(dtype, counts.get(dtype, 0))
+        counts[dtype] = counts.get(dtype, 0) + 1
+    return styles
 
 
 def _finish_line_axes(
@@ -152,7 +173,7 @@ def build_static_timeseries_figures(
     """
     figures: dict[str, Figure] = {}
     all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
-    ref_datasets = _get_ref_datasets(data_df, metrics_df)
+    _get_ref_datasets(data_df, metrics_df)
 
     for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
@@ -165,24 +186,19 @@ def build_static_timeseries_figures(
         # Use markers when there are too few points for a visible line.
         marker = "o" if data_df["time"].nunique() < 3 else None
 
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
             sub = grp[["time", var_id]].sort_values("time")
             if sub.empty:
                 continue
-            dtype = grp["data_type"].iloc[0]
-            ref_idx = ref_datasets.index(dataset) if dataset in ref_datasets else 0
-            kwargs = _line_kwargs(dtype, color_idx, ref_idx)
             axes.plot(
                 sub["time"],
                 sub[var_id],
-                label=None if dtype == "other" else str(dataset),
+                label=str(dataset),
                 marker=marker,
-                **kwargs,
+                **styles[dataset],
             )
-            if dtype == "to_benchmark":
-                color_idx += 1
 
         ylabel = f"{var_id} [{units}]" if units else var_id
         _finish_line_axes(axes, title=long_name, ylabel=ylabel)
@@ -330,7 +346,7 @@ def _draw_map_panel(  # noqa: PLR0913
     transform: object,
     title_fontsize: float = _MAP_FONTSIZE,
 ) -> object:
-    """Filled contours with coastlines; the one map panel both builders draw."""
+    """Draw filled contours with coastlines, the one map panel both builders use."""
     lons, lats, vals = _cyclic(pivot)
     mappable = axes.contourf(
         lons,
@@ -597,13 +613,16 @@ def build_static_map_figures(
             # carry only the dataset name and the bias reference moves to the
             # figure title.
             if has_bias:
-                panels = [(display(ref_label), ref_pivot, cmap, levels, False, None)] + [
+                panels = [
+                    (display(ref_label), ref_pivot, cmap, levels, False, None)
+                ] + [
                     (display(ds), biases[ds], bias_cmap, bias_levels, True, ds)
                     for ds in non_ref
                 ]
             else:
                 panels = [
-                    (display(ds), pivots[ds], cmap, levels, False, None) for ds in pivots
+                    (display(ds), pivots[ds], cmap, levels, False, None)
+                    for ds in pivots
                 ]
             ncols = min(len(panels), 3)
             nrows = (len(panels) + ncols - 1) // ncols
@@ -753,24 +772,41 @@ def build_static_map_sheet(  # noqa: PLR0913, PLR0915
 
         axes = [fig.add_subplot(grid[r, c], projection=projection) for c in range(3)]
         m_data = _draw_map_panel(
-            axes[0], pivots[model], title="", cmap=cmap, levels=levels,
-            extent=None, transform=transform,
+            axes[0],
+            pivots[model],
+            title="",
+            cmap=cmap,
+            levels=levels,
+            extent=None,
+            transform=transform,
         )
         _draw_map_panel(
-            axes[1], ref_pivot, title=display(ref_name), cmap=cmap, levels=levels,
-            extent=None, transform=transform,
+            axes[1],
+            ref_pivot,
+            title=display(ref_name),
+            cmap=cmap,
+            levels=levels,
+            extent=None,
+            transform=transform,
         )
         m_bias = _draw_map_panel(
-            axes[2], bias, title="", cmap=bias_cmap, levels=bias_levels,
-            extent=None, transform=transform,
+            axes[2],
+            bias,
+            title="",
+            cmap=bias_cmap,
+            levels=bias_levels,
+            extent=None,
+            transform=transform,
         )
 
-        cb_data = fig.colorbar(m_data, ax=axes[:2], orientation="vertical",
-                               aspect=12, pad=0.01)
+        cb_data = fig.colorbar(
+            m_data, ax=axes[:2], orientation="vertical", aspect=12, pad=0.01
+        )
         cb_data.set_label(cbar_label, fontsize=_MAP_FONTSIZE)
         cb_data.ax.tick_params(labelsize=_MAP_FONTSIZE)
-        cb_bias = fig.colorbar(m_bias, ax=axes[2], orientation="vertical",
-                               aspect=12, pad=0.01)
+        cb_bias = fig.colorbar(
+            m_bias, ax=axes[2], orientation="vertical", aspect=12, pad=0.01
+        )
         cb_bias.set_label(f"\u0394{cbar_label}", fontsize=_MAP_FONTSIZE)
         cb_bias.ax.tick_params(labelsize=_MAP_FONTSIZE)
 
@@ -786,8 +822,14 @@ def build_static_map_sheet(  # noqa: PLR0913, PLR0915
             metrics=_map_metrics_for(metrics_df, var_id, model),
         )
         axes[0].text(
-            -0.04, 0.5, long_name, transform=axes[0].transAxes,
-            rotation=90, va="center", ha="right", fontsize=_MAP_FONTSIZE + 1,
+            -0.04,
+            0.5,
+            long_name,
+            transform=axes[0].transAxes,
+            rotation=90,
+            va="center",
+            ha="right",
+            fontsize=_MAP_FONTSIZE + 1,
         )
         if r == 0:
             headings = (
@@ -825,7 +867,7 @@ def _build_static_cycle_figures(
     """Shared 1D-cycle line plot (multi_datasets.py annual/diurnal cycle)."""
     figures: dict[str, Figure] = {}
     all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
-    ref_datasets = _get_ref_datasets(data_df, metrics_df)
+    _get_ref_datasets(data_df, metrics_df)
 
     for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
@@ -833,22 +875,18 @@ def _build_static_cycle_figures(
         long_name, units = _var_label(var_id, variables_df)
 
         fig, axes = _new_figure()
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
             if grp.empty:
                 continue
             series = grp.groupby(coord)[var_id].mean().sort_index()
-            dtype = grp["data_type"].iloc[0]
-            ref_idx = ref_datasets.index(dataset) if dataset in ref_datasets else 0
             axes.plot(
                 series.index,
                 series.values,
-                label=None if dtype == "other" else str(dataset),
-                **_line_kwargs(dtype, color_idx, ref_idx),
+                label=str(dataset),
+                **styles[dataset],
             )
-            if dtype == "to_benchmark":
-                color_idx += 1
 
         axes.set_xticks(xticks)
         if xticklabels is not None:
@@ -922,13 +960,12 @@ def build_static_histogram_figures(
         log_y = _base_var(var_id) == "pr"
 
         fig, axes = _new_figure()
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             ds_sub = sub[sub["data_id"] == dataset].sort_values(var_id)
             if ds_sub.empty:
                 continue
-            dtype = ds_sub["data_type"].iloc[0]
-            kwargs = _line_kwargs(dtype, color_idx, 0)
+            kwargs = styles[dataset]
             centers = ds_sub[var_id].to_numpy(dtype=float)
             heights = ds_sub[density_col].to_numpy(dtype=float)
             if log_y:
@@ -943,11 +980,9 @@ def build_static_histogram_figures(
                 width=widths,
                 alpha=0.5,
                 color=kwargs["color"],
-                label=None if dtype == "other" else str(dataset),
+                label=str(dataset),
                 zorder=kwargs["zorder"],
             )
-            if dtype == "to_benchmark":
-                color_idx += 1
 
         if log_y:
             axes.set_yscale("log")
@@ -974,7 +1009,7 @@ def build_static_zonal_line_figures(
     """Zonal mean vs latitude, multi_datasets.py "variable_vs_lat" style."""
     figures: dict[str, Figure] = {}
     all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
-    ref_datasets = _get_ref_datasets(data_df, metrics_df)
+    _get_ref_datasets(data_df, metrics_df)
 
     for var_id in get_var_cols(data_df):
         if data_df[var_id].isna().all():
@@ -982,22 +1017,18 @@ def build_static_zonal_line_figures(
         long_name, units = _var_label(var_id, variables_df)
 
         fig, axes = _new_figure()
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
             if grp.empty:
                 continue
             series = grp.groupby("latitude")[var_id].mean().sort_index()
-            dtype = grp["data_type"].iloc[0]
-            ref_idx = ref_datasets.index(dataset) if dataset in ref_datasets else 0
             axes.plot(
                 series.index,
                 series.values,
-                label=None if dtype == "other" else str(dataset),
-                **_line_kwargs(dtype, color_idx, ref_idx),
+                label=str(dataset),
+                **styles[dataset],
             )
-            if dtype == "to_benchmark":
-                color_idx += 1
 
         axes.set_xlabel("latitude [°N]")
         ylabel = f"{var_id} [{units}]" if units else var_id
@@ -1412,7 +1443,7 @@ def build_static_qbo_figures(
     """
     figures: dict[str, Figure] = {}
     all_datasets = _sort_datasets(data_df, data_df["data_id"].unique().tolist())
-    ref_datasets = _get_ref_datasets(data_df, metrics_df)
+    _get_ref_datasets(data_df, metrics_df)
     qbo_ticks = [100, 70, 50, 30, 20, 10, 5, 1]
     index_plev_pa = 5000.0  # ~50 hPa
 
@@ -1493,10 +1524,9 @@ def build_static_qbo_figures(
 
         # Amplitude profile (right column, spans the heatmap rows)
         ax_amp = fig.add_subplot(gridspec[0:n_ds, 4])
-        color_idx = 0
+        styles = _line_styles(data_df, list(pivots))
         for ds in pivots:
             grp = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
-            dtype = grp["data_type"].iloc[0]
             std_profile = (
                 grp.assign(plev_hpa=grp["air_pressure"] / 100.0)
                 .groupby("plev_hpa")[var_id]
@@ -1505,14 +1535,11 @@ def build_static_qbo_figures(
             )
             if std_profile.empty:
                 continue
-            ref_idx = ref_datasets.index(ds) if ds in ref_datasets else 0
             ax_amp.plot(
                 std_profile.values,
                 std_profile.index,
-                **_line_kwargs(dtype, color_idx, ref_idx),
+                **styles[ds],
             )
-            if dtype == "to_benchmark":
-                color_idx += 1
         ax_amp.set_yscale("log")
         ax_amp.invert_yaxis()
         ax_amp.minorticks_off()
@@ -1525,23 +1552,18 @@ def build_static_qbo_figures(
 
         # QBO index (bottom, full width)
         ax_idx = fig.add_subplot(gridspec[n_ds, :])
-        color_idx = 0
         for ds in pivots:
             grp = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
-            dtype = grp["data_type"].iloc[0]
             at_50 = grp[np.isclose(grp["air_pressure"], index_plev_pa)]
             if at_50.empty:
                 continue
             series = at_50.groupby("time")[var_id].mean().sort_index()
-            ref_idx = ref_datasets.index(ds) if ds in ref_datasets else 0
             ax_idx.plot(
                 series.index,
                 series.values,
                 label=str(ds),
-                **_line_kwargs(dtype, color_idx, ref_idx),
+                **styles[ds],
             )
-            if dtype == "to_benchmark":
-                color_idx += 1
         ax_idx.grid(visible=True, **_GRIDLINE_KWARGS)
         ax_idx.set_axisbelow(True)
         ax_idx.set_title("QBO index (~50 hPa)", fontsize=_MAP_FONTSIZE)

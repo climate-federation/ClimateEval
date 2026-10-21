@@ -62,7 +62,7 @@ def test_timeseries_figures_one_per_variable_with_iconeval_styles() -> None:
     lines = {line.get_label(): line for line in axes.get_lines()}
 
     ref = lines["ERA5"]
-    assert ref.get_color() == "black"
+    assert ref.get_color() == "#000000"
     assert ref.get_linewidth() == 1.0
 
     model = lines["MODEL"]
@@ -70,23 +70,28 @@ def test_timeseries_figures_one_per_variable_with_iconeval_styles() -> None:
     assert model.get_linewidth() == 1.25
     assert model.get_zorder() > ref.get_zorder()
 
-    # Auxiliary datasets: thin light-gray background bundle, no legend entry.
-    other = next(ln for ln in axes.get_lines() if ln.get_color() == "lightgray")
+    # Compared datasets: thin, own colour and dash, named in the legend.
+    other = next(
+        ln for ln in axes.get_lines() if ln.get_label() not in ("MODEL", "ERA5")
+    )
     assert other.get_linewidth() == 0.75
+    assert other.get_linestyle() != "-"
+    assert other.get_color() not in (model.get_color(), ref.get_color())
     legend_labels = [t.get_text() for t in axes.get_legend().get_texts()]
-    assert legend_labels == ["MODEL", "ERA5"]
+    assert legend_labels == ["MODEL", "ERA5", other.get_label()]
 
     assert axes.get_title() == "Near-Surface Air Temperature"
     assert axes.get_ylabel() == "tas [K]"
 
 
-def test_timeseries_second_reference_gets_distinct_linestyle() -> None:
+def test_timeseries_second_reference_gets_distinct_colour() -> None:
     data_df = _timeseries_df(
         {"ERA5": "reference", "HadCRUT5": "reference", "MODEL": "to_benchmark"},
     )
     figures = build_static_timeseries_figures(data_df, VARIABLES_DF)
     lines = {ln.get_label(): ln for ln in figures["tas"].axes[0].get_lines()}
-    assert lines["ERA5"].get_linestyle() != lines["HadCRUT5"].get_linestyle()
+    assert lines["ERA5"].get_linestyle() == lines["HadCRUT5"].get_linestyle() == "-"
+    assert lines["ERA5"].get_color() != lines["HadCRUT5"].get_color()
 
 
 def test_timeseries_few_points_use_markers() -> None:
