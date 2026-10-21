@@ -319,8 +319,14 @@ class _EnergyTransportDiagnostic(ScalarExperimentDiagnostic):
         profiles: dict[str, np.ndarray],
     ) -> tuple[np.ndarray, np.ndarray]:
         """Get the TOA and surface net downward fluxes from the components."""
-        toa_net = sum(sign * profiles[name] for name, sign in _TOA_FLUXES)
-        surface_net = sum(sign * profiles[name] for name, sign in _SURFACE_FLUXES)
+        toa_net = np.sum(
+            [sign * profiles[name] for name, sign in _TOA_FLUXES],
+            axis=0,
+        )
+        surface_net = np.sum(
+            [sign * profiles[name] for name, sign in _SURFACE_FLUXES],
+            axis=0,
+        )
         return toa_net, surface_net
 
 

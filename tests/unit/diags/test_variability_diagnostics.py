@@ -390,20 +390,25 @@ def _enso_cubes(
 
 
 def _with_observations(
+    monkeypatch: pytest.MonkeyPatch,
     diag: ENSOTeleconnectionPatterns,
     observations: CubeList,
 ) -> ENSOTeleconnectionPatterns:
-    """Serve the observed cubes from a synthetic CubeList."""
-    diag._observation_cube = lambda _source, variable: diag._prepared_cube(
-        observations,
-        variable,
+    """Serve the observed cubes from a synthetic CubeList (no download)."""
+    monkeypatch.setattr(
+        diag,
+        "_observation_cube",
+        lambda _source, variable: diag._prepared_cube(observations, variable),
     )
     return diag
 
 
-def test_enso_teleconnection_patterns_of_a_perfect_model() -> None:
+def test_enso_teleconnection_patterns_of_a_perfect_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Model and observations sharing a pattern correlate at one."""
     diag = _with_observations(
+        monkeypatch,
         ENSOTeleconnectionPatterns(
             "enso_teleconnection_patterns",
             fail_on_missing_data=True,
@@ -424,8 +429,11 @@ def test_enso_teleconnection_patterns_of_a_perfect_model() -> None:
     assert row["nino34_std"] > 0.0
 
 
-def test_enso_teleconnection_patterns_of_a_model_with_the_wrong_sign() -> None:
+def test_enso_teleconnection_patterns_of_a_model_with_the_wrong_sign(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     diag = _with_observations(
+        monkeypatch,
         ENSOTeleconnectionPatterns(
             "enso_teleconnection_patterns",
             fail_on_missing_data=True,
