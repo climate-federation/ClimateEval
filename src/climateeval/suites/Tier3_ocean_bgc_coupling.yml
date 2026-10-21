@@ -1,0 +1,6 @@
+# Tier 3 | Processes: physical-biogeochemical coupling of surface chlorophyll
+# (lag correlations of chlorophyll with mixed-layer depth, SST and sea ice,
+# and their seasonality, compared with ESA CCI OC / HadISST / ORAS5).
+- name: chl_driver_coupling
+  diagnostic: climateeval.diags.complex.ChlorophyllDriverCoupling
+  additional_diagnostic_kwargs: {}

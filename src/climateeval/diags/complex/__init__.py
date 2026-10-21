@@ -8,6 +8,7 @@ defined for each diagnostic separately.
 from __future__ import annotations
 
 from climateeval.diags.complex._base import ComplexDiagnostic
+from climateeval.diags.complex._biogeochemistry import ChlorophyllDriverCoupling
 from climateeval.diags.complex._consistency import (
     BudgetClosure,
     ClausiusClapeyronScaling,
@@ -44,6 +45,7 @@ __all__ = [
     "ArcticAmplification",
     "BjerknesCompensation",
     "BudgetClosure",
+    "ChlorophyllDriverCoupling",
     "ClausiusClapeyronScaling",
     "ClearSkyLongwaveFeedback",
     "ComplexDiagnostic",
