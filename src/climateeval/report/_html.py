@@ -82,8 +82,51 @@ def _render_app_header(
         "<h1>ClimateEval<span>Benchmark report</span></h1>"
         f'<div class="header-meta">{chips}</div>'
         "</div>"
+        f"{_THEME_SWITCH}"
         "</header>"
     )
+
+
+_THEME_ICONS = {
+    "auto": (
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" '
+        'aria-hidden="true"><circle cx="8" cy="8" r="6"/>'
+        '<path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none"/></svg>'
+    ),
+    "light": (
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" '
+        'stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="3"/>'
+        '<path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3'
+        'M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"/></svg>'
+    ),
+    "dark": (
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" '
+        'stroke-linejoin="round" aria-hidden="true">'
+        '<path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z"/></svg>'
+    ),
+}
+_THEME_SWITCH = (
+    '<div class="theme-switch" role="group" aria-label="Colour theme">'
+    + "".join(
+        f'<button type="button" data-theme-pref="{pref}" aria-pressed="false" '
+        f'onclick="setTheme(\'{pref}\')" title="{title}">'
+        f"{_THEME_ICONS[pref]}<span>{label}</span></button>"
+        for pref, label, title in (
+            ("auto", "Auto", "Follow the system setting"),
+            ("light", "Light", "Light theme"),
+            ("dark", "Dark", "Dark theme"),
+        )
+    )
+    + "</div>"
+)
+
+# Applies the stored theme before the first paint so a dark page never
+# flashes light; the full logic lives in _JS (setTheme).
+_THEME_BOOT = (
+    "<script>(function(){try{var t=localStorage.getItem('climateeval-theme');"
+    "if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}"
+    "catch(e){}})();</script>"
+)
 
 
 _LEADERBOARD_ICON = (
@@ -578,10 +621,12 @@ def render_leaderboard_section(
             f"var el=document.getElementById('{sb_graph_id}');"
             f"var fd=JSON.parse(document.getElementById('figdata-{sb_graph_id}').textContent);"
             f"fd.layout.autosize=true;"
-            f"Plotly.newPlot(el,fd.data,fd.layout,{{responsive:true,displayModeBar:false}});"
+            f"_plotThemed(el,fd.data,fd.layout,{{responsive:true,displayModeBar:false}});"
             f"}}"
-            # Plotly.js is loaded at the end of the body; draw once it is there.
-            f"if(typeof Plotly==='undefined'){{window.addEventListener('load',draw);}}"
+            # Plotly.js and the page script are loaded at the end of the body;
+            # draw once they are there.
+            f"if(typeof Plotly==='undefined'||typeof _plotThemed==='undefined')"
+            f"{{window.addEventListener('load',draw);}}"
             f"else{{draw();}}"
             f"}})();"
             f"</script>"
@@ -816,6 +861,7 @@ def generate_portable_html(
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ClimateEval Report</title>
+  {_THEME_BOOT}
   <style>{_CSS}</style>
 </head>
 <body>
@@ -1049,7 +1095,7 @@ var _lbMeta = __LB_META__;
         var el = document.getElementById('scoreboard-graph');
         if (el) {
           data.scoreboard.layout.autosize = true;
-          Plotly.newPlot(el, data.scoreboard.data, data.scoreboard.layout,
+          _plotThemed(el, data.scoreboard.data, data.scoreboard.layout,
             {responsive:true, displayModeBar:false});
         }
       }
@@ -1131,6 +1177,7 @@ function _esc(s) {
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ClimateEval Report</title>
+  {_THEME_BOOT}
   <style>{_CSS}</style>
 </head>
 <body>

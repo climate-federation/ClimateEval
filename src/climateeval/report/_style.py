@@ -148,6 +148,14 @@ _TIER_ACCENTS: dict[int, tuple[str, str, str]] = {
     4: ("#6b3f7a", "#f0e8f3", "#d9c6df"),
 }
 _TIER_ACCENT_FALLBACK = ("#4b4b47", "#f0f0ee", "#d9d9d5")  # no tier number
+# The same badges on dark surfaces: lighter ink on a deep tint.
+_TIER_ACCENTS_DARK: dict[int, tuple[str, str, str]] = {
+    1: ("#8fd0c4", "#1b3330", "#2f5a53"),
+    2: ("#aab6e6", "#222a45", "#3a4672"),
+    3: ("#e0b36b", "#3a2a14", "#64491f"),
+    4: ("#cfa6dc", "#32223a", "#5a3f66"),
+}
+_TIER_ACCENT_FALLBACK_DARK = ("#b4b4ae", "#2a2a28", "#45453f")
 _TIER_RE = re.compile(r"tier\s*([0-9]+)", re.IGNORECASE)
 
 
@@ -156,17 +164,22 @@ def _tier_accent(label: str) -> tuple[str, str]:
 
     The first element is meant for a ``style`` attribute and sets the
     ``--tier-ink`` / ``--tier-tint`` / ``--tier-line`` variables that
-    ``.tier-badge`` reads.
+    ``.tier-badge`` reads, plus their ``-d`` twins for the dark theme.
     """
     match = _TIER_RE.search(label)
     if match:
         num = int(match.group(1))
-        ink, tint, line = _TIER_ACCENTS.get(num, _TIER_ACCENT_FALLBACK)
+        light = _TIER_ACCENTS.get(num, _TIER_ACCENT_FALLBACK)
+        dark = _TIER_ACCENTS_DARK.get(num, _TIER_ACCENT_FALLBACK_DARK)
         badge = f"T{num}"
     else:
-        ink, tint, line = _TIER_ACCENT_FALLBACK
+        light, dark = _TIER_ACCENT_FALLBACK, _TIER_ACCENT_FALLBACK_DARK
         badge = "•"
-    return f"--tier-ink:{ink};--tier-tint:{tint};--tier-line:{line};", badge
+    style = "".join(
+        f"--tier-ink{suffix}:{ink};--tier-tint{suffix}:{tint};--tier-line{suffix}:{line};"
+        for suffix, (ink, tint, line) in (("", light), ("-d", dark))
+    )
+    return style, badge
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +215,68 @@ _CSS = """
   --space: 8px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  /* text placed on a filled accent / tooltip background */
+  --on-accent: #ffffff;
+  --danger-line: #ecc9c3;
+  color-scheme: light;
+}
+
+/* Dark theme: chosen explicitly, or inherited from the system in "auto" */
+:root[data-theme="dark"] { --bg: #151514;
+  --surface: #1e1e1c;
+  --surface-2: #262624;
+  --border: #2f2f2c;
+  --border-strong: #45453f;
+  --text: #e6e6e2;
+  --text-2: #c0c0ba;
+  --muted: #8f8f89;
+  --accent: #5fa8ae;
+  --accent-ink: #8fc7cb;
+  --accent-tint: #1b3134;
+  --accent-tint-2: #244247;
+  --danger: #e08a7e;
+  --danger-tint: #33201d;
+  --danger-line: #5a2f29;
+  --on-accent: #0f1f21;
+  color-scheme: dark; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #151514;
+  --surface: #1e1e1c;
+  --surface-2: #262624;
+  --border: #2f2f2c;
+  --border-strong: #45453f;
+  --text: #e6e6e2;
+  --text-2: #c0c0ba;
+  --muted: #8f8f89;
+  --accent: #5fa8ae;
+  --accent-ink: #8fc7cb;
+  --accent-tint: #1b3134;
+  --accent-tint-2: #244247;
+  --danger: #e08a7e;
+  --danger-tint: #33201d;
+  --danger-line: #5a2f29;
+  --on-accent: #0f1f21;
+  color-scheme: dark; }
+}
+:root[data-theme="dark"] { .tier-badge {
+    color: var(--tier-ink-d, var(--text-2)); background: var(--tier-tint-d, var(--surface-2));
+    border-color: var(--tier-line-d, var(--border));
+  }
+  .ln-data-swatch, .ln-bias-swatch, .lb-legend-scale { border-color: rgba(255,255,255,.12); }
+  .info-tip .tip { box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  /* Plotly's modebar icons are tuned for white paper */
+  .modebar-btn .icon path { fill: var(--muted) !important; }
+  .modebar-btn:hover .icon path, .modebar-btn.active .icon path { fill: var(--text) !important; } }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { .tier-badge {
+    color: var(--tier-ink-d, var(--text-2)); background: var(--tier-tint-d, var(--surface-2));
+    border-color: var(--tier-line-d, var(--border));
+  }
+  .ln-data-swatch, .ln-bias-swatch, .lb-legend-scale { border-color: rgba(255,255,255,.12); }
+  .info-tip .tip { box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  /* Plotly's modebar icons are tuned for white paper */
+  .modebar-btn .icon path { fill: var(--muted) !important; }
+  .modebar-btn:hover .icon path, .modebar-btn.active .icon path { fill: var(--text) !important; } }
 }
 
 html, body {
@@ -244,6 +319,23 @@ button { font-family: inherit; }
 }
 .header-chip:first-child { border-left: none; padding-left: 0; }
 .header-chip strong { color: var(--text-2); font-weight: 500; }
+
+/* three-way theme switch: auto (system) / light / dark */
+.theme-switch {
+  flex-shrink: 0; margin-left: auto; display: inline-flex; align-items: center;
+  border: 1px solid var(--border-strong); border-radius: var(--radius); overflow: hidden;
+}
+.theme-switch button {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface); border: none; border-left: 1px solid var(--border-strong);
+  padding: 4px 10px; font-size: 12px; color: var(--text-2); cursor: pointer; line-height: 1.4;
+}
+.theme-switch button:first-child { border-left: none; }
+.theme-switch button:hover { background: var(--surface-2); color: var(--text); }
+.theme-switch button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.theme-switch button:focus-visible { outline-offset: -2px; }
+.theme-switch svg { width: 13px; height: 13px; display: block; }
+@media (max-width: 760px) { .theme-switch button span { display: none; } .theme-switch button { padding: 5px 8px; } }
 
 /* ── Body split ── */
 .app-body { display: flex; flex: 1; overflow: hidden; position: relative; }
@@ -489,10 +581,10 @@ button { font-family: inherit; }
 }
 .legend-note span { display: inline-flex; align-items: center; gap: 8px; }
 .ln-model { display: inline-block; width: 24px; height: 2px; background: #0072b2; }
-.ln-refline { display: inline-block; width: 24px; height: 2px; background: #1b1b19; }
+.ln-refline { display: inline-block; width: 24px; height: 2px; background: var(--text); }
 .ln-other {
   display: inline-block; width: 24px; height: 2px;
-  background: repeating-linear-gradient(to right, #9a9a94 0 5px, transparent 5px 9px);
+  background: repeating-linear-gradient(to right, var(--muted) 0 5px, transparent 5px 9px);
 }
 .ln-data-swatch, .ln-bias-swatch {
   display: inline-block; width: 28px; height: 9px; border-radius: 2px; flex-shrink: 0;
@@ -567,7 +659,7 @@ details > summary:hover { text-decoration: underline; }
 .info-tip:hover, .info-tip:focus-visible { color: var(--accent-ink); border-color: var(--accent); }
 .info-tip .tip {
   display: none; position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%);
-  width: 280px; padding: 8px 10px; background: var(--text); color: #fff;
+  width: 280px; padding: 8px 10px; background: var(--text); color: var(--surface);
   font: 400 12px/1.45 var(--font); text-transform: none; letter-spacing: 0;
   border-radius: var(--radius); white-space: normal; text-align: left;
   z-index: 400; box-shadow: 0 2px 8px rgba(0,0,0,.18); pointer-events: none;
@@ -609,7 +701,7 @@ table.lb tr.is-model:hover td { background: var(--accent-tint-2); }
 }
 .seg button:first-child { border-left: none; }
 .seg button:hover { background: var(--surface-2); color: var(--text); }
-.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .seg button:focus-visible { outline-offset: -2px; }
 
 /* ── Search no-results ── */
@@ -633,7 +725,7 @@ table.lb tr.is-model:hover td { background: var(--accent-tint-2); }
 .plot-error {
   display: flex; align-items: center; justify-content: center;
   height: 120px; color: var(--danger); font-size: 13px;
-  background: var(--danger-tint); border: 1px solid #ecc9c3; border-radius: var(--radius);
+  background: var(--danger-tint); border: 1px solid var(--danger-line); border-radius: var(--radius);
 }
 
 /* ── Scrollbars ── */
@@ -652,9 +744,108 @@ table.lb tr.is-model:hover td { background: var(--accent-tint-2); }
 # JavaScript
 # ---------------------------------------------------------------------------
 
-_JS = """
+_JS = r"""
 var _rendered = {};
+var _inflight = {};  // server-mode figure fetches not yet drawn
 var _PLOT_CONFIG = {responsive:true, displayModeBar:true, displaylogo:false};
+
+// ---------------------------------------------------------------------------
+// Theme: "auto" follows the system, "light"/"dark" are explicit. The choice is
+// kept in localStorage and applied to <html data-theme> (a tiny script in
+// <head> does the same before first paint). Figures are built with the light
+// palette; _themeFig swaps every known paper/ink/grid colour at plot time, and
+// the swap is reversed when the page goes back to light.
+// ---------------------------------------------------------------------------
+var _THEME_KEY = 'climateeval-theme';
+var _DARK_COLORS = {
+  'white': '#1e1e1c', '#fff': '#1e1e1c', '#ffffff': '#1e1e1c',
+  'rgba(255,255,255,0.9)': 'rgba(30,30,28,0.9)',
+  'rgba(255,255,255,0.85)': 'rgba(30,30,28,0.85)',
+  '#dce9f5': '#1c242e',
+  'black': '#f2f2ee', '#000': '#f2f2ee', '#000000': '#f2f2ee',
+  '#1b1b19': '#e6e6e2', '#333': '#d0d0cb', '#333333': '#d0d0cb', '#555': '#b0b0aa',
+  '#1e2535': '#d8dde8', '#4b4b47': '#c0c0ba', '#7a7a74': '#9c9c96',
+  '#9a9a94': '#77776f', '#aaa': '#6e6e68', '#aaaaaa': '#6e6e68',
+  '#ececea': '#2e2e2b', '#e3e3df': '#3a3a36', '#ddd': '#3b3b37', '#dddddd': '#3b3b37',
+  '#bbb': '#4a4a45', '#bbbbbb': '#4a4a45', '#cfcfca': '#45453f',
+  'rgba(0,0,0,0.45)': 'rgba(255,255,255,0.45)', 'rgba(0,0,0,0.40)': 'rgba(255,255,255,0.40)',
+  'rgba(0,0,0,0.4)': 'rgba(255,255,255,0.4)', 'rgba(20,20,20,0.80)': 'rgba(235,235,230,0.80)',
+  '#a07000': '#e0b24a'
+};
+var _LIGHT_COLORS = {};
+Object.keys(_DARK_COLORS).forEach(function(k) { _LIGHT_COLORS[_DARK_COLORS[k]] = k; });
+var _COLOR_KEY = /color(way)?$/i;
+
+function _systemDark() {
+  return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+}
+function _themePref() {
+  var t = document.documentElement.getAttribute('data-theme');
+  return (t === 'light' || t === 'dark') ? t : 'auto';
+}
+function _isDark() {
+  var t = _themePref();
+  return t === 'dark' || (t === 'auto' && _systemDark());
+}
+// Deep-copy v, swapping colour-valued strings; numeric arrays are shared.
+function _themeVal(v, key, map) {
+  if (typeof v === 'string') {
+    if (!key || !_COLOR_KEY.test(key)) return v;
+    var m = map[v.replace(/\s+/g, '').toLowerCase()];
+    return m === undefined ? v : m;
+  }
+  if (Array.isArray(v)) {
+    if (!v.length || typeof v[0] === 'number') return v;
+    return v.map(function(x) { return _themeVal(x, key, map); });
+  }
+  if (v && typeof v === 'object') {
+    var o = {};
+    for (var k in v) o[k] = _themeVal(v[k], k, map);
+    return o;
+  }
+  return v;
+}
+function _themeFig(obj) { return _themeVal(obj, null, _isDark() ? _DARK_COLORS : _LIGHT_COLORS); }
+// Every figure goes through here so a theme change can re-draw it in place.
+function _plotThemed(div, data, layout, config) {
+  div._plotCfg = config || _PLOT_CONFIG;
+  return Plotly.newPlot(div, _themeFig(data), _themeFig(layout), div._plotCfg);
+}
+function _rethemeAll() {
+  if (typeof Plotly === 'undefined') return;
+  document.querySelectorAll('.js-plotly-plot').forEach(function(div) {
+    if (!div.data || !div.layout) return;
+    Plotly.react(div, _themeFig(div.data), _themeFig(div.layout), div._plotCfg || _PLOT_CONFIG);
+  });
+}
+function _syncThemeSwitch() {
+  var pref = _themePref();
+  document.querySelectorAll('.theme-switch button').forEach(function(b) {
+    b.setAttribute('aria-pressed', b.getAttribute('data-theme-pref') === pref ? 'true' : 'false');
+  });
+}
+function setTheme(pref) {
+  var root = document.documentElement;
+  if (pref === 'light' || pref === 'dark') root.setAttribute('data-theme', pref);
+  else root.removeAttribute('data-theme');
+  try { localStorage.setItem(_THEME_KEY, pref); } catch (e) {}
+  _syncThemeSwitch();
+  _rethemeAll();
+}
+(function _initTheme() {
+  var pref = 'auto';
+  try { pref = localStorage.getItem(_THEME_KEY) || 'auto'; } catch (e) {}
+  var root = document.documentElement;
+  if (pref === 'light' || pref === 'dark') root.setAttribute('data-theme', pref);
+  else root.removeAttribute('data-theme');
+  _syncThemeSwitch();
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    var onChange = function() { if (_themePref() === 'auto') _rethemeAll(); };
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else if (mq.addListener) mq.addListener(onChange);
+  }
+})();
 
 // ---------------------------------------------------------------------------
 // Responsive subplot grids (maps): side by side when the card is wide enough,
@@ -755,7 +946,7 @@ function _applyGrid(div, figData, first) {
   // colorbars' margin pushers alive, and a vertical bar's pusher applied to
   // the much taller stacked layout swallows half the figure.
   if (!first) Plotly.purge(div);
-  Plotly.newPlot(div, data, res.layout, _PLOT_CONFIG);
+  _plotThemed(div, data, res.layout, _PLOT_CONFIG);
   div._gridWidth = width;
 }
 
@@ -783,13 +974,15 @@ function _renderToggles(div, figData) {
   if (!menus.length) return;
   figData.layout.updatemenus = [];
   var state = meta.groups.map(function() { return 0; });
+  var old = div.previousElementSibling;
+  if (old && old.classList.contains('fig-toggles')) old.remove();
   var bar = document.createElement('div');
   bar.className = 'fig-toggles';
   function apply() {
     var ref = meta.buttons[state[0]][state[1]];
     var btn = menus[ref[0]] && menus[ref[0]].buttons[ref[1]];
     if (!btn) return;
-    Plotly.update(div, btn.args[0] || {}, btn.args[1] || {});
+    Plotly.update(div, _themeFig(btn.args[0] || {}), _themeFig(btn.args[1] || {}));
     bar.querySelectorAll('.seg').forEach(function(seg, g) {
       seg.querySelectorAll('button').forEach(function(b, o) {
         b.setAttribute('aria-pressed', state[g] === o ? 'true' : 'false');
@@ -825,7 +1018,7 @@ function _applyFigData(div, figData) {
   }
   // Only set autosize if the figure has no explicit width.
   if (!figData.layout.width) figData.layout.autosize = true;
-  Plotly.newPlot(div, figData.data, figData.layout, _PLOT_CONFIG);
+  _plotThemed(div, figData.data, figData.layout, _PLOT_CONFIG);
 }
 
 function renderPanel(panelId) {
@@ -855,6 +1048,10 @@ function renderPanel(panelId) {
       // Server mode: fetch figure JSON from the API endpoint stored in data-api-url
       var apiUrl = div.getAttribute('data-api-url');
       if (!apiUrl) return;
+      // Navigation and filter clicks can ask for the same panel twice before
+      // its figure has arrived; one fetch is enough.
+      if (_inflight[graphId]) return;
+      _inflight[graphId] = true;
       div.innerHTML = '<div class="plot-loading"><span class="plot-loading-spinner"></span>Loading…</div>';
       fetch(apiUrl)
         .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -865,7 +1062,8 @@ function renderPanel(panelId) {
         })
         .catch(function(e) {
           div.innerHTML = '<div class="plot-error">Failed to load figure: ' + e.message + '</div>';
-        });
+        })
+        .then(function() { delete _inflight[graphId]; });
     });
   });
 }
@@ -936,9 +1134,30 @@ function sidebarNav(sectionId) {
   var toolbar = document.getElementById('toolbar-' + sectionId);
   if (toolbar) toolbar.style.display = 'flex';
 
-  // render first visible plot
+  // render the first visible plot now, the sections below it as they scroll
+  // into view
   var ap = panel && panel.querySelector('.plot-panel.active');
   if (ap) renderPanel(ap.id);
+  if (panel) _watchPanels(panel);
+}
+
+var _panelObserver = null;
+function _watchPanels(panel) {
+  var panels = panel.querySelectorAll('.plot-panel.active');
+  if (typeof IntersectionObserver === 'undefined') {
+    panels.forEach(function(p) { renderPanel(p.id); });
+    return;
+  }
+  if (!_panelObserver) {
+    _panelObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (!e.isIntersecting) return;
+        _panelObserver.unobserve(e.target);
+        renderPanel(e.target.id);
+      });
+    }, {root: document.querySelector('.main-content'), rootMargin: '240px 0px'});
+  }
+  panels.forEach(function(p) { _panelObserver.observe(p); });
 }
 
 // Diagnostic filter within a tier
