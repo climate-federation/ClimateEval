@@ -195,7 +195,9 @@ def _build_leaderboard_json() -> bytes:
     if scoreboard_fig is not None:
         payload["scoreboard"] = json.loads(scoreboard_fig.to_json())
 
-    summary_df, detail_df = build_leaderboard_data(_STATE["all_metrics"])
+    summary_df, detail_df = build_leaderboard_data(
+        _STATE["all_metrics"], _STATE.get("roles")
+    )
     if not summary_df.empty:
         payload["summary"] = json.loads(summary_df.to_json(orient="records"))
     if not detail_df.empty:

@@ -481,6 +481,10 @@ button { font-family: inherit; }
   border-bottom: 1px solid var(--border);
 }
 .content-panel.filtered .diag-category-header { display: none; }
+/* a single selected diagnostic is named by its toolbar tab: no card title,
+   and no group spacing left over from the hidden categories */
+.content-panel.filtered .diag-section-header { display: none; }
+.content-panel.filtered .diag-category + .diag-category { margin-top: 0; }
 
 /* ── Diagnostic sections (cards) ── */
 .diag-section {
@@ -497,7 +501,7 @@ button { font-family: inherit; }
   font-size: 11px; font-weight: 500; color: var(--muted);
   padding: 1px 7px; border: 1px solid var(--border); border-radius: 999px;
 }
-.diag-content { padding: 16px 20px 20px; }
+.diag-content { padding: 0 20px 20px; }
 
 /* ── Section headings ── */
 .section-heading {
@@ -507,11 +511,20 @@ button { font-family: inherit; }
 .section-subheading { margin: 0 0 24px; color: var(--muted); font-size: 13.5px; max-width: 70ch; }
 
 /* ── Variable nav ── */
-.var-nav {
-  display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 16px;
-  padding-bottom: 12px; border-bottom: 1px solid var(--border);
+/* sticks to the top while a tall figure scrolls; the negative side margins
+   let its background span the card so nothing shows beside it */
+.var-nav-wrap {
+  position: sticky; top: 0; z-index: 5; background: var(--surface);
+  margin: 0 -20px 16px; padding: 16px 20px 0; border-bottom: 1px solid var(--border);
 }
-.var-nav.many { max-height: 92px; overflow-y: auto; }
+.var-nav { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 12px; }
+/* many variables: two rows until expanded (pill 25px + gap 4px) */
+.var-nav.many:not(.expanded) { max-height: 54px; overflow: hidden; }
+.var-nav-more {
+  display: block; margin: -4px 0 8px; padding: 2px 0; background: none; border: none;
+  font-size: 12px; color: var(--accent-ink); cursor: pointer;
+}
+.var-nav-more:hover { text-decoration: underline; }
 .var-pill {
   background: none; border: 1px solid transparent; border-radius: 4px;
   padding: 3px 9px; font-size: 12.5px; font-family: var(--mono); cursor: pointer;
@@ -718,6 +731,15 @@ table.lb tr.is-model:hover td { background: var(--accent-tint-2); }
 
 /* ── Misc ── */
 .empty-note { color: var(--muted); padding: 16px 20px; margin: 0; }
+.lb-note { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
+table.lb tr.is-ref td { color: var(--muted); }
+
+/* diagnostic tabs: one row, grouped by plot-type category */
+.diag-filter-btns { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.diag-filter-sep {
+  flex-shrink: 0; align-self: center; width: 1px; height: 16px;
+  margin: 0 8px; background: var(--border-strong);
+}
 
 /* ── Server-mode loading / error states ── */
 .plot-loading {
@@ -1026,8 +1048,33 @@ function _applyFigData(div, figData) {
   }
   // Only set autosize if the figure has no explicit width.
   if (!figData.layout.width) figData.layout.autosize = true;
+  // the placeholder height came from the page; the figure knows its own
+  if (figData.layout.height) div.style.height = figData.layout.height + 'px';
   _plotThemed(div, figData.data, figData.layout, _PLOT_CONFIG);
 }
+
+// Variable nav: "Show all N" / "Show fewer" past two rows
+function toggleVarNav(btn) {
+  var nav = btn.previousElementSibling;
+  var open = nav.classList.toggle('expanded');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  var n = nav.querySelectorAll('.var-pill').length;
+  btn.textContent = open ? 'Show fewer' : 'Show all ' + n;
+}
+// The button is only needed while the collapsed nav actually hides buttons,
+// which depends on the card width.
+function _syncVarNavs() {
+  document.querySelectorAll('.var-nav.many').forEach(function(nav) {
+    var btn = nav.nextElementSibling;
+    if (!btn || !btn.classList.contains('var-nav-more')) return;
+    var pills = nav.querySelectorAll('.var-pill');
+    var last = pills[pills.length - 1];
+    var overflow = nav.classList.contains('expanded') ||
+      (last && last.getBoundingClientRect().bottom > nav.getBoundingClientRect().bottom + 1);
+    btn.style.display = overflow ? '' : 'none';
+  });
+}
+window.addEventListener('resize', function() { clearTimeout(window._vnT); window._vnT = setTimeout(_syncVarNavs, 150); });
 
 function renderPanel(panelId) {
   if (typeof Plotly === 'undefined') return;
@@ -1147,6 +1194,7 @@ function sidebarNav(sectionId) {
   var ap = panel && panel.querySelector('.plot-panel.active');
   if (ap) renderPanel(ap.id);
   if (panel) _watchPanels(panel);
+  _syncVarNavs();
 }
 
 var _panelObserver = null;
@@ -1198,6 +1246,7 @@ function filterDiag(tierId, diagName) {
   panel.querySelectorAll('.diag-section:not(.hidden) .plot-panel.active').forEach(function(ap){
     renderPanel(ap.id);
   });
+  _syncVarNavs();
 }
 
 // Variable selector within a diagnostic
@@ -1212,7 +1261,15 @@ function showVarPanel(scopeId, varId) {
   var panel = document.getElementById(panelId);
   if (panel) panel.classList.add('active');
   var btn = diag.querySelector('.var-pill[data-var="' + varId + '"]');
-  if (btn) { btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true'); }
+  if (btn) {
+    btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true');
+    // a collapsed nav must not hide the active button
+    var nav = btn.closest('.var-nav');
+    if (nav && nav.classList.contains('many') && !nav.classList.contains('expanded') &&
+        btn.offsetTop + btn.offsetHeight > nav.clientHeight) {
+      toggleVarNav(nav.nextElementSibling);
+    }
+  }
   renderPanel(panelId);
 }
 

@@ -22,6 +22,7 @@ from climateeval.report._figures import (
 )
 from climateeval.report._common import _var_label
 from climateeval.report._leaderboard import (
+    UNRANKED_NOTE,
     METRIC_INFO,
     SCORE_INFO,
     _render_detail_table,
@@ -210,18 +211,33 @@ def _render_toolbar(
     tier_id: str,
     db_path: Path,
     diag_buttons: list[tuple[str, str]],
+    diag_types: dict[str, str] | None = None,
 ) -> str:
-    """Render a tier's toolbar: diagnostic filter tabs, search box, database name."""
+    """Render a tier's toolbar: diagnostic filter tabs, search box, database name.
+
+    The tabs follow the plot-type category order of the panel below, with a
+    thin separator between categories, and scroll sideways instead of
+    wrapping when a tier has many diagnostics.
+    """
+    labels = dict(diag_buttons)
     filter_btns = (
         f"<button type='button' class='diag-filter-btn active' data-diag='all' "
         f"aria-pressed='true' onclick='filterDiag(\"{tier_id}\",\"all\")'>All</button>"
     )
-    for dname, label in diag_buttons:
-        filter_btns += (
-            f"<button type='button' class='diag-filter-btn' data-diag='{dname}' "
-            f"aria-pressed='false' onclick='filterDiag(\"{tier_id}\",\"{dname}\")'>"
-            f"{html_module.escape(label)}</button>"
-        )
+    for i, (category, names) in enumerate(
+        _grouped_diag_sections(list(labels), diag_types or {})
+    ):
+        if i:
+            filter_btns += (
+                "<span class='diag-filter-sep' aria-hidden='true' "
+                f"title='{html_module.escape(category or '')}'></span>"
+            )
+        for dname in names:
+            filter_btns += (
+                f"<button type='button' class='diag-filter-btn' data-diag='{dname}' "
+                f"aria-pressed='false' onclick='filterDiag(\"{tier_id}\",\"{dname}\")'>"
+                f"{html_module.escape(labels[dname])}</button>"
+            )
     search_svg = (
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
         'aria-hidden="true">'
@@ -243,12 +259,27 @@ def _render_toolbar(
 
 
 def _render_var_nav(scope_id: str, buttons_html: str, n_vars: int) -> str:
-    """Wrap the variable buttons; many variables get a bounded, scrollable nav."""
-    many = " many" if n_vars > 14 else ""
-    return (
-        f"<div class='var-nav{many}' role='group' aria-label='Variables'>"
-        f"{buttons_html}</div>"
+    """Wrap the variable buttons.
+
+    The nav sticks to the top while a tall figure scrolls. With many
+    variables it starts collapsed to two rows behind a "Show all" button.
+    """
+    many = n_vars > _VAR_NAV_COLLAPSE_ABOVE
+    more = (
+        f"<button type='button' class='var-nav-more' aria-expanded='false' "
+        f"onclick='toggleVarNav(this)'>Show all {n_vars}</button>"
+        if many
+        else ""
     )
+    return (
+        f"<div class='var-nav-wrap'>"
+        f"<div class='var-nav{' many' if many else ''}' role='group' aria-label='Variables'>"
+        f"{buttons_html}</div>{more}</div>"
+    )
+
+
+# Variable navs with more buttons than this start collapsed to two rows.
+_VAR_NAV_COLLAPSE_ABOVE = 14
 
 
 def _section_header(label: str, dtype: str) -> str:
@@ -596,7 +627,7 @@ def render_leaderboard_section(
     model_name: str = "",
 ) -> str:
     """Render the leaderboard HTML section including scoreboard figure."""
-    summary_df, detail_df = build_leaderboard_data(all_metrics)
+    summary_df, detail_df = build_leaderboard_data(all_metrics, roles)
     if summary_df.empty:
         return (
             "<h2 class='section-heading'>Leaderboard</h2>"
@@ -751,6 +782,7 @@ def _render_tier_panel(
         tier_id,
         db_path,
         [(dname, _label(dname)) for dname in diag_names],
+        diag_types,
     )
 
     # Panel: diagnostic sections grouped by plot-type category
@@ -953,6 +985,7 @@ def build_html_shell(
                 for col in ("data_id", "tier", "diagnostic", "var_id", *METRIC_INFO)
             },
             "overallHeader": detail_header("overall"),
+            "unrankedNote": UNRANKED_NOTE,
         }
     )
 
@@ -1068,6 +1101,7 @@ def build_html_shell(
             tier_id,
             Path(tier["db_path"]),
             [(dname, _diag_label(dname, dtype)) for dname, dtype in diags_for_toolbar],
+            diag_types,
         )
         all_panels += (
             f"<div class='content-panel' id='panel-{tier_id}' data-type='tier'>"
@@ -1117,14 +1151,17 @@ function _renderSummaryTable(rows) {
     + "<th class='sortable' onclick='sortTable(\"lb-summary\",1,false)'>Dataset</th>"
     + "<th class='sortable' onclick='sortTable(\"lb-summary\",2,true)'>" + _lbMeta.overallHeader + "</th>"
     + "</tr></thead><tbody>";
+  var unranked = false;
   rows.forEach(function(row) {
-    var rank = row['Rank'] || 0;
+    var rank = typeof row['Rank'] === 'number' ? row['Rank'] : null;
     var ds   = row['data_id'] || '';
     var sc   = typeof row['Overall Score'] === 'number' ? row['Overall Score'] : 0;
     var pct  = (sc * 100).toFixed(1);
-    var cls  = medals[rank] || '';
-    html += "<tr class='" + (_isModel(ds) ? 'is-model' : '') + "'>"
-      + "<td class='rank " + cls + "'>" + rank + "</td>"
+    var cls  = rank ? (medals[rank] || '') : '';
+    var rowCls = _isModel(ds) ? 'is-model' : (rank ? '' : 'is-ref');
+    if (!rank) unranked = true;
+    html += "<tr class='" + rowCls + "'>"
+      + "<td class='rank " + cls + "'>" + (rank ? rank : '–') + "</td>"
       + "<td>" + _esc(ds) + (_lbMeta.badges[ds] || '') + "</td>"
       + "<td class='score-cell bar-cell'>"
       + "<div class='bar-bg' style='width:" + pct + "%;'></div>"
@@ -1132,6 +1169,7 @@ function _renderSummaryTable(rows) {
       + "</td></tr>";
   });
   html += "</tbody></table></div>";
+  if (unranked) html += "<p class='lb-note'>" + _lbMeta.unrankedNote + "</p>";
   var el = document.getElementById('lb-summary-container');
   if (el) el.innerHTML = html;
 }

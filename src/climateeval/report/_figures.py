@@ -255,8 +255,29 @@ def _place_legend_below(fig: go.Figure) -> None:
     legend.y = -_LEGEND_GAP_PX / max(available - _LEGEND_MAX_PX - _LEGEND_GAP_PX, 50)
 
 
+def _drop_figure_title(fig: go.Figure) -> None:
+    """Remove the in-figure title: the report card already names the variable.
+
+    The top margin that made room for it shrinks accordingly, in the
+    responsive-grid hints (``layout.meta.responsive``) too.
+    """
+    if not fig.layout.title.text:
+        return
+    fig.layout.title.text = ""
+    margin = fig.layout.margin
+    top = margin.t if margin.t is not None else 100
+    fig.layout.margin.t = max(top - 40, 44)
+    meta = fig.layout.meta
+    if isinstance(meta, dict) and "responsive" in meta:
+        for key in ("marginWide", "marginNarrow"):
+            hint = meta["responsive"].get(key)
+            if hint and "t" in hint:
+                hint["t"] = max(hint["t"] - 40, 44)
+        fig.layout.meta = meta
+
+
 def _finish_legends(figures: dict[str, go.Figure]) -> dict[str, go.Figure]:
-    """Make every drawn line explainable from the legend.
+    """Make every drawn line explainable from the legend, drop in-figure titles.
 
     Traces that share a legend group (a dataset's main and bias panel lines)
     keep one entry. When the grey dashed comparison bundle has more than
@@ -264,6 +285,7 @@ def _finish_legends(figures: dict[str, go.Figure]) -> dict[str, go.Figure]:
     "n other datasets" entry that toggles the whole bundle.
     """
     for fig in figures.values():
+        _drop_figure_title(fig)
         _place_legend_below(fig)
         others: list[str] = []
         for trace in fig.data:
@@ -1681,7 +1703,7 @@ def build_bar_figures(
                     "x": 0.02,
                     "xanchor": "left",
                 },
-                height=max(300 + 18 * len(sub), 400),
+                height=max(150 + 34 * len(sub), 220),
                 margin={"t": 70, "b": 50, "l": 240, "r": 80},
                 legend=_LEGEND_BELOW,
             ),

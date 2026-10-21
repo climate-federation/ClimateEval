@@ -138,7 +138,14 @@ def render_compare_line(
 
 def build_leaderboard_data(
     all_metrics: dict[str, dict[str, pd.DataFrame]],
+    roles: dict[str, dict[str, str]] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return (summary, detail) tables of the leaderboard.
+
+    The summary lists every dataset by overall score, best first. Only the
+    models are ranked; reference datasets (per ``roles``) keep their row as a
+    yardstick but get no rank number.
+    """
     dfs = []
     for tier_label, tier_metrics in all_metrics.items():
         for diag_name, mdf in tier_metrics.items():
@@ -186,7 +193,11 @@ def build_leaderboard_data(
         .rename(columns={"_overall_score": "Overall Score"})
         .sort_values("Overall Score", ascending=False)
     )
-    summary["Rank"] = range(1, len(summary) + 1)
+    is_ref = summary["data_id"].map(
+        lambda d: (roles or {}).get(str(d), {}).get("role") == "reference",
+    )
+    summary["Rank"] = np.nan
+    summary.loc[~is_ref, "Rank"] = np.arange(1, int((~is_ref).sum()) + 1, dtype=float)
     return summary[["Rank", "data_id", "Overall Score"]].reset_index(drop=True), detail
 
 
@@ -197,16 +208,23 @@ def _render_summary_table(
 ) -> str:
     medal = {1: "medal-1", 2: "medal-2", 3: "medal-3"}
     rows_html = []
+    unranked = False
     for _, row in summary_df.iterrows():
-        rank = int(row["Rank"])
         data_id = str(row["data_id"])
         score = row["Overall Score"]
         pct = f"{score * 100:.1f}"
-        rank_cls = medal.get(rank, "")
         is_model = (roles or {}).get(data_id, {}).get("role") == "to_benchmark"
+        if pd.isna(row["Rank"]):
+            rank_html, rank_cls, row_cls = "–", "", "is-ref"
+            unranked = True
+        else:
+            rank = int(row["Rank"])
+            rank_html, rank_cls, row_cls = str(rank), medal.get(rank, ""), ""
+        if is_model:
+            row_cls = "is-model"
         rows_html.append(
-            f"<tr class='{'is-model' if is_model else ''}'>"
-            f"<td class='rank {rank_cls}'>{rank}</td>"
+            f"<tr class='{row_cls}'>"
+            f"<td class='rank {rank_cls}'>{rank_html}</td>"
             f"<td>{html_module.escape(data_id)}{role_badge(data_id, roles)}</td>"
             f"<td class='score-cell bar-cell'>"
             f"<div class='bar-bg' style='width:{pct}%;'></div>"
@@ -226,8 +244,11 @@ def _render_summary_table(
         f"</tr></thead>"
         f"<tbody>{''.join(rows_html)}</tbody>"
         f"</table></div>"
+        + (f"<p class='lb-note'>{UNRANKED_NOTE}</p>" if unranked else "")
     )
 
+
+UNRANKED_NOTE = "Reference datasets are scored for comparison but not ranked."
 
 _DETAIL_HEADERS = {
     "data_id": "Dataset",
@@ -351,9 +372,7 @@ def build_scoreboard_figure(
         metric_df.groupby(["_diag", "var_id"])[metric].median().rename("median_metric")
     )
     metric_df = metric_df.join(median_metric, on=["_diag", "var_id"])
-    metric_df["relative score"] = (
-        (1.0 - metric_df[metric] / metric_df["median_metric"]).abs().clip(lower=1e-12)
-    )
+    metric_df["relative score"] = 1.0 - metric_df[metric] / metric_df["median_metric"]
 
     # One relative score per (data_id, var_id) averaged over diagnostics
     pivot = (
@@ -367,8 +386,9 @@ def build_scoreboard_figure(
     # Add "Mean relative score" column (mean relative score across all variables)
     pivot["Mean relative score"] = pivot.mean(axis=1)
 
-    # Sort models by mean absolute relative score (best = smallest MAD first)
-    pivot = pivot.loc[pivot["Mean relative score"].sort_values(ascending=True).index]
+    # Best first: the highest mean relative score is the furthest below the
+    # median metric
+    pivot = pivot.loc[pivot["Mean relative score"].sort_values(ascending=False).index]
 
     single_model = len(pivot.index) < 2
 
@@ -404,7 +424,7 @@ def build_scoreboard_figure(
         text_annots = [
             [f"{v:.2f}" if np.isfinite(v) else "" for v in row] for row in pivot.values
         ]
-        mintext = "▼-1" if len(finite_vals) > 0 and np.min(finite_vals) < 1.0 else "-1"
+        mintext = "▼-1" if len(finite_vals) > 0 and np.min(finite_vals) < -1.0 else "-1"
         colorbar_ticks = {
             "tickvals": [-1.0, -0.5, 0.0, 0.5, 1.0],
             "ticktext": [mintext, "-0.5", "0", "0.5", "1.0"],
@@ -461,6 +481,8 @@ def build_scoreboard_figure(
             "tickfont": {"size": 10},
             "showgrid": False,
             "zeroline": False,
+            # heatmap rows are drawn bottom-up; best first means top first
+            "autorange": "reversed",
         },
         shapes=[
             {
