@@ -81,13 +81,13 @@ tests/                        # unit/ + integration/ + sample_data/
 ### Diagnostics (`src/climateeval/diags/`)
 
 - `_base.py` - Abstract `Diagnostic` class with the `DiagnosticOutput` dataclass (fields `raw_output`, `metrics`, `variables`, `data_sources` as Ibis tables; `union()` merges outputs). `get_output(data, data_information)` is the entry point.
-- `simple/` - `SimpleDiagnostic` base + the simple diagnostics: `Map`, `ZonalLine`, `ZonalProfileAirPressure`, `AnnualMeanTimeSeries`, `MeanTimeSeries`, `TimeSeriesNoPreprocessing`, `AnnualCycle`, `AnnualCycleSpatialDistribution`, `DiurnalCycle`, `Histogram`, `Hovmoller`, `QBO`, `Nino34`, `SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `AMOCTimeSeries`, `OceanHeatContentTimeSeries`.
+- `simple/` - `SimpleDiagnostic` base + the simple diagnostics: `Map`, `ZonalLine`, `ZonalProfileAirPressure`, `AnnualMeanTimeSeries`, `MeanTimeSeries`, `TimeSeriesNoPreprocessing`, `AnnualCycle`, `AnnualCycleSpatialDistribution`, `DiurnalCycle`, `Histogram`, `Hovmoller`, `QBO`, `Nino34`, `SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `AMOCTimeSeries`, `AMOCDepthProfile`, `OceanHeatContentTimeSeries`, `DepthProfile`, `TrendMap`, `ACCTransportZonalTransect`, `SshGradient`, `OceanHeatTransportZonal`, `AtlanticHeatTransportTimeseries`.
 - `complex/` - `ComplexDiagnostic` base + `ECS`, `TEMDiagnostic`, `LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`.
 
 ### Suites (`src/climateeval/suites/`)
 
 - `_base.py` - `Suite` class: reads a YAML suite definition, builds diagnostics, orchestrates execution, and writes results to an Ibis/DuckDB backend. Each diagnostic becomes an **attached database named after its `name:` field** in the YAML.
-- `*.yml` - the shipped suites, organised into tiers of increasing complexity: **Tier 1** sanity/consistency (`Tier1_sanity_checks`, `Tier1_consistency_checks`), **Tier 2** mean state vs observations (`Tier2_atmosphere_monthly`, `Tier2_ocean_monthly`, `Tier2_sea_ice_monthly`), **Tier 3** variability/processes/feedbacks (`Tier3_dynamics`, `Tier3_atmosphere_subdaily`, `Tier3_ecs`). Format: [docs/suites.md](docs/suites.md).
+- `*.yml` - the shipped suites, organised into tiers of increasing complexity: **Tier 1** sanity/consistency (`Tier1_sanity_checks`, `Tier1_consistency_checks`), **Tier 2** mean state vs observations (`Tier2_atmosphere_monthly`, `Tier2_ocean_monthly` and its parts `Tier2_ocean_2d`/`Tier2_ocean_3d`/`Tier2_ocean_acc`/`Tier2_ocean_amoc`, `Tier2_sea_ice_monthly`), **Tier 3** variability/processes/feedbacks (`Tier3_dynamics`, `Tier3_atmosphere_subdaily`, `Tier3_ecs`). Format: [docs/suites.md](docs/suites.md).
 
 ### Data Sources (`src/climateeval/data/`)
 
@@ -102,8 +102,8 @@ Turns result databases into an interactive report or static figures.
 
 - `_server.py` - `serve()`: threaded HTTP server, lazy figure building + caching, API endpoints (`/api/structure`, `/api/figure/...`, `/api/leaderboard`, `/plotly.js`).
 - `_html.py` - `build_html_shell()` (server mode) and `generate_portable_html()` (self-contained offline HTML).
-- `_figures.py` - Plotly `build_*_figures()` builders and the `_FIGURE_BUILDERS` registry (10 figure types: Map, TimeSeries, AnnualCycle, DiurnalCycle, ZonalLine, ZonalProfile, Hovmoller, QBO, Histogram, Scalar).
-- `_static_figures.py` - matplotlib/cartopy mirror of the registry (`_STATIC_FIGURE_BUILDERS`, same 10 types, ESMValTool `monitor/multi_datasets.py` styling) + `generate_static_plots()` (PNG/PDF export, `report.py --static-out`) + the `portrait_plot.py`-style overall portrait figure.
+- `_figures.py` - Plotly `build_*_figures()` builders and the `_FIGURE_BUILDERS` registry (11 figure types: Map, TimeSeries, AnnualCycle, DiurnalCycle, ZonalLine, ZonalProfile, DepthProfile, Hovmoller, QBO, Histogram, Scalar).
+- `_static_figures.py` - matplotlib/cartopy mirror of the registry (`_STATIC_FIGURE_BUILDERS`, same 11 types, ESMValTool `monitor/multi_datasets.py` styling) + `generate_static_plots()` (PNG/PDF export, `report.py --static-out`) + the `portrait_plot.py`-style overall portrait figure.
 - `_common.py` - backend-agnostic helpers shared by both figure backends (`_var_label`, `_data_range`, `_get_ref_datasets`, `_combine_pivots`, ...).
 - `_leaderboard.py`, `_db.py`, `_style.py` - scoreboard, DB reading, styling/colormaps (shared by both backends).
 

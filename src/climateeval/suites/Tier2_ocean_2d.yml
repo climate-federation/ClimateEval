@@ -1,6 +1,15 @@
+# Tier 2 | Mean state vs observations: 2-D ocean surface fields (MLD, SST, SSS, SSH gradient, Nino3.4).
+#
+# The 2-D part of Tier2_ocean_monthly, shipped separately so it can be run with
+# its own time range (see examples/ocean).
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.AnnualCycle
   variables:
+    # Mixed layer depth annual cycles for selected deep-convection regions.
+    # Reference ORAS5 is read directly from the raw NEMO + grid files (see
+    # climateeval.data.ORAS5), which must be staged manually. ORAS5 is on an
+    # irregular grid, so it is regridded to 2x2 with an area-weighted scheme
+    # (then land is masked) before the (linear-regridding) diagnostic runs.
     - &mlotst_regrid
       id: mlotst_labrador_sea
       var_name: mlotst
@@ -41,7 +50,7 @@
       var_name: tos
       frequency: mon
       reference_data: climateeval.data.ESACCISST
-      # other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
+      other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
 
 - name: nino34
   diagnostic: climateeval.diags.simple.Nino34
@@ -51,28 +60,22 @@
       var_name: tos
       frequency: mon
       reference_data: climateeval.data.ESACCISST
-      # other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
+      other_data: [climateeval.data.NOAAERSSTv5, climateeval.data.HadISST]
 
 - name: map
   diagnostic: climateeval.diags.simple.Map
   variables:
     - *tos
-    # Sea surface salinity (surface level of 3-D so field, g/kg over ocean).
-    # `so` is only defined over the ocean, and `mask_landsea` (sea_only) does
-    # not support the curvilinear ocean grids many models use, so no land-sea
-    # mask is applied here.
+    # Sea surface salinity (2-D sos field, g/kg over ocean). `sos` is only
+    # defined over the ocean, and `mask_landsea` (sea_only) does not support
+    # the curvilinear ocean grids many models use, so no land-sea mask is
+    # applied here.
     - &sos
       id: sos
       var_name: sos
       frequency: mon
       units: g kg-1
-      # vertical_level:
-      #   coordinate_name: depth
-      #   units: m
-      #   value: 0.0
-      #   extrapolate: true
       reference_data: climateeval.data.ORAS5
-      # other_data: [climateeval.data.WOA]
 
 - name: trend_map
   diagnostic: climateeval.diags.simple.TrendMap

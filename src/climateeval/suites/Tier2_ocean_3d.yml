@@ -1,5 +1,10 @@
+# Tier 2 | Mean state vs observations: 3-D ocean fields (temperature/salinity depth profiles, OHC).
+#
+# The 3-D part of Tier2_ocean_monthly, shipped separately so it can be run with
+# its own time range (see examples/ocean).
 - name: depth_profile
   diagnostic: climateeval.diags.simple.DepthProfile
+  # Mean profile of the zonal section across the Atlantic at 26.5N.
   diagnostic_kwargs:
     lats: [26.5, 26.5]
     lons: [-80.0, -15.0]
@@ -7,9 +12,7 @@
     - id: thetao
       var_name: thetao
       frequency: mon
-      # reference_data: climateeval.data.ORAS5
       reference_data: climateeval.data.IAP
-      # other_data: [climateeval.data.IAP, climateeval.data.EN4]
       other_data: [climateeval.data.EN4]
     - id: so
       var_name: so

@@ -6,19 +6,21 @@ model, edit the ``MODEL`` block below (the data directory and the
 
     python run_ocean_diagnostics.py
 
-It produces four result databases (``seaice.ddb``, ``ocean_ohc.ddb``,
-``ocean_sst.ddb``, ``ocean_amoc.ddb``) and a single self-contained
-``report.html``.
+It produces five result databases (``seaice.ddb``, ``ocean_2d.ddb``,
+``ocean_3d.ddb``, ``ocean_acc.ddb``, ``ocean_amoc.ddb``) and a single
+self-contained ``report.html``.
 
 Separate runs are used because ClimateEval applies one time range to all
 datasets, and each observational reference covers a different period (a
 reference that does not cover the requested start year is dropped):
 
-* sea ice (1997-2009): OSI-450, HadISST, NSIDC-G02202
-* ocean heat content (1979-1989): EN4, IAP (covers the 1979-1988 OHC baseline)
-* SST / salinity / chlorophyll (1997-2009): ESACCI-SST, NOAA-ERSSTv5, HadISST,
-  WOA, ESACCI-OC
-* AMOC (2004-2014): RAPID (which only starts in 2004, hence its own window)
+* sea ice (1997-2007): OSI-450, HadISST, NSIDC-G02202
+* 3-D fields, i.e. depth profiles and ocean heat content (1979-1989): EN4,
+  IAP, ORAS5, WOA (covers the 1979-1988 OHC baseline)
+* ACC transport (1985-1990): ORAS5
+* AMOC / Atlantic heat transport (2005-2013): RAPID (which only starts in
+  2004, hence its own window)
+* 2-D surface fields (1985-1990): ESACCI-SST, NOAA-ERSSTv5, HadISST, ORAS5
 
 See README.md for the full setup (installing, staging the references, env vars).
 """
@@ -43,9 +45,11 @@ DATA_ROOT = os.environ.get("CLIMATEEVAL_DATA_ROOT", "./climateeval_input")
 # Where to write the result databases and the report.
 RESULTS_DIR = Path(os.environ.get("CLIMATEEVAL_RESULTS_DIR", "./results"))
 
-# ORAS5 (mixed-layer depth) and RAPID (AMOC) live outside the staged tree. The
-# data sources already default to the shared Levante copies; override only if
-# they ever move.
+# ORAS5 (mixed-layer depth, SSS, SSH, velocities, 3-D salinity) and RAPID (AMOC,
+# overturning streamfunction and heat transport at 26.5N) live outside the
+# staged tree. The data sources already default to the shared Levante copies;
+# override only if they ever move (RAPID: CLIMATEEVAL_RAPID_FILE,
+# CLIMATEEVAL_RAPID_MSFTMZ_FILE, CLIMATEEVAL_RAPID_HFBASIN_FILE).
 os.environ.setdefault(
     "CLIMATEEVAL_ORAS5_RAW_DIR",
     "/work/bd1083/b382555/extraobsraw/Tier2/ORAS5/data",
@@ -89,7 +93,7 @@ RUNS = (
             ("so", "Omon"),
             ("thetao", "Omon"),
         ),
-        "19790101/19821231",
+        "19790101/19891231",
         "ocean_3d.ddb",
     ),
     (
