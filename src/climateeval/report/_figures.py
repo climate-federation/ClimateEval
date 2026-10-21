@@ -9,6 +9,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pandas as pd
 
 from climateeval.report._common import (
@@ -23,7 +25,11 @@ from climateeval.report._common import (
 from climateeval.report._db import get_density_cols, get_var_cols
 from climateeval.report._style import (
     _AXIS_STYLE,
+    _OTHER_COLORS,
+    _OTHER_DASHES,
+    _OTHER_LINE_COLOR,
     _PLOT_FONT,
+    _REFERENCE_COLORS,
     _SEABORN_COLORS,
     _bias_colorscale_for,
     _colorscale_for,
@@ -79,12 +85,75 @@ def _sync_subplot_axes(fig: go.Figure) -> None:
     fig.update_yaxes(matches="y")
 
 
-def _get_line_properties(dtype: str, color_idx: int) -> dict:
+def _tag_responsive_grid(
+    fig: go.Figure,
+    nrows: int,
+    ncols: int,
+    *,
+    aspect: float,
+    wide_min_width: int,
+    margin_wide: dict[str, int],
+    margin_narrow: dict[str, int],
+) -> None:
+    """Describe a subplot grid in ``layout.meta`` so the page can re-flow it.
+
+    The report's JavaScript reads this to lay the panels out side by side when
+    the card is at least ``wide_min_width`` pixels wide, and stacked in one
+    column with the colorbars along the bottom when it is narrower. Each
+    panel is listed with its axis names, its grid cell and the index of its
+    subplot-title annotation; colorbar-bearing traces are listed by index.
+    """
+    panels: list[dict[str, Any]] = []
+    anns = list(fig.layout.annotations)
+    for r in range(1, nrows + 1):
+        for c in range(1, ncols + 1):
+            sp = fig.get_subplot(r, c)
+            if sp is None:
+                continue
+            x0, x1 = sp.xaxis.domain
+            _y0, y1 = sp.yaxis.domain
+            ann_idx = next(
+                (
+                    i
+                    for i, a in enumerate(anns)
+                    if a.xref == "paper"
+                    and a.yref == "paper"
+                    and abs(a.x - (x0 + x1) / 2) < 1e-6
+                    and abs(a.y - y1) < 1e-6
+                ),
+                None,
+            )
+            panels.append(
+                {
+                    "x": sp.xaxis.plotly_name,
+                    "y": sp.yaxis.plotly_name,
+                    "row": r,
+                    "col": c,
+                    "ann": ann_idx,
+                },
+            )
+    colorbars = [i for i, tr in enumerate(fig.data) if getattr(tr, "showscale", False)]
+    fig.layout.meta = {
+        **(fig.layout.meta or {}),
+        "responsive": {
+            "rows": nrows,
+            "cols": ncols,
+            "aspect": aspect,
+            "wideMinWidth": wide_min_width,
+            "marginWide": margin_wide,
+            "marginNarrow": margin_narrow,
+            "panels": panels,
+            "colorbars": colorbars,
+        },
+    }
+
+
+def _get_line_properties(dtype: str, idx: int) -> dict:
     """Return line styling for 1D plots based on data type.
 
     Args:
         dtype: One of "reference", "to_benchmark", or "other"
-        color_idx: Index into seaborn color palette (for to_benchmark only)
+        idx: Position of the dataset among those of the same type
 
     Returns
     -------
@@ -93,46 +162,192 @@ def _get_line_properties(dtype: str, color_idx: int) -> dict:
     if dtype == "reference":
         return {
             "line": {
-                "color": "black",
+                "color": _REFERENCE_COLORS[idx % len(_REFERENCE_COLORS)],
                 "dash": "solid",
-                "width": 2,
+                "width": 2.2,
             },
             "showlegend": True,
             "zorder": 1,
+            "meta": {"role": dtype},
         }
     if dtype == "to_benchmark":
         return {
             "line": {
-                "color": _SEABORN_COLORS[color_idx % len(_SEABORN_COLORS)],
+                "color": _SEABORN_COLORS[idx % len(_SEABORN_COLORS)],
                 "dash": "solid",
-                "width": 2,
+                "width": 2.6,
             },
             "showlegend": True,
             "zorder": 2,
+            "meta": {"role": dtype},
         }
-    # "other"
+    # "other": a compared model, thin with its own colour + dash pair; listed
+    # in the legend so every drawn line is explained (_finish_legends
+    # collapses a big bundle into one entry)
     return {
         "line": {
-            "color": "#888",
-            "dash": "dash",
+            "color": _OTHER_COLORS[idx % len(_OTHER_COLORS)],
+            "dash": _OTHER_DASHES[idx % len(_OTHER_DASHES)],
             "width": 1.5,
         },
-        "showlegend": False,
+        "showlegend": True,
         "zorder": 0,
+        "meta": {"role": "other"},
     }
+
+
+def _line_styles(data_df: pd.DataFrame, datasets: list) -> dict:
+    """Line properties per dataset, numbered within each data type.
+
+    Assigned once per figure so a dataset keeps its style in every panel
+    (main and bias) whatever is skipped in between.
+    """
+    dtypes = data_df.drop_duplicates("data_id").set_index("data_id")["data_type"]
+    counts: dict[str, int] = {}
+    styles = {}
+    for dataset in datasets:
+        dtype = str(dtypes.get(dataset, "other"))
+        styles[dataset] = _get_line_properties(dtype, counts.get(dtype, 0))
+        counts[dtype] = counts.get(dtype, 0) + 1
+    return styles
+
+
+# Legend centred below the axes, as in the static figures. Plotly grows the
+# bottom margin to fit however many rows the dataset names need; the paper
+# offset is recomputed per figure by _finish_legends so that the gap between
+# the plot and the legend stays at least _LEGEND_GAP_PX (room for the tick
+# labels and the x-axis title) for legends up to _LEGEND_MAX_PX tall.
+_LEGEND_GAP_PX = 62
+_LEGEND_MAX_PX = 80  # four rows of entries
+_LEGEND_BELOW = {
+    "orientation": "h",
+    "yanchor": "top",
+    "y": -0.2,
+    "xanchor": "center",
+    "x": 0.5,
+    "bgcolor": "rgba(255,255,255,0.85)",
+    "bordercolor": "#ddd",
+    "borderwidth": 1,
+    "font": {"size": 11},
+}
+
+# More comparison datasets than this share a single legend entry.
+_MAX_OTHER_LEGEND = 8
+
+
+def _is_other_trace(trace: Any) -> bool:
+    meta = getattr(trace, "meta", None)
+    return isinstance(meta, dict) and meta.get("role") == "other"
+
+
+def _place_legend_below(fig: go.Figure) -> None:
+    """Turn a below-the-axes legend's pixel gap into the paper offset Plotly wants."""
+    legend = fig.layout.legend
+    height = fig.layout.height
+    if legend.orientation != "h" or legend.y is None or legend.y >= 0 or not height:
+        return
+    # Plotly sets the bottom margin to legend height + offset, where the
+    # offset is this paper fraction of the plot height that remains; solving
+    # that for the fraction gives a fixed pixel gap below the plot.
+    margin = fig.layout.margin
+    top = margin.t if margin.t is not None else 100
+    available = height - top
+    legend.y = -_LEGEND_GAP_PX / max(available - _LEGEND_MAX_PX - _LEGEND_GAP_PX, 50)
+
+
+def _drop_figure_title(fig: go.Figure) -> None:
+    """Remove the in-figure title: the report card already names the variable.
+
+    The top margin that made room for it shrinks accordingly, in the
+    responsive-grid hints (``layout.meta.responsive``) too.
+    """
+    if not fig.layout.title.text:
+        return
+    fig.layout.title.text = ""
+    margin = fig.layout.margin
+    top = margin.t if margin.t is not None else 100
+    fig.layout.margin.t = max(top - 40, 44)
+    meta = fig.layout.meta
+    if isinstance(meta, dict) and "responsive" in meta:
+        for key in ("marginWide", "marginNarrow"):
+            hint = meta["responsive"].get(key)
+            if hint and "t" in hint:
+                hint["t"] = max(hint["t"] - 40, 44)
+        fig.layout.meta = meta
+
+
+def _finish_legends(figures: dict[str, go.Figure]) -> dict[str, go.Figure]:
+    """Make every drawn line explainable from the legend, drop in-figure titles.
+
+    Traces that share a legend group (a dataset's main and bias panel lines)
+    keep one entry. When the grey dashed comparison bundle has more than
+    ``_MAX_OTHER_LEGEND`` datasets, its entries are replaced by a single
+    "n other datasets" entry that toggles the whole bundle.
+    """
+    for fig in figures.values():
+        _drop_figure_title(fig)
+        _place_legend_below(fig)
+        others: list[str] = []
+        for trace in fig.data:
+            if _is_other_trace(trace):
+                key = trace.legendgroup or trace.name or ""
+                if key not in others:
+                    others.append(key)
+        collapse = len(others) > _MAX_OTHER_LEGEND
+        seen: set[str] = set()
+        for trace in fig.data:
+            if trace.showlegend is False:
+                continue
+            key = trace.legendgroup or trace.name
+            if not key:
+                continue
+            if collapse and _is_other_trace(trace):
+                trace.legendgroup = "other"
+                trace.showlegend = False
+                continue
+            trace.showlegend = key not in seen
+            seen.add(key)
+        if collapse:
+            fig.add_trace(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="lines",
+                    name=f"{len(others)} other datasets",
+                    legendgroup="other",
+                    showlegend=True,
+                    hoverinfo="skip",
+                    line={"color": _OTHER_LINE_COLOR, "dash": "dash", "width": 1.5},
+                    meta={"role": "other"},
+                )
+            )
+    return figures
+
+
+def _with_finished_legends(
+    builder: Callable[..., dict[str, go.Figure]],
+) -> Callable[..., dict[str, go.Figure]]:
+    def build(*args: Any, **kwargs: Any) -> dict[str, go.Figure]:
+        return _finish_legends(builder(*args, **kwargs))
+
+    build.__name__ = builder.__name__
+    build.__doc__ = builder.__doc__
+    return build
 
 
 def _base_layout(**kwargs: Any) -> dict:
     base = {
         "font": _PLOT_FONT,
         "paper_bgcolor": "white",
-        "plot_bgcolor": "#fafbfc",
+        "plot_bgcolor": "white",
+        "hoverlabel": {"font": {"family": _PLOT_FONT["family"], "size": 12}},
         "legend": {
-            "bgcolor": "rgba(255,255,255,0.85)",
-            "bordercolor": "#ddd",
+            "bgcolor": "rgba(255,255,255,0.9)",
+            "bordercolor": "#e3e3df",
             "borderwidth": 1,
             "font": {"size": 11},
         },
+        "colorway": _SEABORN_COLORS,
     }
     base.update(kwargs)
     return base
@@ -208,6 +423,10 @@ def build_map_figures(
             ref_label = None
         non_ref = [ds for ds in valid_datasets if ds not in valid_refs]
         has_bias = ref_pivot is not None and bool(non_ref)
+        # No reference at all: keep the model | reference | bias layout, with
+        # the two missing columns as labelled placeholders, so the reader sees
+        # that the comparison is absent rather than a different kind of figure.
+        placeholders = ref_pivot is None and bool(non_ref)
 
         if has_bias:
             ncols = 3
@@ -259,6 +478,12 @@ def build_map_figures(
             )
             if bias_abs == 0:
                 bias_abs = 1.0
+        elif placeholders:
+            ncols = 3
+            nrows = len(non_ref)
+            titles = []
+            for ds in non_ref:
+                titles += [f"<b>{ds}</b>", "Reference", f"<b>{ds}</b> − reference"]
         else:
             ncols = min(len(valid_datasets), 3)
             nrows = max(1, (len(valid_datasets) + ncols - 1) // ncols)
@@ -340,7 +565,7 @@ def build_map_figures(
             fig.update_xaxes(
                 range=[-180, 180],
                 showgrid=True,
-                gridcolor="rgba(180,180,180,0.25)",
+                gridcolor="#ececea",
                 zeroline=True,
                 zerolinecolor="rgba(150,150,150,0.4)",
                 zerolinewidth=1,
@@ -356,7 +581,7 @@ def build_map_figures(
             fig.update_yaxes(
                 range=[-90, 90],
                 showgrid=True,
-                gridcolor="rgba(180,180,180,0.25)",
+                gridcolor="#ececea",
                 zeroline=True,
                 zerolinecolor="rgba(150,150,150,0.4)",
                 zerolinewidth=1,
@@ -369,6 +594,55 @@ def build_map_figures(
                 row=row,
                 col=col,
             )
+
+        def _add_placeholder(row: int, col: int, text: str) -> None:
+            """Add an empty, framed panel saying why there is no map in this cell."""
+            # an (invisible) trace gives the axes a home; Plotly cannot place
+            # the frame of a subplot that no trace refers to
+            fig.add_trace(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="markers",
+                    hoverinfo="skip",
+                    showlegend=False,
+                ),
+                row=row,
+                col=col,
+            )
+            fig.add_shape(
+                type="rect",
+                x0=-180,
+                x1=180,
+                y0=-90,
+                y1=90,
+                fillcolor="#f6f6f4",
+                line={"width": 0},
+                layer="below",
+                row=row,
+                col=col,
+            )
+            fig.add_annotation(
+                text=text,
+                x=0,
+                y=0,
+                showarrow=False,
+                font={"size": 12, "color": "#7a7a74"},
+                row=row,
+                col=col,
+            )
+            frame = {
+                "showgrid": False,
+                "zeroline": False,
+                "showticklabels": False,
+                "ticks": "",
+                "linecolor": "#cfcfca",
+                "linewidth": 1,
+                "mirror": True,
+                "title_text": "",
+            }
+            fig.update_xaxes(range=[-180, 180], **frame, row=row, col=col)
+            fig.update_yaxes(range=[-90, 90], **frame, row=row, col=col)
 
         if has_bias:
             ref_cb_shown = False
@@ -443,6 +717,26 @@ def build_map_figures(
                     f"{ds} − {ref_label}",
                 )
                 bias_cb_shown = True
+        elif placeholders:
+            for i, ds in enumerate(non_ref):
+                row = i + 1
+                piv = _pivot_for(ds)
+                cb = (
+                    {
+                        "title": {"text": units, "side": "right"},
+                        "thickness": 14,
+                        "len": 0.85,
+                        "x": 1.01,
+                        "tickfont": {"size": 10},
+                        "outlinewidth": 0,
+                    }
+                    if i == 0
+                    else None
+                )
+                if piv is not None:
+                    _add_panel(piv, row, 1, cs, vmin, vmax, cb, str(ds))
+                _add_placeholder(row, 2, "No reference data")
+                _add_placeholder(row, 3, "No bias: no reference data")
         else:
             show_cb = True
             for i, ds in enumerate(valid_datasets):
@@ -496,6 +790,8 @@ def build_map_figures(
         ref_title_texts = {f"<b>{r}</b>" for r in valid_refs} if has_bias else set()
         ref_title_texts.add(f"<b>{ref_label}</b>" if has_bias else "")
         for ann in fig.layout.annotations:
+            if ann.xref != "paper":
+                continue  # placeholder notes keep their own font
             if has_bias and ann.text in ref_title_texts:
                 ann.font = {"size": 11, "color": "#a07000"}
                 ann.bgcolor = "rgba(192,134,10,0.08)"
@@ -504,6 +800,18 @@ def build_map_figures(
                 ann.borderpad = 3
             else:
                 ann.font = {"size": 11, "color": "#333"}
+
+        # In the page the grid re-flows with the card width (see _JS); the
+        # explicit width above is the fallback for figures shown elsewhere.
+        _tag_responsive_grid(
+            fig,
+            nrows,
+            ncols,
+            aspect=0.5,
+            wide_min_width=ncols * 250 + (190 if has_bias else 120),
+            margin_wide={"t": 80, "b": 50, "l": 50, "r": 125 if has_bias else 75},
+            margin_narrow={"t": 80, "b": 50, "l": 50, "r": 30},
+        )
 
         figures[var_id] = fig
 
@@ -561,13 +869,13 @@ def build_timeseries_figures(
         n_times = data_df["time"].nunique()
         ts_mode = "lines+markers" if n_times < 3 else "lines"
 
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-            dtype = grp["data_type"].iloc[0]
+            grp["data_type"].iloc[0]
 
             trace = go.Scatter(
                 x=series.index,
@@ -575,18 +883,14 @@ def build_timeseries_figures(
                 mode=ts_mode,
                 name=str(dataset),
                 legendgroup=str(dataset),
-                **_get_line_properties(dtype, color_idx),
+                **styles[dataset],
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
 
-            if dtype == "to_benchmark":
-                color_idx += 1
-
         if has_bias:
-            color_idx = 0
             for dataset in all_datasets:
                 if dataset == ref_dataset:
                     continue
@@ -594,7 +898,7 @@ def build_timeseries_figures(
                 if series is None:
                     continue
                 grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-                dtype = grp["data_type"].iloc[0]
+                grp["data_type"].iloc[0]
                 common = series.index.intersection(ref_series.index)
                 if common.empty:
                     continue
@@ -615,13 +919,11 @@ def build_timeseries_figures(
                             f"Δ{var_id}: %{{y:.4g}} {units}"
                             "<extra></extra>"
                         ),
-                        **_get_line_properties(dtype, color_idx),
+                        **styles[dataset],
                     ),
                     row=2,
                     col=1,
                 )
-                if dtype == "to_benchmark":
-                    color_idx += 1
             fig.add_hline(
                 y=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
@@ -637,17 +939,7 @@ def build_timeseries_figures(
                 "x": 0.02,
                 "xanchor": "left",
             },
-            "legend": {
-                "orientation": "h",
-                "yanchor": "bottom",
-                "y": 1.02,
-                "xanchor": "right",
-                "x": 1,
-                "bgcolor": "rgba(255,255,255,0.85)",
-                "bordercolor": "#ddd",
-                "borderwidth": 1,
-                "font": {"size": 11},
-            },
+            "legend": _LEGEND_BELOW,
             "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
         }
         if has_bias:
@@ -727,13 +1019,13 @@ def build_annual_cycle_figures(
 
         _plot_hlines(fig, variables_df, var_id)
 
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-            dtype = grp["data_type"].iloc[0]
+            grp["data_type"].iloc[0]
 
             trace = go.Scatter(
                 x=series.index.tolist(),
@@ -748,18 +1040,14 @@ def build_annual_cycle_figures(
                     f"{var_id}: %{{y:.4g}} {units}"
                     "<extra></extra>"
                 ),
-                **_get_line_properties(dtype, color_idx),
+                **styles[dataset],
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
 
-            if dtype == "to_benchmark":
-                color_idx += 1
-
         if has_bias:
-            color_idx = 0
             for dataset in all_datasets:
                 if dataset == ref_dataset:
                     continue
@@ -767,7 +1055,7 @@ def build_annual_cycle_figures(
                 if series is None:
                     continue
                 grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-                dtype = grp["data_type"].iloc[0]
+                grp["data_type"].iloc[0]
 
                 aligned = series.reindex(ref_series.index)
                 bias = (aligned - ref_series).dropna()
@@ -787,13 +1075,11 @@ def build_annual_cycle_figures(
                             f"Δ{var_id}: %{{y:.4g}} {units}"
                             "<extra></extra>"
                         ),
-                        **_get_line_properties(dtype, color_idx),
+                        **styles[dataset],
                     ),
                     row=2,
                     col=1,
                 )
-                if dtype == "to_benchmark":
-                    color_idx += 1
             fig.add_hline(
                 y=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
@@ -815,17 +1101,7 @@ def build_annual_cycle_figures(
                 "x": 0.02,
                 "xanchor": "left",
             },
-            "legend": {
-                "orientation": "h",
-                "yanchor": "bottom",
-                "y": 1.02,
-                "xanchor": "right",
-                "x": 1,
-                "bgcolor": "rgba(255,255,255,0.85)",
-                "bordercolor": "#ddd",
-                "borderwidth": 1,
-                "font": {"size": 11},
-            },
+            "legend": _LEGEND_BELOW,
             "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
         }
         if has_bias:
@@ -894,13 +1170,13 @@ def build_diurnal_cycle_figures(
 
         _plot_hlines(fig, variables_df, var_id)
 
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-            dtype = grp["data_type"].iloc[0]
+            grp["data_type"].iloc[0]
 
             trace = go.Scatter(
                 x=series.index.tolist(),
@@ -915,18 +1191,14 @@ def build_diurnal_cycle_figures(
                     f"{var_id}: %{{y:.4g}} {units}"
                     "<extra></extra>"
                 ),
-                **_get_line_properties(dtype, color_idx),
+                **styles[dataset],
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
 
-            if dtype == "to_benchmark":
-                color_idx += 1
-
         if has_bias:
-            color_idx = 0
             for dataset in all_datasets:
                 if dataset == ref_dataset:
                     continue
@@ -934,7 +1206,7 @@ def build_diurnal_cycle_figures(
                 if series is None:
                     continue
                 grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-                dtype = grp["data_type"].iloc[0]
+                grp["data_type"].iloc[0]
 
                 aligned = series.reindex(ref_series.index)
                 bias = (aligned - ref_series).dropna()
@@ -954,13 +1226,11 @@ def build_diurnal_cycle_figures(
                             f"Δ{var_id}: %{{y:.4g}} {units}"
                             "<extra></extra>"
                         ),
-                        **_get_line_properties(dtype, color_idx),
+                        **styles[dataset],
                     ),
                     row=2,
                     col=1,
                 )
-                if dtype == "to_benchmark":
-                    color_idx += 1
             fig.add_hline(
                 y=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
@@ -982,17 +1252,7 @@ def build_diurnal_cycle_figures(
                 "x": 0.02,
                 "xanchor": "left",
             },
-            "legend": {
-                "orientation": "h",
-                "yanchor": "bottom",
-                "y": 1.02,
-                "xanchor": "right",
-                "x": 1,
-                "bgcolor": "rgba(255,255,255,0.85)",
-                "bordercolor": "#ddd",
-                "borderwidth": 1,
-                "font": {"size": 11},
-            },
+            "legend": _LEGEND_BELOW,
             "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
         }
         if has_bias:
@@ -1065,13 +1325,13 @@ def build_zonal_line_figures(
 
         _plot_hlines(fig, variables_df, var_id)
 
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
             grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-            dtype = grp["data_type"].iloc[0]
+            grp["data_type"].iloc[0]
 
             trace = go.Scatter(
                 x=series.index.tolist(),
@@ -1083,15 +1343,12 @@ def build_zonal_line_figures(
                     f"<b>{dataset}</b><br>lat: %{{x:.1f}}°<br>"
                     f"{var_id}: %{{y:.4g}} {units}<extra></extra>"
                 ),
-                **_get_line_properties(dtype, color_idx),
+                **styles[dataset],
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
-
-            if dtype == "to_benchmark":
-                color_idx += 1
 
         for lat_ref, label in [(0, "Equator"), (23.5, "N Tropic"), (-23.5, "S Tropic")]:
             line_kwargs = {
@@ -1121,7 +1378,6 @@ def build_zonal_line_figures(
                 )
 
         if has_bias:
-            color_idx = 0
             for dataset in all_datasets:
                 if dataset == ref_dataset:
                     continue
@@ -1129,7 +1385,7 @@ def build_zonal_line_figures(
                 if series is None:
                     continue
                 grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-                dtype = grp["data_type"].iloc[0]
+                grp["data_type"].iloc[0]
 
                 common = series.index.intersection(ref_series.index)
                 if common.empty:
@@ -1150,13 +1406,11 @@ def build_zonal_line_figures(
                             f"Δ{var_id}: %{{y:.4g}} {units}"
                             "<extra></extra>"
                         ),
-                        **_get_line_properties(dtype, color_idx),
+                        **styles[dataset],
                     ),
                     row=2,
                     col=1,
                 )
-                if dtype == "to_benchmark":
-                    color_idx += 1
             fig.add_hline(
                 y=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
@@ -1172,17 +1426,7 @@ def build_zonal_line_figures(
                 "x": 0.02,
                 "xanchor": "left",
             },
-            "legend": {
-                "orientation": "h",
-                "yanchor": "bottom",
-                "y": 1.02,
-                "xanchor": "right",
-                "x": 1,
-                "bgcolor": "rgba(255,255,255,0.85)",
-                "bordercolor": "#ddd",
-                "borderwidth": 1,
-                "font": {"size": 11},
-            },
+            "legend": _LEGEND_BELOW,
             "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
         }
         x_kwargs_full = dict(
@@ -1291,13 +1535,11 @@ def build_depth_profile_figures(
         except IndexError:
             pass
 
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
         for dataset in all_datasets:
             series = _series_for(dataset, var_id)
             if series is None:
                 continue
-            grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-            dtype = grp["data_type"].iloc[0]
 
             trace = go.Scatter(
                 x=series.values.tolist(),
@@ -1309,26 +1551,20 @@ def build_depth_profile_figures(
                     f"<b>{dataset}</b><br>depth: %{{y:.1f}}m<br>"
                     f"{var_id}: %{{x:.4g}} {units}<extra></extra>"
                 ),
-                **_get_line_properties(dtype, color_idx),
+                **styles[dataset],
             )
             if has_bias:
                 fig.add_trace(trace, row=1, col=1)
             else:
                 fig.add_trace(trace)
 
-            if dtype == "to_benchmark":
-                color_idx += 1
-
         if has_bias:
-            color_idx = 0
             for dataset in all_datasets:
                 if dataset == ref_dataset:
                     continue
                 series = _series_for(dataset, var_id)
                 if series is None:
                     continue
-                grp = data_df[data_df["data_id"] == dataset].dropna(subset=[var_id])
-                dtype = grp["data_type"].iloc[0]
 
                 common = series.index.intersection(ref_series.index)
                 if common.empty:
@@ -1349,13 +1585,11 @@ def build_depth_profile_figures(
                             f"Δ{var_id}: %{{x:.4g}} {units}"
                             "<extra></extra>"
                         ),
-                        **_get_line_properties(dtype, color_idx),
+                        **styles[dataset],
                     ),
                     row=2,
                     col=1,
                 )
-                if dtype == "to_benchmark":
-                    color_idx += 1
             fig.add_vline(
                 x=0,
                 line={"color": "rgba(0,0,0,0.45)", "width": 1, "dash": "dot"},
@@ -1371,17 +1605,7 @@ def build_depth_profile_figures(
                 "x": 0.02,
                 "xanchor": "left",
             },
-            "legend": {
-                "orientation": "h",
-                "yanchor": "bottom",
-                "y": 1.02,
-                "xanchor": "right",
-                "x": 1,
-                "bgcolor": "rgba(255,255,255,0.85)",
-                "bordercolor": "#ddd",
-                "borderwidth": 1,
-                "font": {"size": 11},
-            },
+            "legend": _LEGEND_BELOW,
             "margin": {"t": 80, "b": 60, "l": 70, "r": 30},
         }
 
@@ -1711,6 +1935,7 @@ def build_bar_figures(
             text=[f"{v:.3g}" for v in x_vals],
             textposition="outside",
             cliponaxis=False,
+            showlegend=False,
             hovertemplate="%{y}: %{x:.4g}<extra></extra>",
         )
 
@@ -1743,19 +1968,9 @@ def build_bar_figures(
                     "x": 0.02,
                     "xanchor": "left",
                 },
-                height=max(300 + 18 * len(sub), 400),
+                height=max(150 + 34 * len(sub), 220),
                 margin={"t": 70, "b": 50, "l": 240, "r": 80},
-                legend={
-                    "orientation": "h",
-                    "yanchor": "bottom",
-                    "y": 1.02,
-                    "xanchor": "right",
-                    "x": 1,
-                    "bgcolor": "rgba(255,255,255,0.85)",
-                    "bordercolor": "#ddd",
-                    "borderwidth": 1,
-                    "font": {"size": 11},
-                },
+                legend=_LEGEND_BELOW,
             ),
             xaxis={
                 **_AXIS_STYLE,
@@ -1796,27 +2011,12 @@ def build_histogram_figures(
         long_name, units = _var_label(var_id, variables_df)
 
         fig = go.Figure()
-        color_idx = 0
+        styles = _line_styles(data_df, all_datasets)
 
         for dataset in all_datasets:
             ds_sub = sub[sub["data_id"] == dataset].sort_values(var_id)
             if ds_sub.empty:
                 continue
-            dtype = ds_sub["data_type"].iloc[0]
-
-            if dtype == "reference":
-                line_color = "black"
-                dash = "solid"
-                width = 2
-            elif dtype == "to_benchmark":
-                line_color = _SEABORN_COLORS[color_idx % len(_SEABORN_COLORS)]
-                dash = "solid"
-                width = 2
-                color_idx += 1
-            else:
-                line_color = "#888"
-                dash = "dash"
-                width = 1.5
 
             fig.add_trace(
                 go.Scatter(
@@ -1825,7 +2025,8 @@ def build_histogram_figures(
                     mode="lines",
                     name=str(dataset),
                     legendgroup=str(dataset),
-                    line={"color": line_color, "dash": dash, "width": width},
+                    line=styles[dataset]["line"],
+                    meta=styles[dataset]["meta"],
                     hovertemplate=(
                         f"<b>{dataset}</b><br>"
                         f"{var_id}: %{{x:.4g}} {units}<br>"
@@ -1843,17 +2044,7 @@ def build_histogram_figures(
                     "x": 0.02,
                     "xanchor": "left",
                 },
-                legend={
-                    "orientation": "h",
-                    "yanchor": "bottom",
-                    "y": 1.02,
-                    "xanchor": "right",
-                    "x": 1,
-                    "bgcolor": "rgba(255,255,255,0.85)",
-                    "bordercolor": "#ddd",
-                    "borderwidth": 1,
-                    "font": {"size": 11},
-                },
+                legend=_LEGEND_BELOW,
                 margin={"t": 80, "b": 60, "l": 70, "r": 30},
                 height=440,
             ),
@@ -2000,6 +2191,20 @@ def build_hovmoller_figures(
         def _ax(prefix: str, i: int) -> str:
             return prefix if i == 0 else f"{prefix}{i + 1}"
 
+        # Extents of the two coordinates, for the page's range controls
+        # (sliders + text boxes above the plot; see _renderRanges in _JS).
+        lon_lo = float(min(pv.columns.min() for pv in pivots))
+        lon_hi = float(max(pv.columns.max() for pv in pivots))
+        time_lo = min(str(pv.index.min()) for pv in pivots)
+        time_hi = max(str(pv.index.max()) for pv in pivots)
+        ranges_meta = {
+            "lon": {"label": "Longitude", "min": lon_lo, "max": lon_hi, "unit": "°"},
+            "time": {"label": "Time", "min": time_lo, "max": time_hi, "type": "date"},
+            "panels": [
+                {"x": _ax("xaxis", i), "y": _ax("yaxis", i)} for i in range(nrows)
+            ],
+        }
+
         # Trace-data args for each orientation
         lon_x_trace = {
             "x": [pv.columns.tolist() for pv in pivots],
@@ -2028,7 +2233,12 @@ def build_hovmoller_figures(
         time_x_layout_ew: dict[str, Any] = {}  # Time × Lon, E → W
         for i in range(nrows):
             xa, ya = _ax("xaxis", i), _ax("yaxis", i)
-            _lon_we = {"title": {"text": "Longitude"}, **lon_ticks, **_AXIS_STYLE}
+            _lon_we = {
+                "title": {"text": "Longitude"},
+                "autorange": True,
+                **lon_ticks,
+                **_AXIS_STYLE,
+            }
             _lon_ew = {
                 "title": {"text": "Longitude"},
                 "autorange": "reversed",
@@ -2063,6 +2273,8 @@ def build_hovmoller_figures(
             f"  [{units}]" if units else ""
         )
         panel_height = max(400, 320 * nrows)
+        # buttons sit just above the panel titles, below the figure title
+        _btn_y = 1.0 + 22.0 / max(panel_height - 170, 100)
         fig.update_layout(
             **_base_layout(
                 title={
@@ -2070,6 +2282,8 @@ def build_hovmoller_figures(
                     "font": {"size": 14},
                     "x": 0.02,
                     "xanchor": "left",
+                    "y": 0.985,
+                    "yanchor": "top",
                 },
                 margin={"t": 110, "b": 60, "l": 90, "r": 90},
                 height=panel_height,
@@ -2080,7 +2294,7 @@ def build_hovmoller_figures(
                     **_btn_style,
                     "x": 0.0,
                     "xanchor": "left",
-                    "y": 1.0,
+                    "y": _btn_y,
                     "yanchor": "bottom",
                     "buttons": [
                         {
@@ -2099,7 +2313,7 @@ def build_hovmoller_figures(
                     **_btn_style,
                     "x": 0.55,
                     "xanchor": "left",
-                    "y": 1.0,
+                    "y": _btn_y,
                     "yanchor": "bottom",
                     "buttons": [
                         {
@@ -2115,6 +2329,19 @@ def build_hovmoller_figures(
                     ],
                 },
             ],
+            # The page replaces the four Plotly buttons with two segmented
+            # toggles (axes, direction); each combination maps onto one of the
+            # buttons above, so the arguments are stored only once.
+            meta={
+                "toggles": {
+                    "groups": [
+                        {"label": "Axes", "options": ["Lon × Time", "Time × Lon"]},
+                        {"label": "Direction", "options": ["W → E", "E → W"]},
+                    ],
+                    "buttons": [[[0, 0], [0, 1]], [[1, 0], [1, 1]]],
+                },
+                "ranges": ranges_meta,
+            },
         )
         figures[var_id] = fig
 
@@ -2284,10 +2511,10 @@ def build_qbo_figures(
             fig.update_yaxes(matches="y", row=row_i, col=1)
 
         # ---- Amplitude profile (right column, spans all heatmap rows) ------
-        color_idx = 0
+        styles = _line_styles(data_df, ds_order)
         for ds in ds_order:
             sub = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
-            dtype = sub["data_type"].iloc[0]
+            sub["data_type"].iloc[0]
             std_profile = (
                 sub.assign(plev_hpa=lambda df: (df["air_pressure"] / 100).round(1))
                 .groupby("plev_hpa")[var_id]
@@ -2296,7 +2523,7 @@ def build_qbo_figures(
             )
             if std_profile.empty:
                 continue
-            lp = _get_line_properties(dtype, color_idx)
+            lp = styles[ds]
             fig.add_trace(
                 go.Scatter(
                     x=std_profile.values.tolist(),
@@ -2306,6 +2533,7 @@ def build_qbo_figures(
                     legendgroup=str(ds),
                     showlegend=False,
                     line=lp["line"],
+                    meta=lp["meta"],
                     hovertemplate=(
                         f"<b>{ds}</b><br>pressure: %{{y:.0f}} hPa<br>"
                         f"σ({var_id}): %{{x:.3g}} {units}<extra></extra>"
@@ -2314,8 +2542,6 @@ def build_qbo_figures(
                 row=1,
                 col=2,
             )
-            if dtype == "to_benchmark":
-                color_idx += 1
         fig.update_yaxes(
             type="log",
             autorange="reversed",
@@ -2348,11 +2574,11 @@ def build_qbo_figures(
         )
 
         # ---- QBO index: ua at ~50 hPa vs time (bottom full-width row) ------
-        color_idx = 0
+        styles = _line_styles(data_df, ds_order)
         _50hpa_pa = 5000.0
         for ds in ds_order:
             sub = data_df[data_df["data_id"] == ds].dropna(subset=[var_id])
-            dtype = sub["data_type"].iloc[0]
+            sub["data_type"].iloc[0]
             avail = sub["air_pressure"].unique()
             target = avail[int(np.argmin(np.abs(avail - _50hpa_pa)))]
             idx_sub = sub[sub["air_pressure"] == target][["time", var_id]].sort_values(
@@ -2361,7 +2587,7 @@ def build_qbo_figures(
             if idx_sub.empty:
                 continue
             label_hpa = round(target / 100)
-            lp = _get_line_properties(dtype, color_idx)
+            lp = styles[ds]
             fig.add_trace(
                 go.Scatter(
                     x=idx_sub["time"].astype(str).str[:7].tolist(),
@@ -2371,6 +2597,7 @@ def build_qbo_figures(
                     legendgroup=str(ds),
                     showlegend=True,
                     line=lp["line"],
+                    meta=lp["meta"],
                     hovertemplate=(
                         f"<b>{ds}</b><br>%{{x}}<br>"
                         f"{var_id} @ {label_hpa} hPa: %{{y:.3g}} {units}<extra></extra>"
@@ -2379,8 +2606,6 @@ def build_qbo_figures(
                 row=nrows,
                 col=1,
             )
-            if dtype == "to_benchmark":
-                color_idx += 1
         fig.add_hline(
             y=0,
             line={"color": "rgba(0,0,0,0.40)", "width": 1, "dash": "dot"},
@@ -2409,17 +2634,7 @@ def build_qbo_figures(
                 },
                 margin={"t": 80, "b": 60, "l": 80, "r": 90},
                 height=panel_height,
-                legend={
-                    "orientation": "h",
-                    "yanchor": "bottom",
-                    "y": -0.15,
-                    "xanchor": "center",
-                    "x": 0.4,
-                    "bgcolor": "rgba(255,255,255,0.85)",
-                    "bordercolor": "#ddd",
-                    "borderwidth": 1,
-                    "font": {"size": 11},
-                },
+                legend=_LEGEND_BELOW,
             ),
         )
         figures[var_id] = fig
@@ -2428,18 +2643,51 @@ def build_qbo_figures(
 
 
 _FIGURE_BUILDERS = {
-    "Map": build_map_figures,
-    "TimeSeries": build_timeseries_figures,
-    "AnnualCycle": build_annual_cycle_figures,
-    "DiurnalCycle": build_diurnal_cycle_figures,
-    "ZonalLine": build_zonal_line_figures,
-    "ZonalProfile": build_zonal_profile_figures,
-    "Hovmoller": build_hovmoller_figures,
-    "QBO": build_qbo_figures,
-    "DepthProfile": build_depth_profile_figures,
-    "Histogram": build_histogram_figures,
-    "Scalar": build_bar_figures,
+    name: _with_finished_legends(builder)
+    for name, builder in {
+        "Map": build_map_figures,
+        "TimeSeries": build_timeseries_figures,
+        "AnnualCycle": build_annual_cycle_figures,
+        "DiurnalCycle": build_diurnal_cycle_figures,
+        "ZonalLine": build_zonal_line_figures,
+        "ZonalProfile": build_zonal_profile_figures,
+        "Hovmoller": build_hovmoller_figures,
+        "QBO": build_qbo_figures,
+        "DepthProfile": build_depth_profile_figures,
+        "Histogram": build_histogram_figures,
+        "Scalar": build_bar_figures,
+    }.items()
 }
+
+# Display names for diagnostics keyed by their `name:` in the suite, used for
+# the toolbar tabs and card titles. Diagnostics not listed here get their
+# name prettified (annual_cycle -> "Annual Cycle"); the plot type is shown
+# separately as a chip, so several diagnostics of one type stay telling apart.
+_DIAG_NAME_LABELS: dict[str, str] = {
+    "amoc": "AMOC",
+    "nino34": "Niño 3.4",
+    "ohc": "Ocean Heat Content",
+    "ecs": "ECS",
+    "qbo": "QBO",
+    "hovmoller": "Hovmöller",
+    "timeseries": "Time Series",
+    "annual_mean_timeseries": "Annual Mean Time Series",
+    "zonal_line": "Zonal Mean",
+    "zonal_profile": "Zonal Profile",
+    "performance_metrics": "Performance Metrics",
+}
+
+
+def _diag_display_label(diag_name: str, dtype: str = "") -> str:
+    """Human-readable label for a diagnostic: explicit, else prettified name."""
+    key = diag_name.lower()
+    if key in _DIAG_NAME_LABELS:
+        return _DIAG_NAME_LABELS[key]
+    pretty = diag_name.replace("_", " ").replace("-", " ").strip()
+    if not pretty:
+        return _DIAG_LABELS.get(dtype, dtype)
+    return " ".join(w if w.isupper() else w.capitalize() for w in pretty.split())
+
 
 _DIAG_LABELS = {
     "Map": "Map",

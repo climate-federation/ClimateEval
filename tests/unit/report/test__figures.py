@@ -95,11 +95,15 @@ def test_map_figures_put_model_left_reference_middle_bias_right() -> None:
     assert np.allclose(panels[2], 1.0)  # right column is the bias itself
 
 
-def test_map_figures_no_reference_grid_syncs_all_panels() -> None:
+def test_map_figures_no_reference_keeps_three_columns_with_placeholders() -> None:
     data_df = _map_df({"MODEL-A": "to_benchmark", "MODEL-B": "to_benchmark"})
     figures = build_map_figures(data_df, VARIABLES_DF)
     fig = figures["tas"]
-    assert len(_axis_layout(fig, "xaxis")) == 2
+    # one row per model: map | "no reference" | "no bias" placeholders
+    assert len(_axis_layout(fig, "xaxis")) == 6
+    assert sum(tr.type == "heatmap" for tr in fig.data) == 2
+    notes = [a.text for a in fig.layout.annotations if a.xref != "paper"]
+    assert notes == ["No reference data", "No bias: no reference data"] * 2
     _assert_all_axes_matched(fig)
 
 
