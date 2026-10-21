@@ -78,7 +78,7 @@ MODEL_INFO = DataSourceInformation(
 # ---------------------------------------------------------------------------
 RUNS = (
     (
-        "Tier2_seaice_monthly",
+        "Tier2_sea_ice_monthly",
         (("siconc", "SImon"),),
         "19970101/20071231",
         "seaice.ddb",

@@ -6,27 +6,27 @@
       var_name: clivi
       frequency: mon
       reference_data: climateeval.data.ESACCICloud
-      # other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: clt
       var_name: clt
       frequency: mon
       reference_data: climateeval.data.ESACCICloud
-      # other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: clwvi
       var_name: clwvi
       frequency: mon
       reference_data: climateeval.data.ESACCICloud
-      # other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: hfls
       var_name: hfls
       frequency: mon
       reference_data: climateeval.data.MERRA2
-      # other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: hfss
       var_name: hfss
       frequency: mon
       reference_data: climateeval.data.MERRA2
-      # other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: hus400
       var_name: hus
       frequency: mon
@@ -39,33 +39,33 @@
       var_name: lwcre
       frequency: mon
       reference_data: climateeval.data.CERESEBAF
-       #other_data: [climateeval.data.ESACCICloud]
+      other_data: [climateeval.data.ESACCICloud]
     - id: lwp
       var_name: lwp
       frequency: mon
       reference_data: climateeval.data.ESACCICloud
-      # other_data: [climateeval.data.ERA5Monthly]
+      other_data: [climateeval.data.ERA5Monthly]
     - id: pr
       var_name: pr
       frequency: mon
       units: mm day-1
       reference_data: climateeval.data.GPCP
-      # other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: prw
       var_name: prw
       frequency: mon
       reference_data: climateeval.data.ERA5Monthly
-      # other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: rlut
       var_name: rlut
       frequency: mon
       reference_data: climateeval.data.CERESEBAF
-      # other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: rsut
       var_name: rsut
       frequency: mon
       reference_data: climateeval.data.CERESEBAF
-      # other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: rtnt
       var_name: rtnt
       frequency: mon
@@ -74,7 +74,7 @@
       var_name: swcre
       frequency: mon
       reference_data: climateeval.data.CERESEBAF
-      # other_data: [climateeval.data.ESACCICloud]
+      other_data: [climateeval.data.ESACCICloud]
     - id: ta200
       var_name: ta
       frequency: mon
@@ -95,7 +95,7 @@
       var_name: tas
       frequency: mon
       reference_data: climateeval.data.HadCRUT5
-      # other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
     - id: ua200
       var_name: ua
       frequency: mon
