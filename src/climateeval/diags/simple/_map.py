@@ -38,8 +38,13 @@ class Map(SimpleDiagnostic):
             cube = climate_statistics(cube, "mean", "full")
         return cube  # noqa: RET504
 
+
 class TrendMap(SimpleDiagnostic):
-    """Manage trend map diagnostics."""
+    """Manage trend map diagnostics.
+
+    Computes the linear trend of the annual means over the full time range on
+    the common grid, in ``<units> yr-1``.
+    """
 
     _final_coordinates = (Coordinate("lat"), Coordinate("lon"))
 

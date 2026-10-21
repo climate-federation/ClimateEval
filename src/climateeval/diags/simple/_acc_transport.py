@@ -55,9 +55,9 @@ class ACCTransportZonalTransect(SimpleDiagnostic):
                 lon_points_normalized = lon_points % 360
                 lat_mid = (lat_min + lat_max) / 2.0
 
-                distance_matrix = (lon_points_normalized - target_lon_normalized) ** 2 + (
-                    lat_points - lat_mid
-                ) ** 2
+                distance_matrix = (
+                    lon_points_normalized - target_lon_normalized
+                ) ** 2 + (lat_points - lat_mid) ** 2
                 _, closest_x = np.unravel_index(
                     np.argmin(distance_matrix),
                     lon_points.shape,
