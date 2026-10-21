@@ -1,0 +1,12 @@
+# Tier 3 | Processes: thermodynamic covariances of a historical experiment
+# (clear-sky longwave feedback and the tropical precipitation-buoyancy
+# relationship). A separate suite because these diagnostics take a historical
+# experiment, whereas the control-consistency diagnostics take piControl (a
+# suite passes the same data dict to every diagnostic it contains).
+- name: clear_sky_lw_feedback
+  diagnostic: climateeval.diags.complex.ClearSkyLongwaveFeedback
+  additional_diagnostic_kwargs: {}
+
+- name: precipitation_buoyancy
+  diagnostic: climateeval.diags.complex.PrecipitationBuoyancy
+  additional_diagnostic_kwargs: {}

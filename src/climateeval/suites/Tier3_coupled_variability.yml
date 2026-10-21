@@ -1,0 +1,10 @@
+# Tier 3 | Variability: coupled variability of an unforced control run
+# (Bjerknes compensation of the atmospheric and oceanic heat transports, ENSO
+# teleconnection patterns against HadISST and GPCP).
+- name: bjerknes_compensation
+  diagnostic: climateeval.diags.complex.BjerknesCompensation
+  additional_diagnostic_kwargs: {}
+
+- name: enso_teleconnection_patterns
+  diagnostic: climateeval.diags.complex.ENSOTeleconnectionPatterns
+  additional_diagnostic_kwargs: {}
