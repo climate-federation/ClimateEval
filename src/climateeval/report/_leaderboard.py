@@ -66,11 +66,6 @@ def build_leaderboard_data(
     return summary[["Rank", "data_id", "Overall Score"]].reset_index(drop=True), detail
 
 
-def _score_color(score: float) -> str:
-    h = int(score * 120)
-    return f"hsl({h},65%,45%)"
-
-
 def _render_summary_table(summary_df: pd.DataFrame, table_id: str) -> str:
     medal = {1: "medal-1", 2: "medal-2", 3: "medal-3"}
     rows_html = []
@@ -79,16 +74,14 @@ def _render_summary_table(summary_df: pd.DataFrame, table_id: str) -> str:
         dataset = html_module.escape(str(row["data_id"]))
         score = row["Overall Score"]
         pct = f"{score * 100:.1f}"
-        color = _score_color(score)
         rank_cls = medal.get(rank, "")
-        bar_w = f"{score * 100:.1f}%"
         rows_html.append(
             f"<tr>"
             f"<td class='rank {rank_cls}'>{rank}</td>"
-            f"<td><strong>{dataset}</strong></td>"
+            f"<td>{dataset}</td>"
             f"<td class='score-cell bar-cell'>"
-            f"  <div class='bar-bg' style='width:{bar_w};background:{color};'></div>"
-            f"  <span class='bar-val' style='color:{color}'>{pct}%</span>"
+            f"<div class='bar-bg' style='width:{pct}%;'></div>"
+            f"<span class='bar-val'>{pct}%</span>"
             f"</td>"
             f"</tr>",
         )
@@ -239,6 +232,9 @@ def build_scoreboard_figure(
         x_labels = [str(c) for c in pivot.columns]
         y_labels = [str(i) for i in pivot.index]
         finite_vals = pivot.values[np.isfinite(pivot.values)]
+        text_annots = [
+            [f"{v:.2f}" if np.isfinite(v) else "" for v in row] for row in pivot.values
+        ]
         mintext = "▼-1" if len(finite_vals) > 0 and np.min(finite_vals) < 1.0 else "-1"
         colorbar_ticks = {
             "tickvals": [-1.0, -0.5, 0.0, 0.5, 1.0],
@@ -262,8 +258,9 @@ def build_scoreboard_figure(
             hovertemplate=hover_tmpl,
             colorbar={
                 "title": {"text": colorbar_title, "side": "right"},
-                "thickness": 14,
+                "thickness": 10,
                 "len": 0.8,
+                "outlinewidth": 0,
                 **colorbar_ticks,
             },
             xgap=2,
@@ -275,14 +272,13 @@ def build_scoreboard_figure(
     fig.update_layout(
         **_base_layout(
             title={
-                "text": f"<b>Performance Scoreboard</b>"
-                f" <span style='font-size:0.8em;font-weight:400'>{title_note}</span>",
-                "font": {"size": 15},
-                "x": 0.5,
-                "xanchor": "center",
+                "text": f"<span style='font-size:0.85em;color:#7a7a74'>{title_note}</span>",
+                "font": {"size": 13},
+                "x": 0,
+                "xanchor": "left",
             },
-            height=max(280 + 22 * len(y_labels), 380),
-            margin={"t": 70, "b": 120, "l": 260, "r": 80},
+            height=max(220 + 24 * len(y_labels), 340),
+            margin={"t": 40, "b": 110, "l": 240, "r": 40},
         ),
         xaxis={
             "tickangle": -40,
@@ -305,7 +301,7 @@ def build_scoreboard_figure(
                 "x1": overall_col_idx + 0.5,
                 "y0": 0,
                 "y1": 1,
-                "line": {"color": "#333", "width": 2},
+                "line": {"color": "#1b1b19", "width": 1.5},
                 "fillcolor": "rgba(0,0,0,0)",
             },
         ],

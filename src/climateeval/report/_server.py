@@ -229,6 +229,10 @@ def _build_structure() -> bytes:
 
             variables = []
             for var_id in get_var_cols(data_df):
+                # Histogram figures are keyed by the binned variable; the
+                # density columns are their y-values, not variables of their own.
+                if dtype == "Histogram" and var_id.startswith("density_"):
+                    continue
                 if data_df[var_id].isna().all():
                     continue
                 long_name, units = _var_label(var_id, variables_df)

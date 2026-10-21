@@ -23,6 +23,7 @@ from climateeval.report._common import (
 from climateeval.report._db import get_density_cols, get_var_cols
 from climateeval.report._style import (
     _AXIS_STYLE,
+    _OTHER_LINE_COLOR,
     _PLOT_FONT,
     _SEABORN_COLORS,
     _bias_colorscale_for,
@@ -113,7 +114,7 @@ def _get_line_properties(dtype: str, color_idx: int) -> dict:
     # "other"
     return {
         "line": {
-            "color": "#888",
+            "color": _OTHER_LINE_COLOR,
             "dash": "dash",
             "width": 1.5,
         },
@@ -126,13 +127,15 @@ def _base_layout(**kwargs: Any) -> dict:
     base = {
         "font": _PLOT_FONT,
         "paper_bgcolor": "white",
-        "plot_bgcolor": "#fafbfc",
+        "plot_bgcolor": "white",
+        "hoverlabel": {"font": {"family": _PLOT_FONT["family"], "size": 12}},
         "legend": {
-            "bgcolor": "rgba(255,255,255,0.85)",
-            "bordercolor": "#ddd",
+            "bgcolor": "rgba(255,255,255,0.9)",
+            "bordercolor": "#e3e3df",
             "borderwidth": 1,
             "font": {"size": 11},
         },
+        "colorway": _SEABORN_COLORS,
     }
     base.update(kwargs)
     return base
@@ -340,7 +343,7 @@ def build_map_figures(
             fig.update_xaxes(
                 range=[-180, 180],
                 showgrid=True,
-                gridcolor="rgba(180,180,180,0.25)",
+                gridcolor="#ececea",
                 zeroline=True,
                 zerolinecolor="rgba(150,150,150,0.4)",
                 zerolinewidth=1,
@@ -356,7 +359,7 @@ def build_map_figures(
             fig.update_yaxes(
                 range=[-90, 90],
                 showgrid=True,
-                gridcolor="rgba(180,180,180,0.25)",
+                gridcolor="#ececea",
                 zeroline=True,
                 zerolinecolor="rgba(150,150,150,0.4)",
                 zerolinewidth=1,
@@ -1610,7 +1613,7 @@ def build_histogram_figures(
                 width = 2
                 color_idx += 1
             else:
-                line_color = "#888"
+                line_color = _OTHER_LINE_COLOR
                 dash = "dash"
                 width = 1.5
 

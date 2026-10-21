@@ -70,10 +70,147 @@ def _render_app_header(
     return (
         '<header class="app-header">'
         '<div class="header-title">'
-        "<h1>ClimateEval</h1>"
+        "<h1>ClimateEval<span>Benchmark report</span></h1>"
         f'<div class="header-meta">{chips}</div>'
         "</div>"
         "</header>"
+    )
+
+
+_LEADERBOARD_ICON = (
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" '
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    '<path d="M2 13.5h12"/><rect x="2.75" y="7.5" width="2.5" height="6" rx=".5"/>'
+    '<rect x="6.75" y="2.5" width="2.5" height="11" rx=".5"/>'
+    '<rect x="10.75" y="5.5" width="2.5" height="8" rx=".5"/></svg>'
+)
+
+_SCORE_EXPLANATION = (
+    "Relative score = 1 &minus; metric / median metric across models, per "
+    "variable, averaged over diagnostics. Blue is better than the median, red "
+    "worse; the boxed column is the mean over variables."
+)
+_OVERALL_EXPLANATION = (
+    "Overall score = mean of the min&ndash;max normalised weighted RMSE, Pearson "
+    "r and Earth Mover&rsquo;s Distance over every diagnostic and variable. "
+    "100&nbsp;% is the best possible."
+)
+
+
+def _render_sidebar(tiers: list[tuple[str, str]]) -> str:
+    """Render the sidebar navigation: leaderboard, then one entry per tier."""
+    items = (
+        "<div class='sidebar-section-label'>Overview</div>"
+        "<button type='button' class='sidebar-item active' data-section='leaderboard' "
+        "aria-current='page' onclick='sidebarNav(\"leaderboard\")'>"
+        f"<span class='sidebar-icon'>{_LEADERBOARD_ICON}</span>"
+        "<span class='sidebar-item-text'>Leaderboard</span>"
+        "</button>"
+        "<div class='sidebar-divider'></div>"
+        "<div class='sidebar-section-label'>Tiers</div>"
+    )
+    for tier_id, label in tiers:
+        accent, badge = _tier_accent(label)
+        items += (
+            f"<button type='button' class='sidebar-item' data-section='{tier_id}' "
+            f"onclick='sidebarNav(\"{tier_id}\")'>"
+            f"<span class='tier-badge' style='{accent}'>{badge}</span>"
+            f"<span class='sidebar-item-text'>{html_module.escape(label)}</span>"
+            f"</button>"
+        )
+    return items
+
+
+def _render_leaderboard_cards(
+    scoreboard_html: str,
+    summary_html: str,
+    detail_html: str,
+) -> str:
+    """Lay out the leaderboard panel: scoreboard card, ranking card, full table."""
+    legend = (
+        "<div class='lb-legend'><span>worse than median</span>"
+        "<span class='lb-legend-scale' aria-hidden='true'></span>"
+        "<span>better than median</span></div>"
+    )
+    return (
+        "<h2 class='section-heading'>Leaderboard</h2>"
+        "<p class='section-subheading'>How the benchmarked model compares with the "
+        "references and the comparison models across every diagnostic.</p>"
+        "<div class='lb-section'>"
+        "<div class='lb-card'>"
+        "<div class='lb-card-title'>Performance scoreboard</div>"
+        f"<p class='lb-card-sub'>{_SCORE_EXPLANATION}</p>"
+        f"{scoreboard_html}{legend}"
+        "</div>"
+        "<div class='lb-card'>"
+        "<div class='lb-card-title'>Overall ranking</div>"
+        f"<p class='lb-card-sub'>{_OVERALL_EXPLANATION}</p>"
+        f"{summary_html}"
+        "</div>"
+        "<div class='detail-section'>"
+        f"<details><summary>Full metrics table</summary>{detail_html}</details>"
+        "</div>"
+        "</div>"
+    )
+
+
+def _render_toolbar(
+    tier_id: str,
+    db_path: Path,
+    diag_buttons: list[tuple[str, str]],
+) -> str:
+    """Render a tier's toolbar: diagnostic filter tabs, search box, database name."""
+    filter_btns = (
+        f"<button type='button' class='diag-filter-btn active' data-diag='all' "
+        f"aria-pressed='true' onclick='filterDiag(\"{tier_id}\",\"all\")'>All</button>"
+    )
+    for dname, label in diag_buttons:
+        filter_btns += (
+            f"<button type='button' class='diag-filter-btn' data-diag='{dname}' "
+            f"aria-pressed='false' onclick='filterDiag(\"{tier_id}\",\"{dname}\")'>"
+            f"{html_module.escape(label)}</button>"
+        )
+    search_svg = (
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+        'aria-hidden="true">'
+        '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'
+        "</svg>"
+    )
+    return (
+        f"<div class='content-toolbar' id='toolbar-{tier_id}' style='display:none' "
+        f"role='toolbar' aria-label='Diagnostic filter'>"
+        f"<div class='diag-filter-btns'>{filter_btns}</div>"
+        f"<div class='search-wrap'>{search_svg}"
+        f"<input class='search-input' type='search' placeholder='Search variables' "
+        f"aria-label='Search variables' oninput='searchPlots(this.value)'></div>"
+        f"<div class='toolbar-sep'></div>"
+        f"<span class='toolbar-db' title='{html_module.escape(str(db_path))}'>"
+        f"{html_module.escape(db_path.name)}</span>"
+        f"</div>"
+    )
+
+
+def _render_var_nav(scope_id: str, buttons_html: str, n_vars: int) -> str:
+    """Wrap the variable buttons; many variables get a bounded, scrollable nav."""
+    many = " many" if n_vars > 14 else ""
+    return (
+        f"<div class='var-nav{many}' role='group' aria-label='Variables'>"
+        f"{buttons_html}</div>"
+    )
+
+
+def _section_header(label: str, dtype: str) -> str:
+    """Diagnostic card header: title plus a small plot-type chip."""
+    chip = _DIAG_LABELS.get(dtype, dtype)
+    chip_html = (
+        f"<span class='diag-type-chip'>{html_module.escape(chip)}</span>"
+        if chip and chip != label
+        else ""
+    )
+    return (
+        "<div class='diag-section-header'>"
+        f"<span class='diag-section-title'>{html_module.escape(label)}</span>"
+        f"{chip_html}</div>"
     )
 
 
@@ -282,8 +419,9 @@ def render_diagnostic_section(
     title_parts = {v: _title_parts(v) for v in var_cols}
 
     var_buttons = "".join(
-        f"<button class='var-pill {'active' if v == first_var else ''}' "
+        f"<button type='button' class='var-pill {'active' if v == first_var else ''}' "
         f"data-var='{html_module.escape(v)}' "
+        f"aria-pressed='{'true' if v == first_var else 'false'}' "
         f"title='{html_module.escape(title_parts[v][0])}' "
         f'onclick=\'showVarPanel("{scope_id}", "{v}")\'>'
         f"{html_module.escape(_btn_label(v))}</button>"
@@ -315,6 +453,7 @@ def render_diagnostic_section(
         bias_grad = _css_gradient(_bias_colorscale_for(var_id))
         # Maps put the model first; zonal profiles still draw reference then
         # bias, so they get their own wording rather than the map's.
+        columns: tuple[tuple[str, str, str], ...]
         if _diag_type == "Map":
             columns = (
                 (data_grad, "ln-data-swatch", "Model (left column)"),
@@ -323,18 +462,23 @@ def render_diagnostic_section(
                     "ln-data-swatch",
                     "Observations, named per panel (middle column)",
                 ),
-                (bias_grad, "ln-bias-swatch", "Bias = model − observations "
-                 "(right column)"),
+                (
+                    bias_grad,
+                    "ln-bias-swatch",
+                    "Bias = model − observations (right column)",
+                ),
             )
         else:
             columns = (
                 (data_grad, "ln-data-swatch", "Observations (left column)"),
-                (bias_grad, "ln-bias-swatch", "Bias = model − observations "
-                 "(right column)"),
+                (
+                    bias_grad,
+                    "ln-bias-swatch",
+                    "Bias = model − observations (right column)",
+                ),
             )
         spans = "".join(
-            f"<span><span class='{cls}' style='background:{grad}'>"
-            f"</span>{text}</span>"
+            f"<span><span class='{cls}' style='background:{grad}'></span>{text}</span>"
             for grad, cls, text in columns
         )
         return f"<div class='legend-note'>{spans}</div>"
@@ -360,8 +504,11 @@ def render_diagnostic_section(
         if detail_html:
             detail_block = (
                 f"<div class='plot-detail-footer'>"
-                f"<button class='detail-toggle-btn' onclick='toggleDetail(\"{detail_id}\")'>"
-                f"<span class='detail-icon'>i</span> Dataset Info &amp; References"
+                f"<button type='button' class='detail-toggle-btn' "
+                f"aria-expanded='false' aria-controls='{detail_id}' "
+                f"onclick='toggleDetail(\"{detail_id}\", this)'>"
+                f"<span class='detail-icon' aria-hidden='true'>i</span>"
+                f"Dataset info &amp; references"
                 f"</button>"
                 f"<div class='plot-detail-box' id='{detail_id}'>{detail_html}</div>"
                 f"</div>"
@@ -383,7 +530,7 @@ def render_diagnostic_section(
 
     return (
         f"<div id='diag-{scope_id}' class='diag-content'>"
-        f"<div class='var-nav'>{var_buttons}</div>"
+        f"{_render_var_nav(scope_id, var_buttons, len(var_cols))}"
         f"{legend_note}"
         f"{plot_panels}"
         f"</div>"
@@ -397,15 +544,12 @@ def render_leaderboard_section(
     """Render the leaderboard HTML section including scoreboard figure."""
     summary_df, detail_df = build_leaderboard_data(all_metrics)
     if summary_df.empty:
-        return "<p class='empty-note'>No metrics data found.</p>"
+        return (
+            "<h2 class='section-heading'>Leaderboard</h2>"
+            "<p class='empty-note'>No metrics data found.</p>"
+        )
     summary_html = _render_summary_table(summary_df, f"lb-summary{table_suffix}")
     detail_html = _render_detail_table(detail_df, f"lb-detail{table_suffix}")
-    metric_note = (
-        "<div class='metric-note'>"
-        "Overall Score = normalized average of weighted RMSE, Pearson r, and Earth Mover's Distance "
-        "across all diagnostics and variables. 100% = best possible."
-        "</div>"
-    )
 
     # Build scoreboard heatmap (uses same figdata- convention as diagnostic plots)
     scoreboard_html = ""
@@ -428,16 +572,7 @@ def render_leaderboard_section(
             f"</div>"
         )
 
-    return (
-        f"<div class='lb-section'>"
-        f"{metric_note}"
-        f"{scoreboard_html}"
-        f"{summary_html}"
-        f"<div class='detail-section'>"
-        f"<details><summary>Full metrics table</summary>{detail_html}</details>"
-        f"</div>"
-        f"</div>"
-    )
+    return _render_leaderboard_cards(scoreboard_html, summary_html, detail_html)
 
 
 def _build_figures_for_tier(
@@ -553,47 +688,18 @@ def _render_tier_panel(
             dname,
         )
 
-    # Toolbar: All + per-diagnostic filter buttons + search
-    filter_btns = (
-        f"<button class='diag-filter-btn active' data-diag='all' "
-        f'onclick=\'filterDiag("{tier_id}","all")\'>All</button>'
-    )
-    for dname in diag_names:
-        label = _label(dname)
-        filter_btns += (
-            f"<button class='diag-filter-btn' data-diag='{dname}' "
-            f'onclick=\'filterDiag("{tier_id}","{dname}")\'>'
-            f"{label}</button>"
-        )
-
-    search_svg = (
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
-        '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'
-        "</svg>"
-    )
-    toolbar_html = (
-        f"<div class='content-toolbar' id='toolbar-{tier_id}' style='display:none'>"
-        f"<div class='diag-filter-btns'>{filter_btns}</div>"
-        f"<div class='toolbar-sep'></div>"
-        f"<div class='search-wrap'>"
-        f"{search_svg}"
-        f"<input class='search-input' type='text' placeholder='Search plots…' "
-        f"oninput='searchPlots(this.value)'>"
-        f"</div>"
-        f"<span class='toolbar-db' title='{html_module.escape(str(db_path))}'>"
-        f"{html_module.escape(db_path.name)}</span>"
-        f"</div>"
+    toolbar_html = _render_toolbar(
+        tier_id,
+        db_path,
+        [(dname, _label(dname)) for dname in diag_names],
     )
 
     # Panel: diagnostic sections grouped by plot-type category
     section_html_by_diag: dict[str, str] = {}
     for dname, (content, _) in diag_sections.items():
-        label = _label(dname)
         section_html_by_diag[dname] = (
             f"<div class='diag-section' data-diag='{dname}' id='diag-sec-{tier_id}-{dname}'>"
-            f"<div class='diag-section-header'>"
-            f"<span class='diag-section-title'>{label}</span>"
-            f"</div>"
+            f"{_section_header(_label(dname), diag_types.get(dname, ''))}"
             f"{content}"
             f"</div>"
         )
@@ -660,29 +766,11 @@ def generate_portable_html(
     now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     # ── Sidebar ──
-    sidebar_items = (
-        "<div class='sidebar-section-label'>Overview</div>"
-        "<div class='sidebar-item active' data-section='leaderboard' "
-        "onclick='sidebarNav(\"leaderboard\")'>"
-        "<span class='sidebar-icon'>🏆</span>Leaderboard"
-        "</div>"
-        "<div class='sidebar-divider'></div>"
-        "<div class='sidebar-section-label'>Tiers</div>"
-    )
-    for tier_id, label, *_ in tiers:
-        accent, badge = _tier_accent(label)
-        sidebar_items += (
-            f"<div class='sidebar-item' data-section='{tier_id}' "
-            f"onclick='sidebarNav(\"{tier_id}\")'>"
-            f"<span class='tier-badge' style='background:{accent};'>{badge}</span>"
-            f"{html_module.escape(label)}"
-            f"</div>"
-        )
+    sidebar_items = _render_sidebar([(tier_id, label) for tier_id, label, *_ in tiers])
 
     # ── Leaderboard panel ──
     lb_panel = (
         "<div class='content-panel active' id='panel-leaderboard'>"
-        "<h2 class='section-heading'>Performance Leaderboard</h2>"
         + render_leaderboard_section(all_metrics, table_suffix="-main")
         + "</div>"
     )
@@ -773,47 +861,20 @@ def build_html_shell(
     now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     # ── Sidebar ──
-    sidebar_items = (
-        "<div class='sidebar-section-label'>Overview</div>"
-        "<div class='sidebar-item active' data-section='leaderboard' "
-        "onclick='sidebarNav(\"leaderboard\")'>"
-        "<span class='sidebar-icon'>🏆</span>Leaderboard"
-        "</div>"
-        "<div class='sidebar-divider'></div>"
-        "<div class='sidebar-section-label'>Tiers</div>"
-    )
-    for tier in tiers:
-        tid = tier["id"]
-        tlabel = html_module.escape(tier["label"])
-        accent, badge = _tier_accent(tier["label"])
-        sidebar_items += (
-            f"<div class='sidebar-item' data-section='{tid}' "
-            f"onclick='sidebarNav(\"{tid}\")'>"
-            f"<span class='tier-badge' style='background:{accent};'>{badge}</span>{tlabel}"
-            f"</div>"
-        )
+    sidebar_items = _render_sidebar([(tier["id"], tier["label"]) for tier in tiers])
 
     # ── Leaderboard panel (figures fetched via JS on load) ──
-    lb_panel = """
-<div class='content-panel active' id='panel-leaderboard'>
-  <h2 class='section-heading'>Performance Leaderboard</h2>
-  <div class='lb-section'>
-    <div class='metric-note'>
-      Overall Score = normalized average of weighted RMSE, Pearson&nbsp;r, and
-      Earth Mover&rsquo;s Distance across all diagnostics and variables.
-      100&nbsp;% = best possible.
-    </div>
-    <div class='scoreboard-wrap'>
-      <div id='scoreboard-graph' style='width:100%;min-height:320px;'></div>
-    </div>
-    <div id='lb-summary-container'></div>
-    <div class='detail-section'>
-      <details><summary>Full metrics table</summary>
-        <div id='lb-detail-container'></div>
-      </details>
-    </div>
-  </div>
-</div>"""
+    lb_panel = (
+        "<div class='content-panel active' id='panel-leaderboard'>"
+        + _render_leaderboard_cards(
+            "<div class='scoreboard-wrap'>"
+            "<div id='scoreboard-graph' style='width:100%;min-height:320px;'></div>"
+            "</div>",
+            "<div id='lb-summary-container'></div>",
+            "<div id='lb-detail-container'></div>",
+        )
+        + "</div>"
+    )
 
     # ── Tier panels ──
     all_toolbars = ""
@@ -842,9 +903,11 @@ def build_html_shell(
         }
 
         var_buttons = "".join(
-            "<button class='var-pill {active}' data-var='{vid}' title='{tooltip}' "
+            "<button type='button' class='var-pill {active}' data-var='{vid}' "
+            "aria-pressed='{pressed}' title='{tooltip}' "
             'onclick=\'showVarPanel("{scope}", "{vid}")\'>{label}</button>'.format(
                 active="active" if v["id"] == first_var else "",
+                pressed="true" if v["id"] == first_var else "false",
                 vid=html_module.escape(v["id"]),
                 tooltip=html_module.escape(title_parts[v["id"]][0]),
                 scope=scope_id,
@@ -874,7 +937,7 @@ def build_html_shell(
 
         return (
             f"<div id='diag-{scope_id}' class='diag-content'>"
-            f"<div class='var-nav'>{var_buttons}</div>"
+            f"{_render_var_nav(scope_id, var_buttons, len(variables))}"
             f"{panels}"
             f"</div>"
         )
@@ -897,6 +960,10 @@ def build_html_shell(
 
             variables = []
             for var_id in get_var_cols(data_df):
+                # Histogram figures are keyed by the binned variable; the
+                # density columns are their y-values, not variables of their own.
+                if dtype == "Histogram" and var_id.startswith("density_"):
+                    continue
                 if data_df[var_id].isna().all():
                     continue
                 long_name, units = _var_label(var_id, variables_df)
@@ -911,42 +978,16 @@ def build_html_shell(
             section_html_by_diag[diag_name] = (
                 f"<div class='diag-section' data-diag='{diag_name}' "
                 f"id='diag-sec-{tier_id}-{diag_name}'>"
-                f"<div class='diag-section-header'>"
-                f"<span class='diag-section-title'>{html_module.escape(label)}</span>"
-                f"</div>"
+                f"{_section_header(label, dtype)}"
                 f"{content}"
                 f"</div>"
             )
         sections_html = _wrap_sections_by_category(section_html_by_diag, diag_types)
 
-        # Toolbar
-        filter_btns = (
-            f"<button class='diag-filter-btn active' data-diag='all' "
-            f'onclick=\'filterDiag("{tier_id}","all")\'>All</button>'
-        )
-        for dname, dtype in diags_for_toolbar:
-            label = _diag_label(dname, dtype)
-            filter_btns += (
-                f"<button class='diag-filter-btn' data-diag='{dname}' "
-                f'onclick=\'filterDiag("{tier_id}","{dname}")\'>'
-                f"{html_module.escape(label)}</button>"
-            )
-
-        search_svg = (
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
-            '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'
-            "</svg>"
-        )
-        all_toolbars += (
-            f"<div class='content-toolbar' id='toolbar-{tier_id}' style='display:none'>"
-            f"<div class='diag-filter-btns'>{filter_btns}</div>"
-            f"<div class='toolbar-sep'></div>"
-            f"<div class='search-wrap'>{search_svg}"
-            f"<input class='search-input' type='text' placeholder='Search plots…' "
-            f"oninput='searchPlots(this.value)'></div>"
-            f"<span class='toolbar-db' title='{html_module.escape(str(tier['db_path']))}'>"
-            f"{html_module.escape(Path(tier['db_path']).name)}</span>"
-            f"</div>"
+        all_toolbars += _render_toolbar(
+            tier_id,
+            Path(tier["db_path"]),
+            [(dname, _diag_label(dname, dtype)) for dname, dtype in diags_for_toolbar],
         )
         all_panels += (
             f"<div class='content-panel' id='panel-{tier_id}' data-type='tier'>"
@@ -962,7 +1003,8 @@ def build_html_shell(
     plotly_tag = '<script src="/plotly.js"></script>'
 
     # Leaderboard JS: fetch data from /api/leaderboard and render
-    lb_js = """
+    # Raw string: the \" inside the JS must reach the browser as an escape.
+    lb_js = r"""
 <script>
 (function() {
   fetch('/api/leaderboard')
@@ -995,15 +1037,13 @@ function _renderSummaryTable(rows) {
     var ds   = row['data_id'] || '';
     var sc   = typeof row['Overall Score'] === 'number' ? row['Overall Score'] : 0;
     var pct  = (sc * 100).toFixed(1);
-    var h    = Math.round(sc * 120);
-    var color = 'hsl(' + h + ',65%,45%)';
     var cls  = medals[rank] || '';
     html += "<tr>"
       + "<td class='rank " + cls + "'>" + rank + "</td>"
-      + "<td><strong>" + _esc(ds) + "</strong></td>"
+      + "<td>" + _esc(ds) + "</td>"
       + "<td class='score-cell bar-cell'>"
-      + "<div class='bar-bg' style='width:" + pct + "%;background:" + color + ";'></div>"
-      + "<span class='bar-val' style='color:" + color + "'>" + pct + "%</span>"
+      + "<div class='bar-bg' style='width:" + pct + "%;'></div>"
+      + "<span class='bar-val'>" + pct + "%</span>"
       + "</td></tr>";
   });
   html += "</tbody></table></div>";
