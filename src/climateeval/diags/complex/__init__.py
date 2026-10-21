@@ -15,6 +15,10 @@ from climateeval.diags.complex._consistency import (
     EnergyBalance,
     PrecipitationBuoyancy,
 )
+from climateeval.diags.complex._dynamics import (
+    GeostrophicBalance,
+    MJOEastWestPowerRatio,
+)
 from climateeval.diags.complex._ecs import ECS
 from climateeval.diags.complex._forced_response import (
     ArcticAmplification,
@@ -22,16 +26,26 @@ from climateeval.diags.complex._forced_response import (
 )
 from climateeval.diags.complex._tem import TEMDiagnostic
 from climateeval.diags.complex._transport import MeridionalHeatTransport
+from climateeval.diags.complex._variability import (
+    BjerknesCompensation,
+    ENSOTeleconnectionPatterns,
+    ITCZEnergyFluxEquator,
+)
 
 __all__ = [
     "ECS",
     "ArcticAmplification",
+    "BjerknesCompensation",
     "BudgetClosure",
     "ClausiusClapeyronScaling",
     "ClearSkyLongwaveFeedback",
     "ComplexDiagnostic",
+    "ENSOTeleconnectionPatterns",
     "EnergyBalance",
+    "GeostrophicBalance",
+    "ITCZEnergyFluxEquator",
     "LandOceanWarmingRatio",
+    "MJOEastWestPowerRatio",
     "MeridionalHeatTransport",
     "PrecipitationBuoyancy",
     "TEMDiagnostic",

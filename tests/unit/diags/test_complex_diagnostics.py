@@ -209,3 +209,23 @@ def test_meridional_heat_transport_search_bands_are_configurable() -> None:
     )
     assert diag._amet_search_band == (30.0, 40.0)
     assert diag._omet_search_band == (0.0, 10.0)
+
+
+def test_meridional_heat_transport_peak_is_refined_below_the_grid_spacing() -> None:
+    """A peak between two grid lines is reported at its parabolic vertex."""
+    lats = np.arange(-89.0, 90.0, 2.0)
+    true_lat, true_val = 39.9, 4.97
+    profile = true_val - 0.01 * (lats - true_lat) ** 2  # exact parabola
+    peak, lat = MeridionalHeatTransport._nh_peak(profile, lats, 25.0, 55.0)
+    assert abs(lat - true_lat) < 1e-6
+    assert abs(peak - true_val) < 1e-6
+    # An argmax on the band edge falls back to the grid cell, never NaN.
+    edge_profile = lats.astype(float)  # monotonic: maximum at the band's upper edge
+    peak_e, lat_e = MeridionalHeatTransport._nh_peak(edge_profile, lats, 25.0, 55.0)
+    assert lat_e == 55.0
+    assert peak_e == 55.0
+    # A flat band has no vertex: the grid value is returned.
+    flat = np.ones_like(lats)
+    peak_f, lat_f = MeridionalHeatTransport._nh_peak(flat, lats, 25.0, 55.0)
+    assert np.isfinite(lat_f)
+    assert peak_f == 1.0

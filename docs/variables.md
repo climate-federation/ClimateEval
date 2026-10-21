@@ -24,6 +24,7 @@ python scripts/gen_variables_doc.py
 | `arctic_amplification` | Arctic Amplification Factor |  | `1` | `atmos` |  |  |
 | `asr` | Absorbed shortwave radiation |  | `W m-2` | `atmos` | `time lat lon` | yes |
 | `atmospheric_energy_residual` | Atmospheric Energy Budget Residual |  | `W m-2` | `atmos` |  |  |
+| `bjerknes_correlation` | Bjerknes Compensation Correlation |  | `1` | `atmos` |  |  |
 | `chl` | Mass Concentration of Total Phytoplankton Expressed as Chlorophyll in Sea Water | `mass_concentration_of_phytoplankton_expressed_as_chlorophyll_in_sea_water` | `kg m-3` | `ocnBgchem` | `time olevel lat lon` |  |
 | `cl` | Percentage Cloud Cover | `cloud_area_fraction_in_atmosphere_layer` | `%` | `atmos` | `time alevel lat lon` |  |
 | `clausius_clapeyron_scaling` | Clausius-Clapeyron Scaling of the Water Vapor Path |  | `% K-1` | `atmos` |  |  |
@@ -38,23 +39,31 @@ python scripts/gen_variables_doc.py
 | `delta_t_land` | Equilibrium Land Warming |  | `K` | `atmos` |  |  |
 | `delta_t_ocean` | Equilibrium Ocean Warming |  | `K` | `atmos` |  |  |
 | `ecs` | Effective Climate Sensitivity |  | `K` | `atmos` |  |  |
+| `energy_flux_equator_lat` | Energy Flux Equator Latitude |  | `degrees_north` | `atmos` |  |  |
+| `enso_teleconnection_corr_pr` | ENSO Precipitation Teleconnection Pattern Correlation |  | `1` | `atmos` |  |  |
+| `enso_teleconnection_corr_ts` | ENSO Temperature Teleconnection Pattern Correlation |  | `1` | `atmos` |  |  |
 | `evspsbl` | Evaporation Including Sublimation and Transpiration | `water_evapotranspiration_flux` | `kg m-2 s-1` | `atmos` | `time lat lon` |  |
 | `f2x` | Radiative forcing at 2x atmospheric CO2 concentration |  | `W m-2` | `atmos` |  |  |
 | `f4x` | Radiative forcing at 4x atmospheric CO2 concentration |  | `W m-2` | `atmos` |  |  |
+| `geostrophic_correlation` | Midlatitude Geostrophic Balance Correlation |  | `1` | `atmos` |  |  |
 | `gpp` | Carbon Mass Flux out of Atmosphere Due to Gross Primary Production on Land [kgC m-2 s-1] | `gross_primary_productivity_of_biomass_expressed_as_carbon` | `kg m-2 s-1` | `land` | `time lat lon` |  |
 | `hfbasin` | Northward Ocean Heat Transport | `northward_ocean_heat_transport` | `W` | `ocean` | `time basin lat` |  |
 | `hfls` | Surface Upward Latent Heat Flux | `surface_upward_latent_heat_flux` | `W m-2` | `atmos` | `time lat lon` |  |
 | `hfss` | Surface Upward Sensible Heat Flux | `surface_upward_sensible_heat_flux` | `W m-2` | `atmos` | `time lat lon` |  |
 | `hus` | Specific Humidity | `specific_humidity` | `1` | `atmos` | `time alevel lat lon` |  |
+| `itcz_efe_correlation` | ITCZ Energy Flux Equator Correlation |  | `1` | `atmos` |  |  |
+| `itcz_efe_slope` | ITCZ Latitude per Cross-Equatorial Energy Transport |  | `degree PW-1` | `atmos` |  |  |
 | `lambda` | Climate Feedback Parameter |  | `W m-2 K-1` | `atmos` |  |  |
 | `lambda_stderr` | Standard Error of Climate Feedback Parameter |  | `W m-2 K-1` | `atmos` |  |  |
 | `land_ocean_warming_ratio` | Land-Ocean Warming Ratio |  | `1` | `atmos` |  |  |
 | `lwcre` | TOA Longwave Cloud Radiative Effect |  | `W m-2` | `atmos` | `time lat lon` | yes |
 | `lwp` | Liquid Water Path | `atmosphere_mass_content_of_cloud_liquid_water` | `kg m-2` | `atmos` | `time lat lon` | yes |
+| `mjo_east_west_ratio` | MJO Eastward to Westward Power Ratio |  | `1` | `atmos` |  |  |
 | `mlotst` | Ocean Mixed Layer Thickness Defined by Sigma T | `ocean_mixed_layer_thickness_defined_by_sigma_t` | `m` | `ocean` | `time lat lon` |  |
 | `msftmz` | Ocean Meridional Overturning Mass Streamfunction | `ocean_meridional_overturning_mass_streamfunction` | `kg s-1` | `ocean` | `time basin olevel lat` |  |
 | `msftyz` | Ocean Y Overturning Mass Streamfunction | `ocean_y_overturning_mass_streamfunction` | `kg s-1` | `ocean` | `time basin olevel lat` |  |
 | `netcre` | TOA Net Cloud Radiative Effect |  | `W m-2` | `atmos` | `time lat lon` | yes |
+| `nino34_std` | Nino 3.4 Index Standard Deviation |  | `K` | `atmos` |  |  |
 | `omet_peak` | Oceanic Meridional Energy Transport NH Peak |  | `PW` | `ocean` |  |  |
 | `omet_peak_lat` | Oceanic Meridional Energy Transport NH Peak Latitude |  | `degrees_north` | `ocean` |  |  |
 | `p_value` | p-value |  | `1` |  |  |  |
