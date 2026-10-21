@@ -423,6 +423,10 @@ def build_map_figures(
             ref_label = None
         non_ref = [ds for ds in valid_datasets if ds not in valid_refs]
         has_bias = ref_pivot is not None and bool(non_ref)
+        # No reference at all: keep the model | reference | bias layout, with
+        # the two missing columns as labelled placeholders, so the reader sees
+        # that the comparison is absent rather than a different kind of figure.
+        placeholders = ref_pivot is None and bool(non_ref)
 
         if has_bias:
             ncols = 3
@@ -474,6 +478,12 @@ def build_map_figures(
             )
             if bias_abs == 0:
                 bias_abs = 1.0
+        elif placeholders:
+            ncols = 3
+            nrows = len(non_ref)
+            titles = []
+            for ds in non_ref:
+                titles += [f"<b>{ds}</b>", "Reference", f"<b>{ds}</b> − reference"]
         else:
             ncols = min(len(valid_datasets), 3)
             nrows = max(1, (len(valid_datasets) + ncols - 1) // ncols)
@@ -585,6 +595,55 @@ def build_map_figures(
                 col=col,
             )
 
+        def _add_placeholder(row: int, col: int, text: str) -> None:
+            """Add an empty, framed panel saying why there is no map in this cell."""
+            # an (invisible) trace gives the axes a home; Plotly cannot place
+            # the frame of a subplot that no trace refers to
+            fig.add_trace(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="markers",
+                    hoverinfo="skip",
+                    showlegend=False,
+                ),
+                row=row,
+                col=col,
+            )
+            fig.add_shape(
+                type="rect",
+                x0=-180,
+                x1=180,
+                y0=-90,
+                y1=90,
+                fillcolor="#f6f6f4",
+                line={"width": 0},
+                layer="below",
+                row=row,
+                col=col,
+            )
+            fig.add_annotation(
+                text=text,
+                x=0,
+                y=0,
+                showarrow=False,
+                font={"size": 12, "color": "#7a7a74"},
+                row=row,
+                col=col,
+            )
+            frame = {
+                "showgrid": False,
+                "zeroline": False,
+                "showticklabels": False,
+                "ticks": "",
+                "linecolor": "#cfcfca",
+                "linewidth": 1,
+                "mirror": True,
+                "title_text": "",
+            }
+            fig.update_xaxes(range=[-180, 180], **frame, row=row, col=col)
+            fig.update_yaxes(range=[-90, 90], **frame, row=row, col=col)
+
         if has_bias:
             ref_cb_shown = False
             bias_cb_shown = False
@@ -658,6 +717,26 @@ def build_map_figures(
                     f"{ds} − {ref_label}",
                 )
                 bias_cb_shown = True
+        elif placeholders:
+            for i, ds in enumerate(non_ref):
+                row = i + 1
+                piv = _pivot_for(ds)
+                cb = (
+                    {
+                        "title": {"text": units, "side": "right"},
+                        "thickness": 14,
+                        "len": 0.85,
+                        "x": 1.01,
+                        "tickfont": {"size": 10},
+                        "outlinewidth": 0,
+                    }
+                    if i == 0
+                    else None
+                )
+                if piv is not None:
+                    _add_panel(piv, row, 1, cs, vmin, vmax, cb, str(ds))
+                _add_placeholder(row, 2, "No reference data")
+                _add_placeholder(row, 3, "No bias: no reference data")
         else:
             show_cb = True
             for i, ds in enumerate(valid_datasets):
@@ -711,6 +790,8 @@ def build_map_figures(
         ref_title_texts = {f"<b>{r}</b>" for r in valid_refs} if has_bias else set()
         ref_title_texts.add(f"<b>{ref_label}</b>" if has_bias else "")
         for ann in fig.layout.annotations:
+            if ann.xref != "paper":
+                continue  # placeholder notes keep their own font
             if has_bias and ann.text in ref_title_texts:
                 ann.font = {"size": 11, "color": "#a07000"}
                 ann.bgcolor = "rgba(192,134,10,0.08)"
