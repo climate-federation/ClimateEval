@@ -1,0 +1,6 @@
+# Tier 3 | Forcing: the aerosol effective radiative forcing of the DAMIP
+# aerosol-only historical run, inverted from the energy budget with the
+# model's own abrupt-4xCO2 feedback.
+- name: aerosol_erf
+  diagnostic: climateeval.diags.complex.AerosolERF
+  additional_diagnostic_kwargs: {}

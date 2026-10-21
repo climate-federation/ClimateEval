@@ -1,5 +1,47 @@
 # Atmosphere
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_atmos.json
+aerosol_delta_n:
+  coordinates: []
+  long_name: Aerosol-Only TOA Net Downward Radiation Anomaly
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
+aerosol_delta_t:
+  coordinates: []
+  long_name: Aerosol-Only Near-Surface Air Temperature Anomaly
+  realm: atmos
+  standard_name: ""
+  units: "K"
+aerosol_erf:
+  coordinates: []
+  long_name: Aerosol Effective Radiative Forcing
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
+aerosol_lambda:
+  coordinates: []
+  long_name: Climate Feedback Parameter Used for the Aerosol Forcing
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
+aerosol_parallel_segment:
+  coordinates: []
+  long_name: Parallel piControl Segment Used for the Aerosol Anomalies
+  realm: atmos
+  standard_name: ""
+  units: "1"
+aerosol_window_first_year:
+  coordinates: []
+  long_name: First Year of the Aerosol Evaluation Window
+  realm: atmos
+  standard_name: ""
+  units: "1"
+aerosol_window_last_year:
+  coordinates: []
+  long_name: Last Year of the Aerosol Evaluation Window
+  realm: atmos
+  standard_name: ""
+  units: "1"
 amet_peak:
   coordinates: []
   long_name: Atmospheric Meridional Energy Transport NH Peak
@@ -12,24 +54,54 @@ amet_peak_lat:
   realm: atmos
   standard_name: ""
   units: "degrees_north"
+amip_4xco2_erf:
+  coordinates: []
+  long_name: Fixed-SST Effective Radiative Forcing of Quadrupled CO2
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
 arctic_amplification:
   coordinates: []
   long_name: Arctic Amplification Factor
   realm: atmos
   standard_name: ""
   units: "1"
+atmospheric_energy_residual:
+  coordinates: []
+  long_name: Atmospheric Energy Budget Residual
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
 cl:
   coordinates: [time, alevel, lat, lon]
   long_name: Percentage Cloud Cover
   realm: atmos
   standard_name: cloud_area_fraction_in_atmosphere_layer
   units: "%"
+clausius_clapeyron_scaling:
+  coordinates: []
+  long_name: Clausius-Clapeyron Scaling of the Water Vapor Path
+  realm: atmos
+  standard_name: ""
+  units: "% K-1"
+clear_sky_lw_feedback:
+  coordinates: []
+  long_name: Clear-Sky Longwave Feedback Parameter
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
 cli:
   coordinates: [time, alevel, lat, lon]
   long_name: Mass Fraction of Cloud Ice
   realm: atmos
   standard_name: mass_fraction_of_cloud_ice_in_air
   units: kg kg-1
+bjerknes_correlation:
+  coordinates: []
+  long_name: Bjerknes Compensation Correlation
+  realm: atmos
+  standard_name: ""
+  units: "1"
 clivi:
   coordinates: [time, lat, lon]
   long_name: Ice Water Path
@@ -78,12 +150,36 @@ delta_t_ocean:
   realm: atmos
   standard_name: ""
   units: "K"
+energy_flux_equator_lat:
+  coordinates: []
+  long_name: Energy Flux Equator Latitude
+  realm: atmos
+  standard_name: ""
+  units: "degrees_north"
+enso_teleconnection_corr_pr:
+  coordinates: []
+  long_name: ENSO Precipitation Teleconnection Pattern Correlation
+  realm: atmos
+  standard_name: ""
+  units: "1"
+enso_teleconnection_corr_ts:
+  coordinates: []
+  long_name: ENSO Temperature Teleconnection Pattern Correlation
+  realm: atmos
+  standard_name: ""
+  units: "1"
 evspsbl:
   coordinates: [time, lat, lon]
   long_name: Evaporation Including Sublimation and Transpiration
   realm: atmos
   standard_name: water_evapotranspiration_flux
   units: kg m-2 s-1
+geostrophic_correlation:
+  coordinates: []
+  long_name: Midlatitude Geostrophic Balance Correlation
+  realm: atmos
+  standard_name: ""
+  units: "1"
 hfls:
   coordinates: [time, lat, lon]
   long_name: Surface Upward Latent Heat Flux
@@ -102,12 +198,36 @@ hus:
   realm: atmos
   standard_name: specific_humidity
   units: "1"
+itcz_efe_correlation:
+  coordinates: []
+  long_name: ITCZ Energy Flux Equator Correlation
+  realm: atmos
+  standard_name: ""
+  units: "1"
+itcz_efe_slope:
+  coordinates: []
+  long_name: ITCZ Latitude per Cross-Equatorial Energy Transport
+  realm: atmos
+  standard_name: ""
+  units: "degree PW-1"
 land_ocean_warming_ratio:
   coordinates: []
   long_name: Land-Ocean Warming Ratio
   realm: atmos
   standard_name: ""
   units: "1"
+mjo_east_west_ratio:
+  coordinates: []
+  long_name: MJO Eastward to Westward Power Ratio
+  realm: atmos
+  standard_name: ""
+  units: "1"
+nino34_std:
+  coordinates: []
+  long_name: Nino 3.4 Index Standard Deviation
+  realm: atmos
+  standard_name: ""
+  units: "K"
 omet_peak:
   coordinates: []
   long_name: Oceanic Meridional Energy Transport NH Peak
@@ -120,6 +240,24 @@ omet_peak_lat:
   realm: ocean
   standard_name: ""
   units: "degrees_north"
+patch_feedback_difference:
+  coordinates: []
+  long_name: East minus West Pacific SST Patch Feedback Difference
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
+patch_feedback_ep:
+  coordinates: []
+  long_name: East Pacific SST Patch Feedback
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
+patch_feedback_wp:
+  coordinates: []
+  long_name: West Pacific SST Patch Feedback
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 K-1"
 pfull:
   coordinates: [time, alevel, lat, lon]
   long_name: Pressure at Model Full-Levels
@@ -138,6 +276,18 @@ pr:
   realm: atmos
   standard_name: precipitation_flux
   units: kg m-2 s-1
+precip_buoyancy_slope:
+  coordinates: []
+  long_name: Tropical Precipitation-Buoyancy Regression Slope
+  realm: atmos
+  standard_name: ""
+  units: "mm day-1 (MJ m-2)-1"
+precip_buoyancy_slope_obs:
+  coordinates: []
+  long_name: Observed Tropical Precipitation-Buoyancy Regression Slope
+  realm: atmos
+  standard_name: ""
+  units: "mm day-1 (MJ m-2)-1"
 prw:
   coordinates: [time, lat, lon]
   long_name: Water Vapor Path
@@ -276,6 +426,24 @@ tnn:
   realm: atmos
   standard_name: ""
   units: degC
+toa_net_drift:
+  coordinates: []
+  long_name: TOA Net Downward Radiation Drift
+  realm: atmos
+  standard_name: ""
+  units: "W m-2 (10 yr)-1"
+toa_net_mean:
+  coordinates: []
+  long_name: TOA Net Downward Radiation Mean
+  realm: atmos
+  standard_name: ""
+  units: "W m-2"
+toa_net_n_years:
+  coordinates: []
+  long_name: Number of Years Used for the TOA Energy Balance
+  realm: atmos
+  standard_name: ""
+  units: "1"
 ts:
   coordinates: [time, lat, lon]
   long_name: Surface Temperature
@@ -306,6 +474,12 @@ wap:
   realm: atmos
   standard_name: lagrangian_tendency_of_air_pressure
   units: Pa s-1
+water_budget_residual:
+  coordinates: []
+  long_name: Global Water Budget Residual
+  realm: atmos
+  standard_name: ""
+  units: "mm day-1"
 zg:
   coordinates: [time, alevel, lat, lon]
   long_name: Geopotential Height

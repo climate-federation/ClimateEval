@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+import iris
 import numpy as np
 import pytest
 import xarray as xr
@@ -22,11 +23,14 @@ from climateeval._utils import (
     _set_lon_to_0_360,
     check_coordinates,
     get_prepared_cube,
+    load_cubes,
 )
 from climateeval.exceptions import CoordinateError, MissingDataError
 from tests._utils import assert_masked_array_allclose
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from pytest_mock import MockerFixture
 
 
@@ -573,3 +577,41 @@ def test_get_derived_cube_raises_on_missing_required_input(
     lwcre = Variable("lwcre", "lwcre", "mon")
     with pytest.raises(ConstraintMismatchError):
         _get_derived_cube(CubeList([_named_cube("rlutcs")]), lwcre)
+
+
+def test_load_cubes_reconciles_split_files_from_a_generator(
+    tmp_path: Path,
+    cube_2d: Cube,
+) -> None:
+    """Files that only differ in a per-file coordinate attribute load as one cube.
+
+    `load_cubes` reads the URIs a second time for the reconciling reload, so a
+    generator of paths must work too.
+    """
+    paths = []
+    for year, attribute in ((2000, "a"), (2001, "b")):
+        cube = cube_2d.copy()
+        time = cube.coord("time")
+        shift = (year - 2000) * 36500.0  # well past the first file's record
+        time.points = time.points + shift
+        if time.has_bounds():
+            time.bounds = time.bounds + shift
+        time.attributes["time_origin"] = attribute
+        path = tmp_path / f"tas_{year}.nc"
+        iris.save(cube, str(path))
+        paths.append(path)
+    assert len(iris.load([str(p) for p in paths])) == 2
+
+    cubes = load_cubes(p for p in paths)
+
+    assert len(cubes) == 1
+    assert cubes[0].shape[0] == 2 * cube_2d.shape[0]
+
+
+def test__has_split_variables_ignores_timeless_fields(cube_2d: Cube) -> None:
+    timeless = cube_2d[0]
+    timeless.remove_coord("time")
+    assert not climateeval._utils._has_split_variables(
+        CubeList([timeless, timeless.copy()]),
+    )
+    assert climateeval._utils._has_split_variables(CubeList([cube_2d, cube_2d.copy()]))

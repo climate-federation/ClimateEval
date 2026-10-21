@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from loguru import logger
 
+from climateeval._loader import _overlaps_years, _timerange_years
 from climateeval._utils import get_prepared_cube, load_cubes
 from climateeval.data._utils import facet_to_str
 from climateeval.exceptions import DownloadError
@@ -25,6 +26,50 @@ if TYPE_CHECKING:
 
 
 logger = logger.opt(colors=True)
+
+
+def _paths_within_timerange(paths: list[Path], timerange: str | None) -> list[Path]:
+    """Reduce staged files to those overlapping ``timerange``.
+
+    A staged variable directory is globbed whole and every file in it is
+    loaded before :func:`climateeval._utils.get_prepared_cube` applies the
+    variable's ``timerange``. That is wasted work whenever a model publishes
+    one file per year: the EC-Earth3 family stages ``tos``/``siconc`` as 251
+    yearly files on the ORCA grid, so a 2015-2025 window costs ~50 min per
+    member instead of seconds.
+
+    The CMOR filename carries the file's own date range, so the files that
+    cannot contribute are dropped up front. A file whose trailing token is
+    not a parseable ``<start>-<end>`` is kept (observational products do not
+    always follow the convention), and a filter that would leave *nothing*
+    is discarded, so the caller still sees the files it would have seen and
+    the downstream "does not cover the window" error is unchanged.
+
+    Parameters
+    ----------
+    paths:
+        Candidate NetCDF files.
+    timerange:
+        ISO-like range (``20150101/20251231``), or ``*``/``None`` for "all".
+
+    Returns
+    -------
+    :
+        The subset of ``paths`` that can contribute to ``timerange``.
+
+    """
+    years = _timerange_years(timerange)
+    if years is None or not paths:
+        return paths
+    kept = [path for path in paths if _overlaps_years(path.name, years)]
+    if not kept:
+        return paths
+    if len(kept) < len(paths):
+        logger.debug(
+            f"Skipped {len(paths) - len(kept)} of {len(paths)} staged file(s) "
+            f"outside timerange {timerange}",
+        )
+    return kept
 
 
 class DataSource(ABC):
@@ -72,8 +117,9 @@ class DataSource(ABC):
         logger.debug(f"Loading {variable} of {self.id}")
 
         data_root_dir = Path(data_root_dir)
-        paths: list[Path] = list(
-            self._get_data_dir(data_root_dir, variable).glob("*.nc"),
+        paths: list[Path] = _paths_within_timerange(
+            list(self._get_data_dir(data_root_dir, variable).glob("*.nc")),
+            variable.timerange,
         )
         if paths:
             return get_prepared_cube(load_cubes(paths), variable)
@@ -163,10 +209,13 @@ class DataSource(ABC):
         """Get paths of required variables."""
         paths: list[Path] = []
         for required_variable in variable.get_required_variables():
-            paths_for_required_variable = list(
-                self._get_data_dir(data_root_dir, required_variable).glob(
-                    "*.nc",
+            paths_for_required_variable = _paths_within_timerange(
+                list(
+                    self._get_data_dir(data_root_dir, required_variable).glob(
+                        "*.nc",
+                    ),
                 ),
+                required_variable.timerange or variable.timerange,
             )
             if not paths_for_required_variable:
                 # Do not return any paths if not all required variables are

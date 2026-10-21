@@ -1,0 +1,7 @@
+# Tier 3 | Processes: the energetic constraint on the seasonal migration of
+# the ITCZ, from the climatological seasonal cycle of a historical run. A
+# separate suite because it takes a historical experiment, whereas the
+# coupled-variability diagnostics take piControl.
+- name: itcz_energy_flux_equator
+  diagnostic: climateeval.diags.complex.ITCZEnergyFluxEquator
+  additional_diagnostic_kwargs: {}

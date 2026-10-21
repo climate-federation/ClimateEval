@@ -111,6 +111,7 @@ order to diagnose a model from the basics upward:
 |---|---|
 | `Tier1_sanity_checks` | Global-mean fluxes and state within physically reasonable ranges. |
 | `Tier1_consistency_checks` | Conservation of dry-air mass, water vapour and moisture flux. |
+| `Tier1_control_consistency` | Energy balance and drift, water- and atmospheric-energy-budget closure and Clausius-Clapeyron scaling of a piControl run. |
 
 ### Tier 2 — mean state vs observations
 
@@ -132,7 +133,14 @@ order to diagnose a model from the basics upward:
 | `Tier3_atmosphere_subdaily` | Sub-daily precipitation: diurnal cycle and intensity histograms. |
 | `Tier3_ecs` | Effective climate sensitivity from abrupt-4xCO2 / piControl experiments. |
 | `Tier3_forced_response` | Equilibrium forced responses (land-ocean warming ratio, Arctic amplification) from abrupt-4xCO2 / piControl. |
+| `Tier3_covariances` | Thermodynamic covariances of a historical run: clear-sky longwave feedback and the tropical precipitation-buoyancy relationship. |
 | `Tier3_transport` | Implied meridional heat transport partitioning (atmosphere vs ocean) from a piControl run. |
+| `Tier3_daily_dynamics` | Midlatitude geostrophic balance and the MJO eastward power ratio, from daily output. |
+| `Tier3_coupled_variability` | Bjerknes compensation of the atmospheric and oceanic heat transports and ENSO teleconnection patterns, from a piControl run. |
+| `Tier3_itcz_efe` | Seasonal migration of the ITCZ with the cross-equatorial atmospheric energy transport, from a historical run. |
+| `Tier3_amip_erf` | Fixed-SST effective radiative forcing of quadrupled CO2, from amip-4xCO2 and amip. |
+| `Tier3_patch_feedback` | Dependence of the radiative feedback on where the ocean warms, from the GFMIP SST patch experiments. |
+| `Tier3_aerosol_erf` | Aerosol effective radiative forcing of the DAMIP aerosol-only historical run. |
 
 Open the corresponding file in
 [`src/climateeval/suites/`](../src/climateeval/suites/) to see the exact
@@ -144,13 +152,25 @@ Use these class paths in the `diagnostic:` field. **Simple** diagnostics
 (`climateeval.diags.simple.*`): `Map`, `ZonalLine`, `ZonalProfileAirPressure`,
 `AnnualMeanTimeSeries`, `AnnualCycle`, `AnnualCycleSpatialDistribution`,
 `DiurnalCycle`, `Histogram`, `Hovmoller`, `QBO`, `Nino34`,
-`SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `AMOCTimeSeries`,
+`SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `SeaIceExtentAnnualCycle`,
+`SeaIceExtentTimeSeries`, `AMOCTimeSeries`,
 `OceanHeatContentTimeSeries`. **Complex** diagnostics
 (`climateeval.diags.complex.*`): `ECS`, `TEMDiagnostic`,
-`LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`.
+`LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`,
+`EnergyBalance`, `BudgetClosure`, `ClausiusClapeyronScaling`,
+`ClearSkyLongwaveFeedback`, `PrecipitationBuoyancy`, `GeostrophicBalance`,
+`MJOEastWestPowerRatio`, `ITCZEnergyFluxEquator`, `BjerknesCompensation`,
+`ENSOTeleconnectionPatterns`, `Amip4xCO2ERF`, `GFMIPPatchFeedback`,
+`AerosolERF`.
 
 How each renders in a report (and its coordinate columns) is summarised in
 [Reporting](reporting.md#figure-types).
+
+Sea ice comes in two flavours: the `SeaIceArea*` diagnostics integrate the
+sea-ice concentration (the area actually covered by ice), the `SeaIceExtent*`
+ones sum the area of every cell whose concentration reaches 15 % — the NSIDC /
+OSI SAF **extent**, which is how most sea-ice observations are reported. Both
+take the same variables and render as the same figure types.
 
 ## Writing a custom suite
 
