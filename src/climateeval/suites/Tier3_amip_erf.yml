@@ -1,0 +1,5 @@
+# Tier 3 | Forcing: the fixed-SST effective radiative forcing of quadrupled
+# CO2, from the amip-4xCO2 and amip experiments.
+- name: amip_4xco2_erf
+  diagnostic: climateeval.diags.complex.Amip4xCO2ERF
+  additional_diagnostic_kwargs: {}

@@ -1,0 +1,7 @@
+# Tier 3 | Feedbacks: the dependence of the radiative feedback on where the
+# ocean warms, from the GFMIP east- and west-Pacific SST patch experiments
+# and their amip reference. A separate suite because those three experiments
+# are a different data dict from the amip-4xCO2 pair.
+- name: gfmip_patch_feedback
+  diagnostic: climateeval.diags.complex.GFMIPPatchFeedback
+  additional_diagnostic_kwargs: {}

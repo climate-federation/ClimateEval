@@ -24,6 +24,11 @@ from climateeval.diags.complex._forced_response import (
     ArcticAmplification,
     LandOceanWarmingRatio,
 )
+from climateeval.diags.complex._forcing import (
+    AerosolERF,
+    Amip4xCO2ERF,
+    GFMIPPatchFeedback,
+)
 from climateeval.diags.complex._tem import TEMDiagnostic
 from climateeval.diags.complex._transport import MeridionalHeatTransport
 from climateeval.diags.complex._variability import (
@@ -34,6 +39,8 @@ from climateeval.diags.complex._variability import (
 
 __all__ = [
     "ECS",
+    "AerosolERF",
+    "Amip4xCO2ERF",
     "ArcticAmplification",
     "BjerknesCompensation",
     "BudgetClosure",
@@ -42,6 +49,7 @@ __all__ = [
     "ComplexDiagnostic",
     "ENSOTeleconnectionPatterns",
     "EnergyBalance",
+    "GFMIPPatchFeedback",
     "GeostrophicBalance",
     "ITCZEnergyFluxEquator",
     "LandOceanWarmingRatio",
