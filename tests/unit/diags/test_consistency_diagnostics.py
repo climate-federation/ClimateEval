@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 import pytest
 from cf_units import Unit
+from iris import NameConstraint
 from iris.coords import DimCoord
 from iris.cube import Cube, CubeList
 
 from climateeval.data import DataSourceInformation
+from climateeval.data._esmvaltool_intake import (
+    ESMValToolIntakeDataSource,
+    ESMValToolIntakeDataSourceGenerator,
+)
 from climateeval.diags import _physics
 from climateeval.diags.complex import (
     BudgetClosure,
@@ -19,9 +24,13 @@ from climateeval.diags.complex import (
     EnergyBalance,
     PrecipitationBuoyancy,
 )
+from climateeval.exceptions import DownloadError, MissingDataError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
+    from pathlib import Path
+
+    from climateeval import Variable
 
 N_LAT = 18
 N_LON = 36
@@ -156,6 +165,67 @@ def _toa_cubes(
     )
 
 
+def _fake_ensemble(
+    cubes: CubeList | None,
+) -> type[ESMValToolIntakeDataSourceGenerator]:
+    """Intake generator serving one synthetic CMIP6 piControl model from memory.
+
+    With ``cubes`` None, the model is catalogued but cannot be loaded, the way
+    a real one that is neither staged locally nor downloadable behaves.
+    """
+    information = DataSourceInformation(
+        name="FakeESM",
+        category="CMIP6",
+        institute="Fake",
+        exp="piControl",
+        variant="r1i1p1f1",
+    )
+
+    def get_cube(
+        self: ESMValToolIntakeDataSource,
+        _data_root_dir: Path | str,
+        variable: Variable,
+        *,
+        download_missing_data: bool = True,
+    ) -> Cube:
+        if cubes is None:
+            msg = f"{variable} of {self.id} would need to be downloaded"
+            raise DownloadError(msg)
+        return cubes.extract_cube(NameConstraint(var_name=variable.var_name))
+
+    class FakeEnsemble(ESMValToolIntakeDataSourceGenerator):
+        esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
+            "project": "CMIP6",
+            "exp": "piControl",
+            "ensemble": "r1i1p1f1",
+        }
+
+        def generate(
+            self,
+            variable: Variable,
+        ) -> Generator[ESMValToolIntakeDataSource]:
+            facets = {
+                **self.esmvaltool_dataset_facets,
+                "dataset": "FakeESM",
+                "short_name": variable.var_name,
+            }
+            data_source_cls = type(
+                "FakeEnsembleDataSource",
+                (ESMValToolIntakeDataSource,),
+                {
+                    "_information": information,
+                    "esmvaltool_dataset_facets": facets,
+                    "get_cube": get_cube,
+                },
+            )
+            yield data_source_cls()
+
+        def _get_references(self, **_facets: Any) -> tuple[str, ...]:
+            return ()
+
+    return FakeEnsemble
+
+
 def test_energy_balance_mean_and_drift() -> None:
     """A control drifting by 0.002 W m-2 yr-1 has a 0.02 W m-2 decade-1 drift."""
     n_years = 20
@@ -198,6 +268,61 @@ def test_energy_balance_uses_a_short_control_whole() -> None:
     assert row["toa_net_n_years"] == n_years
     assert row["toa_net_mean"] == pytest.approx(0.0, abs=1e-5)
     assert row["toa_net_drift"] == pytest.approx(0.0, abs=1e-5)
+
+
+def test_energy_balance_includes_the_comparison_ensemble(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every ensemble member becomes an ``other`` row of the same diagnostic."""
+    n_years = 20
+    control = _toa_cubes(np.zeros(n_years), n_years)
+    drifting = _toa_cubes(0.002 * np.arange(n_years, dtype=float), n_years)
+    monkeypatch.setattr(
+        EnergyBalance,
+        "_other_data_generator",
+        _fake_ensemble(drifting),
+    )
+    diag = EnergyBalance(
+        "energy_balance",
+        fail_on_missing_data=True,
+        download_missing_data=False,
+        running_mean_years=5,
+    )
+    output = diag.get_output({"picontrol": control}, _info())
+    assert output.raw_output is not None
+    rows = output.raw_output.to_pandas().set_index("data_type")
+    assert set(rows.index) == {"to_benchmark", "other"}
+    assert rows.loc["other", "data_id"] == "CMIP6_FakeESM_piControl_r1i1p1f1"
+    assert rows.loc["other", "toa_net_drift"] == pytest.approx(0.02, abs=1e-4)
+    assert rows.loc["to_benchmark", "toa_net_drift"] == pytest.approx(0.0, abs=1e-5)
+    assert output.data_sources is not None
+    assert len(output.data_sources.to_pandas()) == 2
+
+
+def test_unobtainable_ensemble_member_warns_unless_failing_is_requested(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """As in ECS: skip with a warning, or raise with ``fail_on_missing_data``."""
+    n_years = 20
+    control = _toa_cubes(np.zeros(n_years), n_years)
+    monkeypatch.setattr(EnergyBalance, "_other_data_generator", _fake_ensemble(None))
+    lenient = EnergyBalance(
+        "energy_balance",
+        fail_on_missing_data=False,
+        download_missing_data=False,
+        running_mean_years=5,
+    )
+    output = lenient.get_output({"picontrol": control}, _info())
+    assert output.raw_output is not None
+    assert list(output.raw_output.to_pandas()["data_type"]) == ["to_benchmark"]
+    strict = EnergyBalance(
+        "energy_balance",
+        fail_on_missing_data=True,
+        download_missing_data=False,
+        running_mean_years=5,
+    )
+    with pytest.raises(MissingDataError, match="downloaded"):
+        strict.get_output({"picontrol": control}, _info())
 
 
 def _closure_cubes(
@@ -418,7 +543,9 @@ def test_precipitation_buoyancy_recovers_the_tropical_slope() -> None:
     assert np.isnan(row["precip_buoyancy_slope_obs"])
 
 
-def test_precipitation_buoyancy_emits_the_observed_slope() -> None:
+def test_precipitation_buoyancy_emits_the_observed_slope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The reference slope is the same statistic applied to observations."""
     diag = PrecipitationBuoyancy(
         "precipitation_buoyancy",
@@ -426,16 +553,27 @@ def test_precipitation_buoyancy_emits_the_observed_slope() -> None:
         download_missing_data=False,
     )
     observations = _precip_buoyancy_cubes(0.6)
-    diag._observation_cubes = lambda: tuple(
-        diag._prepared_cube(observations, variable)
-        for variable in diag._input_variables
+    monkeypatch.setattr(
+        diag,
+        "_observation_cubes",
+        lambda: tuple(
+            diag._prepared_cube(observations, variable)
+            for variable in diag._input_variables
+        ),
     )
-    row = _row(diag.get_output({"historical": _precip_buoyancy_cubes(0.4)}, _info()))
+    row = _row(
+        diag.get_output(
+            {"historical": _precip_buoyancy_cubes(0.4)},
+            _info("historical"),
+        ),
+    )
     assert row["precip_buoyancy_slope"] == pytest.approx(0.4, rel=1e-3)
     assert row["precip_buoyancy_slope_obs"] == pytest.approx(0.6, rel=1e-3)
 
 
-def test_precipitation_buoyancy_without_observations_keeps_going() -> None:
+def test_precipitation_buoyancy_without_observations_keeps_going(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Unobtainable observations leave the model slope alone, not an error."""
     diag = PrecipitationBuoyancy(
         "precipitation_buoyancy",
@@ -447,8 +585,13 @@ def test_precipitation_buoyancy_without_observations_keeps_going() -> None:
         msg = "no network"
         raise RuntimeError(msg)
 
-    diag._observation_cubes = _fail
-    row = _row(diag.get_output({"historical": _precip_buoyancy_cubes(0.4)}, _info()))
+    monkeypatch.setattr(diag, "_observation_cubes", _fail)
+    row = _row(
+        diag.get_output(
+            {"historical": _precip_buoyancy_cubes(0.4)},
+            _info("historical"),
+        ),
+    )
     assert row["precip_buoyancy_slope"] == pytest.approx(0.4, rel=1e-3)
     assert np.isnan(row["precip_buoyancy_slope_obs"])
 
@@ -465,7 +608,7 @@ def test_precipitation_buoyancy_needs_two_common_levels() -> None:
         use_observations=False,
     )
     with pytest.raises(ValueError, match="common pressure levels"):
-        diag.get_output({"historical": single_level}, _info())
+        diag.get_output({"historical": single_level}, _info("historical"))
 
 
 def test_diagnostics_reject_a_wrong_experiment_key() -> None:
