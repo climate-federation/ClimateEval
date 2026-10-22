@@ -34,6 +34,15 @@ python scripts/gen_variables_doc.py
 | `atmospheric_energy_residual` | Atmospheric Energy Budget Residual |  | `W m-2` | `atmos` |  |  |
 | `bjerknes_correlation` | Bjerknes Compensation Correlation |  | `1` | `atmos` |  |  |
 | `chl` | Mass Concentration of Total Phytoplankton Expressed as Chlorophyll in Sea Water | `mass_concentration_of_phytoplankton_expressed_as_chlorophyll_in_sea_water` | `kg m-3` | `ocnBgchem` | `time olevel lat lon` |  |
+| `chl_mld_corr_lag0` | Chlorophyll-Mixed-Layer-Depth Correlation at Lag Zero (Global) |  | `1` | `ocnBgchem` |  |  |
+| `chl_mld_coupling_corr` | Chlorophyll-Mixed-Layer-Depth Coupling Correlation with Observations |  | `1` | `ocnBgchem` |  |  |
+| `chl_mld_peak_lag` | Lag of the Strongest Chlorophyll-Mixed-Layer-Depth Correlation (Global) |  | `month` | `ocnBgchem` |  |  |
+| `chl_mld_seasonal_coupling_corr` | Seasonal Chlorophyll-Mixed-Layer-Depth Coupling Correlation with Observations |  | `1` | `ocnBgchem` |  |  |
+| `chl_siconc_coupling_corr` | Chlorophyll-Sea-Ice Coupling Correlation with Observations |  | `1` | `ocnBgchem` |  |  |
+| `chl_sst_corr_lag0` | Chlorophyll-SST Correlation at Lag Zero (Global) |  | `1` | `ocnBgchem` |  |  |
+| `chl_sst_coupling_corr` | Chlorophyll-SST Coupling Correlation with Observations |  | `1` | `ocnBgchem` |  |  |
+| `chl_sst_peak_lag` | Lag of the Strongest Chlorophyll-SST Correlation (Global) |  | `month` | `ocnBgchem` |  |  |
+| `chl_sst_seasonal_coupling_corr` | Seasonal Chlorophyll-SST Coupling Correlation with Observations |  | `1` | `ocnBgchem` |  |  |
 | `cl` | Percentage Cloud Cover | `cloud_area_fraction_in_atmosphere_layer` | `%` | `atmos` | `time alevel lat lon` |  |
 | `clausius_clapeyron_scaling` | Clausius-Clapeyron Scaling of the Water Vapor Path |  | `% K-1` | `atmos` |  |  |
 | `clear_sky_lw_feedback` | Clear-Sky Longwave Feedback Parameter |  | `W m-2 K-1` | `atmos` |  |  |

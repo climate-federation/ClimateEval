@@ -132,6 +132,7 @@ order to diagnose a model from the basics upward:
 | `Tier3_transport` | Implied meridional heat transport partitioning (atmosphere vs ocean) from a piControl run. |
 | `Tier3_daily_dynamics` | Midlatitude geostrophic balance and the MJO eastward power ratio, from daily output. |
 | `Tier3_coupled_variability` | Bjerknes compensation of the atmospheric and oceanic heat transports and ENSO teleconnection patterns, from a piControl run. |
+| `Tier3_ocean_bgc_coupling` | Physical-biogeochemical coupling of surface chlorophyll: lag correlations with mixed-layer depth, SST and sea ice per basin and their seasonality, compared with ESA CCI OC, HadISST and ORAS5. |
 | `Tier3_itcz_efe` | Seasonal migration of the ITCZ with the cross-equatorial atmospheric energy transport, from a historical run. |
 | `Tier3_amip_erf` | Fixed-SST effective radiative forcing of quadrupled CO2, from amip-4xCO2 and amip. |
 | `Tier3_patch_feedback` | Dependence of the radiative feedback on where the ocean warms, from the GFMIP SST patch experiments. |
@@ -155,7 +156,7 @@ Use these class paths in the `diagnostic:` field. **Simple** diagnostics
 `EnergyBalance`, `BudgetClosure`, `ClausiusClapeyronScaling`,
 `ClearSkyLongwaveFeedback`, `PrecipitationBuoyancy`, `GeostrophicBalance`,
 `MJOEastWestPowerRatio`, `ITCZEnergyFluxEquator`, `BjerknesCompensation`,
-`ENSOTeleconnectionPatterns`, `Amip4xCO2ERF`, `GFMIPPatchFeedback`,
+`ENSOTeleconnectionPatterns`, `ChlorophyllDriverCoupling`, `Amip4xCO2ERF`, `GFMIPPatchFeedback`,
 `AerosolERF`.
 
 How each renders in a report (and its coordinate columns) is summarised in

@@ -156,6 +156,60 @@ energy_flux_equator_lat:
   realm: atmos
   standard_name: ""
   units: "degrees_north"
+chl_mld_corr_lag0:
+  coordinates: []
+  long_name: Chlorophyll-Mixed-Layer-Depth Correlation at Lag Zero (Global)
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+chl_mld_coupling_corr:
+  coordinates: []
+  long_name: Chlorophyll-Mixed-Layer-Depth Coupling Correlation with Observations
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+chl_mld_peak_lag:
+  coordinates: []
+  long_name: Lag of the Strongest Chlorophyll-Mixed-Layer-Depth Correlation (Global)
+  realm: ocnBgchem
+  standard_name: ""
+  units: month
+chl_mld_seasonal_coupling_corr:
+  coordinates: []
+  long_name: Seasonal Chlorophyll-Mixed-Layer-Depth Coupling Correlation with Observations
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+chl_siconc_coupling_corr:
+  coordinates: []
+  long_name: Chlorophyll-Sea-Ice Coupling Correlation with Observations
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+chl_sst_corr_lag0:
+  coordinates: []
+  long_name: Chlorophyll-SST Correlation at Lag Zero (Global)
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+chl_sst_coupling_corr:
+  coordinates: []
+  long_name: Chlorophyll-SST Coupling Correlation with Observations
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+chl_sst_peak_lag:
+  coordinates: []
+  long_name: Lag of the Strongest Chlorophyll-SST Correlation (Global)
+  realm: ocnBgchem
+  standard_name: ""
+  units: month
+chl_sst_seasonal_coupling_corr:
+  coordinates: []
+  long_name: Seasonal Chlorophyll-SST Coupling Correlation with Observations
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
 enso_teleconnection_corr_pr:
   coordinates: []
   long_name: ENSO Precipitation Teleconnection Pattern Correlation
