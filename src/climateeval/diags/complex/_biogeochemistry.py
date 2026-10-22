@@ -15,6 +15,7 @@ own; the diagnostic class only arranges the data.
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
@@ -170,8 +171,8 @@ def deseasonalised_standardised(
         msg = f"got {months.size} months for {field.shape[0]} time steps"
         raise ValueError(msg)
     anomalies = np.full_like(field, np.nan)
-    with np.errstate(invalid="ignore"), np.testing.suppress_warnings() as sup:
-        sup.filter(RuntimeWarning)
+    with np.errstate(invalid="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
         for month in np.unique(months):
             in_month = months == month
             anomalies[in_month] = field[in_month] - np.nanmean(field[in_month], axis=0)
@@ -359,7 +360,10 @@ def monthly_latitude_correlation(
                 np.nan,
             )
             enough = np.sum(np.isfinite(cell), axis=1) >= min_cells
-            row = np.nanmean(np.where(np.isfinite(cell), cell, np.nan), axis=1)
+            with warnings.catch_warnings():
+                # an all-NaN latitude row is masked by ``enough`` just below
+                warnings.simplefilter("ignore", RuntimeWarning)
+                row = np.nanmean(np.where(np.isfinite(cell), cell, np.nan), axis=1)
             result[month - 1] = np.where(enough, row, np.nan)
     return result
 
