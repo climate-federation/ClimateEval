@@ -269,13 +269,6 @@ def test_curvilinear_grid_without_transect_latitudes(
         diagnostic._safely_preprocess(uo, variable_uo)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Bug: with a single depth level that has bounds, dz is squeezed to a "
-        "0-d array, and broadcasting it onto the depth dimension fails"
-    ),
-)
 def test_single_depth_level(
     diagnostic: ACCTransportZonalTransect,
     variable_uo: Variable,

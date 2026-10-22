@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import cf_units
 import numpy as np
 import pytest
@@ -99,7 +101,7 @@ def variable_pr_day() -> Variable:
     return Variable("pr", "pr", "day")
 
 
-def _diagnostic(variable: Variable, **kwargs: float) -> Hovmoller:
+def _diagnostic(variable: Variable, **kwargs: Any) -> Hovmoller:
     return Hovmoller(
         "hovmoller",
         {variable: SimpleDiagnosticInputData(reference=None)},
@@ -191,13 +193,6 @@ def test_custom_latitude_band(variable_pr_day: Variable) -> None:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Docstring says the meridional mean is area-weighted, but "
-        "meridional_statistics(cube, 'mean') collapses latitude unweighted"
-    ),
-)
 def test_meridional_mean_is_area_weighted(variable_pr_day: Variable) -> None:
     lat_amplitude = 1.0 + (LAT_2DEG / 15.0) ** 2
     diagnostic = _diagnostic(variable_pr_day, rolling_window_days=0)

@@ -260,3 +260,27 @@ def test_postprocess_passes_through_empty_raw_output() -> None:
         data_sources=None,  # type: ignore[arg-type]
     )
     assert TEMDiagnostic("tem")._postprocess_output(output) is output
+
+
+def test_masked_points_do_not_enter_the_stability_threshold() -> None:
+    """Masked (below-ground) values must not move the 1 % stability cut-off.
+
+    The lowest levels south of 60S are masked, with a constant temperature
+    underneath the mask. Its vertical gradient is near zero, so counting it
+    would drop the cut-off to almost nothing; the unmasked points must then
+    give the same omega_dia as without any mask.
+    """
+    reference = _raw(_cubes())
+    cubes = _cubes()
+    ta = cubes.extract_cube("ta")
+    below_ground = np.zeros(ta.shape, dtype=bool)
+    below_ground[:, :3, LAT < -60.0, :] = True
+    ta.data = np.ma.masked_array(np.where(below_ground, 250.0, ta.data), below_ground)
+
+    out = _raw(cubes)
+
+    valid = np.isfinite(out["w_dia"]) & np.isfinite(reference["w_dia"])
+    assert valid.sum() > 0.9 * valid.size
+    np.testing.assert_allclose(out["w_dia"][valid], reference["w_dia"][valid])
+    # The weak-stability mask of the unmasked run is kept
+    assert np.all(~np.isfinite(out["w_dia"][~np.isfinite(reference["w_dia"])]))

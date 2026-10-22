@@ -339,6 +339,29 @@ def test_load_native_cube_2d(raw_dir: Path, grid_dir: Path) -> None:
     assert not cube.coords("depth")
 
 
+@pytest.mark.usefixtures("grid_dir")
+def test_load_native_cube_hfds(raw_dir: Path) -> None:
+    """ORAS5 reads hfds from the NEMO field sohefldo on the T grid."""
+    _write_raw(raw_dir, "sohefldo")
+    _write_raw(raw_dir, "sosstsst")  # other variable in the same files dir
+    variable = Variable("hfds", "hfds", "mon")
+
+    files = ORAS5()._get_raw_files(variable)
+    assert [file.name.split("_")[0] for file in files] == ["sohefldo"] * 2
+    assert ORAS5()._get_grid_path(variable).name == "oras5_mesh_T.nc"
+
+    cube = ORAS5()._load_native_cube(files, variable)
+
+    assert cube.var_name == "hfds"
+    assert cube.standard_name == "surface_downward_heat_flux_in_sea_water"
+    assert cube.units == "W m-2"
+    assert cube.shape == (2, NY_CROP, NX_CROP)
+    np.testing.assert_array_equal(
+        cube.data[0],
+        _raw_cube("sohefldo", 15.0).data[0, :-1, 1:-1],
+    )
+
+
 def test_load_native_cube_3d(raw_dir: Path, grid_dir: Path) -> None:
     files = _write_raw(raw_dir, "vozocrte", depth="depthu")
 

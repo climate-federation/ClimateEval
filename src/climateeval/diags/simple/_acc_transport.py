@@ -100,7 +100,7 @@ class ACCTransportZonalTransect(SimpleDiagnostic):
 
         z_coord = cube.coord("depth")
         if z_coord.has_bounds():
-            dz_array = np.abs(np.diff(z_coord.bounds, axis=1)).squeeze()
+            dz_array = np.abs(np.diff(z_coord.bounds, axis=1))[:, 0]
         else:
             dz_array = np.gradient(z_coord.points)
 

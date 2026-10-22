@@ -564,6 +564,12 @@ hfbasin:
   realm: ocean
   standard_name: northward_ocean_heat_transport
   units: W
+hfds:
+  coordinates: [time, lat, lon]
+  long_name: Downward Heat Flux at Sea Water Surface
+  realm: ocean
+  standard_name: surface_downward_heat_flux_in_sea_water
+  units: W m-2
 mlotst:
   coordinates: [time, lat, lon]
   long_name: Ocean Mixed Layer Thickness Defined by Sigma T

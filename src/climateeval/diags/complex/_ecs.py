@@ -145,7 +145,7 @@ class ECS(ComplexDiagnostic):
         return {
             self._ecs: Cube(-reg.intercept / 2.0 / reg.slope, var_name="ecs"),
             self._f2x: Cube(reg.intercept / 2.0, var_name="f2x"),
-            self._f4x: Cube(reg.intercept, var_name="f2x"),
+            self._f4x: Cube(reg.intercept, var_name="f4x"),
             self._lambda: Cube(reg.slope, var_name="lambda"),
             self._lambda_stderr: Cube(reg.stderr, var_name="lambda_stderr"),
             self._p_value: Cube(reg.pvalue, var_name="p_value"),
