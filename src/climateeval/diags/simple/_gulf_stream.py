@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import iris.analysis.calculus
-import iris.analysis.cartography
+import iris.util
 import numpy as np
 from esmvalcore.preprocessor import (
     climate_statistics,
@@ -47,20 +46,39 @@ class GulfStreamSshGradient(SimpleDiagnostic):
                 cache_weights=True,
             )  # to ensure we are on a regular grid
 
-            grad_y = iris.analysis.calculus.differentiate(cube, "latitude")
-            grad_x = iris.analysis.calculus.differentiate(cube, "longitude")
-
-            gx_data = grad_x.data[..., :-1, :]
-            gy_data = grad_y.data[..., :, :-1]
-            ssh_grad = cube[..., :-1, :-1]
+            # Centred differences on the grid points themselves (one-sided at
+            # the outermost latitudes); longitude is periodic on the global
+            # regular target grid.
+            lat = cube.coord("latitude")
+            lon = cube.coord("longitude")
+            lat_dim = cube.coord_dims(lat)[0]
+            lon_dim = cube.coord_dims(lon)[0]
+            data = cube.data
+            dssh_dlat = np.gradient(data, lat.points, axis=lat_dim)
+            dlon = lon.points[1] - lon.points[0]
+            dssh_dlon = (
+                np.roll(data, -1, axis=lon_dim) - np.roll(data, 1, axis=lon_dim)
+            ) / (2.0 * dlon)
 
             radius = 6371000.0
             deg_to_rad = np.pi / 180.0
             dy = radius * deg_to_rad
-            cos_lat = iris.analysis.cartography.cosine_latitude_weights(ssh_grad)
+            cos_lat = iris.util.broadcast_to_shape(
+                np.cos(np.deg2rad(lat.points)),
+                cube.shape,
+                (lat_dim,),
+            )
             dx = radius * cos_lat * deg_to_rad
 
-            ssh_grad.data = np.sqrt((gx_data / dx) ** 2 + (gy_data / dy) ** 2)
+            # Centred differences skip the centre point, so masked (land)
+            # cells keep their mask explicitly
+            grad_mag = np.ma.masked_where(
+                np.ma.getmaskarray(data),
+                np.sqrt((dssh_dlon / dx) ** 2 + (dssh_dlat / dy) ** 2),
+            )
+            ssh_grad = cube.copy(grad_mag)
+            # No CF standard name exists for the SSH gradient magnitude
+            ssh_grad.standard_name = None
             ssh_grad.var_name = "ssh_grad_mag"
             ssh_grad.long_name = "SSH Gradient Magnitude"
             ssh_grad.units = "m m-1"

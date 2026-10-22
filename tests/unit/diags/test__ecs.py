@@ -213,10 +213,6 @@ def test_missing_required_key_raises() -> None:
         diag.get_output({"4xco2": CubeList()}, _info())
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="ECS._calculate_raw_output names the f4x cube 'f2x' (copy-paste slip)",
-)
 def test_f4x_cube_has_its_own_var_name() -> None:
     diag = ECS("ecs", fail_on_missing_data=True, download_missing_data=False)
     raw = diag._calculate_raw_output(

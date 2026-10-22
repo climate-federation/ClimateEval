@@ -59,19 +59,19 @@ class ESMValToolCMORizerDataSource(DataSource):
 
         # Raw downloaded data by ESMValTool will be stored in temporary
         # directory. Our "raw" data will be the formatted data by ESMValTool.
-        tmp_dir = Path(tempfile.TemporaryDirectory().name)
-        tmp_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory() as tmp_name:
+            tmp_dir = Path(tmp_name)
 
-        # Download data
-        with self._set_esmvaltool_output_dir(tmp_dir):
-            DataCommand().download(self.name, original_data_dir=tmp_dir)
+            # Download data
+            with self._set_esmvaltool_output_dir(tmp_dir):
+                DataCommand().download(self.name, original_data_dir=tmp_dir)
 
-        # Format data
-        return self._esmvaltool_cmorizer_format(
-            data_root_dir,
-            variable,
-            download_dir=tmp_dir,
-        )
+            # Format data
+            return self._esmvaltool_cmorizer_format(
+                data_root_dir,
+                variable,
+                download_dir=tmp_dir,
+            )
 
     def _check_supported_variables(self, variable: Variable) -> None:
         """Raise an error if a variable or its frequency is not supported."""
@@ -109,44 +109,58 @@ class ESMValToolCMORizerDataSource(DataSource):
 
         # Store all ESMValTool output in temporary directory and only save the
         # relevant files.
-        tmp_dir = Path(tempfile.TemporaryDirectory().name)
-        tmp_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory() as tmp_name:
+            tmp_dir = Path(tmp_name)
 
-        with self._set_esmvaltool_output_dir(tmp_dir):
-            DataCommand().format(self.name, original_data_dir=download_dir)
+            with self._set_esmvaltool_output_dir(tmp_dir):
+                DataCommand().format(self.name, original_data_dir=download_dir)
 
-        latest_esmvaltool_output_dir = (
-            sorted(tmp_dir.glob("data_formatting_*"))[-1]
-            / f"Tier{self._tier}"
-            / self.name
-        )
-        raw_files = latest_esmvaltool_output_dir.glob(
-            f"{self._file_prefix_pattern}.nc",
-        )
+            latest_esmvaltool_output_dir = (
+                sorted(tmp_dir.glob("data_formatting_*"))[-1]
+                / f"Tier{self._tier}"
+                / self.name
+            )
+            raw_files = latest_esmvaltool_output_dir.glob(
+                f"{self._file_prefix_pattern}.nc",
+            )
 
-        # Save all downloaded variables (there might be more than the one
-        # requested; this will potentially save lots of time)
-        grouped_files = defaultdict(list)
-        formatted_files: list[Path] = []
-        for raw_file in raw_files:
-            var_name = raw_file.stem.split("_")[-2]
-            grouped_files[var_name].append(raw_file)
-        for var_name, var_files in grouped_files.items():
-            # The following might be a problem if CMORizers write data with
-            # multiple frequencies
-            formatted_variable = Variable(var_name, var_name, variable.frequency)
-            data_dir = self._get_data_dir(data_root_dir, formatted_variable)
+            # Save all downloaded variables (there might be more than the one
+            # requested; this will potentially save lots of time)
+            grouped_files = defaultdict(list)
+            formatted_files: list[Path] = []
+            for raw_file in raw_files:
+                var_name = raw_file.stem.split("_")[-2]
+                grouped_files[var_name].append(raw_file)
+            for var_name, var_files in grouped_files.items():
+                if var_name == variable.var_name:
+                    formatted_variable = variable
+                else:
+                    # The following might be a problem if CMORizers write data
+                    # with multiple frequencies
+                    try:
+                        formatted_variable = Variable(
+                            var_name,
+                            var_name,
+                            variable.frequency,
+                        )
+                    except NotImplementedError:
+                        logger.debug(
+                            f"Skipping '{var_name}' of {self.id} (not in "
+                            f"variables.yml)",
+                        )
+                        continue
+                data_dir = self._get_data_dir(data_root_dir, formatted_variable)
 
-            # Do not overwrite existing other variables
-            if var_name != variable.var_name and list(data_dir.glob("*.nc")):
-                continue
-            logger.debug(f"Downloaded and formatted '{var_name}' of {self.id}")
-            data_dir.mkdir(parents=True, exist_ok=True)
+                # Do not overwrite existing other variables
+                if var_name != variable.var_name and list(data_dir.glob("*.nc")):
+                    continue
+                logger.debug(f"Downloaded and formatted '{var_name}' of {self.id}")
+                data_dir.mkdir(parents=True, exist_ok=True)
 
-            for var_file in var_files:
-                formatted_file = data_dir / var_file.name
-                shutil.move(var_file, formatted_file)
-                formatted_files.append(formatted_file)
+                for var_file in var_files:
+                    formatted_file = data_dir / var_file.name
+                    shutil.move(var_file, formatted_file)
+                    formatted_files.append(formatted_file)
 
         return formatted_files
 

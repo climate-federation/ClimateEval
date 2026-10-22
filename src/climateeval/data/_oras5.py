@@ -79,7 +79,6 @@ class ORAS5(DataSource):
         "tos": ("sosstsst", "degC"),
         "sos": ("sosaline", "0.001"),
         "zos": ("sossheig", "m"),
-        "hfds": ("sohefldo", "W m-2"),
         "uo": ("vozocrte", "m s-1"),
     }
 

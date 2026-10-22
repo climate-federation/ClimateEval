@@ -210,10 +210,10 @@ def test_download_and_format(
     # Files come from the latest formatting run and were moved, not copied.
     for file in files:
         assert file.read_text() == f"20990101_000000 {file.name}"
-    left_over = (fmt_out / "data_formatting_20990101_000000").rglob("*.nc")
-    assert [p.name for p in left_over] == [
-        _formatted_name("tas", prefix="OTHER_DUMMY-OBS"),
-    ]
+    # Files not matching the prefix are not kept, and the scratch dirs are gone
+    assert all("OTHER" not in file.name for file in files)
+    assert not fmt_out.exists()
+    assert not dl_dir.exists()
     assert sorted(p.name for p in tas_dir.iterdir()) == sorted(
         p.name for p in files if p.parent == tas_dir
     )
@@ -265,15 +265,6 @@ def test_set_esmvaltool_output_dir(tmp_path: Path) -> None:
     assert CFG["output_dir"] == original
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Formatted files of extra variables are registered with Variable(), "
-        "which raises for variables missing from variables.yml, so an "
-        "opportunistically formatted extra variable aborts the download of "
-        "the requested one"
-    ),
-)
 @pytest.mark.usefixtures("private_tempdir")
 def test_download_ignores_unknown_extra_variables(
     tmp_path: Path,
@@ -291,15 +282,6 @@ def test_download_ignores_unknown_extra_variables(
     assert [f.name for f in files] == [_formatted_name("tas")]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "download() creates its scratch dirs via "
-        "Path(tempfile.TemporaryDirectory().name).mkdir(), which is never "
-        "cleaned up: raw downloads and unused formatted files accumulate in "
-        "the system temp dir"
-    ),
-)
 def test_download_cleans_up_temporary_directories(
     tmp_path: Path,
     private_tempdir: Path,

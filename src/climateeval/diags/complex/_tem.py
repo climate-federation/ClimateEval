@@ -181,7 +181,9 @@ class TEMDiagnostic(ComplexDiagnostic):
         dtheta_dp = np.gradient(theta_bar, p, axis=0)
 
         # Guard against near-zero stability (avoid division blow-up)
-        stability_min = np.percentile(np.abs(dtheta_dp[np.isfinite(dtheta_dp)]), 1)
+        # (masked points are filled with NaN so they do not enter the percentile)
+        abs_stability = np.abs(np.ma.filled(dtheta_dp.astype(float), np.nan))
+        stability_min = np.percentile(abs_stability[np.isfinite(abs_stability)], 1)
         safe_dtheta_dp = np.where(
             np.abs(dtheta_dp) < stability_min,
             np.sign(dtheta_dp + 1e-30) * stability_min,

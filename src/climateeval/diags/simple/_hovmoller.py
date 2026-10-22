@@ -10,7 +10,7 @@ averaged over a chosen latitude band. Typical use cases:
 Processing pipeline per variable:
   1. Regrid to a regular 2×2 grid.
   2. Extract the latitude band [lat_min, lat_max].
-  3. Meridional mean (area-weighted collapse of latitude).
+  3. Meridional mean (cos(latitude)-weighted collapse of latitude).
   4. Remove the seasonal cycle: subtract per-day-of-year climatology.
   5. Optionally apply a rolling mean along the time axis.
 
@@ -22,10 +22,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import iris.analysis
+import iris.util
 import numpy as np
 from esmvalcore.preprocessor import (
     extract_region,
-    meridional_statistics,
     regrid,
 )
 
@@ -104,7 +104,14 @@ class Hovmoller(SimpleDiagnostic):
                 start_latitude=self._lat_min,
                 end_latitude=self._lat_max,
             )
-            cube = meridional_statistics(cube, "mean")
+            weights = iris.util.broadcast_to_shape(
+                np.cos(np.deg2rad(cube.coord("latitude").points)),
+                cube.shape,
+                cube.coord_dims("latitude"),
+            )
+            # ESMValCore's meridional_statistics cannot take an array of
+            # weights, so collapse with iris directly
+            cube = cube.collapsed("latitude", iris.analysis.MEAN, weights=weights)
 
         cube = _remove_seasonal_cycle(cube)
         cube = _apply_rolling_mean(cube, self._rolling_window_days)

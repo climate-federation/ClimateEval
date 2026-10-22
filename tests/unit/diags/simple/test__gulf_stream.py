@@ -89,10 +89,11 @@ def test_meridional_slope_gives_uniform_gradient(
 
     grad = diagnostic._safely_preprocess(zos, variable_zos)
 
-    # The last latitude and longitude are dropped by the finite differences
-    assert grad.shape == (LAT_2DEG.size - 1, LON_2DEG.size - 1)
-    np.testing.assert_allclose(grad.coord("latitude").points, LAT_2DEG[:-1])
-    np.testing.assert_allclose(grad.coord("longitude").points, LON_2DEG[:-1])
+    # Centred differences keep every grid point (one-sided at the poles)
+    assert grad.shape == (LAT_2DEG.size, LON_2DEG.size)
+    np.testing.assert_allclose(grad.coord("latitude").points, LAT_2DEG)
+    np.testing.assert_allclose(grad.coord("longitude").points, LON_2DEG)
+    assert grad.standard_name is None
     assert grad.units == "m m-1"
     assert grad.var_name == "ssh_grad_mag"
     assert grad.long_name == "SSH Gradient Magnitude"
@@ -110,15 +111,16 @@ def test_zonal_slope_scales_with_inverse_cosine_latitude(
 
     grad = diagnostic._safely_preprocess(zos, variable_zos)
 
-    cos_lat = np.cos(np.deg2rad(LAT_2DEG[:-1]))[:, None]
+    # SSH = b * lon jumps at the dateline, so skip the two columns next to it
+    cos_lat = np.cos(np.deg2rad(LAT_2DEG))[:, None]
     expected = np.broadcast_to(
         slope / (METRES_PER_DEGREE * cos_lat),
-        grad.shape,
+        grad[:, 1:-1].shape,
     )
-    np.testing.assert_allclose(grad.data, expected, rtol=1e-5)
+    np.testing.assert_allclose(grad.data[:, 1:-1], expected, rtol=1e-5)
     # Gulf Stream latitudes: twice the equatorial gradient at 60N
-    i_60n = int(np.argmin(np.abs(LAT_2DEG[:-1] - 59.0)))
-    assert grad.data[i_60n, 0] == pytest.approx(
+    i_60n = int(np.argmin(np.abs(LAT_2DEG - 59.0)))
+    assert grad.data[i_60n, 1] == pytest.approx(
         slope / (METRES_PER_DEGREE * np.cos(np.deg2rad(59.0))),
         rel=1e-5,
     )
@@ -134,13 +136,14 @@ def test_gradient_magnitude_combines_both_directions(
 
     grad = diagnostic._safely_preprocess(zos, variable_zos)
 
-    cos_lat = np.cos(np.deg2rad(LAT_2DEG[:-1]))[:, None]
+    # The zonal slope jumps at the dateline, so skip the two columns next to it
+    cos_lat = np.cos(np.deg2rad(LAT_2DEG))[:, None]
     expected = (
         np.sqrt((3e-3 / cos_lat) ** 2 + (4e-3) ** 2) / METRES_PER_DEGREE
-    ) * np.ones(grad.shape)
-    np.testing.assert_allclose(grad.data, expected, rtol=1e-5)
-    i_1n = int(np.argmin(np.abs(LAT_2DEG[:-1] - 1.0)))
-    assert grad.data[i_1n, 0] == pytest.approx(
+    ) * np.ones(grad[:, 1:-1].shape)
+    np.testing.assert_allclose(grad.data[:, 1:-1], expected, rtol=1e-5)
+    i_1n = int(np.argmin(np.abs(LAT_2DEG - 1.0)))
+    assert grad.data[i_1n, 1] == pytest.approx(
         5e-3 / METRES_PER_DEGREE,
         rel=2e-4,
     )
@@ -160,7 +163,7 @@ def test_time_mean_of_gradient_magnitudes(
 
     grad = diagnostic._safely_preprocess(zos, variable_zos)
 
-    assert grad.shape == (LAT_2DEG.size - 1, LON_2DEG.size - 1)
+    assert grad.shape == (LAT_2DEG.size, LON_2DEG.size)
     assert not grad.coords("time", dim_coords=True)
     mean_slope = np.sum(DAYS_PER_MONTH * np.abs(amplitudes)) / DAYS_PER_MONTH.sum()
     assert mean_slope == pytest.approx(1.83 / 90.0)
@@ -171,10 +174,10 @@ def test_gulf_stream_front_position(
     diagnostic: GulfStreamSshGradient,
     variable_zos: Variable,
 ) -> None:
-    """A 1 m tanh SSH front at 40N peaks between the 39N and 41N grid points.
+    """A 1 m tanh SSH front at 40N peaks at the 39N and 41N grid points.
 
-    The meridional difference is attributed to the southern of the two grid
-    points, so the maximum is reported at 39N.
+    Centred differences place the gradient on the grid points themselves, so
+    the two points either side of the front carry the same, largest value.
     """
     width = 2.0
     ssh_1d = 0.5 * np.tanh((LAT_2DEG - 40.0) / width)
@@ -186,11 +189,14 @@ def test_gulf_stream_front_position(
 
     lats = grad.coord("latitude").points
     profile = grad.data[:, 0]
-    assert lats[np.argmax(profile)] == 39.0
-    expected = np.abs(np.diff(ssh_1d)) / (2.0 * METRES_PER_DEGREE)
+    i_39n, i_41n = np.flatnonzero(np.isin(lats, (39.0, 41.0)))
+    assert np.argmax(profile) == i_39n
+    assert profile[i_41n] == pytest.approx(profile[i_39n], rel=1e-12)
+    expected = np.abs(np.gradient(ssh_1d, LAT_2DEG)) / METRES_PER_DEGREE
     np.testing.assert_allclose(profile, expected, rtol=1e-6, atol=1e-20)
+    # (tanh(3/w) - tanh(-1/w)) / 2 over 4 degrees of latitude
     assert profile.max() == pytest.approx(
-        np.tanh(1.0 / width) / (2.0 * METRES_PER_DEGREE),
+        0.5 * (np.tanh(3.0 / width) + np.tanh(1.0 / width)) / (4.0 * METRES_PER_DEGREE),
         rel=1e-6,
     )
 
@@ -211,18 +217,12 @@ def test_input_is_regridded_to_2x2_degrees(
 
     grad = diagnostic._safely_preprocess(zos, variable_zos)
 
-    assert grad.shape == (LAT_2DEG.size - 1, LON_2DEG.size - 1)
-    # The poles are outside the range of the input points: skip 89S and 87S
-    np.testing.assert_allclose(grad.data[1:-1], slope / METRES_PER_DEGREE, rtol=1e-6)
+    assert grad.shape == (LAT_2DEG.size, LON_2DEG.size)
+    # 89S and 89N are outside the range of the input points, and their
+    # neighbours difference across them: skip two rows at each end
+    np.testing.assert_allclose(grad.data[2:-2], slope / METRES_PER_DEGREE, rtol=1e-6)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Bug: the gradient cube keeps the SSH standard_name "
-        "'sea_surface_height_above_geoid' although its units are m m-1"
-    ),
-)
 def test_gradient_does_not_keep_ssh_standard_name(
     diagnostic: GulfStreamSshGradient,
     variable_zos: Variable,
@@ -233,3 +233,33 @@ def test_gradient_does_not_keep_ssh_standard_name(
     grad = diagnostic._safely_preprocess(zos, variable_zos)
 
     assert grad.standard_name != "sea_surface_height_above_geoid"
+
+
+def test_land_mask_spreads_to_direct_neighbours_only(
+    diagnostic: GulfStreamSshGradient,
+    variable_zos: Variable,
+) -> None:
+    """A masked (land) cell stays masked and masks its four neighbours only."""
+    slope = 0.01
+    lat_2d = np.broadcast_to(LAT_2DEG[:, None], (LAT_2DEG.size, LON_2DEG.size))
+    data = np.ma.masked_array(_on_grid(slope * lat_2d))
+    i_land, j_land = 60, 50
+    data[0, i_land, j_land] = np.ma.masked
+    zos = _zos_cube(data)
+
+    grad = diagnostic._safely_preprocess(zos, variable_zos)
+
+    mask = np.ma.getmaskarray(grad.data)
+    neighbours = {
+        (i_land, j_land),
+        (i_land - 1, j_land),
+        (i_land + 1, j_land),
+        (i_land, j_land - 1),
+        (i_land, j_land + 1),
+    }
+    assert set(zip(*np.nonzero(mask), strict=True)) == neighbours
+    np.testing.assert_allclose(
+        grad.data.compressed(),
+        slope / METRES_PER_DEGREE,
+        rtol=1e-6,
+    )
