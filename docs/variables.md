@@ -65,6 +65,7 @@ python scripts/gen_variables_doc.py
 | `geostrophic_correlation` | Midlatitude Geostrophic Balance Correlation |  | `1` | `atmos` |  |  |
 | `gpp` | Carbon Mass Flux out of Atmosphere Due to Gross Primary Production on Land [kgC m-2 s-1] | `gross_primary_productivity_of_biomass_expressed_as_carbon` | `kg m-2 s-1` | `land` | `time lat lon` |  |
 | `hfbasin` | Northward Ocean Heat Transport | `northward_ocean_heat_transport` | `W` | `ocean` | `time basin lat` |  |
+| `hfds` | Downward Heat Flux at Sea Water Surface | `surface_downward_heat_flux_in_sea_water` | `W m-2` | `ocean` | `time lat lon` |  |
 | `hfls` | Surface Upward Latent Heat Flux | `surface_upward_latent_heat_flux` | `W m-2` | `atmos` | `time lat lon` |  |
 | `hfss` | Surface Upward Sensible Heat Flux | `surface_upward_sensible_heat_flux` | `W m-2` | `atmos` | `time lat lon` |  |
 | `hus` | Specific Humidity | `specific_humidity` | `1` | `atmos` | `time alevel lat lon` |  |
