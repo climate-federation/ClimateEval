@@ -172,6 +172,9 @@ addopts = [
     "--html=test-reports/report.html",
 ]
 minversion = "6.0"
+# Doctests are collected from ``src`` only; ``scripts/`` holds CLI drivers that
+# exit at import without arguments.
+testpaths = ["src", "tests"]
 xfail_strict = true
 
 
