@@ -35,7 +35,7 @@ jobs:
         run: pytest -n 2 --junitxml=pytest.xml --cov-report=xml:coverage.xml --cov-report=term-missing:skip-covered --cov=src/climateeval tests/
       - name: Comment coverage
         id: coverage
-        uses: MishaKav/pytest-coverage-comment@9ee59af31bd7bcada1cc496f086b407122602dbd # v1.12.3
+        uses: MishaKav/pytest-coverage-comment@9516bf7f32a9229cf18d5e1717ae387c7154f279 # v1.13.0
         with:
           coverage-path-prefix: src/climateeval/
           hide-comment: true
