@@ -21,6 +21,7 @@ from climateeval.diags.simple._gulf_stream import GulfStreamSshGradient
 from climateeval.diags.simple._heat_transport import OceanHeatTransportProfile
 from climateeval.diags.simple._histogram import Histogram
 from climateeval.diags.simple._hovmoller import Hovmoller
+from climateeval.diags.simple._land import LandDiagnostic
 from climateeval.diags.simple._map import Map
 from climateeval.diags.simple._nino34 import Nino34
 from climateeval.diags.simple._ohc import OceanHeatContentTimeSeries
@@ -51,6 +52,7 @@ __all__ = [
     "GulfStreamSshGradient",
     "Histogram",
     "Hovmoller",
+    "LandDiagnostic",
     "Map",
     "MeanTimeSeries",
     "Nino34",

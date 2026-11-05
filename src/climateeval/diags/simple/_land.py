@@ -1,0 +1,297 @@
+"""Provide land weighting helpers and the base class of land diagnostics.
+
+Land fluxes (e.g. ``gpp``) are given per unit land area of a grid cell, so
+every horizontal operation needs the land fraction ``f`` (``sftlf``) and the
+cell area ``A`` (``areacella``):
+
+* Totals are computed on the native grid as ``T = sum(x * f * A)``.
+* Maps are regridded conservatively as ``R(x * f) / R(f)``, so that coastal
+  cells only contribute their land part. Their metrics are weighted by the
+  land area ``A * R(f)`` of the target grid.
+
+Cells where ``x`` is masked get ``f = 0``, so they count neither in the totals
+nor in the regridded means.
+
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import dask.array as da
+import iris.analysis
+from esmvalcore.preprocessor import mask_landsea, regrid
+from esmvalcore.preprocessor._shared import try_adding_calculated_cell_area
+from iris.coords import AncillaryVariable, CellMeasure, CellMethod
+from iris.exceptions import ConstraintMismatchError
+from iris.util import broadcast_to_shape
+from loguru import logger
+
+from climateeval import Variable
+from climateeval._config import setup_esmvaltool_config_and_logging
+from climateeval._utils import get_prepared_cube
+from climateeval.diags.simple._base import SimpleDiagnostic
+from climateeval.exceptions import MissingDataError
+
+if TYPE_CHECKING:
+    from iris.cube import Cube, CubeList
+    from xarray import Dataset
+
+logger = logger.opt(colors=True)
+
+LAND_FRACTION = "land_area_fraction"
+CELL_AREA = "cell_area"
+HORIZONTAL_COORDS = ("latitude", "longitude")
+
+
+def _horizontal_dims(cube: Cube) -> tuple[int, ...]:
+    """Get the (sorted) dimensions spanned by latitude and longitude."""
+    return tuple(
+        sorted(set(cube.coord_dims("latitude") + cube.coord_dims("longitude"))),
+    )
+
+
+def _check_same_grid(cube: Cube, field: Cube) -> tuple[int, ...]:
+    """Check that a horizontal field lies on the grid of a cube."""
+    dims = _horizontal_dims(cube)
+    if field.shape != tuple(cube.shape[d] for d in dims):
+        msg = (
+            f"{field.name()} (shape {field.shape}) does not match the grid of "
+            f"{cube.summary(shorten=True)}"
+        )
+        raise ValueError(msg)
+    return dims
+
+
+def add_land_supplementaries(
+    cube: Cube,
+    data: CubeList | Dataset,
+    variable: Variable,
+) -> Cube:
+    """Attach ``sftlf`` and ``areacella`` from the input data to a cube.
+
+    Both are prepared with the regional settings of ``variable`` so that they
+    end up on exactly the grid of ``cube``.
+
+    Raises
+    ------
+    MissingDataError
+        ``sftlf`` or ``areacella`` is not part of the input data.
+
+    """
+    cube = cube.copy()
+    for var_name in ("sftlf", "areacella"):
+        fx_variable = Variable(
+            var_name,
+            var_name,
+            "fx",
+            min_lat=variable.min_lat,
+            max_lat=variable.max_lat,
+            min_lon=variable.min_lon,
+            max_lon=variable.max_lon,
+        )
+        try:
+            field = get_prepared_cube(data, fx_variable)
+        except ConstraintMismatchError as exc:
+            msg = (
+                f"Land diagnostics need '{var_name}' in the input data to "
+                f"weight {cube.summary(shorten=True)}"
+            )
+            raise MissingDataError(msg) from exc
+        dims = _check_same_grid(cube, field)
+        if var_name == "sftlf":
+            if cube.ancillary_variables(LAND_FRACTION):
+                cube.remove_ancillary_variable(LAND_FRACTION)
+            cube.add_ancillary_variable(
+                AncillaryVariable(
+                    field.core_data(),
+                    standard_name=field.standard_name,
+                    long_name=field.long_name,
+                    var_name=field.var_name,
+                    units=field.units,
+                ),
+                dims,
+            )
+        else:
+            if cube.cell_measures(CELL_AREA):
+                cube.remove_cell_measure(CELL_AREA)
+            cube.add_cell_measure(
+                CellMeasure(
+                    field.core_data(),
+                    standard_name=field.standard_name,
+                    long_name=field.long_name,
+                    var_name=field.var_name,
+                    units=field.units,
+                    measure="area",
+                ),
+                dims,
+            )
+    return cube
+
+
+def get_land_fraction(cube: Cube) -> da.Array:
+    """Get the land fraction (in [0, 1]) where the data is valid.
+
+    The ``land_area_fraction`` ancillary variable of the cube is used. Without
+    one (e.g. an observation that does not provide it), a binary Natural Earth
+    land mask is used instead. The result has the shape of the cube and is 0
+    where the data is masked.
+
+    """
+    dims = _horizontal_dims(cube)
+    if cube.ancillary_variables(LAND_FRACTION):
+        ancillary = cube.ancillary_variable(LAND_FRACTION).copy()
+        ancillary.convert_units("1")
+        fraction = da.asarray(ancillary.core_data())
+        fraction_dims = cube.ancillary_variable_dims(ancillary.name())
+    else:
+        logger.warning(
+            f"No {LAND_FRACTION} given for {cube.summary(shorten=True)}, using "
+            f"a binary Natural Earth land mask instead",
+        )
+        template = next(cube.slices(HORIZONTAL_COORDS, ordered=False)).copy(
+            data=da.ones(tuple(cube.shape[d] for d in dims), dtype=float),
+        )
+        with setup_esmvaltool_config_and_logging():
+            land = mask_landsea(template, "sea")
+        fraction = da.ma.filled(da.ma.masked_array(land.core_data()), 0.0)
+        fraction_dims = dims
+
+    fraction = broadcast_to_shape(fraction, cube.shape, fraction_dims)
+    valid = ~da.ma.getmaskarray(da.asarray(cube.core_data()))
+    return da.where(valid, da.ma.filled(fraction, 0.0), 0.0)
+
+
+def get_cell_area(cube: Cube) -> da.Array:
+    """Get the cell area (in m2) broadcast to the shape of the cube.
+
+    The ``cell_area`` cell measure of the cube is used; without one, the area
+    is calculated from the coordinate bounds (regular grids only).
+
+    """
+    cube = cube.copy()
+    with setup_esmvaltool_config_and_logging():
+        try_adding_calculated_cell_area(cube)
+    measure = cube.cell_measure(CELL_AREA).copy()
+    measure.convert_units("m2")
+    return broadcast_to_shape(
+        da.asarray(measure.core_data()),
+        cube.shape,
+        cube.cell_measure_dims(CELL_AREA),
+    )
+
+
+def _without_supplementaries(cube: Cube) -> Cube:
+    """Copy a cube without ancillary variables and cell measures."""
+    cube = cube.copy()
+    for ancillary in cube.ancillary_variables():
+        cube.remove_ancillary_variable(ancillary)
+    for measure in cube.cell_measures():
+        cube.remove_cell_measure(measure)
+    return cube
+
+
+def land_total(cube: Cube) -> Cube:
+    """Integrate a per-land-area quantity over land on its native grid.
+
+    Calculates ``T = sum(x * f * A)`` over latitude and longitude, with ``f``
+    from :func:`get_land_fraction` and ``A`` from :func:`get_cell_area`. The
+    units of the result are those of ``x`` times m2 (e.g. kg s-1 for
+    ``gpp``).
+
+    """
+    weights = get_land_fraction(cube) * get_cell_area(cube)
+    data = da.ma.filled(da.asarray(cube.core_data()), 0.0) * weights
+    product = _without_supplementaries(cube).copy(data=data)
+    product.units = cube.units * "m2"
+    total = product.collapsed(list(HORIZONTAL_COORDS), iris.analysis.SUM)
+    total.cell_methods = (
+        *cube.cell_methods,
+        CellMethod("sum", HORIZONTAL_COORDS, comments="over land"),
+    )
+    return total
+
+
+def land_regrid(
+    cube: Cube,
+    target_grid: str | Cube,
+    *,
+    min_fraction: float = 0.0,
+) -> Cube:
+    """Regrid a per-land-area quantity conservatively, weighting by land.
+
+    Calculates ``R(x * f) / R(f)`` with the conservative regridder ``R``
+    (``area_weighted``, which uses ESMF for irregular grids). Target cells with
+    ``R(f) <= min_fraction`` are masked.
+
+    The result carries the land area ``A * R(f)`` (in m2, averaged over any
+    non-horizontal dimensions) as ``cell_area``, so that ESMValCore's weighted
+    metrics weight by land area. Since that area is land only, its
+    ``land_area_fraction`` is 100 %, which keeps :func:`land_total` of the
+    result equal to the total on the native grid.
+
+    """
+    fraction = get_land_fraction(cube)
+    clean = _without_supplementaries(cube)
+    flux = clean.copy(data=da.ma.filled(da.asarray(cube.core_data()), 0.0) * fraction)
+    land = clean.copy(data=fraction)
+    land.units = "1"
+
+    with setup_esmvaltool_config_and_logging():
+        flux = regrid(flux, target_grid, "area_weighted", cache_weights=True)
+        land = regrid(land, target_grid, "area_weighted", cache_weights=True)
+
+    regridded_fraction = da.asarray(land.core_data())
+    regridded_fraction = da.ma.filled(regridded_fraction, 0.0)
+    data = da.ma.masked_where(
+        regridded_fraction <= min_fraction,
+        da.ma.filled(da.asarray(flux.core_data()), 0.0)
+        / da.where(regridded_fraction > min_fraction, regridded_fraction, 1.0),
+    )
+    result = flux.copy(data=data)
+    result.units = cube.units
+
+    dims = _horizontal_dims(result)
+    other_dims = tuple(d for d in range(result.ndim) if d not in dims)
+    static_fraction = regridded_fraction
+    if other_dims:
+        static_fraction = static_fraction.mean(axis=other_dims)
+    result.add_ancillary_variable(
+        AncillaryVariable(
+            da.full_like(static_fraction, 100.0),
+            standard_name=LAND_FRACTION,
+            var_name="sftlf",
+            units="%",
+        ),
+        dims,
+    )
+    area = get_cell_area(next(result.slices(HORIZONTAL_COORDS, ordered=False)))
+    result.add_cell_measure(
+        CellMeasure(
+            area * static_fraction,
+            standard_name=CELL_AREA,
+            var_name="areacella",
+            units="m2",
+            measure="area",
+        ),
+        dims,
+    )
+    return result
+
+
+class LandDiagnostic(SimpleDiagnostic):
+    """Base class of land diagnostics.
+
+    The data to benchmark must provide ``sftlf`` and ``areacella``, which are
+    attached to every variable before preprocessing. Reference and other data
+    sources provide their own land fraction (e.g.
+    :class:`climateeval.data.FLUXCOM`) or fall back to a land mask, see
+    :func:`get_land_fraction`.
+
+    """
+
+    def _get_cube(self, data: CubeList | Dataset, variable: Variable) -> Cube:
+        """Get data cube with its land fraction and cell area."""
+        cube = get_prepared_cube(data, variable)
+        cube = add_land_supplementaries(cube, data, variable)
+        return self._safely_preprocess(cube, variable)
