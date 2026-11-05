@@ -1,0 +1,36 @@
+# Tier 2 | Mean state vs observations: land carbon fluxes (global totals, maps) vs FLUXCOM.
+#
+# Fluxes are given per unit land area and weighted by the land fraction:
+#   * annual cycle and annual mean time series of the global land total,
+#     integrated on each dataset's native grid as sum(x * sftlf * areacella)
+#     (without regridding) and reported in Pg yr-1
+#   * performance metrics of the monthly climatology and the climatological
+#     map, both regridded conservatively as R(x * sftlf) / R(sftlf) and
+#     weighted by land area
+#
+# The data to benchmark must provide sftlf and areacella. FLUXCOM provides its
+# own land fraction, and CMIP6 models are downloaded with theirs (models
+# without sftlf are skipped). FLUXCOM covers 1980-2013, so pick a timerange
+# inside it.
+
+- name: annual_cycle
+  diagnostic: climateeval.diags.simple.LandTotalAnnualCycle
+  variables: &land_variables
+    - id: gpp
+      var_name: gpp
+      frequency: mon
+      units: g m-2 day-1
+      reference_data: climateeval.data.FLUXCOM
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
+
+- name: performance_metrics
+  diagnostic: climateeval.diags.simple.LandAnnualCycleSpatialDistribution
+  variables: *land_variables
+
+- name: annual_mean_timeseries
+  diagnostic: climateeval.diags.simple.LandTotalTimeSeries
+  variables: *land_variables
+
+- name: map
+  diagnostic: climateeval.diags.simple.LandMap
+  variables: *land_variables

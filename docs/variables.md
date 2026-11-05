@@ -30,6 +30,7 @@ python scripts/gen_variables_doc.py
 | `amip_4xco2_erf` | Fixed-SST Effective Radiative Forcing of Quadrupled CO2 |  | `W m-2` | `atmos` |  |  |
 | `amoc` | AMOC at the Rapid array (26.5 N) |  | `kg s-1` | `ocean` | `time` | yes |
 | `arctic_amplification` | Arctic Amplification Factor |  | `1` | `atmos` |  |  |
+| `areacella` | Grid-Cell Area for Atmospheric Grid Variables | `cell_area` | `m2` | `atmos` | `lat lon` |  |
 | `asr` | Absorbed shortwave radiation |  | `W m-2` | `atmos` | `time lat lon` | yes |
 | `atmospheric_energy_residual` | Atmospheric Energy Budget Residual |  | `W m-2` | `atmos` |  |  |
 | `bjerknes_correlation` | Bjerknes Compensation Correlation |  | `1` | `atmos` |  |  |
@@ -113,6 +114,7 @@ python scripts/gen_variables_doc.py
 | `rtnt` | TOA Net downward Total Radiation |  | `W m-2` | `atmos` | `time lat lon` | yes |
 | `rx1day` | Annual/monthly maximum 1-day precipitation |  | `mm` | `atmos` | `time lat lon` |  |
 | `rx5day` | Annual/monthly maximum 5-day precipitation |  | `mm` | `atmos` | `time lat lon` |  |
+| `sftlf` | Percentage of the Grid Cell Occupied by Land (Including Lakes) | `land_area_fraction` | `%` | `atmos` | `lat lon` |  |
 | `siconc` | Sea-Ice Area Percentage (Ocean Grid) | `sea_ice_area_fraction` | `%` | `sea_ice` | `time lat lon` |  |
 | `so` | Sea Water Salinity | `sea_water_salinity` | `1E-03` | `ocean` | `time olevel lat lon` |  |
 | `swcre` | TOA Shortwave Cloud Radiative Effect |  | `W m-2` | `atmos` | `time lat lon` | yes |

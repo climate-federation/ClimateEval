@@ -32,6 +32,11 @@ if TYPE_CHECKING:
 logger = logger.opt(colors=True)
 
 
+#: Supplementary variables downloaded with land variables (fluxes are given
+#: per unit land area, so they need the land fraction and the cell area).
+LAND_SUPPLEMENTARIES = ("sftlf", "areacella")
+
+
 ESMVALTOOL_INTAKE_DATA_SOURCES = (
     Path(str(resources.files("climateeval.data")))
     / "config"
@@ -104,11 +109,26 @@ class ESMValToolIntakeDataSource(DataSource):
             },
         )
 
+        dataset = Dataset(**facets)
+        if variable.realm == "land":
+            # Taken from any experiment and member of the same model and grid
+            # if not available for the dataset itself; missing ones are skipped
+            for short_name in LAND_SUPPLEMENTARIES:
+                dataset.add_supplementary(
+                    short_name=short_name,
+                    mip="fx",
+                    frequency="fx",
+                    exp="*",
+                    ensemble="*",
+                )
+
         # Store downloaded data in temporary directory
         tmp_dir = Path(tempfile.TemporaryDirectory().name)
         tmp_dir.mkdir(parents=True, exist_ok=True)
         with _setup_esmvaltool_intake_data_source(tmp_dir):
-            cube = Dataset(**facets).load()
+            if dataset.supplementaries:
+                dataset = next(iter(dataset.from_files()))
+            cube = dataset.load()
 
         # Save file into data directory
         data_dir = self._get_data_dir(data_root_dir, variable)

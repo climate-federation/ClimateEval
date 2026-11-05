@@ -55,6 +55,11 @@ Depends on the suite(s) you run:
 - `climateeval check --suite NAME` on your data directory lists every
   required variable and what is missing.
 
+The land suite (`Tier2_land_monthly`) additionally needs the fixed fields
+`sftlf` (land fraction, %) and `areacella` (cell area, m2) on the grid of the
+land variables; `climateeval check` does not list them. Without them, the land
+variables are skipped.
+
 Variables you don't provide are skipped with a warning by default
 (`climateeval benchmark` runs with `fail_on_missing_data=False`) — a partial
 conversion still produces a report for the variables present.

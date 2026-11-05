@@ -31,6 +31,7 @@ from climateeval.data._esmvaltool_intake import (
     ESMValToolIntakeDataSource,
     ESMValToolIntakeDataSourceGenerator,
 )
+from climateeval.data._fluxcom import FLUXCOM
 from climateeval.data._gistemp import GISTEMP
 from climateeval.data._gpcp import GPCP
 from climateeval.data._hadcrut5 import HadCRUT5
@@ -54,6 +55,7 @@ __all__ = [
     "EN4",
     "ESACCIOC",
     "ESACCISST",
+    "FLUXCOM",
     "GISTEMP",
     "GPCP",
     "IAP",
