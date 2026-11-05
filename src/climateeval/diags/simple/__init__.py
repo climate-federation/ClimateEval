@@ -22,7 +22,9 @@ from climateeval.diags.simple._heat_transport import OceanHeatTransportProfile
 from climateeval.diags.simple._histogram import Histogram
 from climateeval.diags.simple._hovmoller import Hovmoller
 from climateeval.diags.simple._land import (
+    LandAnnualCycleSpatialDistribution,
     LandDiagnostic,
+    LandMap,
     LandTotalAnnualCycle,
     LandTotalTimeSeries,
 )
@@ -56,7 +58,9 @@ __all__ = [
     "GulfStreamSshGradient",
     "Histogram",
     "Hovmoller",
+    "LandAnnualCycleSpatialDistribution",
     "LandDiagnostic",
+    "LandMap",
     "LandTotalAnnualCycle",
     "LandTotalTimeSeries",
     "Map",

@@ -16,7 +16,7 @@ nor in the regridded means.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import dask.array as da
 import ibis
@@ -39,12 +39,14 @@ from climateeval import Coordinate, Variable
 from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval._utils import get_prepared_cube
 from climateeval._variable import COORDINATES
+from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.simple._base import SimpleDiagnostic
 from climateeval.exceptions import MissingDataError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    import pandas as pd
     from iris.cube import Cube, CubeList
     from xarray import Dataset
 
@@ -242,7 +244,10 @@ def land_regrid(
     non-horizontal dimensions) as ``cell_area``, so that ESMValCore's weighted
     metrics weight by land area. Since that area is land only, its
     ``land_area_fraction`` is 100 %, which keeps :func:`land_total` of the
-    result equal to the total on the native grid.
+    result equal to the total on the native grid. The land area is scaled so
+    that the target grid covers the same area as the source grid, which
+    matters when the source cell areas (e.g. a model's ``areacella``) use a
+    different Earth radius than the regridder.
 
     """
     fraction = get_land_fraction(cube)
@@ -250,10 +255,16 @@ def land_regrid(
     flux = clean.copy(data=da.ma.filled(da.asarray(cube.core_data()), 0.0) * fraction)
     land = clean.copy(data=fraction)
     land.units = "1"
+    source_slice = next(cube.slices(HORIZONTAL_COORDS, ordered=False))
+    source_area = get_cell_area(source_slice)  # may be masked (e.g. over sea)
+    has_area = ~da.ma.getmaskarray(source_area)
+    coverage = _without_supplementaries(source_slice)
+    coverage = coverage.copy(data=has_area.astype(float))
 
     with setup_esmvaltool_config_and_logging():
         flux = regrid(flux, target_grid, "area_weighted", cache_weights=True)
         land = regrid(land, target_grid, "area_weighted", cache_weights=True)
+        coverage = regrid(coverage, target_grid, "area_weighted", cache_weights=True)
 
     regridded_fraction = da.asarray(land.core_data())
     regridded_fraction = da.ma.filled(regridded_fraction, 0.0)
@@ -279,7 +290,12 @@ def land_regrid(
         ),
         dims,
     )
+    # Target areas consistent with the source areas: the target area covered
+    # by source cells with an area, sum(A_target * R(has_area)), must equal
+    # their source area
     area = get_cell_area(next(result.slices(HORIZONTAL_COORDS, ordered=False)))
+    covered_area = (area * da.ma.filled(da.asarray(coverage.core_data()), 0.0)).sum()
+    area = area * (da.ma.filled(source_area, 0.0).sum() / covered_area)
     result.add_cell_measure(
         CellMeasure(
             area * static_fraction,
@@ -361,3 +377,63 @@ class LandTotalTimeSeries(_LandTotalDiagnostic):
                 units=COORDINATES["time"]["units"],
             )
         return cube  # noqa: RET504
+
+
+class _LandSpatialDiagnostic(LandDiagnostic):
+    """Base class of land diagnostics on the common grid.
+
+    The climatology is calculated on the native grid and then regridded with
+    :func:`land_regrid`, so the metrics are weighted by land area. They are
+    calculated on the cells where both datasets have data.
+    """
+
+    #: Period of the climatology (see ``climate_statistics``).
+    _period: ClassVar[str]
+
+    def _get_metrics(self, cube: Cube, reference_cube: Cube) -> dict[str, pd.Series]:
+        """Get metrics on the common mask of both datasets."""
+        mask = da.ma.getmaskarray(da.asarray(cube.core_data())) | da.ma.getmaskarray(
+            da.asarray(reference_cube.core_data()),
+        )
+        cube = cube.copy(data=da.ma.masked_where(mask, cube.core_data()))
+        reference_cube = reference_cube.copy(
+            data=da.ma.masked_where(mask, reference_cube.core_data()),
+        )
+        return super()._get_metrics(cube, reference_cube)
+
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
+        """Preprocess data."""
+        with setup_esmvaltool_config_and_logging():
+            cube = climate_statistics(cube, "mean", self._period)
+        return land_regrid(cube, DEFAULT_GRID)
+
+
+class LandMap(_LandSpatialDiagnostic):
+    """Manage land map diagnostics.
+
+    Computes the time-mean map on the common grid, regridded conservatively
+    with the land fraction (see :func:`land_regrid`).
+    """
+
+    _final_coordinates = (Coordinate("lat"), Coordinate("lon"))
+
+    _period = "full"
+
+
+class LandAnnualCycleSpatialDistribution(_LandSpatialDiagnostic):
+    """Manage land annual cycle spatial distribution diagnostics.
+
+    Computes the monthly climatology on the common grid, regridded
+    conservatively with the land fraction (see :func:`land_regrid`). Only
+    metrics are output.
+    """
+
+    _final_coordinates = (
+        Coordinate("month_number"),
+        Coordinate("lat"),
+        Coordinate("lon"),
+    )
+
+    _output_data_table = False
+
+    _period = "month"
