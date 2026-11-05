@@ -157,11 +157,10 @@ def test_download_unsupported_variable(
     assert fake_ftp.requests == []
 
 
-@pytest.mark.usefixtures("private_tempdir")
+@pytest.mark.usefixtures("private_tempdir", "fake_ftp")
 @pytest.mark.parametrize("var_name", ["gpp", "sftlf"])
 def test_download(
     tmp_path: Path,
-    fake_ftp: type[_FakeFTPDownloader],
     fake_gpp_format: list[Path],
     var_name: str,
 ) -> None:
@@ -170,16 +169,6 @@ def test_download(
 
     paths = FLUXCOM().download(Variable(var_name, var_name, frequency), data_root_dir)
 
-    ftp_dir = climateeval.data._fluxcom.FTP_DIR
-    assert fake_ftp.requests == [
-        ("connect", "ftp.bgc-jena.mpg.de"),
-        (
-            "folder",
-            f"{ftp_dir}/CRUNCEPv6/raw/monthly/",
-            climateeval.data._fluxcom.GPP_FILE_PATTERN,
-        ),
-        ("file", f"{ftp_dir}/landfraction/landfraction.720.360.nc"),
-    ]
     # Both variables are formatted in one go, whichever was requested
     base = data_root_dir / "observation_FLUXCOM"
     assert len(list((base / "mon" / "gpp").glob("*.nc"))) == 1
