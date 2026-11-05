@@ -1,0 +1,21 @@
+# Tier 2 | Mean state vs observations: land carbon fluxes (global totals) vs FLUXCOM.
+#
+# Global land totals are integrated on each dataset's native grid as
+# sum(x * sftlf * areacella), without regridding, and reported in Pg yr-1:
+#   * annual cycle of the global land total
+#   * annual mean time series of the global land total
+#
+# The data to benchmark must provide sftlf and areacella. FLUXCOM provides its
+# own land fraction. FLUXCOM covers 1980-2013, so pick a timerange inside it.
+
+- name: annual_cycle
+  diagnostic: climateeval.diags.simple.LandTotalAnnualCycle
+  variables: &land_variables
+    - id: gpp
+      var_name: gpp
+      frequency: mon
+      reference_data: climateeval.data.FLUXCOM
+
+- name: annual_mean_timeseries
+  diagnostic: climateeval.diags.simple.LandTotalTimeSeries
+  variables: *land_variables

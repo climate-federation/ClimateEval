@@ -19,21 +19,32 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import dask.array as da
+import ibis
 import iris.analysis
-from esmvalcore.preprocessor import mask_landsea, regrid
+from esmvalcore.preprocessor import (
+    annual_statistics,
+    climate_statistics,
+    convert_units,
+    mask_landsea,
+    regrid,
+    regrid_time,
+)
 from esmvalcore.preprocessor._shared import try_adding_calculated_cell_area
 from iris.coords import AncillaryVariable, CellMeasure, CellMethod
 from iris.exceptions import ConstraintMismatchError
 from iris.util import broadcast_to_shape
 from loguru import logger
 
-from climateeval import Variable
+from climateeval import Coordinate, Variable
 from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval._utils import get_prepared_cube
+from climateeval._variable import COORDINATES
 from climateeval.diags.simple._base import SimpleDiagnostic
 from climateeval.exceptions import MissingDataError
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from iris.cube import Cube, CubeList
     from xarray import Dataset
 
@@ -42,6 +53,9 @@ logger = logger.opt(colors=True)
 LAND_FRACTION = "land_area_fraction"
 CELL_AREA = "cell_area"
 HORIZONTAL_COORDS = ("latitude", "longitude")
+
+#: Target units of global land totals (e.g. PgC yr-1 for ``gpp``).
+_LAND_TOTAL_UNITS = "Pg yr-1"
 
 
 def _horizontal_dims(cube: Cube) -> tuple[int, ...]:
@@ -295,3 +309,55 @@ class LandDiagnostic(SimpleDiagnostic):
         cube = get_prepared_cube(data, variable)
         cube = add_land_supplementaries(cube, data, variable)
         return self._safely_preprocess(cube, variable)
+
+
+class _LandTotalDiagnostic(LandDiagnostic):
+    """Base class of land total diagnostics (output in ``Pg yr-1``)."""
+
+    def _get_variables_table(self, variables: Iterable[Variable]) -> ibis.Table:
+        """Get variables table with the units of the land totals."""
+        return (
+            super()
+            ._get_variables_table(variables)
+            .mutate(units=ibis.literal(_LAND_TOTAL_UNITS))
+        )
+
+
+class LandTotalAnnualCycle(_LandTotalDiagnostic):
+    """Manage land total annual cycle diagnostics.
+
+    Computes the monthly climatology of the land total (see
+    :func:`land_total`) on the native grid, in ``Pg yr-1``.
+    """
+
+    _final_coordinates = (Coordinate("month_number"),)
+
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
+        """Preprocess data."""
+        with setup_esmvaltool_config_and_logging():
+            cube = convert_units(land_total(cube), _LAND_TOTAL_UNITS)
+            cube = climate_statistics(cube, "mean", "month")
+        return cube  # noqa: RET504
+
+
+class LandTotalTimeSeries(_LandTotalDiagnostic):
+    """Manage land total annual mean time series diagnostics.
+
+    Computes the annual mean of the land total (see :func:`land_total`) on the
+    native grid, in ``Pg yr-1``.
+    """
+
+    _final_coordinates = (Coordinate("time"),)
+
+    def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
+        """Preprocess data."""
+        with setup_esmvaltool_config_and_logging():
+            cube = convert_units(land_total(cube), _LAND_TOTAL_UNITS)
+            cube = annual_statistics(cube, "mean")
+            cube = regrid_time(
+                cube,
+                frequency="yr",
+                calendar="standard",
+                units=COORDINATES["time"]["units"],
+            )
+        return cube  # noqa: RET504
