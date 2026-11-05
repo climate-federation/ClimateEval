@@ -10,7 +10,7 @@ cell area ``A`` (``areacella``):
   land area ``A * R(f)`` of the target grid.
 
 Cells where ``x`` is masked get ``f = 0``, so they count neither in the totals
-nor in the regridded means.
+nor in the regridded means. Data without a land fraction is skipped.
 
 """
 
@@ -21,17 +21,18 @@ from typing import TYPE_CHECKING, ClassVar
 import dask.array as da
 import ibis
 import iris.analysis
+from esmvalcore.iris_helpers import has_unstructured_grid
 from esmvalcore.preprocessor import (
     annual_statistics,
     climate_statistics,
     convert_units,
-    mask_landsea,
     regrid,
     regrid_time,
 )
 from esmvalcore.preprocessor._shared import try_adding_calculated_cell_area
 from iris.coords import AncillaryVariable, CellMeasure, CellMethod
 from iris.exceptions import ConstraintMismatchError
+from iris.mesh import MeshXY
 from iris.util import broadcast_to_shape
 from loguru import logger
 
@@ -65,6 +66,48 @@ def _horizontal_dims(cube: Cube) -> tuple[int, ...]:
     return tuple(
         sorted(set(cube.coord_dims("latitude") + cube.coord_dims("longitude"))),
     )
+
+
+def _horizontal_coords(cube: Cube) -> list[str]:
+    """Get coordinates to collapse the horizontal dimensions.
+
+    On unstructured or curvilinear grids, latitude and longitude span the same
+    dimensions, so collapsing latitude alone collapses them.
+    """
+    if cube.coord_dims("latitude") == cube.coord_dims("longitude"):
+        return ["latitude"]
+    return list(HORIZONTAL_COORDS)
+
+
+def _horizontal_slice(cube: Cube) -> Cube:
+    """Get the first horizontal slice of a cube."""
+    return next(cube.slices(_horizontal_dims(cube), ordered=False))
+
+
+def _without_supplementaries_on_mesh(cube: Cube) -> Cube:
+    """Copy a cube without supplementaries, on a mesh if it is unstructured.
+
+    Conservative regridding of unstructured grids needs a mesh, which is built
+    from the cell bounds of latitude and longitude.
+    """
+    cube = _without_supplementaries(cube)
+    if cube.mesh is not None or not has_unstructured_grid(cube):
+        return cube
+    lat = cube.coord("latitude")
+    lon = cube.coord("longitude")
+    if not (lat.has_bounds() and lon.has_bounds()):
+        msg = (
+            f"Conservative regridding of the unstructured grid of "
+            f"{cube.summary(shorten=True)} needs latitude and longitude bounds"
+        )
+        raise ValueError(msg)
+    mesh = MeshXY.from_coords(lon, lat)
+    dim = cube.coord_dims(lat)[0]
+    cube.remove_coord(lat)
+    cube.remove_coord(lon)
+    for mesh_coord in mesh.to_MeshCoords("face"):
+        cube.add_aux_coord(mesh_coord, dim)
+    return cube
 
 
 def _check_same_grid(cube: Cube, field: Cube) -> tuple[int, ...]:
@@ -148,32 +191,25 @@ def add_land_supplementaries(
 def get_land_fraction(cube: Cube) -> da.Array:
     """Get the land fraction (in [0, 1]) where the data is valid.
 
-    The ``land_area_fraction`` ancillary variable of the cube is used. Without
-    one (e.g. an observation that does not provide it), a binary Natural Earth
-    land mask is used instead. The result has the shape of the cube and is 0
-    where the data is masked.
+    The ``land_area_fraction`` ancillary variable of the cube is used. The
+    result has the shape of the cube and is 0 where the data is masked.
+
+    Raises
+    ------
+    MissingDataError
+        The cube has no land fraction (so the dataset is skipped).
 
     """
-    dims = _horizontal_dims(cube)
-    if cube.ancillary_variables(LAND_FRACTION):
-        ancillary = cube.ancillary_variable(LAND_FRACTION).copy()
-        ancillary.convert_units("1")
-        fraction = da.asarray(ancillary.core_data())
-        fraction_dims = cube.ancillary_variable_dims(ancillary.name())
-    else:
-        logger.warning(
-            f"No {LAND_FRACTION} given for {cube.summary(shorten=True)}, using "
-            f"a binary Natural Earth land mask instead",
-        )
-        template = next(cube.slices(HORIZONTAL_COORDS, ordered=False)).copy(
-            data=da.ones(tuple(cube.shape[d] for d in dims), dtype=float),
-        )
-        with setup_esmvaltool_config_and_logging():
-            land = mask_landsea(template, "sea")
-        fraction = da.ma.filled(da.ma.masked_array(land.core_data()), 0.0)
-        fraction_dims = dims
-
-    fraction = broadcast_to_shape(fraction, cube.shape, fraction_dims)
+    if not cube.ancillary_variables(LAND_FRACTION):
+        msg = f"No {LAND_FRACTION} (sftlf) available for {cube.summary(shorten=True)}"
+        raise MissingDataError(msg)
+    ancillary = cube.ancillary_variable(LAND_FRACTION).copy()
+    ancillary.convert_units("1")
+    fraction = broadcast_to_shape(
+        da.asarray(ancillary.core_data()),
+        cube.shape,
+        cube.ancillary_variable_dims(ancillary.name()),
+    )
     valid = ~da.ma.getmaskarray(da.asarray(cube.core_data()))
     return da.where(valid, da.ma.filled(fraction, 0.0), 0.0)
 
@@ -220,7 +256,7 @@ def land_total(cube: Cube) -> Cube:
     data = da.ma.filled(da.asarray(cube.core_data()), 0.0) * weights
     product = _without_supplementaries(cube).copy(data=data)
     product.units = cube.units * "m2"
-    total = product.collapsed(list(HORIZONTAL_COORDS), iris.analysis.SUM)
+    total = product.collapsed(_horizontal_coords(product), iris.analysis.SUM)
     total.cell_methods = (
         *cube.cell_methods,
         CellMethod("sum", HORIZONTAL_COORDS, comments="over land"),
@@ -237,7 +273,8 @@ def land_regrid(
     """Regrid a per-land-area quantity conservatively, weighting by land.
 
     Calculates ``R(x * f) / R(f)`` with the conservative regridder ``R``
-    (``area_weighted``, which uses ESMF for irregular grids). Target cells with
+    (``area_weighted``, which uses ESMF for irregular grids and meshes;
+    unstructured grids are turned into a mesh first). Target cells with
     ``R(f) <= min_fraction`` are masked.
 
     The result carries the land area ``A * R(f)`` (in m2, averaged over any
@@ -251,14 +288,14 @@ def land_regrid(
 
     """
     fraction = get_land_fraction(cube)
-    clean = _without_supplementaries(cube)
+    clean = _without_supplementaries_on_mesh(cube)
     flux = clean.copy(data=da.ma.filled(da.asarray(cube.core_data()), 0.0) * fraction)
     land = clean.copy(data=fraction)
     land.units = "1"
-    source_slice = next(cube.slices(HORIZONTAL_COORDS, ordered=False))
+    source_slice = _horizontal_slice(cube)
     source_area = get_cell_area(source_slice)  # may be masked (e.g. over sea)
     has_area = ~da.ma.getmaskarray(source_area)
-    coverage = _without_supplementaries(source_slice)
+    coverage = _without_supplementaries_on_mesh(source_slice)
     coverage = coverage.copy(data=has_area.astype(float))
 
     with setup_esmvaltool_config_and_logging():
@@ -293,7 +330,7 @@ def land_regrid(
     # Target areas consistent with the source areas: the target area covered
     # by source cells with an area, sum(A_target * R(has_area)), must equal
     # their source area
-    area = get_cell_area(next(result.slices(HORIZONTAL_COORDS, ordered=False)))
+    area = get_cell_area(_horizontal_slice(result))
     covered_area = (area * da.ma.filled(da.asarray(coverage.core_data()), 0.0)).sum()
     area = area * (da.ma.filled(source_area, 0.0).sum() / covered_area)
     result.add_cell_measure(
@@ -315,8 +352,9 @@ class LandDiagnostic(SimpleDiagnostic):
     The data to benchmark must provide ``sftlf`` and ``areacella``, which are
     attached to every variable before preprocessing. Reference and other data
     sources provide their own land fraction (e.g.
-    :class:`climateeval.data.FLUXCOM`) or fall back to a land mask, see
-    :func:`get_land_fraction`.
+    :class:`climateeval.data.FLUXCOM`, or ``sftlf`` downloaded with CMIP6
+    data). Data sources without one are skipped with a warning (see
+    :func:`get_land_fraction`).
 
     """
 

@@ -9,7 +9,9 @@
 #     weighted by land area
 #
 # The data to benchmark must provide sftlf and areacella. FLUXCOM provides its
-# own land fraction. FLUXCOM covers 1980-2013, so pick a timerange inside it.
+# own land fraction, and CMIP6 models are downloaded with theirs (models
+# without sftlf are skipped). FLUXCOM covers 1980-2013, so pick a timerange
+# inside it.
 
 - name: annual_cycle
   diagnostic: climateeval.diags.simple.LandTotalAnnualCycle
@@ -19,6 +21,7 @@
       frequency: mon
       units: g m-2 day-1
       reference_data: climateeval.data.FLUXCOM
+      other_data: [climateeval.data.CMIP6HistoricalR1I1P1F1]
 
 - name: performance_metrics
   diagnostic: climateeval.diags.simple.LandAnnualCycleSpatialDistribution
