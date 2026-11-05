@@ -16,6 +16,7 @@ nor in the regridded means. Data without a land fraction is skipped.
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, ClassVar
 
 import dask.array as da
@@ -34,6 +35,7 @@ from iris.coords import AncillaryVariable, CellMeasure, CellMethod
 from iris.exceptions import ConstraintMismatchError
 from iris.mesh import MeshXY
 from iris.util import broadcast_to_shape
+from iris.warnings import IrisUserWarning
 from loguru import logger
 
 from climateeval import Coordinate, Variable
@@ -256,7 +258,15 @@ def land_total(cube: Cube) -> Cube:
     data = da.ma.filled(da.asarray(cube.core_data()), 0.0) * weights
     product = _without_supplementaries(cube).copy(data=data)
     product.units = cube.units * "m2"
-    total = product.collapsed(_horizontal_coords(product), iris.analysis.SUM)
+    with warnings.catch_warnings():
+        # The data is already weighted by the land area
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Collapsing spatial coordinate .* without weighting",
+            category=IrisUserWarning,
+            module="iris",
+        )
+        total = product.collapsed(_horizontal_coords(product), iris.analysis.SUM)
     total.cell_methods = (
         *cube.cell_methods,
         CellMethod("sum", HORIZONTAL_COORDS, comments="over land"),
