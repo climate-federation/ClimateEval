@@ -1,18 +1,26 @@
 from __future__ import annotations
 
+import contextlib
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import pytest
 
+import climateeval.data._esmvaltool_intake
+from climateeval import Variable
 from climateeval.data import (
     CMIP6DataSourceGenerator,
+    DataSourceInformation,
     ESMValToolIntakeDataSource,
 )
 from climateeval.data._esmvaltool_intake import filter_intake_data_sources
+from tests.sample_data.create_sample_data_sources import get_simple_2d_cube
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Generator, Iterator
+    from pathlib import Path
+
+    from iris.cube import Cube
 
 
 @pytest.mark.parametrize(
@@ -218,3 +226,69 @@ def test_filter_intake_data_sources(
         }
         expected_facets = {frozenset(f.items()) for f in filtered_facets[group]}
         assert actual_facets == expected_facets
+
+
+class _FakeDataset:
+    """Record supplementaries instead of searching and loading data."""
+
+    instances: ClassVar[list[_FakeDataset]] = []
+
+    def __init__(self, **facets: Any) -> None:
+        self.facets = facets
+        self.supplementaries: list[dict[str, Any]] = []
+        self.instances.append(self)
+
+    def add_supplementary(self, **facets: Any) -> None:
+        self.supplementaries.append(facets)
+
+    def from_files(self) -> Iterator[_FakeDataset]:
+        yield self
+
+    def load(self) -> Cube:
+        return get_simple_2d_cube(var_name=self.facets["short_name"], units="1")
+
+
+class _CESM2(ESMValToolIntakeDataSource):
+    _information = DataSourceInformation(
+        name="CESM2",
+        category="CMIP6",
+        institute="NCAR",
+    )
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
+        "project": "CMIP6",
+        "exp": "historical",
+        "ensemble": "r1i1p1f1",
+        "grid": "gn",
+    }
+
+
+@pytest.fixture
+def fake_dataset(monkeypatch: pytest.MonkeyPatch) -> type[_FakeDataset]:
+    monkeypatch.setattr(_FakeDataset, "instances", [])
+    monkeypatch.setattr(climateeval.data._esmvaltool_intake, "Dataset", _FakeDataset)
+    monkeypatch.setattr(
+        climateeval.data._esmvaltool_intake,
+        "_setup_esmvaltool_intake_data_source",
+        lambda _cache_dir: contextlib.nullcontext(),
+    )
+    return _FakeDataset
+
+
+@pytest.mark.parametrize(
+    ("var_name", "supplementaries"),
+    [("gpp", ["sftlf", "areacella"]), ("tas", [])],
+)
+def test_download_land_supplementaries(
+    tmp_path: Path,
+    fake_dataset: type[_FakeDataset],
+    var_name: str,
+    supplementaries: list[str],
+) -> None:
+    (path,) = _CESM2().download(Variable(var_name, var_name, "mon"), tmp_path)
+
+    (dataset,) = fake_dataset.instances
+    assert [s["short_name"] for s in dataset.supplementaries] == supplementaries
+    for supplementary in dataset.supplementaries:
+        assert supplementary["mip"] == "fx"
+        assert supplementary["exp"] == supplementary["ensemble"] == "*"
+    assert path.exists()

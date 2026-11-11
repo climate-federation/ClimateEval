@@ -119,6 +119,7 @@ order to diagnose a model from the basics upward:
 | `Tier2_atmosphere_monthly` | Atmospheric climatology (annual cycle, maps, zonal means/profiles, time series) vs ERA5/GPCP/CERES-EBAF + CMIP6. |
 | `Tier2_ocean_monthly` | Ocean climatology: SST, salinity, chlorophyll, mixed-layer depth, Niño 3.4, AMOC, ocean heat content. |
 | `Tier2_sea_ice_monthly` | Sea-ice area: annual cycle, seasonal minimum (NH September / SH February), maps. |
+| `Tier2_land_monthly` | Land carbon fluxes (GPP) vs FLUXCOM + CMIP6: global land totals (annual cycle, time series) and maps. Needs `sftlf` and `areacella`. |
 
 ### Tier 3 — variability, processes & feedbacks
 
@@ -149,7 +150,8 @@ Use these class paths in the `diagnostic:` field. **Simple** diagnostics
 `AnnualMeanTimeSeries`, `AnnualCycle`, `AnnualCycleSpatialDistribution`,
 `DiurnalCycle`, `Histogram`, `Hovmoller`, `QBO`, `Nino34`,
 `SeaIceAreaAnnualCycle`, `SeaIceAreaTimeSeries`, `SeaIceExtentAnnualCycle`,
-`SeaIceExtentTimeSeries`, `AMOCTimeSeries`,
+`SeaIceExtentTimeSeries`, `LandTotalAnnualCycle`, `LandTotalTimeSeries`,
+`LandMap`, `LandAnnualCycleSpatialDistribution`, `AMOCTimeSeries`,
 `OceanHeatContentTimeSeries`. **Complex** diagnostics
 (`climateeval.diags.complex.*`): `ECS`, `TEMDiagnostic`,
 `LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`,
@@ -167,6 +169,19 @@ sea-ice concentration (the area actually covered by ice), the `SeaIceExtent*`
 ones sum the area of every cell whose concentration reaches 15 % — the NSIDC /
 OSI SAF **extent**, which is how most sea-ice observations are reported. Both
 take the same variables and render as the same figure types.
+
+Land fluxes such as `gpp` are given per unit land area, so the `Land*`
+diagnostics weight them by the land fraction `f` (`sftlf`) and the cell area
+`A` (`areacella`). The data to benchmark must provide both (they are not
+listed by `climateeval check`); reference and other data bring their own, and
+datasets without a land fraction are skipped with a warning.
+
+- `LandTotalAnnualCycle` and `LandTotalTimeSeries` integrate `sum(x * f * A)`
+  on each dataset's native grid, without regridding, in `Pg yr-1`.
+- `LandMap` and `LandAnnualCycleSpatialDistribution` regrid the climatology
+  conservatively as `R(x * f) / R(f)` (unstructured grids via an ESMF mesh),
+  which conserves the land total, and weight their metrics by the land area
+  `A * R(f)` on the cells where both datasets have data.
 
 ## Writing a custom suite
 

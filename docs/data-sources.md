@@ -16,6 +16,7 @@ All live in `climateeval.data`:
 | Precipitation | `GPCP` |
 | Surface temperature | `HadCRUT5`, `GISTEMP`, `BerkeleyEarth`, `NOAAGlobalTemp`, `HadISST` |
 | Land climate | `CRU` |
+| Land carbon fluxes | `FLUXCOM` |
 | Climate extremes | `HadEX3` |
 | Sea-surface temperature | `ESACCISST`, `NOAAERSSTv5` |
 | Ocean | `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC` |
@@ -97,6 +98,19 @@ maximum temperature, annual minimum daily minimum temperature, annual maximum
 simulated extremes. Its CMORizer also writes monthly versions of the same
 indices; only the annual (`yr`) products are used, since formatted files are
 stored per variable name and requested frequency.
+
+`FLUXCOM` (RS+METEO, ANN method, CRUNCEPv6 forcing; 1980–2013, 0.5°) provides
+monthly gross primary production (`gpp`) per unit land area. ESMValTool's
+CMORizer has no downloader for it, so ClimateEval downloads the files (CC BY
+4.0) from the anonymous FTP server of the MPI for Biogeochemistry (about 170 MB
+of raw data, a few minutes) and formats them with the CMORizer. The product's
+land fraction is formatted on the same grid as `sftlf` and attached to every
+`gpp` cube, as the land diagnostics need it.
+
+CMIP6 land variables (e.g. `gpp`) are downloaded together with the model's
+`sftlf` and `areacella`, taken from any experiment or member of the same model
+and grid if the dataset itself has none. Models without `sftlf` are skipped by
+the land diagnostics.
 
 `ESACCISeaIceNH` / `ESACCISeaIceSH` are the two hemispheres of one ESA CCI
 sea-ice concentration record (they share their `name`, and differ in `variant`,

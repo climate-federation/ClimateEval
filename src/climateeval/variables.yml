@@ -541,6 +541,21 @@ zg:
   standard_name: geopotential_height
   units: m
 
+# Fixed fields
+# Source: https://github.com/PCMDI/cmip6-cmor-tables/blob/main/Tables/CMIP6_fx.json
+areacella:
+  coordinates: [lat, lon]
+  long_name: Grid-Cell Area for Atmospheric Grid Variables
+  realm: atmos
+  standard_name: cell_area
+  units: m2
+sftlf:
+  coordinates: [lat, lon]
+  long_name: Percentage of the Grid Cell Occupied by Land (Including Lakes)
+  realm: atmos
+  standard_name: land_area_fraction
+  units: "%"
+
 # Land
 # Source: https://github.com/WCRP-CMIP/cmip7-cmor-tables/blob/main/tables/CMIP7_land.json
 gpp:

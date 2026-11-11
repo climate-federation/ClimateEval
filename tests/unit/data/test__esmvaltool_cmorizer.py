@@ -31,6 +31,10 @@ DATA_SOURCES: list[type[ESMValToolCMORizerDataSource]] = sorted(
 # data has to be staged by hand before ``download()`` can format it.
 NO_AUTOMATIC_DOWNLOAD = frozenset({"EN4"})
 
+# ESMValTool has no downloader for these datasets either, but ClimateEval
+# downloads the raw data itself (overriding ``download()``).
+CLIMATEEVAL_DOWNLOAD = frozenset({"FLUXCOM"})
+
 parametrize_data_sources = pytest.mark.parametrize(
     "data_source_cls",
     DATA_SOURCES,
@@ -63,6 +67,9 @@ def test_data_source_can_be_downloaded_automatically(
     name = data_source_cls().name
     if name in NO_AUTOMATIC_DOWNLOAD:
         pytest.skip(f"ESMValTool has no downloader for {name}")
+    if name in CLIMATEEVAL_DOWNLOAD:
+        assert data_source_cls.download is not ESMValToolCMORizerDataSource.download
+        return
     assert _Formatter.has_downloader(name)
 
 
