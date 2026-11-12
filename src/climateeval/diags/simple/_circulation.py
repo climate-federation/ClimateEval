@@ -32,7 +32,6 @@ Output cube coordinates: (time,).
 
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
@@ -49,6 +48,7 @@ from climateeval import Coordinate
 from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval._variable import COORDINATES
 from climateeval.diags import _physics
+from climateeval.diags._cube_arrays import cube_to_array, nan_mean
 from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.simple._base import SimpleDiagnostic
 
@@ -58,32 +58,6 @@ if TYPE_CHECKING:
 _SEASONS = ("DJF", "MAM", "JJA", "SON")
 _SEASON_CENTRE_MONTH = {"DJF": 1, "MAM": 4, "JJA": 7, "SON": 10}
 _PRESSURE_COORD = "air_pressure"
-
-
-def _as_array(cube: Cube, *coord_names: str) -> np.ndarray:
-    """Get cube data as a float array in the given coordinate order.
-
-    A masked array's mask becomes NaN (``np.asarray`` would expose the values
-    under the mask, e.g. below the surface). Coordinates the cube lacks as
-    dimensions (a scalar pressure after level extraction) are skipped.
-    """
-    data = cube.data
-    if np.ma.isMaskedArray(data):
-        data = np.ma.filled(data.astype(float), np.nan)
-    data = np.asarray(data, dtype=float)
-    dims = [
-        cube.coord_dims(name)[0]
-        for name in coord_names
-        if cube.coords(name) and cube.coord_dims(name)
-    ]
-    return np.transpose(data, dims)
-
-
-def _nan_mean(data: np.ndarray, axis: int) -> np.ndarray:
-    """Get the mean ignoring NaN, NaN (without warning) if all are missing."""
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=RuntimeWarning)
-        return np.nanmean(data, axis=axis)
 
 
 def _aggregate_time(cube: Cube, aggregation: str) -> Cube:
@@ -193,8 +167,8 @@ class HadleyCellEdge(_CirculationIndex):
         plev_coord = cube.coord(_PRESSURE_COORD)
         plev = plev_coord.units.convert(plev_coord.points.astype(float), "Pa")
         lat = cube.coord("latitude").points.astype(float)
-        va = _as_array(cube, "time", _PRESSURE_COORD, "latitude", "longitude")
-        zonal = _nan_mean(va, axis=-1)
+        va = cube_to_array(cube, "time", _PRESSURE_COORD, "latitude", "longitude")
+        zonal = nan_mean(va, axis=-1)
         edges = np.full(zonal.shape[0], np.nan)
         for step in range(zonal.shape[0]):
             psi = _physics.meridional_streamfunction(zonal[step], plev, lat)
@@ -246,8 +220,8 @@ class EddyDrivenJetLatitude(_CirculationIndex):
         lat_range = tuple(options.get("lat_range", (20.0, 70.0)))
         half_width = int(options.get("half_width", 2))
         lat = cube.coord("latitude").points.astype(float)
-        ua = _as_array(cube, "time", "latitude", "longitude")
-        zonal = _nan_mean(ua, axis=-1)
+        ua = cube_to_array(cube, "time", "latitude", "longitude")
+        zonal = nan_mean(ua, axis=-1)
         return np.array(
             [
                 _physics.jet_latitude(
@@ -300,7 +274,7 @@ class WalkerCirculationStrength(_CirculationIndex):
 
         lat = cube.coord("latitude").points.astype(float)
         lon = cube.coord("longitude").points.astype(float)
-        psl = _as_array(cube, "time", "latitude", "longitude")
+        psl = cube_to_array(cube, "time", "latitude", "longitude")
         return np.asarray(
             _physics.walker_circulation_strength(
                 psl,

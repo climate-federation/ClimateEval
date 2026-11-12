@@ -138,6 +138,7 @@ order to diagnose a model from the basics upward:
 | `Tier3_amip_erf` | Fixed-SST effective radiative forcing of quadrupled CO2, from amip-4xCO2 and amip. |
 | `Tier3_patch_feedback` | Dependence of the radiative feedback on where the ocean warms, from the GFMIP SST patch experiments. |
 | `Tier3_aerosol_erf` | Aerosol effective radiative forcing of the DAMIP aerosol-only historical run. |
+| `Tier3_tropical_profile` | MSU-equivalent tropical lower/mid-tropospheric temperature (TLT, TMT) and the lower-tropospheric stability and estimated inversion strength (LTS, EIS), from temperature profiles and surface fields. |
 | `Tier3_circulation` | Circulation indices as annual time series: Hadley-cell edge (500 hPa streamfunction zero), eddy-driven jet latitude (850 hPa wind maximum) and Walker-circulation strength (sea-level-pressure difference), identical on model and ERA5. |
 
 Open the corresponding file in
@@ -161,7 +162,7 @@ in the variable's `diagnostic_kwargs`; see the header of
 `LandOceanWarmingRatio`, `ArcticAmplification`, `MeridionalHeatTransport`,
 `EnergyBalance`, `BudgetClosure`, `ClausiusClapeyronScaling`,
 `ClearSkyLongwaveFeedback`, `PrecipitationBuoyancy`, `GeostrophicBalance`,
-`MJOEastWestPowerRatio`, `ITCZEnergyFluxEquator`, `BjerknesCompensation`,
+`MJOEastWestPowerRatio`, `MSUTemperature`, `InversionStrength`, `ITCZEnergyFluxEquator`, `BjerknesCompensation`,
 `ENSOTeleconnectionPatterns`, `ChlorophyllDriverCoupling`, `Amip4xCO2ERF`, `GFMIPPatchFeedback`,
 `AerosolERF`.
 

@@ -249,3 +249,16 @@ def test_walker_circulation_strength_nan_cells_are_ignored() -> None:
     psl[lat.size // 2, 105] = np.nan  # one cell in the eastern box
 
     assert _physics.walker_circulation_strength(psl, lat, lon) == pytest.approx(0.0)
+
+
+def test_box_mean_full_circle_is_a_zonal_band_mean() -> None:
+    lat = np.array([-10.0, 0.0, 10.0])
+    lon = np.array([0.0, 120.0, 240.0])
+    field = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, np.nan], [7.0, 8.0, 9.0]])
+
+    result = _physics.box_mean(field, lat, lon, (-20.0, 20.0), (0.0, 360.0))
+
+    weights = np.cos(np.deg2rad(lat))[:, None] * np.ones((3, 3))
+    valid = np.isfinite(field)
+    expected = np.sum(weights[valid] * field[valid]) / weights[valid].sum()
+    assert result == pytest.approx(expected)

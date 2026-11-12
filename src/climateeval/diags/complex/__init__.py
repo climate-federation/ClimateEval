@@ -31,6 +31,7 @@ from climateeval.diags.complex._forcing import (
     GFMIPPatchFeedback,
 )
 from climateeval.diags.complex._tem import TEMDiagnostic
+from climateeval.diags.complex._thermodynamics import InversionStrength, MSUTemperature
 from climateeval.diags.complex._transport import MeridionalHeatTransport
 from climateeval.diags.complex._variability import (
     BjerknesCompensation,
@@ -54,8 +55,10 @@ __all__ = [
     "GFMIPPatchFeedback",
     "GeostrophicBalance",
     "ITCZEnergyFluxEquator",
+    "InversionStrength",
     "LandOceanWarmingRatio",
     "MJOEastWestPowerRatio",
+    "MSUTemperature",
     "MeridionalHeatTransport",
     "PrecipitationBuoyancy",
     "TEMDiagnostic",
