@@ -69,6 +69,10 @@ Coordinate columns by diagnostic:
 | `AnnualMeanTimeSeries` | `time` |
 | `ZonalLine` | `latitude` |
 | `ZonalProfileAirPressure` | `air_pressure`, `latitude` |
+| `HadleyCellEdge`, `EddyDrivenJetLatitude`, `WalkerCirculationStrength` | `time` (one value per year, season or month) |
+| `MSUTemperature` | `time`; columns `tlt`, `tmt` (also `latitude`, `longitude` with `spatial: gridded`) |
+| `InversionStrength` | `time`; columns `eis`, `lts` (also `latitude`, `longitude` when gridded) |
+| `PrecipitationStatistics` | `time`; one column per `<variable id>_<statistic>_<season>` (not one column per variable `id`) |
 
 Rows that are all-`NaN` across every variable column are dropped.
 

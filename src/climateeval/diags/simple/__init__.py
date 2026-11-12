@@ -16,6 +16,11 @@ from climateeval.diags.simple._annual_cycle_spatial_distribution import (
     AnnualCycleSpatialDistribution,
 )
 from climateeval.diags.simple._base import SimpleDiagnostic
+from climateeval.diags.simple._circulation import (
+    EddyDrivenJetLatitude,
+    HadleyCellEdge,
+    WalkerCirculationStrength,
+)
 from climateeval.diags.simple._diurnal_cycle import DiurnalCycle
 from climateeval.diags.simple._gulf_stream import GulfStreamSshGradient
 from climateeval.diags.simple._heat_transport import OceanHeatTransportProfile
@@ -31,6 +36,7 @@ from climateeval.diags.simple._land import (
 from climateeval.diags.simple._map import Map
 from climateeval.diags.simple._nino34 import Nino34
 from climateeval.diags.simple._ohc import OceanHeatContentTimeSeries
+from climateeval.diags.simple._precipitation_statistics import PrecipitationStatistics
 from climateeval.diags.simple._qbo import QBO
 from climateeval.diags.simple._sea_ice import (
     SeaIceAreaAnnualCycle,
@@ -55,7 +61,9 @@ __all__ = [
     "AnnualCycleSpatialDistribution",
     "AnnualMeanTimeSeries",
     "DiurnalCycle",
+    "EddyDrivenJetLatitude",
     "GulfStreamSshGradient",
+    "HadleyCellEdge",
     "Histogram",
     "Hovmoller",
     "LandAnnualCycleSpatialDistribution",
@@ -68,6 +76,7 @@ __all__ = [
     "Nino34",
     "OceanHeatContentTimeSeries",
     "OceanHeatTransportProfile",
+    "PrecipitationStatistics",
     "SeaIceAreaAnnualCycle",
     "SeaIceAreaTimeSeries",
     "SeaIceExtentAnnualCycle",
@@ -75,6 +84,7 @@ __all__ = [
     "SimpleDiagnostic",
     "SimpleDiagnosticInputData",
     "TimeSeriesNoPreprocessing",
+    "WalkerCirculationStrength",
     "ZonalLine",
     "ZonalProfileAirPressure",
 ]
