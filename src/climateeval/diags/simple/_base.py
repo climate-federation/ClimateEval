@@ -4,18 +4,25 @@ from __future__ import annotations
 
 import warnings
 from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 import ibis
 import pandas as pd
 from esmvalcore.preprocessor import distance_metric
+from iris import Constraint
 from iris.warnings import IrisVagueMetadataWarning
 from loguru import logger
 
 from climateeval import Variable, VerticalLevel
 from climateeval._config import setup_esmvaltool_config_and_logging
-from climateeval._utils import check_coordinates, get_prepared_cube, str_to_object
+from climateeval._utils import (
+    check_coordinates,
+    clip_to_timerange_overlap,
+    get_prepared_cube,
+    get_time_window,
+    str_to_object,
+)
 from climateeval.diags._base import Diagnostic, DiagnosticOutput
 from climateeval.diags._utils import union
 from climateeval.diags.simple._utils import SimpleDiagnosticInputData
@@ -64,8 +71,26 @@ class SimpleDiagnostic(Diagnostic):
         download_missing_data: bool = True,
         fail_on_metric_error: bool = True,
         calculate_metrics: bool | None = None,
+        clip_reference_timerange: bool = False,
+        grid: str | None = None,
     ) -> None:
-        """Initialize class instance."""
+        """Initialize class instance.
+
+        Parameters
+        ----------
+        clip_reference_timerange:
+            If True, a reference that covers the requested window only partly
+            (e.g. CERES-EBAF, which starts in 2000, for a 1985-2024 window)
+            is clipped to the overlap instead of being dropped as missing
+            data. A reference without any overlap is still missing data.
+        grid:
+            Regular grid (any ESMValCore ``target_grid`` specification, e.g.
+            ``"1x1"`` or ``"2.5x2.5"``) that the diagnostic regrids to. The
+            default is ``DEFAULT_GRID`` (``"2x2"``), or ``SEA_ICE_GRID``
+            (``"1x1"``) for the sea-ice diagnostics. Diagnostics that do not
+            regrid ignore it.
+
+        """
         self._name = name
         logger.debug(f"Initializing simple diagnostic '{self.name}'")
 
@@ -78,9 +103,14 @@ class SimpleDiagnostic(Diagnostic):
         self._check_variables()
 
         self._reference_data: dict[Variable, DataSource] = {}
+        self._reference_timeranges: dict[Variable, str] = {}
         for variable, diag_input_data in variables_and_data.items():
             if diag_input_data.reference is not None:
                 self._reference_data[variable] = diag_input_data.reference()
+                if diag_input_data.reference_timerange is not None:
+                    self._reference_timeranges[variable] = (
+                        diag_input_data.reference_timerange
+                    )
         variable_ids = [v.id for v in self._variables]
         if len(set(variable_ids)) != len(variable_ids):
             msg = (
@@ -107,6 +137,8 @@ class SimpleDiagnostic(Diagnostic):
         self._fail_on_missing_data = fail_on_missing_data
         self._download_missing_data = download_missing_data
         self._fail_on_metric_error = fail_on_metric_error
+        self._clip_reference_timerange = clip_reference_timerange
+        self._grid_spec = grid
         if calculate_metrics is None:
             self._calculate_metrics = self._output_metrics_table
         else:
@@ -153,11 +185,20 @@ class SimpleDiagnostic(Diagnostic):
                 variable_kwargs["ar6_regions_mask"] = tuple(
                     variable_kwargs["ar6_regions_mask"],
                 )
-            variable_kwargs.update(additional_variable_kwargs)
+            # The reference window belongs to the reference, not to the Variable
+            # (which is also used for the data to benchmark and other data)
+            reference_timerange = variable_kwargs.pop("reference_timerange", None)
+            additional_kwargs = dict(additional_variable_kwargs)
+            reference_timerange = additional_kwargs.pop(
+                "reference_timerange",
+                reference_timerange,
+            )
+            variable_kwargs.update(additional_kwargs)
             variable = Variable(**variable_kwargs)
             variables_and_data[variable] = SimpleDiagnosticInputData(
                 reference=reference_data,
                 other=other_data,
+                reference_timerange=reference_timerange,
             )
 
         diagnostic_kwargs = dict(suite_settings.get("diagnostic_kwargs", {}))
@@ -219,7 +260,10 @@ class SimpleDiagnostic(Diagnostic):
         metrics_table = union(*metrics_tables) if metrics_tables else None
 
         # Metadata tables
-        variables_table = self._get_variables_table(self._variables)
+        variables_table = self._get_variables_table(
+            self._variables,
+            reference_timeranges=self._reference_timeranges,
+        )
         all_data_source_information = (
             [data_information]
             + [d.information for d in self._reference_data.values()]
@@ -283,8 +327,64 @@ class SimpleDiagnostic(Diagnostic):
         cube = get_prepared_cube(data, variable)
         return self._safely_preprocess(cube, variable)
 
+    def _align_time(self, cube: Cube, reference_cube: Cube) -> tuple[Cube, Cube]:
+        """Restrict two time series to their common period.
+
+        Only acts if both cubes have a time dimension of different length, which
+        happens when the reference has its own (``reference_timerange``) or a
+        clipped (``clip_reference_timerange``) window. Time-mean diagnostics
+        have no time dimension and are not affected: their model and reference
+        windows may differ freely. Equal-length series are never touched.
+
+        Raises
+        ------
+        MissingDataError
+            The two series do not share any period.
+
+        """
+        coords = [c.coords("time", dim_coords=True) for c in (cube, reference_cube)]
+        if not all(coords):
+            return cube, reference_cube
+        time, ref_time = (c[0] for c in coords)
+        if time.shape == ref_time.shape:
+            return cube, reference_cube
+
+        def key(date: Any) -> tuple[int, int, int]:
+            # Tuples compare across calendars (cftime objects do not)
+            return (date.year, date.month, date.day)
+
+        def span(coord: Any) -> tuple[tuple[int, ...], tuple[int, ...]]:
+            if not coord.has_bounds() and coord.shape[0] > 1:
+                coord = coord.copy()
+                coord.guess_bounds()
+            values = coord.bounds if coord.has_bounds() else coord.points[:, None]
+            dates = coord.units.num2date(values)
+            return key(dates[0, 0]), key(dates[-1, -1])
+
+        start = max(span(time)[0], span(ref_time)[0])
+        end = min(span(time)[1], span(ref_time)[1])
+
+        def in_period(cell: Any) -> bool:
+            return start <= key(cell.point) < end
+
+        constraint = Constraint(time=in_period)
+        aligned = [c.extract(constraint) for c in (cube, reference_cube)]
+        if aligned[0] is None or aligned[1] is None:
+            msg = (
+                f"Model and reference time series of diagnostic '{self.name}' "
+                f"have no common period"
+            )
+            raise MissingDataError(msg)
+        logger.info(
+            f"Computing metrics of '{self.name}' on the common period "
+            f"{get_time_window(aligned[0])} (model {get_time_window(cube)}, "
+            f"reference {get_time_window(reference_cube)})",
+        )
+        return aligned[0], aligned[1]
+
     def _get_metrics(self, cube: Cube, reference_cube: Cube) -> dict[str, pd.Series]:
         """Get metrics."""
+        cube, reference_cube = self._align_time(cube, reference_cube)
         metrics: dict[str, pd.Series] = {}
         for metric in ("weighted_rmse", "weighted_pearsonr", "weighted_emd"):
             with warnings.catch_warnings():
@@ -457,11 +557,7 @@ class SimpleDiagnostic(Diagnostic):
         for variable, reference_data in self._reference_data.items():
             try:
                 reference_cube = self._safely_preprocess(
-                    reference_data.get_cube(
-                        self.data_root_dir,
-                        variable,
-                        download_missing_data=self._download_missing_data,
-                    ),
+                    self._get_raw_reference_cube(reference_data, variable),
                     variable,
                 )
             except Exception as exc:  # noqa: BLE001
@@ -473,6 +569,56 @@ class SimpleDiagnostic(Diagnostic):
             # https://github.com/ESMValGroup/ESMValCore/pull/3038)
             reference_cube.data  # noqa: B018
         return reference_cubes
+
+    def _get_raw_reference_cube(
+        self,
+        reference_data: DataSource,
+        variable: Variable,
+    ) -> Cube:
+        """Get the reference cube for its own window (not yet preprocessed).
+
+        The window is the variable's ``timerange`` unless the suite gives a
+        ``reference_timerange``. With ``clip_reference_timerange``, a reference
+        that does not reach the requested window is clipped to the overlap.
+        """
+        timerange = self._reference_timeranges.get(variable)
+        reference_variable = (
+            variable if timerange is None else replace(variable, timerange=timerange)
+        )
+
+        def get_cube(var: Variable) -> Cube:
+            return reference_data.get_cube(
+                self.data_root_dir,
+                var,
+                download_missing_data=self._download_missing_data,
+            )
+
+        try:
+            return get_cube(reference_variable)
+        except MissingDataError:
+            if (
+                not self._clip_reference_timerange
+                or reference_variable.timerange == "*"
+            ):
+                raise
+            logger.debug(
+                f"{reference_data.id} does not cover {reference_variable.timerange} "
+                f"for {variable}: trying to clip to the overlap",
+            )
+
+        # Load without a window (so nothing is checked or clipped), then keep
+        # the overlap; no overlap at all raises MissingDataError again.
+        cube = clip_to_timerange_overlap(
+            get_cube(replace(reference_variable, timerange="*")),
+            reference_variable.timerange,
+        )
+        if cube.coords("time"):
+            logger.info(
+                f"Reference {reference_data.id} of {variable} only partly covers "
+                f"{reference_variable.timerange}: clipped to "
+                f"{get_time_window(cube)}",
+            )
+        return cube
 
     def _handle_metric_error(
         self,

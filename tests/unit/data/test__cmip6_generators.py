@@ -8,10 +8,16 @@ from climateeval import Variable
 from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval.data import (
     CMIP6Abrupt4xCO2R1I1P1F1,
+    CMIP6Amip4xCO2R1I1P1F1,
+    CMIP6AmipAllMembers,
+    CMIP6AmipHistAllMembers,
+    CMIP6AmipP4KR1I1P1F1,
     CMIP6DataSourceGenerator,
     CMIP6HistoricalAllMembers,
     CMIP6HistoricalR1I1P1F1,
     CMIP6HistoricalSSP245,
+    CMIP6PiClimAerR1I1P1F1,
+    CMIP6PiClimControlR1I1P1F1,
     CMIP6PiControlR1I1P1F1,
 )
 
@@ -205,3 +211,88 @@ def test_get_output_filename_with_concatenated_experiments(
 
     assert filename.startswith("CMIP6_historical-ssp245_MPI-ESM1-2-LR_MPI-M_")
     assert filename.endswith(".nc")
+
+
+# Generator, experiment, activity, member pattern and time range of the
+# AMIP-family generators
+_AMIP_FAMILY = [
+    (CMIP6AmipAllMembers, "amip", "CMIP", "r*i1p1f*", "19790101/20141231"),
+    (CMIP6AmipP4KR1I1P1F1, "amip-p4K", "CFMIP", "r1i1p1f1", None),
+    (CMIP6Amip4xCO2R1I1P1F1, "amip-4xCO2", "CFMIP", "r1i1p1f1", None),
+    (CMIP6AmipHistAllMembers, "amip-hist", "GMMIP", "r*i1p1f*", "19400101/20141231"),
+    (CMIP6PiClimControlR1I1P1F1, "piClim-control", "RFMIP", "r1i1p1f1", None),
+    (CMIP6PiClimAerR1I1P1F1, "piClim-aer", "RFMIP", "r1i1p1f1", None),
+]
+
+
+@pytest.mark.parametrize(
+    ("generator_cls", "exp", "activity", "ensemble", "timerange"),
+    _AMIP_FAMILY,
+)
+def test_amip_family_facets(
+    generator_cls: type[CMIP6DataSourceGenerator],
+    exp: str,
+    activity: str,
+    ensemble: str,
+    timerange: str | None,
+) -> None:
+    facets = generator_cls.esmvaltool_dataset_facets
+
+    assert facets["project"] == "CMIP6"
+    assert facets["exp"] == exp
+    assert facets["ensemble"] == ensemble
+    assert facets["dataset"] == "*"
+    assert facets["institute"] == "*"
+    assert facets.get("timerange") == timerange
+
+
+@pytest.mark.parametrize(
+    ("generator_cls", "exp", "activity", "ensemble", "timerange"),
+    _AMIP_FAMILY,
+)
+def test_amip_family_get_references(
+    generator_cls: type[CMIP6DataSourceGenerator],
+    exp: str,
+    activity: str,
+    ensemble: str,
+    timerange: str | None,
+) -> None:
+    with setup_esmvaltool_config_and_logging():
+        references = generator_cls()._get_references(
+            **_discovered(exp, "r1i1p1f1"),
+        )
+
+    assert references == (
+        f"https://www.wdc-climate.de/ui/cmip6?input=CMIP6.{activity}.MPI-M."
+        "MPI-ESM1-2-LR",
+    )
+
+
+def test_amip_all_members_any_forcing_index(
+    mock_dataset: type[MockDataset],
+    variable_tos: Variable,
+) -> None:
+    mock_dataset.discovered_facets = [
+        _discovered("amip", "r1i1p1f1"),
+        _discovered("amip", "r1i1p1f2"),
+        _discovered("amip", "r2i1p1f2"),
+    ]
+
+    with setup_esmvaltool_config_and_logging():
+        data_sources = list(CMIP6AmipAllMembers().generate(variable_tos))
+
+    assert mock_dataset.requested_facets["ensemble"] == "r*i1p1f*"
+    assert mock_dataset.requested_facets["timerange"] == "19790101/20141231"
+    ids = [d.id for d in data_sources]
+    assert ids == [
+        "CMIP6_MPI-ESM1-2-LR_amip_r1i1p1f1",
+        "CMIP6_MPI-ESM1-2-LR_amip_r1i1p1f2",
+        "CMIP6_MPI-ESM1-2-LR_amip_r2i1p1f2",
+    ]
+    assert len(set(ids)) == len(ids)
+
+
+def test_historical_all_members_pattern_unchanged() -> None:
+    # ClimateBench2 depends on this
+    facets = CMIP6HistoricalAllMembers.esmvaltool_dataset_facets
+    assert facets["ensemble"] == "r*i1p1f1"

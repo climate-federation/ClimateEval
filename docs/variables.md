@@ -57,6 +57,7 @@ python scripts/gen_variables_doc.py
 | `delta_t_land` | Equilibrium Land Warming |  | `K` | `atmos` |  |  |
 | `delta_t_ocean` | Equilibrium Ocean Warming |  | `K` | `atmos` |  |  |
 | `ecs` | Effective Climate Sensitivity |  | `K` | `atmos` |  |  |
+| `eis` | Estimated Inversion Strength |  | `K` | `atmos` | `time lat lon` |  |
 | `energy_flux_equator_lat` | Energy Flux Equator Latitude |  | `degrees_north` | `atmos` |  |  |
 | `enso_teleconnection_corr_pr` | ENSO Precipitation Teleconnection Pattern Correlation |  | `1` | `atmos` |  |  |
 | `enso_teleconnection_corr_ts` | ENSO Temperature Teleconnection Pattern Correlation |  | `1` | `atmos` |  |  |
@@ -69,12 +70,15 @@ python scripts/gen_variables_doc.py
 | `hfds` | Downward Heat Flux at Sea Water Surface | `surface_downward_heat_flux_in_sea_water` | `W m-2` | `ocean` | `time lat lon` |  |
 | `hfls` | Surface Upward Latent Heat Flux | `surface_upward_latent_heat_flux` | `W m-2` | `atmos` | `time lat lon` |  |
 | `hfss` | Surface Upward Sensible Heat Flux | `surface_upward_sensible_heat_flux` | `W m-2` | `atmos` | `time lat lon` |  |
+| `hurs` | Near-Surface Relative Humidity | `relative_humidity` | `%` | `atmos` | `time lat lon` |  |
 | `hus` | Specific Humidity | `specific_humidity` | `1` | `atmos` | `time alevel lat lon` |  |
+| `huss` | Near-Surface Specific Humidity | `specific_humidity` | `1` | `atmos` | `time lat lon` |  |
 | `itcz_efe_correlation` | ITCZ Energy Flux Equator Correlation |  | `1` | `atmos` |  |  |
 | `itcz_efe_slope` | ITCZ Latitude per Cross-Equatorial Energy Transport |  | `degree PW-1` | `atmos` |  |  |
 | `lambda` | Climate Feedback Parameter |  | `W m-2 K-1` | `atmos` |  |  |
 | `lambda_stderr` | Standard Error of Climate Feedback Parameter |  | `W m-2 K-1` | `atmos` |  |  |
 | `land_ocean_warming_ratio` | Land-Ocean Warming Ratio |  | `1` | `atmos` |  |  |
+| `lts` | Lower-Tropospheric Stability |  | `K` | `atmos` | `time lat lon` |  |
 | `lwcre` | TOA Longwave Cloud Radiative Effect |  | `W m-2` | `atmos` | `time lat lon` | yes |
 | `lwp` | Liquid Water Path | `atmosphere_mass_content_of_cloud_liquid_water` | `kg m-2` | `atmos` | `time lat lon` | yes |
 | `mjo_east_west_ratio` | MJO Eastward to Westward Power Ratio |  | `1` | `atmos` |  |  |
@@ -126,6 +130,9 @@ python scripts/gen_variables_doc.py
 | `tauu` | Surface Downward Eastward Wind Stress | `surface_downward_eastward_stress` | `Pa` | `atmos` | `time lat lon` |  |
 | `tauv` | Surface Downward Northward Wind Stress | `surface_downward_northward_stress` | `Pa` | `atmos` | `time lat lon` |  |
 | `thetao` | Sea Water Potential Temperature | `sea_water_potential_temperature` | `degC` | `ocean` | `time olevel lat lon` |  |
+| `tls` | Temperature of the Lower Stratosphere (MSU-Equivalent) |  | `K` | `atmos` | `time lat lon` |  |
+| `tlt` | Temperature of the Lower Troposphere (MSU-Equivalent) |  | `K` | `atmos` | `time lat lon` |  |
+| `tmt` | Temperature of the Mid Troposphere (MSU-Equivalent) |  | `K` | `atmos` | `time lat lon` |  |
 | `tnn` | Annual/monthly minimum value of daily minimum temperature |  | `degC` | `atmos` | `time lat lon` |  |
 | `toa_net_drift` | TOA Net Downward Radiation Drift |  | `W m-2 (10 yr)-1` | `atmos` |  |  |
 | `toa_net_mean` | TOA Net Downward Radiation Mean |  | `W m-2` | `atmos` |  |  |

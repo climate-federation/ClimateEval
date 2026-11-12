@@ -177,6 +177,102 @@ class CMIP6Amip4xCO2R1I1P1F1(CMIP6DataSourceGenerator):
     }
 
 
+class CMIP6AmipAllMembers(CMIP6DataSourceGenerator):
+    """Generate data sources from CMIP6 amip simulations (all members).
+
+    Every ``r*i1p1f*`` member of every model is discovered as its own data
+    source (the member is in
+    :attr:`~climateeval.data.DataSourceInformation.variant`, so IDs stay
+    unique). Unlike :class:`CMIP6HistoricalAllMembers`, the forcing index is
+    also a wildcard: several models only provide their ``amip`` run with
+    ``f2`` or ``f3``. Members with a perturbed-physics index other than
+    ``p1`` are not matched. The time range is 1979-2014.
+    """
+
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
+        "project": "CMIP6",
+        "exp": "amip",
+        "dataset": "*",
+        "institute": "*",
+        "ensemble": "r*i1p1f*",
+        "grid": "*",
+        "timerange": "19790101/20141231",
+    }
+
+
+class CMIP6AmipP4KR1I1P1F1(CMIP6DataSourceGenerator):
+    """Generate data sources from CMIP6 amip-p4K simulations (r1i1p1f1).
+
+    ``amip-p4K`` (CFMIP) repeats ``amip`` with a uniform 4 K increase of the
+    prescribed sea surface temperature.
+    """
+
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
+        "project": "CMIP6",
+        "exp": "amip-p4K",
+        "dataset": "*",
+        "institute": "*",
+        "ensemble": "r1i1p1f1",
+        "grid": "*",
+    }
+
+
+class CMIP6AmipHistAllMembers(CMIP6DataSourceGenerator):
+    """Generate data sources from CMIP6 amip-hist simulations (all members).
+
+    ``amip-hist`` (GMMIP) is the atmosphere-only simulation with prescribed
+    SST and sea ice extended back to 1870. Every ``r*i1p1f*`` member is
+    discovered as its own data source. The time range is 1940-2014 (most
+    models provide 1870-2014).
+    """
+
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
+        "project": "CMIP6",
+        "exp": "amip-hist",
+        "dataset": "*",
+        "institute": "*",
+        "ensemble": "r*i1p1f*",
+        "grid": "*",
+        "timerange": "19400101/20141231",
+    }
+
+
+class CMIP6PiClimControlR1I1P1F1(CMIP6DataSourceGenerator):
+    """Generate data sources from CMIP6 piClim-control simulations (r1i1p1f1).
+
+    ``piClim-control`` (RFMIP) is the fixed-SST pre-industrial control against
+    which the ``piClim-*`` effective-radiative-forcing experiments are
+    differenced.
+    """
+
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
+        "project": "CMIP6",
+        "exp": "piClim-control",
+        "dataset": "*",
+        "institute": "*",
+        "ensemble": "r1i1p1f1",
+        "grid": "*",
+    }
+
+
+class CMIP6PiClimAerR1I1P1F1(CMIP6DataSourceGenerator):
+    """Generate data sources from CMIP6 piClim-aer simulations (r1i1p1f1).
+
+    ``piClim-aer`` (RFMIP) is ``piClim-control`` with present-day anthropogenic
+    aerosol emissions; differenced against it, it gives the aerosol effective
+    radiative forcing.
+    """
+
+    esmvaltool_dataset_facets: ClassVar[dict[str, Any]] = {
+        "project": "CMIP6",
+        "exp": "piClim-aer",
+        "dataset": "*",
+        "institute": "*",
+        "ensemble": "r1i1p1f1",
+        "grid": "*",
+    }
+
+
 class CMIP6LgmR1I1P1F1(CMIP6DataSourceGenerator):
     """Generate data sources from CMIP6 lgm simulations (r1i1p1f1).
 

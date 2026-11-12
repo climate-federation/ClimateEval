@@ -388,3 +388,52 @@ def test_cmip6_table_id(var_name: str, frequency: str, cmip6_table_id: str) -> N
 def test_vertical_level_str() -> None:
     vertical_level = VerticalLevel("air_pressure", "hPa", 850.0)
     assert str(vertical_level) == "air_pressure = 850.0 hPa"
+
+
+@pytest.mark.parametrize(
+    ("var_name", "units", "standard_name"),
+    [
+        # Not in the CMOR tables
+        ("tlt", "K", ""),
+        ("tmt", "K", ""),
+        ("tls", "K", ""),
+        ("eis", "K", ""),
+        ("lts", "K", ""),
+        # CMOR variables (AMIP-style comparisons)
+        ("hurs", "%", "relative_humidity"),
+        ("huss", "1", "specific_humidity"),
+        ("prw", "kg m-2", "atmosphere_mass_content_of_water_vapor"),
+        ("psl", "Pa", "air_pressure_at_mean_sea_level"),
+        ("rsutcs", "W m-2", "toa_outgoing_shortwave_flux_assuming_clear_sky"),
+        ("rsdt", "W m-2", "toa_incoming_shortwave_flux"),
+        ("evspsbl", "kg m-2 s-1", "water_evapotranspiration_flux"),
+        ("tasmax", "K", "air_temperature"),
+        ("tasmin", "K", "air_temperature"),
+        ("tos", "degC", "sea_surface_temperature"),
+        ("siconc", "%", "sea_ice_area_fraction"),
+    ],
+)
+def test_amip_comparison_variables(
+    var_name: str,
+    units: str,
+    standard_name: str,
+) -> None:
+    variable = Variable(var_name, var_name, "mon")
+
+    assert variable.units == units
+    assert variable.standard_name == standard_name
+    assert not variable.derived
+    assert variable.ndim == 3
+    assert [c.var_name for c in variable.coordinates] == ["time", "lat", "lon"]
+
+
+@pytest.mark.parametrize("var_name", ["tlt", "tmt", "tls", "eis", "lts", "hurs", "huss"])
+def test_new_atmospheric_variables_use_amon(var_name: str) -> None:
+    assert Variable(var_name, var_name, "mon").cmip6_table_id == "Amon"
+
+
+def test_sftlf() -> None:
+    variable = Variable("sftlf", "sftlf", "fx")
+
+    assert variable.units == "%"
+    assert variable.ndim == 2

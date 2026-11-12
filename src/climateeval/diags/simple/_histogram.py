@@ -8,7 +8,7 @@ from esmvalcore.preprocessor import histogram, regrid
 from loguru import logger
 
 from climateeval._config import setup_esmvaltool_config_and_logging
-from climateeval.diags._utils import DEFAULT_GRID, union
+from climateeval.diags._utils import union
 from climateeval.diags.simple._base import SimpleDiagnostic
 from climateeval.exceptions import CoordinateError
 
@@ -83,7 +83,7 @@ class Histogram(SimpleDiagnostic):
     def _preprocess(self, cube: Cube, variable: Variable) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
-            cube = regrid(cube, DEFAULT_GRID, "area_weighted", cache_weights=True)
+            cube = regrid(cube, self._target_grid, "area_weighted", cache_weights=True)
             cube = histogram(
                 cube,
                 bins=variable.diagnostic_kwargs.get("bins", 150),

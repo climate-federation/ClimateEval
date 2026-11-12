@@ -25,7 +25,6 @@ from esmvalcore.preprocessor import (
 from climateeval import Coordinate
 from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval._variable import COORDINATES
-from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.simple._base import SimpleDiagnostic
 
 if TYPE_CHECKING:
@@ -66,7 +65,7 @@ class OceanHeatContentTimeSeries(SimpleDiagnostic):
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
-            cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
+            cube = regrid(cube, self._target_grid, "linear", cache_weights=True)
             # phcint is already per unit area, so sum over depth without weights.
             cube = axis_statistics(cube, axis="Z", operator="sum", weights=False)
             cube = area_statistics(cube, "sum")

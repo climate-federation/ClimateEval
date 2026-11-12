@@ -144,6 +144,38 @@ def get_prepared_cube(data: CubeList | Dataset, variable: Variable) -> Cube:
     return cube  # noqa: RET504
 
 
+def clip_to_timerange_overlap(cube: Cube, timerange: str) -> Cube:
+    """Clip a cube to the part of ``timerange`` that it covers.
+
+    Unlike :func:`get_prepared_cube` (which refuses data that does not reach
+    the requested first and last *year*), this keeps whatever overlap exists.
+
+    Raises
+    ------
+    MissingDataError
+        The cube has no data at all inside ``timerange``.
+
+    """
+    if not cube.coords("time"):
+        return cube
+    try:
+        return clip_timerange(cube, timerange)
+    except ValueError as exc:
+        msg = f"Data does not overlap timerange {timerange}: {exc}"
+        raise MissingDataError(msg) from exc
+
+
+def get_time_window(cube: Cube) -> str:
+    """Get the ``YYYYMMDD/YYYYMMDD`` window of the first and last time point."""
+    time_coord = cube.coord("time")
+    dates = time_coord.units.num2date(time_coord.points)
+    first, last = dates[0], dates[-1]
+    return (
+        f"{first.year:04d}{first.month:02d}{first.day:02d}/"
+        f"{last.year:04d}{last.month:02d}{last.day:02d}"
+    )
+
+
 def load_cubes(uris: str | Path | Iterable[str] | Iterable[Path]) -> CubeList:
     """Load Iris cubes.
 

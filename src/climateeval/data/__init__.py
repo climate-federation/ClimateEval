@@ -2,12 +2,28 @@
 
 from __future__ import annotations
 
+from climateeval.data._amip_obs import (
+    CMORPH,
+    GPCC,
+    RAOBCORE,
+    RICH,
+    RSSMSU,
+    UAHMSU,
+    AMIPBoundaryConditions,
+    BerkeleyEarthDaily,
+    GPCPDaily,
+    HadGHCND,
+    RSSPrw,
+)
 from climateeval.data._base import ComplexDataSource, DataSource, DataSourceGenerator
 from climateeval.data._berkeleyearth import BerkeleyEarth
 from climateeval.data._ceres_ebaf import CERESEBAF
 from climateeval.data._cmip6_generators import (
     CMIP6Abrupt4xCO2R1I1P1F1,
     CMIP6Amip4xCO2R1I1P1F1,
+    CMIP6AmipAllMembers,
+    CMIP6AmipHistAllMembers,
+    CMIP6AmipP4KR1I1P1F1,
     CMIP6AmipR1I1P1F1,
     CMIP6DataSourceGenerator,
     CMIP6HistAerR1I1P1F1,
@@ -17,6 +33,8 @@ from climateeval.data._cmip6_generators import (
     CMIP6LgmR1I1P1F1,
     CMIP6Lig127kR1I1P1F1,
     CMIP6MidHoloceneR1I1P1F1,
+    CMIP6PiClimAerR1I1P1F1,
+    CMIP6PiClimControlR1I1P1F1,
     CMIP6PiControlR1I1P1F1,
 )
 from climateeval.data._cru import CRU
@@ -39,6 +57,7 @@ from climateeval.data._hadex3 import HadEX3
 from climateeval.data._hadisst import HadISST
 from climateeval.data._iap import IAP
 from climateeval.data._local_cmor import LocalCMORDataSource
+from climateeval.data._local_obs import LocalObservationDataSource
 from climateeval.data._merra2 import MERRA2
 from climateeval.data._noaa_ersstv5 import NOAAERSSTv5
 from climateeval.data._noaaglobaltemp import NOAAGlobalTemp
@@ -51,12 +70,14 @@ from climateeval.data._woa import WOA
 
 __all__ = [
     "CERESEBAF",
+    "CMORPH",
     "CRU",
     "EN4",
     "ESACCIOC",
     "ESACCISST",
     "FLUXCOM",
     "GISTEMP",
+    "GPCC",
     "GPCP",
     "IAP",
     "MERRA2",
@@ -64,11 +85,20 @@ __all__ = [
     "ORAS5",
     "OSI450NH",
     "OSI450SH",
+    "RAOBCORE",
     "RAPID",
+    "RICH",
+    "RSSMSU",
+    "UAHMSU",
     "WOA",
+    "AMIPBoundaryConditions",
     "BerkeleyEarth",
+    "BerkeleyEarthDaily",
     "CMIP6Abrupt4xCO2R1I1P1F1",
     "CMIP6Amip4xCO2R1I1P1F1",
+    "CMIP6AmipAllMembers",
+    "CMIP6AmipHistAllMembers",
+    "CMIP6AmipP4KR1I1P1F1",
     "CMIP6AmipR1I1P1F1",
     "CMIP6DataSourceGenerator",
     "CMIP6HistAerR1I1P1F1",
@@ -78,6 +108,8 @@ __all__ = [
     "CMIP6LgmR1I1P1F1",
     "CMIP6Lig127kR1I1P1F1",
     "CMIP6MidHoloceneR1I1P1F1",
+    "CMIP6PiClimAerR1I1P1F1",
+    "CMIP6PiClimControlR1I1P1F1",
     "CMIP6PiControlR1I1P1F1",
     "ComplexDataSource",
     "DataSource",
@@ -92,10 +124,14 @@ __all__ = [
     "ESMValToolCMORizerDataSource",
     "ESMValToolIntakeDataSource",
     "ESMValToolIntakeDataSourceGenerator",
+    "GPCPDaily",
     "HadCRUT5",
     "HadEX3",
+    "HadGHCND",
     "HadISST",
     "LocalCMORDataSource",
+    "LocalObservationDataSource",
     "NOAAERSSTv5",
     "NOAAGlobalTemp",
+    "RSSPrw",
 ]

@@ -22,8 +22,9 @@ All live in `climateeval.data`:
 | Ocean | `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC` |
 | AMOC | `RAPID` |
 | Sea ice | `OSI450NH`, `OSI450SH`, `NSIDCG02202SH`, `ESACCISeaIceNH`, `ESACCISeaIceSH` |
-| CMIP6 model data | `CMIP6HistoricalR1I1P1F1`, `CMIP6HistoricalAllMembers`, `CMIP6HistoricalSSP245`, `CMIP6Abrupt4xCO2R1I1P1F1`, `CMIP6PiControlR1I1P1F1`, `CMIP6HistAerR1I1P1F1`, `CMIP6AmipR1I1P1F1`, `CMIP6Amip4xCO2R1I1P1F1` |
+| CMIP6 model data | `CMIP6HistoricalR1I1P1F1`, `CMIP6HistoricalAllMembers`, `CMIP6HistoricalSSP245`, `CMIP6Abrupt4xCO2R1I1P1F1`, `CMIP6PiControlR1I1P1F1`, `CMIP6HistAerR1I1P1F1`, `CMIP6AmipR1I1P1F1`, `CMIP6AmipAllMembers`, `CMIP6AmipP4KR1I1P1F1`, `CMIP6Amip4xCO2R1I1P1F1`, `CMIP6AmipHistAllMembers`, `CMIP6PiClimControlR1I1P1F1`, `CMIP6PiClimAerR1I1P1F1` |
 | CMIP6 paleoclimate (PMIP4) | `CMIP6LgmR1I1P1F1`, `CMIP6MidHoloceneR1I1P1F1`, `CMIP6Lig127kR1I1P1F1` |
+| Locally staged observations (AMIP-style comparisons) | `GPCPDaily`, `CMORPH`, `BerkeleyEarthDaily`, `HadGHCND`, `RSSPrw`, `RSSMSU`, `UAHMSU`, `RICH`, `RAOBCORE`, `GPCC`, `AMIPBoundaryConditions` |
 | Generic loaders | `ESMValToolIntakeDataSource`, `ESMValToolCMORizerDataSource`, `LocalCMORDataSource` |
 
 `CMIP6*` and `ESMValToolIntake*` also have *generator* variants
@@ -32,6 +33,24 @@ data source on demand.
 
 > Data source *generators* do not yet work with `derived: true` variables
 > ([ESMValCore#2769](https://github.com/ESMValGroup/ESMValCore/issues/2769)).
+
+### CERES-EBAF: clear-sky fluxes and the cloud radiative effect
+
+`CERESEBAF` reads obs4MIPs `CERES-EBAF-4-2-1`. Its `rlutcs` and `rsutcs` are
+EBAF's **clear-scene** fluxes: the clear-sky flux of the cloud-free part of
+each region. A model's clear-sky flux is the whole column with clouds removed,
+which corresponds to EBAF's total-region clear sky; that is not in the obs4MIPs
+dataset. The global-mean difference is about −2.2 W m⁻² in the longwave and
+0.5 W m⁻² in the shortwave (Loeb et al. 2020,
+[doi:10.1175/JCLI-D-19-0381.1](https://doi.org/10.1175/JCLI-D-19-0381.1)).
+
+The cloud radiative effect (`lwcre`, `swcre`) is therefore taken from EBAF's
+own product where it is staged: `<data root>/observation_CERES-EBAF/mon/rltcre/`
+and `.../rstcre/` (obs4MIPs variables of the same dataset, built on the
+total-region clear sky, with the sign of `lwcre` / `swcre`). Without those
+files the effect is derived from the clear-scene and all-sky fluxes, as before,
+and a log message says so; the derived longwave effect is about 2 W m⁻² larger
+in the global mean. The clear-sky fluxes themselves are served as published.
 
 ### CMIP6 experiments
 
@@ -46,6 +65,11 @@ that published the experiment:
 | `CMIP6HistAerR1I1P1F1` | `hist-aer` (DAMIP) | Aerosol-forced historical response |
 | `CMIP6AmipR1I1P1F1` | `amip` (CMIP) | Atmosphere-only, prescribed SSTs |
 | `CMIP6Amip4xCO2R1I1P1F1` | `amip-4xCO2` (CFMIP) | Effective radiative forcing (vs `amip`) |
+| `CMIP6AmipAllMembers` | `amip` (CMIP), all `r*i1p1f*` members, 1979–2014 | Atmosphere-only ensembles (AMIP protocol) |
+| `CMIP6AmipP4KR1I1P1F1` | `amip-p4K` (CFMIP) | Uniform +4 K SST response (vs `amip`) |
+| `CMIP6AmipHistAllMembers` | `amip-hist` (GMMIP), all `r*i1p1f*` members, 1940–2014 | AMIP-style runs extended before 1979 |
+| `CMIP6PiClimControlR1I1P1F1` | `piClim-control` (RFMIP) | Fixed-SST pre-industrial control |
+| `CMIP6PiClimAerR1I1P1F1` | `piClim-aer` (RFMIP) | Aerosol effective radiative forcing (vs `piClim-control`) |
 | `CMIP6LgmR1I1P1F1` | `lgm` (PMIP) | Last Glacial Maximum, 21 ka BP |
 | `CMIP6MidHoloceneR1I1P1F1` | `midHolocene` (PMIP) | Mid-Holocene, 6 ka BP |
 | `CMIP6Lig127kR1I1P1F1` | `lig127k` (PMIP) | Last Interglacial, 127 ka BP |
@@ -58,7 +82,7 @@ kwarg).
 ### CMIP6 ensembles and scenarios
 
 Most CMIP6 generators are restricted to `r1i1p1f1` and to the historical
-period. Two of them are not:
+period. Four of them are not:
 
 - `CMIP6HistoricalAllMembers` discovers **every `r*i1p1f1` member** of every
   model, one data source per member.
@@ -69,7 +93,13 @@ period. Two of them are not:
   each data source gets the time range it actually has (members without an
   `ssp245` run simply end in 2014).
 
-Both put the member into `DataSourceInformation.variant`, so IDs stay unique
+- `CMIP6AmipAllMembers` and `CMIP6AmipHistAllMembers` discover every
+  **`r*i1p1f*`** member: unlike `CMIP6HistoricalAllMembers` (`r*i1p1f1`) the
+  forcing index is a wildcard, because several models provide their `amip` run
+  only as `f2` or `f3`. Members with a perturbed-physics index other than `p1`
+  (e.g. CanESM5 `p2`) are not matched.
+
+All of them put the member into `DataSourceInformation.variant`, so IDs stay unique
 (`CMIP6_MPI-ESM1-2-LR_historical-ssp245_r1i1p1f1`, …). Multi-member reference
 ensembles are what probabilistic scores (e.g. a per-model CRPS) need; the
 single-member generators cannot provide them.
@@ -150,6 +180,49 @@ misses the step contributed by the following year and is aggregated from 23
 instead of 24 hourly steps; request one additional year if that endpoint
 matters.
 
+### Locally staged observations
+
+These observational products, used for AMIP-style comparisons, have no
+ESMValTool CMORizer (except `GPCC`) and
+are not downloaded by ClimateEval. They are prepared into CMOR-like NetCDF files
+by the prep scripts of the observation bundle that stages them and read from
+`<data_root>/<source id>/<frequency>/<var_name>/*.nc`, where `<source id>` is
+the data source `id` below (`DataSourceInformation.id`) and `data_root` is the
+`data_root_dir` diagnostic kwarg. The files of a variable are selected by the
+trailing `<start>-<end>` date token of their names (e.g.
+`pr_day_GPCP-1DD_v1.3_20010101-20011231.nc`, `YYYYMM` for monthly and
+`YYYYMMDD` for daily files) against the variable's `timerange`, concatenated, and
+preprocessed like any other reference. If no file is found the data source raises
+`MissingDataError` (it never downloads); a variable or frequency a product does
+not provide raises `NotImplementedError`. The shared base class is
+`LocalObservationDataSource` (`climateeval.data._local_obs`).
+
+| Class | `id` (directory) | Variables | Frequency | Coverage / notes | Prep script |
+|---|---|---|---|---|---|
+| `GPCPDaily` | `observation_GPCP-1DD` | `pr` | `day` | global, 1° | `obs/prep/gpcp_daily.py` |
+| `CMORPH` | `observation_CMORPH-CDR` | `pr` | `day` | 59.5°S-59.5°N | `obs/prep/cmorph.py` |
+| `BerkeleyEarthDaily` | `observation_BerkeleyEarth-daily` | `tas`, `tasmax`, `tasmin` | `day` | land only | `obs/prep/berkeley_earth_daily.py` |
+| `HadGHCND` | `observation_HadGHCND` | `tasmax`, `tasmin` | `day` | land only | `obs/prep/hadghcnd.py` |
+| `RSSPrw` | `observation_RSS-TPW` | `prw` | `mon` | ocean only | `obs/prep/rss_prw.py` |
+| `RSSMSU` | `observation_RSS-MSU` | `tlt`, `tmt`, `tls` | `mon` | | `obs/prep/msu_rss.py` |
+| `UAHMSU` | `observation_UAH-MSU` | `tlt`, `tmt`, `tls` | `mon` | | `obs/prep/msu_uah.py` |
+| `RICH` | `observation_RICH` | `ta` | `mon` | pressure levels; `(time, plev, lat, lon)` | (not yet written) |
+| `RAOBCORE` | `observation_RAOBCORE` | `ta` | `mon` | pressure levels; `(time, plev, lat, lon)` | (not yet written) |
+| `GPCC` | `observation_GPCC` | `pr` | `mon` | land only, 1°, 1891-2016 (v2018) | ESMValTool CMORizer |
+| `AMIPBoundaryConditions` | `observation_AMIPBoundaryConditions` (configurable) | `tos`, `siconc` | `mon` | prescribed SST and sea ice | (dataset choice open) |
+
+`GPCC` is an `ESMValToolCMORizerDataSource` like `CRU`: it uses the staged file
+`<data_root>/observation_GPCC/mon/pr/*.nc` if there is one and otherwise
+downloads and CMORizes the v2018 data (only the unmasked 1° version
+`v2018-10` is used). On Levante the CMORized file already exists as
+`/work/bd0854/DATA/ESMValTool2/OBS/Tier2/GPCC/OBS_GPCC_reanaly_v2018-10_Amon_pr_189101-201612.nc`;
+symlink that one file into the directory above.
+
+The dataset behind `AMIPBoundaryConditions` is not fixed; build a class for the
+one that is staged with
+`AMIPBoundaryConditions.for_dataset("<name>", institute=..., references=(...))`
+(the data root directory is then `observation_<name>`).
+
 ## Where references come from
 
 - **Staged CMORized references.** Most references are read from a directory you
@@ -224,12 +297,20 @@ overlap it are skipped, and the exact range is extracted during preprocessing.
 
 | Request | Variables |
 |---|---|
-| Single levels | `clivi`, `clt`, `evspsbl`, `lwp`, `pr`, `prw`, `ps`, `rlut`, `rlutcs`, `tas`, `ts` |
+| Single levels | `clivi`, `clt`, `evspsbl`, `lwp`, `pr`, `prw`, `ps`, `psl`, `rlut`, `rlutcs`, `rsdt`, `rsut`, `rsutcs`, `tas`, `ts` |
 | Pressure levels | `hus`, `ta`, `ua`, `va`, `zg` |
 
 The raw CDS fields are CMORized by the ESMValTool `native6` ERA5 fixes, which
 also handle unit conversions — e.g. ERA5 serves `geopotential` in m2 s-2, which
 is divided by the standard gravity to give the geopotential height `zg` in m.
+ERA5 provides the *net downward* top-of-atmosphere shortwave radiation
+(`top_net_solar_radiation`, `..._clear_sky`), so `rsut` and `rsutcs` are
+derived as incident minus net: the incident flux (`toa_incident_solar_radiation`,
+CMOR `rsdt`) is requested in the same CDS call and the upward flux
+`rsut = rsdt - net` is stored with `positive: up`. The accumulated fields
+(J m-2) of `rsut`, `rsutcs`, `rlut` and `rlutcs` are converted to W m-2 by
+ClimateEval; `rlut`/`rlutcs` additionally change sign (ERA5 thermal radiation
+is downward). `ERA5Daily` does not serve the derived `rsut`/`rsutcs`.
 Note that `ts` is the ERA5 skin temperature, which is *not* the same field as
 the near-surface air temperature `tas`.
 

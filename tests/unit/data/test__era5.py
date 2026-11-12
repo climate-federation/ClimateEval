@@ -63,6 +63,10 @@ def test_variable_mapping_keys_are_known_variables(var_name: str) -> None:
     [
         ("ts", "skin_temperature"),
         ("zg", "geopotential"),
+        ("psl", "mean_sea_level_pressure"),
+        ("rsdt", "toa_incident_solar_radiation"),
+        ("rsut", "top_net_solar_radiation"),
+        ("rsutcs", "top_net_solar_radiation_clear_sky"),
     ],
 )
 def test_variable_mapping(var_name: str, cds_name: str) -> None:
@@ -213,6 +217,175 @@ def test_format_zg_converts_geopotential_to_height(tmp_path: Path) -> None:
         np.sort(raw_cube.data.ravel() / STANDARD_GRAVITY),
         rtol=1e-6,
     )
+
+
+SECONDS_PER_DAY = 86400.0
+
+
+def _save_raw_cubes(cubes: list[Cube], tmp_path: Path) -> Path:
+    """Save several mock raw ERA5 variables into one file (as the CDS does)."""
+    path = tmp_path / "raw.nc"
+    iris.save(cubes, path)
+    return path
+
+
+def _raw_accumulation(var_name: str, value: float) -> Cube:
+    """Get a raw monthly mean ERA5 accumulation (J m-2 per day) of ``value`` W m-2."""
+    cube = get_simple_2d_cube(var_name=var_name, units="J m**-2")
+    cube.data = np.full(cube.shape, value * SECONDS_PER_DAY, dtype=np.float32)
+    return cube
+
+
+def test_format_psl(tmp_path: Path) -> None:
+    raw_cube = get_simple_2d_cube(var_name="msl", units="Pa")
+    raw_cube.data = raw_cube.core_data() + 100000.0
+    raw_path = _save_raw_cube(raw_cube, tmp_path)
+
+    target = ERA5Monthly().format(
+        raw_path,
+        Variable("psl", "psl", "mon"),
+        data_root_dir=tmp_path / "data",
+    )
+
+    cube = iris.load_cube(target)
+    assert cube.var_name == "psl"
+    assert cube.standard_name == "air_pressure_at_mean_sea_level"
+    assert cube.units == "Pa"
+    np.testing.assert_allclose(
+        np.sort(cube.data.ravel()),
+        np.sort(raw_cube.data.ravel()),
+        rtol=1e-6,
+    )
+
+
+def test_format_rsdt(tmp_path: Path) -> None:
+    raw_path = _save_raw_cubes([_raw_accumulation("tisr", 340.0)], tmp_path)
+
+    target = ERA5Monthly().format(
+        raw_path,
+        Variable("rsdt", "rsdt", "mon"),
+        data_root_dir=tmp_path / "data",
+    )
+
+    cube = iris.load_cube(target)
+    assert cube.var_name == "rsdt"
+    assert cube.standard_name == "toa_incoming_shortwave_flux"
+    assert cube.units == "W m-2"
+    np.testing.assert_allclose(cube.data, 340.0, rtol=1e-6)
+
+
+@pytest.mark.parametrize(
+    ("var_name", "net_name", "standard_name"),
+    [
+        ("rsut", "tsr", "toa_outgoing_shortwave_flux"),
+        ("rsutcs", "tsrc", "toa_outgoing_shortwave_flux_assuming_clear_sky"),
+    ],
+)
+def test_format_rsut_is_incident_minus_net(
+    tmp_path: Path,
+    var_name: str,
+    net_name: str,
+    standard_name: str,
+) -> None:
+    """Upward SW at the TOA is incident minus net downward, in W m-2."""
+    incident = _raw_accumulation("tisr", 340.0)
+    net = _raw_accumulation(net_name, 240.0)
+    # Vary the net flux in space so that a mix-up of the fields would show
+    net.data = net.core_data() + np.arange(net.data.size).reshape(net.shape) * 1e4
+    raw_path = _save_raw_cubes([incident, net], tmp_path)
+
+    target = ERA5Monthly().format(
+        raw_path,
+        Variable(var_name, var_name, "mon"),
+        data_root_dir=tmp_path / "data",
+    )
+
+    cube = iris.load_cube(target)
+    assert cube.var_name == var_name
+    assert cube.standard_name == standard_name
+    assert cube.units == "W m-2"
+    assert cube.attributes["positive"] == "up"
+    expected = (incident.data - net.data) / SECONDS_PER_DAY
+    np.testing.assert_allclose(cube.data, expected, rtol=1e-4)
+
+
+def test_format_rsut_needs_incident_radiation(tmp_path: Path) -> None:
+    raw_path = _save_raw_cubes([_raw_accumulation("tsr", 240.0)], tmp_path)
+
+    with pytest.raises(ValueError, match=r"missing variable\(s\) \['tisr'\]"):
+        ERA5Monthly().format(
+            raw_path,
+            Variable("rsut", "rsut", "mon"),
+            data_root_dir=tmp_path / "data",
+        )
+
+
+@pytest.mark.parametrize(
+    ("var_name", "raw_name"),
+    [("rlut", "ttr"), ("rlutcs", "ttrc")],
+)
+def test_format_rlut_is_upward_flux(
+    tmp_path: Path,
+    var_name: str,
+    raw_name: str,
+) -> None:
+    """ERA5 thermal radiation is downward (negative); CMOR ``rlut`` is upward."""
+    raw_path = _save_raw_cubes([_raw_accumulation(raw_name, -240.0)], tmp_path)
+
+    target = ERA5Monthly().format(
+        raw_path,
+        Variable(var_name, var_name, "mon"),
+        data_root_dir=tmp_path / "data",
+    )
+
+    cube = iris.load_cube(target)
+    assert cube.var_name == var_name
+    assert cube.units == "W m-2"
+    assert cube.attributes["positive"] == "up"
+    np.testing.assert_allclose(cube.data, 240.0, rtol=1e-6)
+
+
+@pytest.mark.parametrize("var_name", ["rsut", "rsutcs"])
+def test_download_derived_variable_requests_incident_radiation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    var_name: str,
+) -> None:
+    retrieve_calls: list[tuple[str, dict[str, Any]]] = []
+
+    class MockResult:
+        def download(self, _target: Path) -> None:
+            """Pretend the CDS delivered a file (``format`` is mocked, too)."""
+
+    class MockClient:
+        def retrieve(self, dataset: str, request: dict[str, Any]) -> MockResult:
+            retrieve_calls.append((dataset, request))
+            return MockResult()
+
+    monkeypatch.setattr("climateeval.data._era5.cdsapi.Client", MockClient)
+    monkeypatch.setattr(
+        ERA5Monthly,
+        "format",
+        lambda *_args, **_kwargs: tmp_path / "x.nc",
+    )
+
+    ERA5Monthly().download(Variable(var_name, var_name, "mon"), tmp_path)
+
+    assert retrieve_calls[0][1]["variable"] == [
+        VARIABLE_MAPPING[var_name],
+        "toa_incident_solar_radiation",
+    ]
+
+
+@pytest.mark.parametrize("var_name", ["rsut", "rsutcs"])
+def test_daily_derived_variable_not_supported(
+    tmp_path: Path,
+    var_name: str,
+) -> None:
+    variable = Variable(var_name, var_name, "day", timerange="1990/1991")
+
+    with pytest.raises(NotImplementedError, match="is not supported for daily ERA5"):
+        ERA5Daily().download(variable, tmp_path)
 
 
 # ERA5Daily

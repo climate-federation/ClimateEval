@@ -24,7 +24,6 @@ from loguru import logger
 
 from climateeval import Coordinate
 from climateeval._config import setup_esmvaltool_config_and_logging
-from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.simple._base import SimpleDiagnostic
 
 if TYPE_CHECKING:
@@ -77,7 +76,7 @@ class QBO(SimpleDiagnostic):
                 "linear",
                 coordinate="air_pressure",
             )
-            cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
+            cube = regrid(cube, self._target_grid, "linear", cache_weights=True)
             cube = extract_region(
                 cube,
                 start_longitude=0.0,

@@ -1,0 +1,35 @@
+# Tier 3 | Tropical temperature profile and boundary-layer stability.
+#
+# These diagnostics combine several variables of one data set (a temperature profile with
+# surface fields), so they are complex diagnostics: `get_output` takes a dictionary
+# {data_key: cubes}. Pass reanalysis cubes in the same way to obtain the reference.
+#
+# MSUTemperature: monthly MSU/AMSU-equivalent TLT and TMT (RSS static weighting functions,
+#   truncated at the surface pressure and renormalised) from ta on pressure levels, ts and ps;
+#   land fraction sftlf is used when present. Output columns: data_id, data_type, time, tlt, tmt.
+# InversionStrength: lower-tropospheric stability (lts) and estimated inversion strength
+#   (eis, Wood and Bretherton 2006) from ta at 700 hPa, a surface temperature, ps and
+#   (optionally) hurs. Output columns: data_id, data_type, time, latitude, longitude, eis, lts
+#   (spatial: gridded) or data_id, data_type, time, eis, lts (spatial: mean).
+#
+# Options (additional_diagnostic_kwargs): data_key, spatial (mean | gridded), lat_range,
+#   aggregation (monthly | annual), grid, landsea_mask; channels (MSUTemperature);
+#   surface_temperature, outputs (InversionStrength).
+
+- name: msu_temperature
+  diagnostic: climateeval.diags.complex.MSUTemperature
+  additional_diagnostic_kwargs:
+    data_key: amip
+    channels: [tlt, tmt]
+    spatial: mean
+    lat_range: [-20.0, 20.0]
+    aggregation: monthly
+
+- name: inversion_strength
+  diagnostic: climateeval.diags.complex.InversionStrength
+  additional_diagnostic_kwargs:
+    data_key: amip
+    surface_temperature: ts
+    spatial: gridded
+    landsea_mask: sea_only
+    aggregation: monthly
