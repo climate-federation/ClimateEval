@@ -24,6 +24,7 @@ All live in `climateeval.data`:
 | Sea ice | `OSI450NH`, `OSI450SH`, `NSIDCG02202SH`, `ESACCISeaIceNH`, `ESACCISeaIceSH` |
 | CMIP6 model data | `CMIP6HistoricalR1I1P1F1`, `CMIP6HistoricalAllMembers`, `CMIP6HistoricalSSP245`, `CMIP6Abrupt4xCO2R1I1P1F1`, `CMIP6PiControlR1I1P1F1`, `CMIP6HistAerR1I1P1F1`, `CMIP6AmipR1I1P1F1`, `CMIP6AmipAllMembers`, `CMIP6AmipP4KR1I1P1F1`, `CMIP6Amip4xCO2R1I1P1F1`, `CMIP6AmipHistAllMembers`, `CMIP6PiClimControlR1I1P1F1`, `CMIP6PiClimAerR1I1P1F1` |
 | CMIP6 paleoclimate (PMIP4) | `CMIP6LgmR1I1P1F1`, `CMIP6MidHoloceneR1I1P1F1`, `CMIP6Lig127kR1I1P1F1` |
+| AtmosphereBench observation bundle | `GPCPDaily`, `CMORPH`, `BerkeleyEarthDaily`, `HadGHCND`, `RSSPrw`, `RSSMSU`, `UAHMSU`, `RICH`, `RAOBCORE`, `GPCC`, `AMIPBoundaryConditions` |
 | Generic loaders | `ESMValToolIntakeDataSource`, `ESMValToolCMORizerDataSource`, `LocalCMORDataSource` |
 
 `CMIP6*` and `ESMValToolIntake*` also have *generator* variants
@@ -160,6 +161,48 @@ length of the day, in kg m-2 s-1. The last day of the requested timerange
 misses the step contributed by the following year and is aggregated from 23
 instead of 24 hourly steps; request one additional year if that endpoint
 matters.
+
+### AtmosphereBench observation bundle
+
+These observational products have no ESMValTool CMORizer (except `GPCC`) and
+are not downloaded by ClimateEval. They are prepared into CMOR-like NetCDF files
+by the scripts of the AtmosphereBench observation bundle and read from
+`<data_root>/<source id>/<frequency>/<var_name>/*.nc`, where `<source id>` is
+the data source `id` below (`DataSourceInformation.id`) and `data_root` is the
+`data_root_dir` diagnostic kwarg. The files of a variable are selected by the
+trailing `<start>-<end>` date token of their names (e.g.
+`pr_day_GPCP-1DD_v1.3_20010101-20011231.nc`, `YYYYMM` for monthly and
+`YYYYMMDD` for daily files) against the variable's `timerange`, concatenated, and
+preprocessed like any other reference. If no file is found the data source raises
+`MissingDataError` (it never downloads); a variable or frequency a product does
+not provide raises `NotImplementedError`. The shared base class is
+`LocalObservationDataSource` (`climateeval.data._local_obs`).
+
+| Class | `id` (directory) | Variables | Frequency | Coverage / notes | Prep script |
+|---|---|---|---|---|---|
+| `GPCPDaily` | `observation_GPCP-1DD` | `pr` | `day` | global, 1° | `obs/prep/gpcp_daily.py` |
+| `CMORPH` | `observation_CMORPH-CDR` | `pr` | `day` | 59.5°S-59.5°N | `obs/prep/cmorph.py` |
+| `BerkeleyEarthDaily` | `observation_BerkeleyEarth-daily` | `tas`, `tasmax`, `tasmin` | `day` | land only | `obs/prep/berkeley_earth_daily.py` |
+| `HadGHCND` | `observation_HadGHCND` | `tasmax`, `tasmin` | `day` | land only | `obs/prep/hadghcnd.py` |
+| `RSSPrw` | `observation_RSS-TPW` | `prw` | `mon` | ocean only | `obs/prep/rss_prw.py` |
+| `RSSMSU` | `observation_RSS-MSU` | `tlt`, `tmt` | `mon` | | `obs/prep/msu_rss.py` |
+| `UAHMSU` | `observation_UAH-MSU` | `tlt`, `tmt` | `mon` | | `obs/prep/msu_uah.py` |
+| `RICH` | `observation_RICH` | `ta` | `mon` | pressure levels; `(time, plev, lat, lon)` | (not yet written) |
+| `RAOBCORE` | `observation_RAOBCORE` | `ta` | `mon` | pressure levels; `(time, plev, lat, lon)` | (not yet written) |
+| `GPCC` | `observation_GPCC` | `pr` | `mon` | land only, 1°, 1891-2016 (v2018) | ESMValTool CMORizer |
+| `AMIPBoundaryConditions` | `observation_AMIPBoundaryConditions` (configurable) | `tos`, `siconc` | `mon` | prescribed SST and sea ice | (dataset choice open) |
+
+`GPCC` is an `ESMValToolCMORizerDataSource` like `CRU`: it uses the staged file
+`<data_root>/observation_GPCC/mon/pr/*.nc` if there is one and otherwise
+downloads and CMORizes the v2018 data (only the unmasked 1° version
+`v2018-10` is used). On Levante the CMORized file already exists as
+`/work/bd0854/DATA/ESMValTool2/OBS/Tier2/GPCC/OBS_GPCC_reanaly_v2018-10_Amon_pr_189101-201612.nc`;
+symlink that one file into the directory above.
+
+The dataset behind `AMIPBoundaryConditions` is not fixed; build a class for the
+one that is staged with
+`AMIPBoundaryConditions.for_dataset("<name>", institute=..., references=(...))`
+(the data root directory is then `observation_<name>`).
 
 ## Where references come from
 
