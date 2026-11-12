@@ -130,6 +130,7 @@ python scripts/gen_variables_doc.py
 | `tauu` | Surface Downward Eastward Wind Stress | `surface_downward_eastward_stress` | `Pa` | `atmos` | `time lat lon` |  |
 | `tauv` | Surface Downward Northward Wind Stress | `surface_downward_northward_stress` | `Pa` | `atmos` | `time lat lon` |  |
 | `thetao` | Sea Water Potential Temperature | `sea_water_potential_temperature` | `degC` | `ocean` | `time olevel lat lon` |  |
+| `tls` | Temperature of the Lower Stratosphere (MSU-Equivalent) |  | `K` | `atmos` | `time lat lon` |  |
 | `tlt` | Temperature of the Lower Troposphere (MSU-Equivalent) |  | `K` | `atmos` | `time lat lon` |  |
 | `tmt` | Temperature of the Mid Troposphere (MSU-Equivalent) |  | `K` | `atmos` | `time lat lon` |  |
 | `tnn` | Annual/monthly minimum value of daily minimum temperature |  | `degC` | `atmos` | `time lat lon` |  |

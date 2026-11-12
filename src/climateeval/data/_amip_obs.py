@@ -102,7 +102,11 @@ class RSSPrw(LocalObservationDataSource):
 
 
 class RSSMSU(LocalObservationDataSource):
-    """RSS MSU/AMSU lower- and mid-tropospheric temperature (``tlt``, ``tmt``)."""
+    """RSS MSU/AMSU temperatures: lower and mid troposphere, lower stratosphere.
+
+    ``tlt``, ``tmt`` and ``tls``. ``tls`` is needed to remove the stratospheric
+    contribution from ``tmt`` (Fu et al. 2004).
+    """
 
     _information = DataSourceInformation(
         name="RSS-MSU",
@@ -110,13 +114,17 @@ class RSSMSU(LocalObservationDataSource):
         institute="Remote Sensing Systems",
         references=("https://www.remss.com/measurements/upper-air-temperature/",),
     )
-    _supported_var_names = ("tlt", "tmt")
+    _supported_var_names = ("tlt", "tmt", "tls")
     _supported_frequencies = ("mon",)
     _prep_script = "obs/prep/msu_rss.py"
 
 
 class UAHMSU(LocalObservationDataSource):
-    """UAH MSU/AMSU lower- and mid-tropospheric temperature (``tlt``, ``tmt``)."""
+    """UAH MSU/AMSU temperatures: lower and mid troposphere, lower stratosphere.
+
+    ``tlt``, ``tmt`` and ``tls``. ``tls`` is needed to remove the stratospheric
+    contribution from ``tmt`` (Fu et al. 2004).
+    """
 
     _information = DataSourceInformation(
         name="UAH-MSU",
@@ -127,7 +135,7 @@ class UAHMSU(LocalObservationDataSource):
             "https://www.nsstc.uah.edu/data/msu/",
         ),
     )
-    _supported_var_names = ("tlt", "tmt")
+    _supported_var_names = ("tlt", "tmt", "tls")
     _supported_frequencies = ("mon",)
     _prep_script = "obs/prep/msu_uah.py"
 

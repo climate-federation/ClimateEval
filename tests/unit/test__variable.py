@@ -396,6 +396,7 @@ def test_vertical_level_str() -> None:
         # Not in the CMOR tables
         ("tlt", "K", ""),
         ("tmt", "K", ""),
+        ("tls", "K", ""),
         ("eis", "K", ""),
         ("lts", "K", ""),
         # CMOR variables (AMIP-style comparisons)
@@ -426,7 +427,7 @@ def test_amip_comparison_variables(
     assert [c.var_name for c in variable.coordinates] == ["time", "lat", "lon"]
 
 
-@pytest.mark.parametrize("var_name", ["tlt", "tmt", "eis", "lts", "hurs", "huss"])
+@pytest.mark.parametrize("var_name", ["tlt", "tmt", "tls", "eis", "lts", "hurs", "huss"])
 def test_new_atmospheric_variables_use_amon(var_name: str) -> None:
     assert Variable(var_name, var_name, "mon").cmip6_table_id == "Amon"
 
