@@ -124,6 +124,28 @@ variable sets the option, so existing outputs keep their columns.
       reference_timerange: 20010101/20241231   # reference-only window
 ```
 
+## Regridding grid
+
+Diagnostics that regrid do so to a regular grid, `2x2` by default (`1x1` for the
+sea-ice diagnostics). The `grid` diagnostic kwarg changes it; the value is any
+ESMValCore `target_grid` string such as `1x1` or `2.5x2.5`. It works for simple
+and complex diagnostics and is ignored by diagnostics that do not regrid, so it
+can be given to any of them:
+
+```yaml
+- name: map_fine
+  diagnostic: climateeval.diags.simple.Map
+  diagnostic_kwargs:            # complex diagnostics: additional_diagnostic_kwargs
+    grid: 1x1
+  variables: [...]
+```
+
+`Suite(..., diagnostic_kwargs={"grid": "1x1"})` sets it for every diagnostic of
+the suite, overriding entries (as for all diagnostic kwargs). The grid is not
+written to the output tables; for reproducibility keep it in the suite or the
+call that produced the output. Land diagnostics regrid conservatively to the
+same grid.
+
 ## Overriding at run time
 
 `Suite(...)` takes `diagnostic_kwargs` and `variable_kwargs` that are applied on

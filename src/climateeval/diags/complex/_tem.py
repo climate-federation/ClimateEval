@@ -59,11 +59,11 @@ _G = 9.80665  # m s⁻²
 _TWO_PI = 2.0 * np.pi
 
 
-def _preprocess_to_zonal_clim(cube: Cube) -> Cube:
+def _preprocess_to_zonal_clim(cube: Cube, grid: str = DEFAULT_GRID) -> Cube:
     """Regrid → extract PLEV19 levels → zonal mean → climatology."""
     with setup_esmvaltool_config_and_logging():
         cube = extract_levels(cube, PLEV19_LEVELS, "linear", coordinate="air_pressure")
-        cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
+        cube = regrid(cube, grid, "linear", cache_weights=True)
         cube = zonal_statistics(cube, "mean")
         cube = climate_statistics(cube, "mean", "full")
     return cube
@@ -137,19 +137,31 @@ class TEMDiagnostic(ComplexDiagnostic):
         cubelist = complex_data_source.data["data"]
 
         # --- Preprocess inputs to (plev, lat) climatological zonal means -----
-        va_cube = _preprocess_to_zonal_clim(get_prepared_cube(cubelist, self._va))
-        ta_cube = _preprocess_to_zonal_clim(get_prepared_cube(cubelist, self._ta))
+        va_cube = _preprocess_to_zonal_clim(
+            get_prepared_cube(cubelist, self._va),
+            self._target_grid,
+        )
+        ta_cube = _preprocess_to_zonal_clim(
+            get_prepared_cube(cubelist, self._ta),
+            self._target_grid,
+        )
 
         has_wap = self._has_variable(cubelist, self._wap)
         wap_cube = (
-            _preprocess_to_zonal_clim(get_prepared_cube(cubelist, self._wap))
+            _preprocess_to_zonal_clim(
+                get_prepared_cube(cubelist, self._wap),
+                self._target_grid,
+            )
             if has_wap
             else None
         )
 
         has_vt = self._has_variable(cubelist, self._vt)
         vt_cube = (
-            _preprocess_to_zonal_clim(get_prepared_cube(cubelist, self._vt))
+            _preprocess_to_zonal_clim(
+                get_prepared_cube(cubelist, self._vt),
+                self._target_grid,
+            )
             if has_vt
             else None
         )

@@ -31,7 +31,6 @@ from climateeval._utils import get_prepared_cube
 from climateeval.data import ComplexDataSource, DataSourceInformation
 from climateeval.data._esmvaltool_intake import filter_intake_data_sources
 from climateeval.diags._base import DiagnosticOutput
-from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.complex._base import ComplexDiagnostic
 
 if TYPE_CHECKING:
@@ -124,7 +123,7 @@ class ScalarExperimentDiagnostic(ComplexDiagnostic):
         """Get one variable of an experiment on the common grid."""
         cube = get_prepared_cube(data, variable)
         with setup_esmvaltool_config_and_logging():
-            cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
+            cube = regrid(cube, self._target_grid, "linear", cache_weights=True)
         return cube  # noqa: RET504 - named for readability
 
     def _global_annual_mean(

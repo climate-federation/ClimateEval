@@ -72,6 +72,7 @@ class SimpleDiagnostic(Diagnostic):
         fail_on_metric_error: bool = True,
         calculate_metrics: bool | None = None,
         clip_reference_timerange: bool = False,
+        grid: str | None = None,
     ) -> None:
         """Initialize class instance.
 
@@ -82,6 +83,12 @@ class SimpleDiagnostic(Diagnostic):
             (e.g. CERES-EBAF, which starts in 2000, for a 1985-2024 window)
             is clipped to the overlap instead of being dropped as missing
             data. A reference without any overlap is still missing data.
+        grid:
+            Regular grid (any ESMValCore ``target_grid`` specification, e.g.
+            ``"1x1"`` or ``"2.5x2.5"``) that the diagnostic regrids to. The
+            default is ``DEFAULT_GRID`` (``"2x2"``), or ``SEA_ICE_GRID``
+            (``"1x1"``) for the sea-ice diagnostics. Diagnostics that do not
+            regrid ignore it.
 
         """
         self._name = name
@@ -131,6 +138,7 @@ class SimpleDiagnostic(Diagnostic):
         self._download_missing_data = download_missing_data
         self._fail_on_metric_error = fail_on_metric_error
         self._clip_reference_timerange = clip_reference_timerange
+        self._grid_spec = grid
         if calculate_metrics is None:
             self._calculate_metrics = self._output_metrics_table
         else:

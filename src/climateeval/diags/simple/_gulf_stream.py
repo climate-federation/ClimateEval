@@ -15,7 +15,6 @@ from esmvalcore.preprocessor import (
 from climateeval import Coordinate
 from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval._variable import COORDINATES
-from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.simple._base import SimpleDiagnostic
 
 if TYPE_CHECKING:
@@ -41,7 +40,7 @@ class GulfStreamSshGradient(SimpleDiagnostic):
         with setup_esmvaltool_config_and_logging():
             cube = regrid(
                 cube,
-                DEFAULT_GRID,
+                self._target_grid,
                 "linear",
                 cache_weights=True,
             )  # to ensure we are on a regular grid

@@ -53,7 +53,11 @@ _SEA_ICE_CONCENTRATION_UNITS = "%"
 SEA_ICE_EXTENT_THRESHOLD = 15.0
 
 
-def _integrate_sea_ice(cube: Cube, concentration_threshold: float | None) -> Cube:
+def _integrate_sea_ice(
+    cube: Cube,
+    concentration_threshold: float | None,
+    grid: str = SEA_ICE_GRID,
+) -> Cube:
     """Regrid, optionally threshold, and area-integrate sea-ice concentration.
 
     Parameters
@@ -75,7 +79,7 @@ def _integrate_sea_ice(cube: Cube, concentration_threshold: float | None) -> Cub
     """
     cube = regrid(
         cube,
-        SEA_ICE_GRID,
+        grid,
         "linear",
         cache_weights=True,
     )  # to ensure we are on a regular grid
@@ -101,10 +105,17 @@ class SeaIceAreaAnnualCycle(SimpleDiagnostic):
     #: concentration itself, i.e. computes an area instead of an extent.
     _concentration_threshold: ClassVar[float | None] = None
 
+    #: Regridding target when the ``grid`` kwarg is not given.
+    _default_grid: ClassVar[str] = SEA_ICE_GRID
+
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
-            cube = _integrate_sea_ice(cube, self._concentration_threshold)
+            cube = _integrate_sea_ice(
+                cube,
+                self._concentration_threshold,
+                self._target_grid,
+            )
             cube = climate_statistics(cube, "mean", "month")
         return cube  # noqa: RET504
 
@@ -137,10 +148,17 @@ class SeaIceAreaTimeSeries(SimpleDiagnostic):
     #: concentration itself, i.e. computes an area instead of an extent.
     _concentration_threshold: ClassVar[float | None] = None
 
+    #: Regridding target when the ``grid`` kwarg is not given.
+    _default_grid: ClassVar[str] = SEA_ICE_GRID
+
     def _preprocess(self, cube: Cube, _variable: Variable) -> Cube:
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
-            cube = _integrate_sea_ice(cube, self._concentration_threshold)
+            cube = _integrate_sea_ice(
+                cube,
+                self._concentration_threshold,
+                self._target_grid,
+            )
             cube = annual_statistics(cube, self._annual_operator)
             cube = regrid_time(
                 cube,
