@@ -1,0 +1,58 @@
+# Tier 3 | Daily precipitation frequency and intensity statistics by region and season.
+#
+# PrecipitationStatistics pools the days and (cos-latitude-weighted) grid cells of each region
+# (the variable's latitude/longitude bounds and land-sea mask) and, for every year, writes
+#   wet_fraction, sdii, p10, p90 (wet-day percentiles), mean, dry_fraction,
+#   amount_peak_rate / amount_peak_height (Pendergrass and Hartmann 2014 rain-amount distribution),
+#   frequency_peak_rate / frequency_peak_height
+# for the requested seasons (annual, DJF, JJA by default) into columns
+#   <variable id>_<statistic>_<season> of one table with a `time` column (one row per year).
+# Use `aggregation: period` for a single row pooled over the whole period.
+# Options go in the variable's `diagnostic_kwargs` (seasons, statistics, aggregation, threshold,
+# percentiles, r_min, ratio, n_bins, grid, regrid_scheme). The regression of any of these on an
+# index series (e.g. Nino 3.4) is climateeval.diags._physics.regress_on_index.
+#
+# The reference here is ERA5; use the daily observational products (e.g. GPCP 1DD, IMERG, CMORPH)
+# where available.
+
+- name: precipitation_statistics
+  diagnostic: climateeval.diags.simple.PrecipitationStatistics
+  variables:
+    - id: pr_tropics
+      var_name: pr
+      frequency: day
+      units: mm day-1
+      min_lat: -30.0
+      max_lat: 30.0
+      reference_data: climateeval.data.ERA5Daily
+    - id: pr_nh_extratropics
+      var_name: pr
+      frequency: day
+      units: mm day-1
+      min_lat: 30.0
+      max_lat: 90.0
+      reference_data: climateeval.data.ERA5Daily
+    - id: pr_sh_extratropics
+      var_name: pr
+      frequency: day
+      units: mm day-1
+      min_lat: -90.0
+      max_lat: -30.0
+      reference_data: climateeval.data.ERA5Daily
+    - id: pr_tropical_ocean
+      var_name: pr
+      frequency: day
+      units: mm day-1
+      min_lat: -30.0
+      max_lat: 30.0
+      landsea_mask: sea_only
+      reference_data: climateeval.data.ERA5Daily
+    - id: pr_tropical_land
+      var_name: pr
+      frequency: day
+      units: mm day-1
+      min_lat: -30.0
+      max_lat: 30.0
+      landsea_mask: land_only
+      diagnostic_kwargs: {seasons: [ann, djf, jja], aggregation: year}
+      reference_data: climateeval.data.ERA5Daily

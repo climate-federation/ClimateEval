@@ -138,6 +138,7 @@ order to diagnose a model from the basics upward:
 | `Tier3_amip_erf` | Fixed-SST effective radiative forcing of quadrupled CO2, from amip-4xCO2 and amip. |
 | `Tier3_patch_feedback` | Dependence of the radiative feedback on where the ocean warms, from the GFMIP SST patch experiments. |
 | `Tier3_aerosol_erf` | Aerosol effective radiative forcing of the DAMIP aerosol-only historical run. |
+| `Tier3_precip_statistics` | Daily precipitation statistics per region and season, as annual series: wet-day fraction, SDII, wet-day percentiles, dry-day fraction and the peaks of the Pendergrass-Hartmann rain-amount and frequency distributions. |
 | `Tier3_tropical_profile` | MSU-equivalent tropical lower/mid-tropospheric temperature (TLT, TMT) and the lower-tropospheric stability and estimated inversion strength (LTS, EIS), from temperature profiles and surface fields. |
 | `Tier3_circulation` | Circulation indices as annual time series: Hadley-cell edge (500 hPa streamfunction zero), eddy-driven jet latitude (850 hPa wind maximum) and Walker-circulation strength (sea-level-pressure difference), identical on model and ERA5. |
 
@@ -155,7 +156,7 @@ Use these class paths in the `diagnostic:` field. **Simple** diagnostics
 `SeaIceExtentTimeSeries`, `LandTotalAnnualCycle`, `LandTotalTimeSeries`,
 `LandMap`, `LandAnnualCycleSpatialDistribution`, `AMOCTimeSeries`,
 `OceanHeatContentTimeSeries`, `HadleyCellEdge`, `EddyDrivenJetLatitude`,
-`WalkerCirculationStrength` (options such as `hemisphere` and `aggregation` go
+`WalkerCirculationStrength`, `PrecipitationStatistics` (options such as `hemisphere` and `aggregation` go
 in the variable's `diagnostic_kwargs`; see the header of
 `Tier3_circulation.yml`). **Complex** diagnostics
 (`climateeval.diags.complex.*`): `ECS`, `TEMDiagnostic`,

@@ -36,6 +36,7 @@ from climateeval.diags.simple._land import (
 from climateeval.diags.simple._map import Map
 from climateeval.diags.simple._nino34 import Nino34
 from climateeval.diags.simple._ohc import OceanHeatContentTimeSeries
+from climateeval.diags.simple._precipitation_statistics import PrecipitationStatistics
 from climateeval.diags.simple._qbo import QBO
 from climateeval.diags.simple._sea_ice import (
     SeaIceAreaAnnualCycle,
@@ -75,6 +76,7 @@ __all__ = [
     "Nino34",
     "OceanHeatContentTimeSeries",
     "OceanHeatTransportProfile",
+    "PrecipitationStatistics",
     "SeaIceAreaAnnualCycle",
     "SeaIceAreaTimeSeries",
     "SeaIceExtentAnnualCycle",

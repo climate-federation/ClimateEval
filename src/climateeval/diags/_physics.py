@@ -1235,3 +1235,498 @@ def estimated_inversion_strength(
     z_lcl = 125.0 * (100.0 - rh) / 5.0
     gamma = moist_adiabatic_theta_gradient(t850, 85000.0)
     return lower_tropospheric_stability(t700, tsfc, ps) - gamma * (z700 - z_lcl)
+
+
+# ---------------------------------------------------------------------------
+# Precipitation frequency and intensity statistics (daily precipitation)
+# ---------------------------------------------------------------------------
+
+WET_DAY_THRESHOLD = 1.0
+"""Conventional wet-day threshold (mm day-1)."""
+
+_MIN_BIN_EDGES = 2
+
+
+def _valid_weights(pr: np.ndarray, weights: np.ndarray | None) -> np.ndarray:
+    """Get non-negative weights of ``pr`` broadcast to its shape (0 if missing)."""
+    if weights is None:
+        weights = np.ones(pr.shape)
+    else:
+        weights = np.broadcast_to(np.asarray(weights, dtype=float), pr.shape)
+    return np.where(np.isfinite(pr) & np.isfinite(weights), weights, 0.0)
+
+
+def wet_day_fraction(
+    pr: np.ndarray,
+    threshold: float = WET_DAY_THRESHOLD,
+    axis: int | None = 0,
+    weights: np.ndarray | None = None,
+) -> np.ndarray | float:
+    """Fraction of days with precipitation of at least ``threshold``.
+
+    Days with NaN precipitation (or zero weight) are not counted.
+
+    Parameters
+    ----------
+    pr:
+        Daily precipitation (mm day-1).
+    threshold:
+        Wet-day threshold (mm day-1); 1 mm day-1 is the usual choice.
+    axis:
+        Axis over which the fraction is taken (the time axis), or None to pool
+        all elements.
+    weights:
+        Optional weights broadcastable to ``pr`` (e.g. cos latitude when pooling
+        grid cells).
+
+    Returns
+    -------
+    :
+        Wet-day fraction (NaN where there is no valid day).
+
+    """
+    pr = np.asarray(pr, dtype=float)
+    w = _valid_weights(pr, weights)
+    wet = (w > 0.0) & (pr >= threshold)
+    total = w.sum(axis=axis)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(total > 0.0, (w * wet).sum(axis=axis) / total, np.nan)[()]
+
+
+def sdii(
+    pr: np.ndarray,
+    threshold: float = WET_DAY_THRESHOLD,
+    axis: int | None = 0,
+    weights: np.ndarray | None = None,
+) -> np.ndarray | float:
+    """Get the simple daily intensity index: mean precipitation on wet days.
+
+    Parameters
+    ----------
+    pr:
+        Daily precipitation (mm day-1).
+    threshold:
+        Wet-day threshold (mm day-1).
+    axis:
+        Axis over which the mean is taken, or None to pool all elements.
+    weights:
+        Optional weights broadcastable to ``pr``.
+
+    Returns
+    -------
+    :
+        Mean precipitation of the days with ``pr >= threshold`` (mm day-1), NaN
+        if there is none.
+
+    """
+    pr = np.asarray(pr, dtype=float)
+    w = _valid_weights(pr, weights)
+    wet_weight = ((w > 0.0) & (pr >= threshold)) * w
+    total = wet_weight.sum(axis=axis)
+    amount = (np.where(wet_weight > 0.0, pr, 0.0) * wet_weight).sum(axis=axis)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(total > 0.0, amount / total, np.nan)[()]
+
+
+def weighted_percentile(
+    values: np.ndarray,
+    q: tuple[float, ...] | np.ndarray,
+    weights: np.ndarray | None = None,
+) -> np.ndarray:
+    """Weighted percentiles of a sample (all elements pooled).
+
+    The weighted generalisation of the "Hazen" definition: the sorted values
+    sit at the cumulative weight fractions ``(cumsum(w) - w / 2) / sum(w)`` and
+    the percentile is interpolated linearly between them. NaN values and
+    zero weights are ignored.
+
+    Parameters
+    ----------
+    values:
+        Sample.
+    q:
+        Percentiles in [0, 100].
+    weights:
+        Optional weights of the same shape as ``values``.
+
+    Returns
+    -------
+    :
+        One value per entry of ``q``, NaN for an empty sample.
+
+    """
+    values = np.asarray(values, dtype=float).ravel()
+    w = _valid_weights(values, None if weights is None else np.ravel(weights))
+    keep = w > 0.0
+    q = np.atleast_1d(np.asarray(q, dtype=float))
+    if not keep.any():
+        return np.full(q.shape, np.nan)
+    values, w = values[keep], w[keep]
+    order = np.argsort(values, kind="stable")
+    values, w = values[order], w[order]
+    position = (np.cumsum(w) - 0.5 * w) / w.sum()
+    return np.interp(q / 100.0, position, values)
+
+
+def wet_day_percentiles(
+    pr: np.ndarray,
+    q: tuple[float, ...] = (10.0, 90.0),
+    threshold: float = WET_DAY_THRESHOLD,
+    weights: np.ndarray | None = None,
+) -> np.ndarray:
+    """Percentiles of the precipitation of wet days.
+
+    All elements of ``pr`` (days and, if present, grid cells) are pooled; only
+    days with ``pr >= threshold`` enter.
+
+    Parameters
+    ----------
+    pr:
+        Daily precipitation (mm day-1).
+    q:
+        Percentiles in [0, 100].
+    threshold:
+        Wet-day threshold (mm day-1).
+    weights:
+        Optional weights broadcastable to ``pr``.
+
+    Returns
+    -------
+    :
+        Wet-day percentiles (mm day-1), one per entry of ``q``.
+
+    """
+    pr = np.asarray(pr, dtype=float)
+    w = _valid_weights(pr, weights)
+    wet = (w > 0.0) & (pr >= threshold)
+    return weighted_percentile(pr[wet], q, w[wet])
+
+
+def log_rain_bins(
+    r_min: float = 0.03,
+    ratio: float = 1.07,
+    n: int = 150,
+) -> np.ndarray:
+    """Logarithmically spaced rain-rate bin edges.
+
+    ``r_i = r_min * ratio**i`` for ``i = 0 .. n``: bins of equal width
+    ``ln(ratio)`` in ``ln r``, starting at 0.03 mm day-1 and widening by 7 %
+    as in Pendergrass and Hartmann (2014, J. Clim., 27, 8372). The default
+    ``n = 150`` bins reach about 770 mm day-1 (the number of bins is a choice
+    of this implementation).
+
+    Parameters
+    ----------
+    r_min:
+        Lower edge of the first bin (mm day-1).
+    ratio:
+        Ratio of neighbouring bin edges.
+    n:
+        Number of bins.
+
+    Returns
+    -------
+    :
+        ``n + 1`` bin edges (mm day-1).
+
+    Raises
+    ------
+    ValueError
+        For a non-positive ``r_min``, a ``ratio`` of at most one or ``n < 1``.
+
+    """
+    if r_min <= 0.0 or ratio <= 1.0 or n < 1:
+        msg = f"need r_min > 0, ratio > 1 and n >= 1, got {r_min}, {ratio}, {n}"
+        raise ValueError(msg)
+    return r_min * ratio ** np.arange(n + 1)
+
+
+def bin_centers(bin_edges: np.ndarray) -> np.ndarray:
+    """Geometric centres of rain-rate bins (mm day-1)."""
+    edges = np.asarray(bin_edges, dtype=float)
+    return np.sqrt(edges[1:] * edges[:-1])
+
+
+def _bin_index(pr: np.ndarray, bin_edges: np.ndarray) -> np.ndarray:
+    """Get the bin of each value: -1 below the first edge, last bin above it."""
+    n_bins = bin_edges.size - 1
+    index = np.searchsorted(bin_edges, pr, side="right") - 1
+    return np.minimum(index, n_bins - 1)
+
+
+def _check_edges(bin_edges: np.ndarray) -> np.ndarray:
+    """Validate bin edges."""
+    edges = np.asarray(bin_edges, dtype=float)
+    if edges.ndim != 1 or edges.size < _MIN_BIN_EDGES or np.any(np.diff(edges) <= 0.0):
+        msg = "bin_edges must be a strictly increasing 1-D array of at least two"
+        raise ValueError(msg)
+    if edges[0] <= 0.0:
+        msg = "bin_edges must be positive (logarithmic bins)"
+        raise ValueError(msg)
+    return edges
+
+
+def rain_frequency_distribution(
+    pr: np.ndarray,
+    bin_edges: np.ndarray,
+    weights: np.ndarray | None = None,
+) -> tuple[np.ndarray, float]:
+    """Frequency distribution of daily rain rates (Pendergrass and Hartmann, 2014).
+
+    The fraction of (valid) days in each bin, and the dry-day fraction: days
+    below the lowest bin edge. The last bin is open-ended (rain at or above
+    the top edge counts there), so that the frequencies and the dry fraction
+    sum to one.
+
+    Parameters
+    ----------
+    pr:
+        Daily precipitation (mm day-1), all elements pooled.
+    bin_edges:
+        Increasing positive bin edges (mm day-1), e.g. :func:`log_rain_bins`.
+    weights:
+        Optional weights broadcastable to ``pr``.
+
+    Returns
+    -------
+    :
+        Fraction of days per bin, shape ``(n_bins,)``, and the dry-day
+        fraction. NaN throughout if no valid day.
+
+    """
+    edges = _check_edges(bin_edges)
+    pr = np.asarray(pr, dtype=float)
+    w = _valid_weights(pr, weights).ravel()
+    keep = w > 0.0
+    pr = pr.ravel()[keep]
+    w = w[keep]
+    if w.size == 0:
+        return np.full(edges.size - 1, np.nan), float("nan")
+    index = _bin_index(pr, edges)
+    total = w.sum()
+    dry = float(w[index < 0].sum() / total)
+    wet = index >= 0
+    counts = np.bincount(index[wet], weights=w[wet], minlength=edges.size - 1)
+    return counts / total, dry
+
+
+def rain_amount_distribution(
+    pr: np.ndarray,
+    bin_edges: np.ndarray,
+    weights: np.ndarray | None = None,
+    *,
+    normalize: bool = False,
+) -> np.ndarray:
+    """Rain-amount distribution per unit ln r (Pendergrass and Hartmann, 2014).
+
+    ``A_i = (1 / N) sum_{days in bin i} r / Delta ln r_i``: the rain rate
+    contributed by the days of each bin, per unit of ``ln r``, so that
+    ``sum_i A_i Delta ln r_i`` is the mean rain rate of the days at or above the
+    lowest bin edge (all rain, apart from drizzle below the lowest edge). With
+    ``normalize`` the distribution is divided by that sum: the fraction of the
+    rain falling per unit ``ln r``, integrating to one. The last bin is open
+    ended, as in :func:`rain_frequency_distribution`.
+
+    Parameters
+    ----------
+    pr:
+        Daily precipitation (mm day-1), all elements pooled.
+    bin_edges:
+        Increasing positive bin edges (mm day-1).
+    weights:
+        Optional weights broadcastable to ``pr``.
+    normalize:
+        Return the fraction of rain per unit ``ln r`` instead of mm day-1.
+
+    Returns
+    -------
+    :
+        Distribution, shape ``(n_bins,)`` (mm day-1 per unit ``ln r``). NaN if
+        no valid day (or, normalised, no rain).
+
+    """
+    edges = _check_edges(bin_edges)
+    pr = np.asarray(pr, dtype=float)
+    w = _valid_weights(pr, weights).ravel()
+    keep = w > 0.0
+    pr = pr.ravel()[keep]
+    w = w[keep]
+    if w.size == 0:
+        return np.full(edges.size - 1, np.nan)
+    index = _bin_index(pr, edges)
+    wet = index >= 0
+    rain = np.bincount(index[wet], weights=(w * pr)[wet], minlength=edges.size - 1)
+    distribution = rain / w.sum() / np.diff(np.log(edges))
+    if normalize:
+        total = float(np.sum(distribution * np.diff(np.log(edges))))
+        distribution = distribution / total if total > 0.0 else distribution * np.nan
+    return distribution
+
+
+def distribution_peak(
+    bin_edges: np.ndarray,
+    values: np.ndarray,
+) -> tuple[float, float]:
+    """Location and height of the maximum of a distribution over log bins.
+
+    The discrete maximum is refined by a parabola through it and its two
+    neighbours, as a function of ``ln r``; the discrete maximum is returned
+    where the parabola is not concave or the maximum is at either end.
+
+    Parameters
+    ----------
+    bin_edges:
+        Increasing positive bin edges (mm day-1).
+    values:
+        Distribution over the bins (e.g. from
+        :func:`rain_amount_distribution`).
+
+    Returns
+    -------
+    :
+        Rain rate of the peak (mm day-1) and its height (units of ``values``);
+        NaN, NaN if all values are NaN.
+
+    """
+    edges = _check_edges(bin_edges)
+    values = np.asarray(values, dtype=float)
+    if values.size != edges.size - 1:
+        msg = f"expected {edges.size - 1} values, got {values.size}"
+        raise ValueError(msg)
+    if not np.isfinite(values).any():
+        return float("nan"), float("nan")
+    k = int(np.nanargmax(values))
+    ln_r = np.log(bin_centers(edges))
+    if 0 < k < values.size - 1 and np.all(np.isfinite(values[k - 1 : k + 2])):
+        x = ln_r[k - 1 : k + 2] - ln_r[k]
+        a, b, c = np.polyfit(x, values[k - 1 : k + 2], 2)
+        if a < 0.0:
+            vertex = -b / (2.0 * a)
+            if x[0] <= vertex <= x[2]:
+                return (
+                    float(np.exp(ln_r[k] + vertex)),
+                    float(c + b * vertex + a * vertex**2),
+                )
+    return float(np.exp(ln_r[k])), float(values[k])
+
+
+def precipitation_statistics(
+    pr: np.ndarray,
+    bin_edges: np.ndarray,
+    threshold: float = WET_DAY_THRESHOLD,
+    percentiles: tuple[float, ...] = (10.0, 90.0),
+    weights: np.ndarray | None = None,
+) -> dict[str, float]:
+    """Summary statistics of a pooled sample of daily precipitation.
+
+    Parameters
+    ----------
+    pr:
+        Daily precipitation (mm day-1), all elements pooled.
+    bin_edges:
+        Bin edges of the rain distributions (see :func:`log_rain_bins`).
+    threshold:
+        Wet-day threshold (mm day-1).
+    percentiles:
+        Percentiles of the wet-day intensity.
+    weights:
+        Optional weights broadcastable to ``pr``.
+
+    Returns
+    -------
+    :
+        ``mean`` (mean precipitation, mm day-1), ``wet_fraction``, ``sdii``
+        (mm day-1), ``p<q>`` for each percentile (mm day-1, e.g. ``p90``),
+        ``dry_fraction`` (days below the lowest bin edge), ``amount_peak_rate``
+        and ``amount_peak_height`` (rate and height of the maximum of the rain
+        amount distribution, mm day-1 and mm day-1 per unit ``ln r``), and
+        ``frequency_peak_rate`` and ``frequency_peak_height`` (the same for
+        the frequency distribution; height is a fraction of days per bin).
+
+    """
+    pr = np.asarray(pr, dtype=float)
+    w = _valid_weights(pr, weights)
+    total = w.sum()
+    mean = (
+        float((w * np.where(w > 0.0, pr, 0.0)).sum() / total) if total > 0 else np.nan
+    )
+    result: dict[str, float] = {
+        "mean": mean,
+        "wet_fraction": float(wet_day_fraction(pr, threshold, axis=None, weights=w)),
+        "sdii": float(sdii(pr, threshold, axis=None, weights=w)),
+    }
+    quantiles = wet_day_percentiles(pr, percentiles, threshold, weights=w)
+    for q, value in zip(percentiles, quantiles, strict=True):
+        result[f"p{q:g}"] = float(value)
+    frequency, dry = rain_frequency_distribution(pr, bin_edges, weights=w)
+    amount = rain_amount_distribution(pr, bin_edges, weights=w)
+    result["dry_fraction"] = dry
+    (
+        result["amount_peak_rate"],
+        result["amount_peak_height"],
+    ) = distribution_peak(bin_edges, amount)
+    (
+        result["frequency_peak_rate"],
+        result["frequency_peak_height"],
+    ) = distribution_peak(bin_edges, frequency)
+    return result
+
+
+def regress_on_index(
+    stat: np.ndarray,
+    index: np.ndarray,
+) -> tuple[np.ndarray | float, np.ndarray | float, np.ndarray | float]:
+    """Least-squares regression of statistics on an index (e.g. Nino 3.4).
+
+    ``stat = intercept + slope * index`` with the standard error of the slope,
+    for one statistic or for many at once (any trailing dimensions of ``stat``,
+    e.g. the bins of a distribution). Pairs with a NaN in either variable are
+    dropped separately for each statistic.
+
+    Parameters
+    ----------
+    stat:
+        Statistic per year or season, shape ``(n_time, ...)``.
+    index:
+        Index at the same times, shape ``(n_time,)``.
+
+    Returns
+    -------
+    :
+        Slope, intercept and standard error of the slope, each of shape
+        ``stat.shape[1:]`` (floats for a 1-D ``stat``); NaN where fewer than
+        three valid pairs remain.
+
+    Raises
+    ------
+    ValueError
+        If the leading dimension of ``stat`` is not the length of ``index``.
+
+    """
+    stat = np.asarray(stat, dtype=float)
+    index = np.asarray(index, dtype=float)
+    if index.ndim != 1 or stat.shape[0] != index.size:
+        msg = f"stat {stat.shape} and index {index.shape} differ in length"
+        raise ValueError(msg)
+    x = index.reshape((-1,) + (1,) * (stat.ndim - 1))
+    valid = np.isfinite(stat) & np.isfinite(x)
+    n = valid.sum(axis=0)
+    xv = np.where(valid, x, 0.0)
+    yv = np.where(valid, stat, 0.0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        x_mean = xv.sum(axis=0) / n
+        y_mean = yv.sum(axis=0) / n
+        dx = np.where(valid, x - x_mean, 0.0)
+        dy = np.where(valid, stat - y_mean, 0.0)
+        sxx = (dx**2).sum(axis=0)
+        slope = (dx * dy).sum(axis=0) / sxx
+        intercept = y_mean - slope * x_mean
+        residual = ((dy - slope * dx) ** 2).sum(axis=0)
+        stderr = np.sqrt(residual / (n - 2) / sxx)
+    enough = (n >= _MIN_REGRESSION_POINTS) & (sxx > 0.0)
+    slope, intercept, stderr = (
+        np.where(enough, v, np.nan) for v in (slope, intercept, stderr)
+    )
+    if stat.ndim == 1:
+        return float(slope), float(intercept), float(stderr)
+    return slope, intercept, stderr
