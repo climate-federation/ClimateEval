@@ -185,8 +185,8 @@ not provide raises `NotImplementedError`. The shared base class is
 | `BerkeleyEarthDaily` | `observation_BerkeleyEarth-daily` | `tas`, `tasmax`, `tasmin` | `day` | land only | `obs/prep/berkeley_earth_daily.py` |
 | `HadGHCND` | `observation_HadGHCND` | `tasmax`, `tasmin` | `day` | land only | `obs/prep/hadghcnd.py` |
 | `RSSPrw` | `observation_RSS-TPW` | `prw` | `mon` | ocean only | `obs/prep/rss_prw.py` |
-| `RSSMSU` | `observation_RSS-MSU` | `tlt`, `tmt` | `mon` | | `obs/prep/msu_rss.py` |
-| `UAHMSU` | `observation_UAH-MSU` | `tlt`, `tmt` | `mon` | | `obs/prep/msu_uah.py` |
+| `RSSMSU` | `observation_RSS-MSU` | `tlt`, `tmt`, `tls` | `mon` | | `obs/prep/msu_rss.py` |
+| `UAHMSU` | `observation_UAH-MSU` | `tlt`, `tmt`, `tls` | `mon` | | `obs/prep/msu_uah.py` |
 | `RICH` | `observation_RICH` | `ta` | `mon` | pressure levels; `(time, plev, lat, lon)` | (not yet written) |
 | `RAOBCORE` | `observation_RAOBCORE` | `ta` | `mon` | pressure levels; `(time, plev, lat, lon)` | (not yet written) |
 | `GPCC` | `observation_GPCC` | `pr` | `mon` | land only, 1°, 1891-2016 (v2018) | ESMValTool CMORizer |
