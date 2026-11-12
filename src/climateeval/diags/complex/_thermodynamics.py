@@ -36,7 +36,6 @@ from climateeval._utils import get_prepared_cube
 from climateeval.diags import _physics
 from climateeval.diags._base import DiagnosticOutput
 from climateeval.diags._cube_arrays import cube_to_array
-from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.complex._base import ComplexDiagnostic
 from climateeval.diags.complex._scalar import calendar_years_and_months
 
@@ -63,7 +62,7 @@ class _GriddedThermodynamicDiagnostic(ComplexDiagnostic):
         spatial: str = "gridded",
         lat_range: tuple[float, float] = (-20.0, 20.0),
         aggregation: str = "monthly",
-        grid: str = DEFAULT_GRID,
+        grid: str | None = None,
         landsea_mask: str = "*",
         **kwargs: Any,
     ) -> None:
@@ -83,7 +82,7 @@ class _GriddedThermodynamicDiagnostic(ComplexDiagnostic):
         aggregation:
             ``"monthly"`` or ``"annual"`` (annual means of the monthly values).
         grid:
-            Target grid of the regridding.
+            Target grid of the regridding (default ``DEFAULT_GRID``).
         landsea_mask:
             ``"*"`` (default), ``"land_only"`` or ``"sea_only"``, applied to
             all input variables.
@@ -97,13 +96,12 @@ class _GriddedThermodynamicDiagnostic(ComplexDiagnostic):
         if aggregation not in _AGGREGATIONS:
             msg = f"'aggregation' must be one of {_AGGREGATIONS}, got '{aggregation}'"
             raise ValueError(msg)
-        super().__init__(name, **kwargs)
+        super().__init__(name, grid=grid, **kwargs)
         self._required_data_keys = (data_key,)
         self._data_key = data_key
         self._spatial = spatial
         self._lat_range = (float(lat_range[0]), float(lat_range[1]))
         self._aggregation = aggregation
-        self._grid = grid
         self._landsea_mask = landsea_mask
 
     @property
@@ -152,7 +150,7 @@ class _GriddedThermodynamicDiagnostic(ComplexDiagnostic):
         """Get one input variable on the target grid."""
         cube = get_prepared_cube(data, variable)
         with setup_esmvaltool_config_and_logging():
-            return regrid(cube, self._grid, "linear", cache_weights=True)
+            return regrid(cube, self._target_grid, "linear", cache_weights=True)
 
     @staticmethod
     def _align_time(cubes: dict[str, Cube]) -> tuple[dict[str, Cube], Cube]:
