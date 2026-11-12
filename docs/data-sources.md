@@ -22,7 +22,7 @@ All live in `climateeval.data`:
 | Ocean | `ORAS5`, `EN4`, `WOA`, `IAP`, `ESACCIOC` |
 | AMOC | `RAPID` |
 | Sea ice | `OSI450NH`, `OSI450SH`, `NSIDCG02202SH`, `ESACCISeaIceNH`, `ESACCISeaIceSH` |
-| CMIP6 model data | `CMIP6HistoricalR1I1P1F1`, `CMIP6HistoricalAllMembers`, `CMIP6HistoricalSSP245`, `CMIP6Abrupt4xCO2R1I1P1F1`, `CMIP6PiControlR1I1P1F1`, `CMIP6HistAerR1I1P1F1`, `CMIP6AmipR1I1P1F1`, `CMIP6Amip4xCO2R1I1P1F1` |
+| CMIP6 model data | `CMIP6HistoricalR1I1P1F1`, `CMIP6HistoricalAllMembers`, `CMIP6HistoricalSSP245`, `CMIP6Abrupt4xCO2R1I1P1F1`, `CMIP6PiControlR1I1P1F1`, `CMIP6HistAerR1I1P1F1`, `CMIP6AmipR1I1P1F1`, `CMIP6AmipAllMembers`, `CMIP6AmipP4KR1I1P1F1`, `CMIP6Amip4xCO2R1I1P1F1`, `CMIP6AmipHistAllMembers`, `CMIP6PiClimControlR1I1P1F1`, `CMIP6PiClimAerR1I1P1F1` |
 | CMIP6 paleoclimate (PMIP4) | `CMIP6LgmR1I1P1F1`, `CMIP6MidHoloceneR1I1P1F1`, `CMIP6Lig127kR1I1P1F1` |
 | Generic loaders | `ESMValToolIntakeDataSource`, `ESMValToolCMORizerDataSource`, `LocalCMORDataSource` |
 
@@ -46,6 +46,11 @@ that published the experiment:
 | `CMIP6HistAerR1I1P1F1` | `hist-aer` (DAMIP) | Aerosol-forced historical response |
 | `CMIP6AmipR1I1P1F1` | `amip` (CMIP) | Atmosphere-only, prescribed SSTs |
 | `CMIP6Amip4xCO2R1I1P1F1` | `amip-4xCO2` (CFMIP) | Effective radiative forcing (vs `amip`) |
+| `CMIP6AmipAllMembers` | `amip` (CMIP), all `r*i1p1f*` members, 1979–2014 | Atmosphere-only ensembles (AMIP protocol) |
+| `CMIP6AmipP4KR1I1P1F1` | `amip-p4K` (CFMIP) | Uniform +4 K SST response (vs `amip`) |
+| `CMIP6AmipHistAllMembers` | `amip-hist` (GMMIP), all `r*i1p1f*` members, 1940–2014 | AMIP-style runs extended before 1979 |
+| `CMIP6PiClimControlR1I1P1F1` | `piClim-control` (RFMIP) | Fixed-SST pre-industrial control |
+| `CMIP6PiClimAerR1I1P1F1` | `piClim-aer` (RFMIP) | Aerosol effective radiative forcing (vs `piClim-control`) |
 | `CMIP6LgmR1I1P1F1` | `lgm` (PMIP) | Last Glacial Maximum, 21 ka BP |
 | `CMIP6MidHoloceneR1I1P1F1` | `midHolocene` (PMIP) | Mid-Holocene, 6 ka BP |
 | `CMIP6Lig127kR1I1P1F1` | `lig127k` (PMIP) | Last Interglacial, 127 ka BP |
@@ -58,7 +63,7 @@ kwarg).
 ### CMIP6 ensembles and scenarios
 
 Most CMIP6 generators are restricted to `r1i1p1f1` and to the historical
-period. Two of them are not:
+period. Four of them are not:
 
 - `CMIP6HistoricalAllMembers` discovers **every `r*i1p1f1` member** of every
   model, one data source per member.
@@ -69,7 +74,13 @@ period. Two of them are not:
   each data source gets the time range it actually has (members without an
   `ssp245` run simply end in 2014).
 
-Both put the member into `DataSourceInformation.variant`, so IDs stay unique
+- `CMIP6AmipAllMembers` and `CMIP6AmipHistAllMembers` discover every
+  **`r*i1p1f*`** member: unlike `CMIP6HistoricalAllMembers` (`r*i1p1f1`) the
+  forcing index is a wildcard, because several models provide their `amip` run
+  only as `f2` or `f3`. Members with a perturbed-physics index other than `p1`
+  (e.g. CanESM5 `p2`) are not matched.
+
+All of them put the member into `DataSourceInformation.variant`, so IDs stay unique
 (`CMIP6_MPI-ESM1-2-LR_historical-ssp245_r1i1p1f1`, …). Multi-member reference
 ensembles are what probabilistic scores (e.g. a per-model CRPS) need; the
 single-member generators cannot provide them.

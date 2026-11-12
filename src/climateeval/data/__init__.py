@@ -8,6 +8,9 @@ from climateeval.data._ceres_ebaf import CERESEBAF
 from climateeval.data._cmip6_generators import (
     CMIP6Abrupt4xCO2R1I1P1F1,
     CMIP6Amip4xCO2R1I1P1F1,
+    CMIP6AmipAllMembers,
+    CMIP6AmipHistAllMembers,
+    CMIP6AmipP4KR1I1P1F1,
     CMIP6AmipR1I1P1F1,
     CMIP6DataSourceGenerator,
     CMIP6HistAerR1I1P1F1,
@@ -17,6 +20,8 @@ from climateeval.data._cmip6_generators import (
     CMIP6LgmR1I1P1F1,
     CMIP6Lig127kR1I1P1F1,
     CMIP6MidHoloceneR1I1P1F1,
+    CMIP6PiClimAerR1I1P1F1,
+    CMIP6PiClimControlR1I1P1F1,
     CMIP6PiControlR1I1P1F1,
 )
 from climateeval.data._cru import CRU
@@ -69,6 +74,9 @@ __all__ = [
     "BerkeleyEarth",
     "CMIP6Abrupt4xCO2R1I1P1F1",
     "CMIP6Amip4xCO2R1I1P1F1",
+    "CMIP6AmipAllMembers",
+    "CMIP6AmipHistAllMembers",
+    "CMIP6AmipP4KR1I1P1F1",
     "CMIP6AmipR1I1P1F1",
     "CMIP6DataSourceGenerator",
     "CMIP6HistAerR1I1P1F1",
@@ -78,6 +86,8 @@ __all__ = [
     "CMIP6LgmR1I1P1F1",
     "CMIP6Lig127kR1I1P1F1",
     "CMIP6MidHoloceneR1I1P1F1",
+    "CMIP6PiClimAerR1I1P1F1",
+    "CMIP6PiClimControlR1I1P1F1",
     "CMIP6PiControlR1I1P1F1",
     "ComplexDataSource",
     "DataSource",
