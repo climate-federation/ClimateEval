@@ -13,7 +13,7 @@ from esmvalcore.preprocessor import (
 
 from climateeval import Coordinate
 from climateeval._config import setup_esmvaltool_config_and_logging
-from climateeval.diags._utils import DEFAULT_GRID, PLEV19_LEVELS
+from climateeval.diags._utils import PLEV19_LEVELS
 from climateeval.diags.simple._base import SimpleDiagnostic
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ class ZonalProfileAirPressure(SimpleDiagnostic):
                 "linear",
                 coordinate="air_pressure",
             )
-            cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
+            cube = regrid(cube, self._target_grid, "linear", cache_weights=True)
             cube = zonal_statistics(cube, "mean")
             cube = climate_statistics(cube, "mean", "full")
         return cube  # noqa: RET504

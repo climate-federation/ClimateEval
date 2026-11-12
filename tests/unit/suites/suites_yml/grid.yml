@@ -1,0 +1,29 @@
+- name: map_default
+  diagnostic: climateeval.diags.simple.Map
+  variables:
+    - id: tas
+      var_name: tas
+      frequency: mon
+      reference_data: climateeval.data.ERA5Monthly
+- name: map_fine
+  diagnostic: climateeval.diags.simple.Map
+  diagnostic_kwargs:
+    grid: 1x1
+  variables:
+    - id: tas
+      var_name: tas
+      frequency: mon
+      reference_data: climateeval.data.ERA5Monthly
+- name: sea_ice
+  diagnostic: climateeval.diags.simple.SeaIceAreaAnnualCycle
+  variables:
+    - id: siconc
+      var_name: siconc
+      frequency: mon
+- name: ecs
+  diagnostic: climateeval.diags.complex.ECS
+  additional_diagnostic_kwargs:
+    grid: 2.5x2.5
+- name: ecs_default
+  diagnostic: climateeval.diags.complex.ECS
+  additional_diagnostic_kwargs: {}

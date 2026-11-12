@@ -108,3 +108,31 @@ def test_non_unique_diagnostic_names_fail() -> None:
     )
     with pytest.raises(ValueError, match=re.escape(msg)):
         suite._get_diagnostics()
+
+
+def test_grid_in_suite_entries() -> None:
+    diagnostics = Suite(SUITES_YML_DIR / "grid.yml")._get_diagnostics()
+    assert diagnostics["map_default"]._target_grid == "2x2"
+    assert diagnostics["map_fine"]._target_grid == "1x1"
+    assert diagnostics["sea_ice"]._target_grid == "1x1"  # sea-ice default
+    assert diagnostics["ecs"]._target_grid == "2.5x2.5"
+    assert diagnostics["ecs_default"]._target_grid == "2x2"
+
+
+def test_grid_through_suite_diagnostic_kwargs() -> None:
+    suite = Suite(SUITES_YML_DIR / "grid.yml", diagnostic_kwargs={"grid": "1.5x1.5"})
+    diagnostics = suite._get_diagnostics()
+    # Suite-level kwargs override the entries, like all diagnostic kwargs
+    assert {d._target_grid for d in diagnostics.values()} == {"1.5x1.5"}
+
+
+def test_diagnostic_kwargs_grid_reaches_every_shipped_suite_diagnostic() -> None:
+    from climateeval.suites import resolve_suite_definition_file  # noqa: PLC0415
+
+    # No diagnostic of the shipped suites rejects a suite-wide 'grid'
+    for name in ("Tier2_sea_ice_monthly", "Tier1_control_consistency"):
+        suite = Suite(
+            resolve_suite_definition_file(name),
+            diagnostic_kwargs={"grid": "1x1"},
+        )
+        assert {d._target_grid for d in suite._get_diagnostics().values()} == {"1x1"}

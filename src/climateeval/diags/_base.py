@@ -15,10 +15,11 @@ from iris.pandas import as_data_frame
 from loguru import logger
 
 from climateeval import NO_LEVEL
+from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.exceptions import MissingDataError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
 
     from iris.cube import Cube
 
@@ -65,6 +66,18 @@ class Diagnostic(ABC):
 
     _name: str
     """Diagnostic name."""
+
+    _default_grid: ClassVar[str] = DEFAULT_GRID
+    """Regridding target (ESMValCore ``target_grid``) if ``grid`` is not given."""
+
+    _grid_spec: str | None = None
+    """Value of the ``grid`` kwarg (class default so that subclasses that do not
+    call ``super().__init__`` still regrid to the default grid)."""
+
+    @property
+    def _target_grid(self) -> str:
+        """Get the grid to regrid to (``grid`` kwarg or the class default)."""
+        return self._default_grid if self._grid_spec is None else self._grid_spec
 
     @property
     def data_root_dir(self) -> Path:
@@ -141,9 +154,23 @@ class Diagnostic(ABC):
         )
         return raw_output_table  # noqa: RET504
 
-    def _get_variables_table(self, variables: Iterable[Variable]) -> ibis.Table:
-        """Get variables table."""
-        df = pd.DataFrame(sorted(set(variables)))
+    def _get_variables_table(
+        self,
+        variables: Iterable[Variable],
+        *,
+        reference_timeranges: Mapping[Variable, str] | None = None,
+    ) -> ibis.Table:
+        """Get variables table.
+
+        The ``reference_timerange`` column (window of the reference, if it
+        differs from ``timerange``) is only present if any variable has one.
+        """
+        sorted_variables = sorted(set(variables))
+        df = pd.DataFrame(sorted_variables)
+        if reference_timeranges:
+            df["reference_timerange"] = [
+                reference_timeranges.get(v, "") for v in sorted_variables
+            ]
         df["coordinates"] = df["coordinates"].map(
             lambda r: " ".join(c["var_name"] for c in r),
         )
