@@ -34,6 +34,24 @@ data source on demand.
 > Data source *generators* do not yet work with `derived: true` variables
 > ([ESMValCore#2769](https://github.com/ESMValGroup/ESMValCore/issues/2769)).
 
+### CERES-EBAF: clear-sky fluxes and the cloud radiative effect
+
+`CERESEBAF` reads obs4MIPs `CERES-EBAF-4-2-1`. Its `rlutcs` and `rsutcs` are
+EBAF's **clear-scene** fluxes: the clear-sky flux of the cloud-free part of
+each region. A model's clear-sky flux is the whole column with clouds removed,
+which corresponds to EBAF's total-region clear sky; that is not in the obs4MIPs
+dataset. The global-mean difference is about −2.2 W m⁻² in the longwave and
+0.5 W m⁻² in the shortwave (Loeb et al. 2020,
+[doi:10.1175/JCLI-D-19-0381.1](https://doi.org/10.1175/JCLI-D-19-0381.1)).
+
+The cloud radiative effect (`lwcre`, `swcre`) is therefore taken from EBAF's
+own product where it is staged: `<data root>/observation_CERES-EBAF/mon/rltcre/`
+and `.../rstcre/` (obs4MIPs variables of the same dataset, built on the
+total-region clear sky, with the sign of `lwcre` / `swcre`). Without those
+files the effect is derived from the clear-scene and all-sky fluxes, as before,
+and a log message says so; the derived longwave effect is about 2 W m⁻² larger
+in the global mean. The clear-sky fluxes themselves are served as published.
+
 ### CMIP6 experiments
 
 One generator per CMIP6 experiment, all `r1i1p1f1`, all discovering every model
