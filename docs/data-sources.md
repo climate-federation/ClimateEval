@@ -235,12 +235,20 @@ overlap it are skipped, and the exact range is extracted during preprocessing.
 
 | Request | Variables |
 |---|---|
-| Single levels | `clivi`, `clt`, `evspsbl`, `lwp`, `pr`, `prw`, `ps`, `rlut`, `rlutcs`, `tas`, `ts` |
+| Single levels | `clivi`, `clt`, `evspsbl`, `lwp`, `pr`, `prw`, `ps`, `psl`, `rlut`, `rlutcs`, `rsdt`, `rsut`, `rsutcs`, `tas`, `ts` |
 | Pressure levels | `hus`, `ta`, `ua`, `va`, `zg` |
 
 The raw CDS fields are CMORized by the ESMValTool `native6` ERA5 fixes, which
 also handle unit conversions — e.g. ERA5 serves `geopotential` in m2 s-2, which
 is divided by the standard gravity to give the geopotential height `zg` in m.
+ERA5 provides the *net downward* top-of-atmosphere shortwave radiation
+(`top_net_solar_radiation`, `..._clear_sky`), so `rsut` and `rsutcs` are
+derived as incident minus net: the incident flux (`toa_incident_solar_radiation`,
+CMOR `rsdt`) is requested in the same CDS call and the upward flux
+`rsut = rsdt - net` is stored with `positive: up`. The accumulated fields
+(J m-2) of `rsut`, `rsutcs`, `rlut` and `rlutcs` are converted to W m-2 by
+ClimateEval; `rlut`/`rlutcs` additionally change sign (ERA5 thermal radiation
+is downward). `ERA5Daily` does not serve the derived `rsut`/`rsutcs`.
 Note that `ts` is the ERA5 skin temperature, which is *not* the same field as
 the near-surface air temperature `tas`.
 

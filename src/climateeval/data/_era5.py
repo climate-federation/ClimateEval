@@ -9,9 +9,14 @@ from typing import TYPE_CHECKING, Any
 
 import cdsapi
 import iris
+from esmvalcore.cmor._fixes.native6.era5 import (
+    fix_accumulated_units,
+    fix_hourly_time_coordinate,
+)
 from esmvalcore.cmor.fix import fix_data, fix_metadata
 from esmvalcore.preprocessor import clip_timerange, daily_statistics
 from iris.coords import CellMethod
+from iris.cube import CubeList
 
 from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval._utils import load_cubes
@@ -77,8 +82,12 @@ VARIABLE_MAPPING: dict[str, str] = {
     "pr": "total_precipitation",
     "prw": "total_column_water_vapour",
     "ps": "surface_pressure",
+    "psl": "mean_sea_level_pressure",
     "rlut": "top_net_thermal_radiation",
     "rlutcs": "top_net_thermal_radiation_clear_sky",
+    "rsdt": "toa_incident_solar_radiation",
+    "rsut": "top_net_solar_radiation",
+    "rsutcs": "top_net_solar_radiation_clear_sky",
     "ta": "temperature",
     "tas": "2m_temperature",
     "ts": "skin_temperature",
@@ -96,6 +105,41 @@ particular, ERA5 ``geopotential`` (m2 s-2) is divided by the standard gravity
 to give the geopotential height ``zg`` (m), and ``skin_temperature`` provides
 the surface temperature ``ts`` (which is distinct from the near-surface air
 temperature ``tas``).
+
+ERA5 provides the *net* (downward) shortwave radiation at the top of the
+atmosphere, whereas CMOR ``rsut`` is the *upward* flux. ``rsut`` and ``rsutcs``
+are therefore derived as incident minus net (see :data:`DERIVED_FROM_EXTRA`
+and :meth:`ERA5._derive_outgoing_shortwave`); ``rlut`` and ``rlutcs`` only need
+a sign change (``top_net_thermal_radiation`` is downward, i.e. negative).
+
+"""
+
+DERIVED_FROM_EXTRA: dict[str, str] = {
+    "rsut": "toa_incident_solar_radiation",
+    "rsutcs": "toa_incident_solar_radiation",
+}
+"""Map derived variables to the extra CDS variable needed to derive them.
+
+The extra variable is requested together with the one in
+:data:`VARIABLE_MAPPING` (``rsut = rsdt - net``, with ``rsdt`` being ERA5
+``toa_incident_solar_radiation`` and ``net`` the top net (clear-sky) solar
+radiation).
+
+"""
+
+_RAW_SHORT_NAMES: dict[str, str] = {
+    "toa_incident_solar_radiation": "tisr",
+    "top_net_solar_radiation": "tsr",
+    "top_net_solar_radiation_clear_sky": "tsrc",
+}
+"""Map CDS names to the short names used as variable names in the CDS files."""
+
+_ACCUMULATED_TOA_FLUXES = ("rlut", "rlutcs", "rsut", "rsutcs")
+"""Variables whose raw ERA5 fields are accumulations (J m-2).
+
+The ``native6`` fixes convert the accumulations of other fluxes (e.g. ``rsdt``)
+to W m-2 but not those of ``rlut`` and ``rlutcs``; for the derived ``rsut`` and
+``rsutcs`` there is no ``native6`` fix at all.
 
 """
 
@@ -178,6 +222,8 @@ class ERA5(DataSource):
         # Download data
         dataset, request = self._get_cds_client_retrieve_kwargs(variable)
         request["variable"] = [VARIABLE_MAPPING[variable.var_name]]
+        if variable.var_name in DERIVED_FROM_EXTRA:
+            request["variable"].append(DERIVED_FROM_EXTRA[variable.var_name])
         request["data_format"] = "netcdf"
         request["download_format"] = "unarchived"
         cdsapi.Client().retrieve(dataset, request).download(tmp_target)
@@ -203,6 +249,11 @@ class ERA5(DataSource):
 
         era5_facets = self._get_esmvaltool_facets(variable)
         cubes = load_cubes(input_file)
+        if variable.var_name in DERIVED_FROM_EXTRA:
+            cubes = CubeList([self._derive_outgoing_shortwave(cubes, variable)])
+        if variable.var_name in _ACCUMULATED_TOA_FLUXES:
+            for raw_cube in cubes:
+                self._convert_accumulation_to_flux(raw_cube, era5_facets)
         with setup_esmvaltool_config_and_logging():
             cube = fix_metadata(cubes, **era5_facets)[0]
             cube = fix_data(cube, **era5_facets)
@@ -215,6 +266,56 @@ class ERA5(DataSource):
         iris.save(cube, target)
 
         return target
+
+    @staticmethod
+    def _convert_accumulation_to_flux(cube: Cube, facets: dict[str, Any]) -> None:
+        """Convert an accumulation (J m-2) to a flux (W m-2), in place.
+
+        Does nothing if the cube is not an accumulation any more (e.g. if a
+        future ESMValCore version already fixes it), so it is safe to apply
+        twice.
+        """
+        if not cube.units.is_convertible("J m-2"):
+            return
+        fix_hourly_time_coordinate(cube, facets["frequency"])
+        fix_accumulated_units(cube, facets["frequency"])
+        cube.convert_units("W m-2")
+
+    @staticmethod
+    def _derive_outgoing_shortwave(cubes: CubeList, variable: Variable) -> Cube:
+        """Derive the upward shortwave flux at the top of the atmosphere.
+
+        ERA5 provides the incident flux (``tisr``) and the net downward flux
+        (``tsr`` or, for clear sky, ``tsrc``); the reflected (outgoing) flux,
+        CMOR ``rsut`` or ``rsutcs``, is their difference. The result still is
+        an accumulation (like the input), with ``positive: up``.
+        """
+        net_name = _RAW_SHORT_NAMES[VARIABLE_MAPPING[variable.var_name]]
+        incident_name = _RAW_SHORT_NAMES[DERIVED_FROM_EXTRA[variable.var_name]]
+        raw = {cube.var_name: cube for cube in cubes}
+        missing = [n for n in (net_name, incident_name) if n not in raw]
+        if missing:
+            msg = (
+                f"Cannot derive '{variable.var_name}' from ERA5: raw data "
+                f"is missing variable(s) {missing} (found {sorted(raw)})"
+            )
+            raise ValueError(msg)
+
+        net = raw[net_name]
+        incident = raw[incident_name]
+        incident_data = incident.core_data()
+        net_data = net.core_data()
+        if incident.units != net.units:
+            net = net.copy()
+            net.convert_units(incident.units)
+            net_data = net.core_data()
+        outgoing = incident.copy(incident_data - net_data)
+        outgoing.var_name = variable.var_name
+        outgoing.standard_name = None
+        outgoing.long_name = variable.long_name
+        outgoing.attributes = {}
+        outgoing.attributes["positive"] = "up"
+        return outgoing
 
     @abstractmethod
     def _get_cds_client_retrieve_kwargs(
@@ -341,7 +442,10 @@ class ERA5Daily(ERA5):
         data_root_dir = Path(data_root_dir)
 
         source_var_name = self._get_source_var_name(variable)
-        if source_var_name not in VARIABLE_MAPPING:
+        if (
+            source_var_name not in VARIABLE_MAPPING
+            or variable.var_name in DERIVED_FROM_EXTRA
+        ):
             msg = f"Variable '{variable.var_name}' is not supported for daily ERA5"
             raise NotImplementedError(msg)
 
