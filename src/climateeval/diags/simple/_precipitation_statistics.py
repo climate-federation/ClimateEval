@@ -98,6 +98,8 @@ class PrecipitationStatistics(SimpleDiagnostic):
 
     _final_coordinates = (Coordinate("time"),)
     _output_metrics_table: ClassVar[bool] = False
+    #: Daily rain statistics depend on the grid: 1 degree unless ``grid`` is given.
+    _default_grid: ClassVar[str] = "1x1"
 
     # -- preprocessing -------------------------------------------------------
 
@@ -134,7 +136,7 @@ class PrecipitationStatistics(SimpleDiagnostic):
         with setup_esmvaltool_config_and_logging():
             cube = regrid(
                 cube,
-                options.get("grid", "1x1"),
+                options.get("grid", self._target_grid),
                 options.get("regrid_scheme", "area_weighted"),
                 cache_weights=True,
             )

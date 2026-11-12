@@ -49,7 +49,6 @@ from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval._variable import COORDINATES
 from climateeval.diags import _physics
 from climateeval.diags._cube_arrays import cube_to_array, nan_mean
-from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.simple._base import SimpleDiagnostic
 
 if TYPE_CHECKING:
@@ -106,7 +105,7 @@ class _CirculationIndex(SimpleDiagnostic):
             cube = self._prepare_field(cube, variable)
             cube = regrid(
                 cube,
-                options.get("grid", DEFAULT_GRID),
+                options.get("grid", self._target_grid),
                 "linear",
                 cache_weights=True,
             )
