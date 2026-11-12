@@ -16,6 +16,11 @@ from climateeval.diags.simple._annual_cycle_spatial_distribution import (
     AnnualCycleSpatialDistribution,
 )
 from climateeval.diags.simple._base import SimpleDiagnostic
+from climateeval.diags.simple._circulation import (
+    EddyDrivenJetLatitude,
+    HadleyCellEdge,
+    WalkerCirculationStrength,
+)
 from climateeval.diags.simple._diurnal_cycle import DiurnalCycle
 from climateeval.diags.simple._gulf_stream import GulfStreamSshGradient
 from climateeval.diags.simple._heat_transport import OceanHeatTransportProfile
@@ -55,7 +60,9 @@ __all__ = [
     "AnnualCycleSpatialDistribution",
     "AnnualMeanTimeSeries",
     "DiurnalCycle",
+    "EddyDrivenJetLatitude",
     "GulfStreamSshGradient",
+    "HadleyCellEdge",
     "Histogram",
     "Hovmoller",
     "LandAnnualCycleSpatialDistribution",
@@ -75,6 +82,7 @@ __all__ = [
     "SimpleDiagnostic",
     "SimpleDiagnosticInputData",
     "TimeSeriesNoPreprocessing",
+    "WalkerCirculationStrength",
     "ZonalLine",
     "ZonalProfileAirPressure",
 ]
