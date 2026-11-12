@@ -150,6 +150,17 @@ delta_t_ocean:
   realm: atmos
   standard_name: ""
   units: "K"
+# Not in the CMOR tables: MSU-equivalent temperature and stability measures.
+# ``tlt``/``tmt`` are the MSU/AMSU lower-/mid-tropospheric temperatures
+# (retrieved from satellite radiances, or computed from ``ta`` with the MSU
+# weighting functions); ``eis``/``lts`` are the estimated inversion strength
+# and the lower-tropospheric stability of the lower troposphere.
+eis:
+  coordinates: [time, lat, lon]
+  long_name: Estimated Inversion Strength
+  realm: atmos
+  standard_name: ""
+  units: "K"
 energy_flux_equator_lat:
   coordinates: []
   long_name: Energy Flux Equator Latitude
@@ -246,6 +257,18 @@ hfss:
   realm: atmos
   standard_name: surface_upward_sensible_heat_flux
   units: W m-2
+hurs:
+  coordinates: [time, lat, lon]
+  long_name: Near-Surface Relative Humidity
+  realm: atmos
+  standard_name: relative_humidity
+  units: "%"
+huss:
+  coordinates: [time, lat, lon]
+  long_name: Near-Surface Specific Humidity
+  realm: atmos
+  standard_name: specific_humidity
+  units: "1"
 hus:
   coordinates: [time, alevel, lat, lon]
   long_name: Specific Humidity
@@ -270,6 +293,12 @@ land_ocean_warming_ratio:
   realm: atmos
   standard_name: ""
   units: "1"
+lts:
+  coordinates: [time, lat, lon]
+  long_name: Lower-Tropospheric Stability
+  realm: atmos
+  standard_name: ""
+  units: "K"
 mjo_east_west_ratio:
   coordinates: []
   long_name: MJO Eastward to Westward Power Ratio
@@ -498,6 +527,18 @@ toa_net_n_years:
   realm: atmos
   standard_name: ""
   units: "1"
+tlt:
+  coordinates: [time, lat, lon]
+  long_name: Temperature of the Lower Troposphere (MSU-Equivalent)
+  realm: atmos
+  standard_name: ""
+  units: "K"
+tmt:
+  coordinates: [time, lat, lon]
+  long_name: Temperature of the Mid Troposphere (MSU-Equivalent)
+  realm: atmos
+  standard_name: ""
+  units: "K"
 ts:
   coordinates: [time, lat, lon]
   long_name: Surface Temperature
