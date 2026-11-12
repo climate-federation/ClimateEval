@@ -18,7 +18,7 @@ from climateeval import NO_LEVEL
 from climateeval.exceptions import MissingDataError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
 
     from iris.cube import Cube
 
@@ -141,9 +141,23 @@ class Diagnostic(ABC):
         )
         return raw_output_table  # noqa: RET504
 
-    def _get_variables_table(self, variables: Iterable[Variable]) -> ibis.Table:
-        """Get variables table."""
-        df = pd.DataFrame(sorted(set(variables)))
+    def _get_variables_table(
+        self,
+        variables: Iterable[Variable],
+        *,
+        reference_timeranges: Mapping[Variable, str] | None = None,
+    ) -> ibis.Table:
+        """Get variables table.
+
+        The ``reference_timerange`` column (window of the reference, if it
+        differs from ``timerange``) is only present if any variable has one.
+        """
+        sorted_variables = sorted(set(variables))
+        df = pd.DataFrame(sorted_variables)
+        if reference_timeranges:
+            df["reference_timerange"] = [
+                reference_timeranges.get(v, "") for v in sorted_variables
+            ]
         df["coordinates"] = df["coordinates"].map(
             lambda r: " ".join(c["var_name"] for c in r),
         )
