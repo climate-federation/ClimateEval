@@ -1,0 +1,63 @@
+# Tier 3 | Circulation indices: Hadley-cell edge, eddy-driven jet latitude and Walker strength.
+#
+# Each index is computed from one variable, identically on the benchmarked data and on
+# the reference (here ERA5), and written as one value per year (an annual time series).
+# Options go through `diagnostic_kwargs` of the variable:
+#   aggregation: annual (default) | monthly | DJF | MAM | JJA | SON
+#   hemisphere:  north (default) | south            (HadleyCellEdge, EddyDrivenJetLatitude)
+# Basin jets: add min_lon / max_lon to the variable.
+#
+# HadleyCellEdge: zero crossing of the 500 hPa mass streamfunction of the zonal-mean
+#   meridional wind, poleward of its subtropical extremum (TropD PSI_500; Adam et al. 2018).
+# EddyDrivenJetLatitude: latitude of the 850 hPa zonal-mean zonal-wind maximum between
+#   20 and 70 degrees, parabola-refined (TropD EDJ; Barnes and Polvani 2013).
+# WalkerCirculationStrength: SLP(5S-5N, 160W-80W) - SLP(5S-5N, 80E-160E) (Vecchi et al. 2006).
+# ERA5 sea-level pressure (psl) requires a ClimateEval version that serves it.
+
+- name: HadleyCellEdge
+  diagnostic: climateeval.diags.simple.HadleyCellEdge
+  variables:
+    - id: hadley_edge_nh
+      var_name: va
+      frequency: mon
+      diagnostic_kwargs: {hemisphere: north}
+      reference_data: climateeval.data.ERA5Monthly
+    - id: hadley_edge_sh
+      var_name: va
+      frequency: mon
+      diagnostic_kwargs: {hemisphere: south}
+      reference_data: climateeval.data.ERA5Monthly
+
+- name: EddyDrivenJetLatitude
+  diagnostic: climateeval.diags.simple.EddyDrivenJetLatitude
+  variables:
+    - id: jet_lat_nh
+      var_name: ua
+      frequency: mon
+      vertical_level: &level_850hpa
+        coordinate_name: air_pressure
+        units: hPa
+        value: 850.0
+      diagnostic_kwargs: {hemisphere: north}
+      reference_data: climateeval.data.ERA5Monthly
+    - id: jet_lat_sh
+      var_name: ua
+      frequency: mon
+      vertical_level: *level_850hpa
+      diagnostic_kwargs: {hemisphere: south}
+      reference_data: climateeval.data.ERA5Monthly
+
+- name: WalkerCirculationStrength
+  diagnostic: climateeval.diags.simple.WalkerCirculationStrength
+  variables:
+    - id: walker_annual
+      var_name: psl
+      frequency: mon
+      units: hPa
+      reference_data: climateeval.data.ERA5Monthly
+    - id: walker_monthly
+      var_name: psl
+      frequency: mon
+      units: hPa
+      diagnostic_kwargs: {aggregation: monthly}
+      reference_data: climateeval.data.ERA5Monthly
