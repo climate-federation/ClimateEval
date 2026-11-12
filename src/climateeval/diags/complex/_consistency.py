@@ -33,7 +33,6 @@ from climateeval.data import (
     ERA5Monthly,
 )
 from climateeval.diags import _physics
-from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.complex._scalar import (
     ScalarExperimentDiagnostic,
     as_float_array,
@@ -560,5 +559,5 @@ class PrecipitationBuoyancy(ScalarExperimentDiagnostic):
             download_missing_data=self._download_missing_data,
         )
         with setup_esmvaltool_config_and_logging():
-            cube = regrid(cube, DEFAULT_GRID, "linear", cache_weights=True)
+            cube = regrid(cube, self._target_grid, "linear", cache_weights=True)
         return cube  # noqa: RET504 - named for readability

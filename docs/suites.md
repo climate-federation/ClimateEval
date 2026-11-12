@@ -26,6 +26,7 @@ Each variable definition has:
 | `var_name` | yes | CMIP variable name; must exist in [`variables.yml`](variables.md). |
 | `frequency` | yes | Temporal frequency, e.g. `mon`. |
 | `reference_data` | usually | The reference `DataSource` class, e.g. `climateeval.data.ERA5Monthly`. Use [`LocalCMORDataSource`](data-sources.md#locally-staged-cmor-data) to point at your own CMOR-compliant files (e.g. a held-out model, for perfect-model tests). |
+| `reference_timerange` | no | `"YYYYMMDD/YYYYMMDD"`: a window for the reference only; the model and `other_data` keep `timerange`. See [Reference windows](#reference-windows). |
 | `other_data` | no | List of additional `DataSource` classes to show alongside the reference. |
 | `vertical_level` | no | Select a level for 3-D variables: `{coordinate_name, units, value}`. |
 | `units` | no | Override/convert the variable's units, e.g. `mm day-1`. |
@@ -73,6 +74,77 @@ list is evaluated by several diagnostics without repetition:
       frequency: mon
       reference_data: climateeval.data.ERA5Monthly
 ```
+
+## Reference windows
+
+By default one window (`timerange`, set per variable or with
+`variable_kwargs={"timerange": ...}` / `--timerange`) applies to the model and
+to every reference. A reference whose record does not reach the first or last
+**year** of that window raises `MissingDataError`; with
+`fail_on_missing_data=False` it is logged and the reference is dropped (no
+metrics, no reference row for that variable). Two opt-in options relax this for
+**simple** diagnostics; neither changes anything unless set.
+
+- `reference_timerange: "YYYYMMDD/YYYYMMDD"` (per variable, next to
+  `reference_data`; `YYYY` and `YYYYMM` are accepted too) gives the reference,
+  and only the reference, its own window. It is a property of the reference
+  binding and not a `Variable` field, because a `Variable` is also what the
+  model and the other data are loaded with. It can also be passed in
+  `variable_kwargs`, where it overrides the YAML.
+- `clip_reference_timerange: true` (diagnostic kwarg, in the entry's
+  `diagnostic_kwargs` or `Suite(diagnostic_kwargs=...)`): a reference that only
+  partly covers its window is clipped to the overlap instead of being dropped,
+  and the window it was given is logged (`INFO`). A reference with no overlap
+  at all is still missing data. Clipping reads the reference's whole record
+  before clipping, so it costs more than the plain path and is only attempted
+  after the strict check fails.
+
+When the windows differ the metrics are computed as follows. Time-mean
+diagnostics (maps, zonal lines and profiles, annual and diurnal cycles,
+histograms) have no time dimension, so each side is simply averaged over its own
+window. For time-series diagnostics, whose model and reference series then have
+different lengths (this used to be a metric error), both series are restricted
+to their common period, which is logged; with no common period the metric fails
+like any other metric error (`fail_on_metric_error`). Series of equal length are
+never touched. The raw output keeps each series over its own period.
+The `variables` table gets a `reference_timerange` column, but only if some
+variable sets the option, so existing outputs keep their columns.
+
+```yaml
+- name: toa_map
+  diagnostic: climateeval.diags.simple.Map
+  diagnostic_kwargs:
+    clip_reference_timerange: true       # CERES-EBAF starts in 2000-03
+  variables:
+    - id: rsut
+      var_name: rsut
+      frequency: mon
+      timerange: 19850101/20241231       # model window
+      reference_data: climateeval.data.CERESEBAF
+      reference_timerange: 20010101/20241231   # reference-only window
+```
+
+## Regridding grid
+
+Diagnostics that regrid do so to a regular grid, `2x2` by default (`1x1` for the
+sea-ice diagnostics). The `grid` diagnostic kwarg changes it; the value is any
+ESMValCore `target_grid` string such as `1x1` or `2.5x2.5`. It works for simple
+and complex diagnostics and is ignored by diagnostics that do not regrid, so it
+can be given to any of them:
+
+```yaml
+- name: map_fine
+  diagnostic: climateeval.diags.simple.Map
+  diagnostic_kwargs:            # complex diagnostics: additional_diagnostic_kwargs
+    grid: 1x1
+  variables: [...]
+```
+
+`Suite(..., diagnostic_kwargs={"grid": "1x1"})` sets it for every diagnostic of
+the suite, overriding entries (as for all diagnostic kwargs). The grid is not
+written to the output tables; for reproducibility keep it in the suite or the
+call that produced the output. Land diagnostics regrid conservatively to the
+same grid.
 
 ## Overriding at run time
 

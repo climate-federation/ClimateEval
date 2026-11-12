@@ -41,14 +41,25 @@ class ComplexDiagnostic(Diagnostic):
         data_root_dir: Path | str | None = None,
         fail_on_missing_data: bool = False,
         download_missing_data: bool = True,
+        grid: str | None = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize class instance."""
+        """Initialize class instance.
+
+        Parameters
+        ----------
+        grid:
+            Regular grid (any ESMValCore ``target_grid`` specification, e.g.
+            ``"1x1"``) that the diagnostic regrids to; default is
+            ``DEFAULT_GRID``. Diagnostics that do not regrid ignore it.
+
+        """
         self._name = name
         logger.debug(f"Initializing complex diagnostic '{self.name}'")
         self._data_root_dir = self._get_data_root_dir(data_root_dir)
         self._fail_on_missing_data = fail_on_missing_data
         self._download_missing_data = download_missing_data
+        self._grid_spec = grid
         self._kwargs = kwargs
 
     @classmethod

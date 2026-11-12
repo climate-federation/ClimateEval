@@ -42,7 +42,6 @@ from climateeval import Coordinate, Variable
 from climateeval._config import setup_esmvaltool_config_and_logging
 from climateeval._utils import get_prepared_cube
 from climateeval._variable import COORDINATES
-from climateeval.diags._utils import DEFAULT_GRID
 from climateeval.diags.simple._base import SimpleDiagnostic
 from climateeval.exceptions import MissingDataError
 
@@ -453,7 +452,7 @@ class _LandSpatialDiagnostic(LandDiagnostic):
         """Preprocess data."""
         with setup_esmvaltool_config_and_logging():
             cube = climate_statistics(cube, "mean", self._period)
-        return land_regrid(cube, DEFAULT_GRID)
+        return land_regrid(cube, self._target_grid)
 
 
 class LandMap(_LandSpatialDiagnostic):
