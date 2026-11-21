@@ -8,9 +8,11 @@ defined for each diagnostic separately.
 from __future__ import annotations
 
 from climateeval.diags.complex._base import ComplexDiagnostic
+from climateeval.diags.complex._chl_covariability import ChlDriverCovariability
 from climateeval.diags.complex._ecs import ECS
 
 __all__ = [
     "ECS",
+    "ChlDriverCovariability",
     "ComplexDiagnostic",
 ]

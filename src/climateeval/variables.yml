@@ -396,3 +396,209 @@ zos:
   realm: ocean
   standard_name: sea_surface_height_above_geoid
   units: m
+
+# Metrics of the chlorophyll-driver covariability diagnostic
+# (climateeval.diags.complex.ChlDriverCovariability). Each is
+# defined per ocean basin, hence coordinates: [basin].
+bloom_phase:
+  coordinates: [basin]
+  long_name: Phase of the annual chlorophyll harmonic
+  realm: ocnBgchem
+  standard_name: ""
+  units: "month"
+
+bloom_peak:
+  coordinates: [basin]
+  long_name: Calendar month of maximum chlorophyll
+  realm: ocnBgchem
+  standard_name: ""
+  units: "month"
+
+bloom_phase_sd:
+  coordinates: [basin]
+  long_name: Interannual circular standard deviation of the bloom phase
+  realm: ocnBgchem
+  standard_name: ""
+  units: "month"
+
+A1:
+  coordinates: [basin]
+  long_name: Amplitude of the annual chlorophyll harmonic
+  realm: ocnBgchem
+  standard_name: ""
+  units: "mg m-3"
+
+A2:
+  coordinates: [basin]
+  long_name: Amplitude of the semiannual chlorophyll harmonic
+  realm: ocnBgchem
+  standard_name: ""
+  units: "mg m-3"
+
+A1_rel:
+  coordinates: [basin]
+  long_name: Annual harmonic amplitude relative to the mean
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+A2_over_A1:
+  coordinates: [basin]
+  long_name: Semiannual to annual amplitude ratio, averaged over cells
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+A2_over_A1_regmean:
+  coordinates: [basin]
+  long_name: Semiannual to annual amplitude ratio of the basin mean cycle
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+bimodal_frac:
+  coordinates: [basin]
+  long_name: Area fraction of cells with a double-peaked annual cycle
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+two_peak_frac:
+  coordinates: [basin]
+  long_name: Area fraction of cells with two resolved chlorophyll peaks
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+cells_frac:
+  coordinates: [basin]
+  long_name: Area fraction of cells with enough data to fit a cycle
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+chl_mean:
+  coordinates: [basin]
+  long_name: Mean surface chlorophyll concentration
+  realm: ocnBgchem
+  standard_name: ""
+  units: "mg m-3"
+
+n_months_chl:
+  coordinates: [basin]
+  long_name: Number of calendar months with a chlorophyll climatology
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+n_years_phase:
+  coordinates: [basin]
+  long_name: Number of years contributing to the bloom phase
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+mld_max_month:
+  coordinates: [basin]
+  long_name: Calendar month of deepest mixed layer
+  realm: ocean
+  standard_name: ""
+  units: "month"
+
+restrat_month:
+  coordinates: [basin]
+  long_name: Month of restratification, when the mixed layer begins to shoal
+  realm: ocean
+  standard_name: ""
+  units: "month"
+
+ice_retreat_month:
+  coordinates: [basin]
+  long_name: Month when sea-ice concentration falls below the retreat threshold
+  realm: seaIce
+  standard_name: ""
+  units: "month"
+
+ice_area_frac:
+  coordinates: [basin]
+  long_name: Area fraction of the basin covered by seasonal sea ice
+  realm: seaIce
+  standard_name: ""
+  units: "1"
+
+lag_bloom_restrat:
+  coordinates: [basin]
+  long_name: Lag of the chlorophyll bloom behind restratification
+  realm: ocnBgchem
+  standard_name: ""
+  units: "month"
+
+lag_bloom_ice:
+  coordinates: [basin]
+  long_name: Lag of the chlorophyll bloom behind sea-ice retreat
+  realm: ocnBgchem
+  standard_name: ""
+  units: "month"
+
+cov_mld_lag:
+  coordinates: [basin]
+  long_name: Lag of strongest chlorophyll-mixed layer depth covariability
+  realm: ocnBgchem
+  standard_name: ""
+  units: "month"
+
+cov_mld_r:
+  coordinates: [basin]
+  long_name: Chlorophyll-mixed layer depth correlation at the strongest lag
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+cov_mld_r0:
+  coordinates: [basin]
+  long_name: Chlorophyll-mixed layer depth correlation at zero lag
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+cov_sst_lag:
+  coordinates: [basin]
+  long_name: Lag of strongest chlorophyll-sea surface temperature covariability
+  realm: ocnBgchem
+  standard_name: ""
+  units: "month"
+
+cov_sst_r:
+  coordinates: [basin]
+  long_name: Chlorophyll-sea surface temperature correlation at the strongest lag
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+cov_sst_r0:
+  coordinates: [basin]
+  long_name: Chlorophyll-sea surface temperature correlation at zero lag
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+cov_ice_lag:
+  coordinates: [basin]
+  long_name: Lag of strongest chlorophyll-sea ice covariability
+  realm: ocnBgchem
+  standard_name: ""
+  units: "month"
+
+cov_ice_r:
+  coordinates: [basin]
+  long_name: Chlorophyll-sea ice correlation at the strongest lag
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
+
+cov_ice_r0:
+  coordinates: [basin]
+  long_name: Chlorophyll-sea ice correlation at zero lag
+  realm: ocnBgchem
+  standard_name: ""
+  units: "1"
