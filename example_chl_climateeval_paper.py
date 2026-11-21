@@ -113,8 +113,7 @@ def _var_paths(
     Falls back to the pre-staged DATA_ROOT directory if the CMIP6 pool
     does not contain the files.
     """
-    grid = grid_override or model_cfg["grid"]
-    base = (
+    stem = (
         Path(paths_cfg["cmip6_root"])
         / model_cfg["institute"]
         / model
@@ -122,17 +121,78 @@ def _var_paths(
         / model_cfg["variant"]
         / mip
         / var
-        / grid
-        / model_cfg["version"]
     )
-    paths = sorted(base.glob(f"{var}_{mip}_*.nc"))
-    if not paths:
+
+    # The grid label and the version are per-model in the recipe, but
+    # they are properties of the (model, mip, variable) triple: an
+    # atmospheric variable is published on a different grid and under a
+    # different version date than the ocean fields the recipe's values
+    # came from. Hardcoding them cost rsds for GFDL-ESM4 (Amon is gr1,
+    # not the ocean's gr) and for IPSL-CM6A-LR (Amon is gr, not gn),
+    # which silently dropped Figs 9 and 11 for those two models while
+    # the coverage table still said the data were there. So the declared
+    # values are a preference, not the path, and what is actually on
+    # disk decides.
+    if not stem.is_dir():
         staged = sorted(Path(paths_cfg["data_root"]).glob(
             f"{var}_{mip}_{model}_historical_*.nc"))
         if staged:
             return staged
-        logger.warning(f"  [{model}] no {var} files found under {base}")
-    return paths
+        logger.warning(f"  [{model}] no {var} directory under {stem}")
+        return []
+
+    declared_grid = grid_override or model_cfg["grid"]
+    declared_version = model_cfg["version"]
+
+    def _glob(grid: str, version: str) -> list[Path]:
+        return sorted((stem / grid / version).glob(f"{var}_{mip}_*.nc"))
+
+    # 1. Exactly what the recipe declares. The common case, and silent.
+    paths = _glob(declared_grid, declared_version)
+    if paths:
+        return paths
+
+    # 2. The pre-staged copy, BEFORE any other pool version. This order
+    #    matters and is not obvious: the staged directory is where
+    #    variables that needed preparing by hand live, and the recipe's
+    #    grid/version for those models describes the ocean fields rather
+    #    than the staged file. NorESM2-LM chl is the case in point -- it
+    #    has always been read from here, silently, including for the
+    #    manuscript figures. Searching the pool first quietly moved it
+    #    to gr/v20191108, a different grid and a different data version,
+    #    which is not a change to make as a side effect of a path fix.
+    staged = sorted(Path(paths_cfg["data_root"]).glob(
+        f"{var}_{mip}_{model}_historical_*.nc"))
+    if staged:
+        logger.info(f"  [{model}] {var}: staged copy "
+                    f"({len(staged)} file(s) from {paths_cfg['data_root']})")
+        return staged
+
+    # 3. Any other grid/version in the pool. This is what recovers rsds:
+    #    its grid label and version belong to the atmosphere, not the
+    #    ocean fields the recipe's values were taken from, so the
+    #    declared path is wrong for every model and nothing is staged.
+    grids = [d.name for d in sorted(stem.iterdir()) if d.is_dir()]
+    grids = ([declared_grid] if declared_grid in grids else []) + \
+            [g for g in grids if g != declared_grid]
+    for grid in grids:
+        versions = [d.name for d in sorted((stem / grid).iterdir())
+                    if d.is_dir()]
+        # Declared version first, then newest back to oldest.
+        order = ([declared_version] if declared_version in versions else []) \
+            + [v for v in reversed(versions) if v != declared_version]
+        for version in order:
+            paths = _glob(grid, version)
+            if paths:
+                logger.info(
+                    f"  [{model}] {var}: using {grid}/{version} "
+                    f"(recipe says {declared_grid}/{declared_version})")
+                return paths
+
+    logger.warning(
+        f"  [{model}] no {var} files under {stem} "
+        f"(grids tried: {grids or 'none'})")
+    return []
 
 
 def _load_var(
@@ -172,7 +232,8 @@ def _report_coverage(loaded: dict[str, set[str]], cfg: dict) -> None:
     seven models, and a reader comparing the ensemble rows of Figs 7 and
     8 needs to know that the two rest on different sample sizes.
     """
-    logger.info("Figure coverage:")
+    logger.info("Input coverage (which figures HAVE their input data; "
+                "not which were written):")
     for fig, spec in cfg["figures"].items():
         have = [m for m, v in loaded.items() if set(spec["vars"]) <= v]
         n, total = len(have), len(cfg["models"])
@@ -199,6 +260,15 @@ def main() -> None:
 
     # Separate outputs when masking, so the two runs can be compared
     # rather than one silently replacing the other.
+    # v13 reads its masking switch from the environment at import time,
+    # and the diagnostic imports v13 the first time the suite builds it
+    # -- which is after this point, so setting it here takes effect and
+    # setting it in the diagnostic's constructor would be too late. The
+    # previous run logged the banner below while CHL_MASK_TO_OBS was
+    # unset, so the figures would have been unmasked under a
+    # _maskedobs/ directory name.
+    os.environ["CHL_MASK_TO_OBS"] = "1" if masking else "0"
+
     suffix = mask_cfg.get("output_suffix", "") if masking else ""
     db_path = Path(suite_cfg["database"]).with_name(
         Path(suite_cfg["database"]).stem + suffix

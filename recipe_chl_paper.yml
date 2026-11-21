@@ -1,29 +1,36 @@
 # ClimateEval configuration: manuscript figures only.
 #
-# Reproduces Figures 1-9 of
-#   Navarra et al., "Global and Polar Failures in Physical-Biogeochemical
-#   Coupling of Chlorophyll-a Across CMIP6 Earth System Models
-#   Investigated Through Correlation Analysis", JGR Oceans (submitted).
+# Reproduces the figures of
+#   Navarra et al., "CMIP6 Earth System Models Underestimate Upper-Ocean
+#   Mixing and Stratification Controls on Surface Chlorophyll-a",
+#   JGR Oceans (submitted).
 #
 # Read by example_chl_climateeval_paper.py. This is a configuration for
 # that driver, not a ClimateEval native recipe schema - if the framework
 # defines one, this should be rewritten to conform to it.
 #
-# Figure 10 (surface dissolved iron against GEOTRACES) is absent by
-# design. It compares against point observations with no gridded
-# counterpart, which a cube-based pipeline cannot express, so it stays a
-# standalone script (so_fe_bias.py) that also produces Fig. S3.
+# EVERY figure in either document appears below exactly once, with the
+# output filename it is cited by. That makes this file the manifest:
+# check_manifest.py verifies it against the two .tex sources and the
+# output directory, so a renamed figure, a figure cited but no longer
+# produced, or two figures sharing a filename are caught before
+# submission rather than at compile time.
+#
+# Figures the cube pipeline cannot express are under `external_figures`
+# with the script that does produce them. They are listed here so the
+# manifest stays complete, not because this driver runs them.
 ---
 
 suite:
-  name: Tier2_ocean
+  name: Tier2_ocean_paper
   database: Tier2_ocean_paper.ddb
   figure_dir: paper_figures
-  # Full ocean-colour record. The mean-state and seasonal figures use
-  # all of it; the correlation diagnostics clip to 1998-2014 so that
-  # every calendar month is represented by the same number of years and
-  # the monthly climatology removed at each grid cell is not weighted
-  # toward one part of the year.
+  # Full ocean-colour record. The mean-state, seasonal and
+  # seasonal-covariability figures use all of it; the anomaly
+  # correlation diagnostics clip to 1998-2014 so that every calendar
+  # month is represented by the same number of years and the monthly
+  # climatology removed at each grid cell is not weighted toward one
+  # part of the year.
   timerange: "19970101/20141231"
   correlation_timerange: "19980101/20141231"
 
@@ -60,16 +67,6 @@ diagnostic_kwargs:
 # calendar sampling as the observations. Masking afterwards would leave
 # a climatology computed from months the satellite never saw.
 #
-# Two applications of the same mask, by figure type:
-#   month-by-month   the correlation figures (7, 8, 9), where the pairs
-#                    entering each correlation must match
-#   per-calendar-     the mean-state and seasonal figures (1, 2, 3),
-#   month footprint   where a basin mean for a given month must be an
-#                    average over the same geography in model and
-#                    observations. In an Arctic April the satellite sees
-#                    the southern margin while a model reports the whole
-#                    basin including the still-dark north.
-#
 # Output is routed to a separate database and figure directory so that
 # a masked run does not overwrite an unmasked one: the point of having
 # both is to compare them, and a masked figure under the same filename
@@ -83,13 +80,7 @@ masking:
   mask_models_to_obs: true
   reference: ESACCI-OC
   output_suffix: _maskedobs
-  # Minimum fraction of a cell's months that must survive for the cell
-  # to be retained at all; below this the correlation is not
-  # interpretable and the cell is masked rather than reported.
   min_retained_fraction: 0.20
-  # Warn when a figure's mean retention falls below this, so a panel
-  # resting on thin data is flagged in the log rather than discovered
-  # by eye.
   warn_below_fraction: 0.40
 
 # ── Models ───────────────────────────────────────────────────────────
@@ -111,17 +102,19 @@ models:
 # actually loaded is derived from the figure list below, not from this
 # table: a variable no figure requires is never read.
 #
-# rsds is deliberately absent. It is a model-SELECTION criterion in
-# Section 2.1 - the seven models are those archiving it alongside the
-# other four - but no figure in the paper plots it, and loading a
-# monthly Amon field for seven models to use none of it costs a great
-# deal for nothing. Add it back here and to a figure's `vars` if a
-# light-pathway figure is added later.
+# rsds and phyc were previously excluded on the grounds that no figure
+# used them. That is no longer true: rsds carries the light-coupling
+# figure and phyc the chlorophyll-to-carbon decomposition, both of which
+# are now in the main text. dfe is declared for the manifest even though
+# only an external script reads it.
 variables:
   chl:    {mip: Omon,  grid: null}
   tos:    {mip: Omon,  grid: null}
   mlotst: {mip: Omon,  grid: null}
   siconc: {mip: SImon, grid: null}
+  rsds:   {mip: Amon,  grid: null}
+  phyc:   {mip: Omon,  grid: null}
+  dfe:    {mip: Omon,  grid: null, external_only: true}
 
 # ── Observational and reanalysis references ──────────────────────────
 references:
@@ -136,15 +129,20 @@ references:
     long_name: ECMWF Ocean Reanalysis System 5
     variable: mlotst
     field: somxl010
+    cache: /work/bb1596/b384036/b384036/oras5_somxl010_1deg_1997_2014.nc
     note: >
       The somxl010 mixed layer uses a 0.01 kg m-3 density threshold
       against the 0.03 kg m-3 of CMIP6 mlotst. The two agree through the
       stratified season but diverge in winter, and the smaller threshold
       is crossed first, so the reference is biased shallow wherever
-      mixing is deep. The positive model MLD biases in Fig. 4 therefore
+      mixing is deep. The positive model MLD biases in Fig. S13 therefore
       contain a definitional contribution and are not purely model-side.
-      The correlation diagnostics are unaffected: a constant offset does
-      not project onto detrended anomalies.
+      Neither the anomaly correlations nor the seasonal-phase quantities
+      are materially affected: a constant offset does not project onto
+      detrended anomalies, and the month of deepest mixing and of
+      fastest shoaling are nearly insensitive to the threshold.
+      `cache` is the 1-degree regridded file the pipeline builds once;
+      the OPeNDAP endpoint is only a fallback.
   ERSSTv3b:
     long_name: NOAA Extended Reconstructed SST v3b
     variable: tos
@@ -163,18 +161,33 @@ references:
     variable: siconc
     role: crosscheck
     note: >
-      Independent satellite retrieval used to confirm that the Fig. 9
+      Independent satellite retrieval used to confirm that the Fig. 8
       structure is not an artefact of the HadISST reconstruction
-      (Fig. S2).
+      (Fig. S7).
+  ISCCP-FH:
+    long_name: ISCCP-FH surface radiative fluxes
+    variable: rsds
+    note: >
+      Observational reference for the light-coupling figure.
+  GEOTRACES-IDP2025:
+    long_name: GEOTRACES Intermediate Data Product 2025
+    variable: dfe
+    role: external
+    note: >
+      Point observations with no gridded counterpart; used only by
+      so_fe_bias.py.
 
 # ── Figures ──────────────────────────────────────────────────────────
-# `vars` drives what the loader reads; `obs` records the reference each
-# figure is drawn against. Settings under `options` are passed to the
-# diagnostic for that figure.
+# `manuscript` is the figure number as it appears in the paper, `file`
+# the filename the .tex cites, `vars` what the loader must read, `obs`
+# the reference the figure is drawn against. Settings under `options`
+# are passed to the diagnostic for that figure.
 figures:
 
-  fig1_chl_meanstate:
-    title: Time-mean surface Chl-a and model bias
+  fig01_meanstate_taylor:
+    manuscript: "1"
+    file: fig1_obs_and_taylor.png
+    title: Observed mean Chl-a and Taylor diagram of model skill
     vars: [chl]
     obs: [ESACCI-OC]
     options:
@@ -182,53 +195,95 @@ figures:
       # three orders of magnitude and linear-space statistics are
       # dominated by a few high-value coastal cells.
       log_space: true
-      bias_range: [-1.0, 1.0]
+      # Panel (b) replaced the former bias maps: the Taylor diagram
+      # separates amplitude from placement, which a difference map
+      # conflates. The bias maps are no longer in either document.
+      panels: [obs_mean, taylor]
+      taylor_common_mask: true
 
-  fig2_chl_seasonal:
+  fig02_seasonal_cycle:
+    manuscript: "2"
+    file: fig4_seasonal_cycle.png
     title: Mean seasonal cycle of surface Chl-a by region
     vars: [chl]
     obs: [ESACCI-OC]
     options:
       regions: [global, arctic, southern, north_atlantic,
                 north_pacific, indian, tropical_pacific, south_pacific]
+      # Observed interannual spread, computed as the region mean first
+      # and the standard deviation across years second. The other order
+      # answers a different question and returns a much larger number,
+      # because spatial noise does not cancel in the average.
+      observed_sigma_ribbon: true
 
-  fig3_chl_variability:
-    title: Interannual Chl-a variability by latitude and calendar month
+  fig03_sigma_ratio:
+    manuscript: "3"
+    file: fig3_sigma_ratio_seasonal.png
+    title: Modelled / observed interannual Chl-a variability by basin and season
     vars: [chl]
     obs: [ESACCI-OC]
     options:
-      # Zonal averaging is applied after the amplitude is computed at
-      # each cell, so anomalies of opposite sign at the same latitude do
-      # not cancel.
-      zonal_mean_after_amplitude: true
+      timerange_key: correlation_timerange
+      log_axis: true
+      basins: [atlantic, pacific, indian, southern, arctic]
+      seasons: [DJF, MAM, JJA, SON]
 
-  fig4_mld_bias:
-    title: Mixed-layer depth bias
-    vars: [mlotst]
-    obs: [ORAS5]
+  fig04_seasonal_covariability:
+    manuscript: "4"
+    file: fig_seasonal_covariability.pdf
+    title: Seasonal covariability of Chl-a with MLD, SST and sea ice
+    vars: [chl, mlotst, tos, siconc]
+    obs: [ESACCI-OC, ORAS5, ERSSTv3b, HadISST]
     options:
-      bias_range: [-50, 50]
+      # Circular lagged correlation between the two 12-month
+      # climatologies. Nothing is deseasonalised, so this is the
+      # covariability of the seasonal cycles themselves and is not
+      # subject to the objection that anomaly correlations mix
+      # subseasonal with interannual variance.
+      max_lag_months: 6
+      # Each driver carries a declared expected sign. Without one, the
+      # lag of greatest |r| is ambiguous: for a near-sinusoidal pair,
+      # lag L and lag L+6 give correlations of equal size and opposite
+      # sign, so maximising |r| alone picks between two contradictory
+      # readings by accident.
+      expected_sign: {mlotst: -1, siconc: -1, tos: +1}
+      # Both the observed and the modelled zero-lag correlation must
+      # clear this before a sign disagreement is marked.
+      min_r_for_sign: 0.30
+      # A phase is only meaningful where there is an annual cycle to
+      # take the phase of; A1/mean below this is noise.
+      min_annual_amplitude_rel: 0.10
+      # An ice-retreat date is a regional statement only where the
+      # region has seasonal ice. Arctic 49 %, Southern Ocean 15 %, but
+      # North Atlantic 8 % and North Pacific 6 %.
+      min_seasonal_ice_area: 0.10
+      regions: [arctic, southern, north_atlantic, north_pacific]
 
-  fig5_sst_bias:
-    title: Sea surface temperature bias
-    vars: [tos]
-    obs: [ERSSTv3b]
+  fig05_phase_lags:
+    manuscript: "5"
+    file: fig_phase_lags.pdf
+    title: Phase lags between the Chl-a bloom and its physical drivers
+    vars: [chl, mlotst, siconc]
+    obs: [ESACCI-OC, ORAS5, HadISST]
     options:
-      bias_range: [-3, 3]
+      <<: &phase_options
+        min_annual_amplitude_rel: 0.10
+        min_seasonal_ice_area: 0.10
+        regions: [arctic, southern, north_atlantic, north_pacific]
+      # Retreat date per grid cell, then a circular area-weighted mean
+      # over the cells that have one. A band containing both perennial
+      # ice and open water has no band-mean retreat date at all, which
+      # is why a latitude-strip definition left the observed Arctic
+      # undefined.
+      ice_retreat_per_cell: true
+      # Counts local maxima per cell rather than thresholding A2/A1,
+      # which measures asymmetry rather than two blooms.
+      two_peak_min_relative_height: 0.5
 
-  fig6_siconc_bias:
-    title: Sea-ice concentration bias
-    vars: [siconc]
-    obs: [HadISST]
-    options:
-      projection: polar
-      bias_range: [-50, 50]
-      # Marks the observed 15 % concentration edge, the standard NSIDC
-      # extent threshold.
-      ice_edge_contour: 15
-
-  fig7_corr_chl_sst:
-    title: Grid-point Chl-a / SST correlation by basin
+  fig06_corr_chl_sst:
+    manuscript: "6"
+    file: figS_basincorr_SST.png
+    title: Grid-point Chl-a / SST correlation by basin, observations and ensemble mean
     vars: [chl, tos]
     obs: [ESACCI-OC, ERSSTv3b]
     options: &corr_options
@@ -254,24 +309,29 @@ figures:
       # absent, and a cell seen by three of seven would otherwise be
       # scored against a quorum it cannot reach.
       ensemble_agreement_fraction: 0.667
+      rows: [observations, ensemble_mean]
 
-  fig8_corr_chl_mld:
-    title: Grid-point Chl-a / MLD correlation by basin
+  fig07_corr_chl_mld:
+    manuscript: "7"
+    file: figS_basincorr_MLD.png
+    title: Grid-point Chl-a / MLD correlation by basin, observations and ensemble mean
     vars: [chl, mlotst]
     obs: [ESACCI-OC, ORAS5]
     options:
       <<: *corr_options
       # Only three models archive mlotst, so the agreement criterion
-      # reduces to two of three here against five of seven in fig7. The
+      # reduces to two of three here against five of seven in fig06. The
       # stippling in the two ensemble rows is not directly comparable
       # and the caption says so.
       note: three contributing models
 
-  fig9_seaice_lagcorr:
+  fig08_seaice_lagcorr:
+    manuscript: "8"
+    file: figS_seaice_chl_corr_Southern.png
     title: Sea-ice / Chl-a pointwise lag correlation, Southern Ocean
     vars: [chl, siconc]
     obs: [ESACCI-OC, HadISST]
-    options:
+    options: &seaice_options
       timerange_key: correlation_timerange
       region: southern
       lats: [-78, -45]
@@ -281,9 +341,165 @@ figures:
       colour_limit: 0.35
       crosscheck_obs: ESACCI-SEAICE
 
+  fig09_light_polar_coupling:
+    manuscript: "9"
+    file: fig_light_polar_coupling.png
+    title: Light / Chl-a lag correlation in the polar basins
+    vars: [chl, rsds]
+    obs: [ESACCI-OC, ISCCP-FH]
+    options:
+      timerange_key: correlation_timerange
+      regions: [arctic, southern_siz]
+      lags: [-6, 6]
+      bootstrap_blocks_months: 12
+
+  fig11_chlc_decomposition:
+    manuscript: "11"
+    file: fig_chlc_decomposition.png
+    title: Chl-a response to irradiance split into biomass and pigment
+    vars: [chl, phyc, rsds]
+    obs: [ESACCI-OC, ISCCP-FH]
+    options:
+      timerange_key: correlation_timerange
+      # In log space ln(Chl) = ln(C) + ln(Chl:C), so after
+      # deseasonalising and detrending the total anomaly is the exact
+      # sum of the two terms and their covariances with rsds add.
+      log_space: true
+      regions: [southern_siz, arctic]
+      growing_season_only: true
+      # ACCESS-ESM1-5 and NorESM2-LM archive no phyc and cannot be
+      # decomposed; they are omitted rather than shown as zero.
+      require_vars: [phyc]
+
+  # ── Supporting Information ─────────────────────────────────────────
+
+  figS01_trend_maps:
+    manuscript: "S1"
+    file: figS1_trend_maps.png
+    title: Grid-cell linear trends in sea ice and SST
+    vars: [tos, siconc]
+    obs: [ERSSTv3b, HadISST]
+    options: {trend_per_decade: true}
+
+  figS03_climate_modes:
+    manuscript: "S3"
+    file: figS_climate_modes_combined.png
+    title: SST / Chl-a coupling after removing leading SST modes
+    vars: [chl, tos]
+    obs: [ESACCI-OC, ERSSTv3b]
+    options:
+      <<: *corr_options
+      remove_leading_modes: true
+
+  figS04_corr_chl_sst_models:
+    manuscript: "S4"
+    file: figS_basincorr_models_SST.png
+    title: Per-model Chl-a / SST correlation maps
+    vars: [chl, tos]
+    obs: [ESACCI-OC, ERSSTv3b]
+    options:
+      <<: *corr_options
+      # Distinct from fig06, which shows observations against the
+      # ensemble mean. Both were previously written to the same
+      # filename, so the SI and the main text cited one image for two
+      # different figures.
+      rows: [observations, per_model]
+
+  figS05_corr_chl_mld_models:
+    manuscript: "S5"
+    file: figS_basincorr_models_MLD.png
+    title: Per-model Chl-a / MLD correlation maps
+    vars: [chl, mlotst]
+    obs: [ESACCI-OC, ORAS5]
+    options:
+      <<: *corr_options
+      rows: [observations, per_model]
+
+  figS06_seaice_r2_gain:
+    manuscript: "S6"
+    file: figS_seaice_chl_R2_Southern.png
+    title: Chl-a variance explained by basin-scale ice modes beyond local ice
+    vars: [chl, siconc]
+    obs: [ESACCI-OC, HadISST]
+    options:
+      <<: *seaice_options
+      modes_variance_fraction: 0.40
+      min_gain: 0.05
+      neighbour_support: 4
+
+  figS07_seaice_beta_esacci:
+    manuscript: "S7"
+    file: figS_seaice_chl_beta_ESACCI_Southern.png
+    title: Sea-ice / Chl-a coupling cross-checked with ESA-CCI sea ice
+    vars: [chl, siconc]
+    obs: [ESACCI-OC, ESACCI-SEAICE]
+    options: {<<: *seaice_options}
+
+  figS09_chl_anomaly_hovmoller:
+    manuscript: "S9"
+    file: fig3_hovmoller_chl_anomaly.png
+    title: Interannual Chl-a variability by latitude and calendar month
+    vars: [chl]
+    obs: [ESACCI-OC]
+    options:
+      timerange_key: correlation_timerange
+      # Zonal averaging is applied after the amplitude is computed at
+      # each cell, so anomalies of opposite sign at the same latitude do
+      # not cancel.
+      zonal_mean_after_amplitude: true
+
+  figS10_sst_bias:
+    manuscript: "S10"
+    file: fig6_sst_bias.png
+    title: Sea surface temperature bias
+    vars: [tos]
+    obs: [ERSSTv3b]
+    options: {bias_range: [-3, 3]}
+
+  figS11_siconc_bias:
+    manuscript: "S11"
+    # The SI currently cites fig5c_siconc_bias_global.png while the
+    # output directory holds fig5c_siconc_bias_combined.png. One of the
+    # two is wrong; this name is the one to settle on, and the SI should
+    # be edited to match.
+    file: fig5c_siconc_bias_global.png
+    title: Sea-ice concentration bias, both poles
+    vars: [siconc]
+    obs: [HadISST]
+    options:
+      projection: polar
+      bias_range: [-50, 50]
+      ice_edge_contour: 15
+
+  figS13_mld_bias:
+    manuscript: "S13"
+    file: fig5_mld_bias.png
+    title: Mixed-layer depth bias
+    vars: [mlotst]
+    obs: [ORAS5]
+    options: {bias_range: [-50, 50]}
+
+  figSx_seaice_meridional:
+    # Carried by Text S4 with no \setfigurenum, so it currently numbers
+    # out of sequence between S5 and S6. Give it a number or move it.
+    manuscript: "S4-text (unnumbered)"
+    file: fig11c_lag_corr_chl_siconc_meridional.png
+    title: Sea-ice / Chl-a lag correlation in meridional bands
+    vars: [chl, siconc]
+    obs: [ESACCI-OC, HadISST]
+    options:
+      <<: *seaice_options
+      bands: [[-45, -30], [-60, -45], [-80, -60]]
+
 # ── Not produced here ────────────────────────────────────────────────
+# Listed so the manifest covers every figure in both documents. Each
+# needs something the cube pipeline cannot express: point observations,
+# a different CMIP6 experiment, or many ensemble members per model.
 external_figures:
+
   fig10_dfe_bias:
+    manuscript: "10"
+    file: fig_fe_bias_map.pdf
     title: Surface dissolved-iron bias against GEOTRACES
     script: so_fe_bias.py
     vars: [dfe]
@@ -292,4 +508,70 @@ external_figures:
       Point observations with no gridded counterpart. Collocation is to
       the nearest native-grid cell in the month of each observation,
       which cannot be expressed as an operation on regridded cubes.
-      Also produces Fig. S3 (GEOTRACES coverage).
+
+  figS08_geotraces_coverage:
+    manuscript: "S8"
+    file: fig_geotraces_coverage.pdf
+    title: GEOTRACES surface dissolved-iron sampling
+    script: so_fe_bias.py
+    vars: [dfe]
+    obs: [GEOTRACES-IDP2025]
+    reason: >
+      Produced alongside Fig. 10 by the same script. Panel (a) still
+      reads "GEOTRACES IDP2021v2" and must be regenerated for IDP2025.
+
+  figS02_picontrol_envelope:
+    manuscript: "S2"
+    file: figS2_picontrol_envelope.png
+    title: piControl internal-variability envelope for sea-ice persistence
+    script: picontrol_envelope.py
+    vars: [siconc]
+    obs: [HadISST]
+    reason: >
+      Reads the piControl experiment rather than historical, in
+      overlapping 17-year segments within contiguous record stretches.
+      The suite is configured for a single experiment per run.
+
+  figS12_internal_variability:
+    manuscript: "S12"
+    file: figS_internal_variability.png
+    title: Within-model against across-model spread in Chl-a / SST coupling
+    script: internal_variability.py
+    vars: [chl, tos]
+    obs: [ESACCI-OC, ERSSTv3b]
+    reason: >
+      Needs every archived ensemble member of the historical experiment
+      per model, up to ten, where the suite loads one variant.
+
+# ── Produced but cited by neither document ───────────────────────────
+# Kept here as an explicit record of what the clean-up removes, so the
+# deletions are reviewable rather than silent. check_manifest.py reports
+# anything in the output directory that is neither cited nor listed
+# below.
+retired_figures:
+  - fig10_combined.png
+  - fig10_lag_corr_chl_mld.png
+  - fig10a_lag_all_models.png
+  - fig10b_seasonal_lag.png
+  - fig10c_peak_lag_summary.png
+  - fig11b_lag_corr_chl_siconc_sectors.png
+  - fig12_siconc_memory.png
+  - fig12_siconc_memory_table.csv
+  - fig1_2_obs_and_bias_combined.png
+  - fig8b_pattern_corr.png
+  - fig9_lag_corr_chl_sst.png
+  - figS1_siconc_memory_seasonal_zone.png
+  - figS1_siconc_memory_seasonal_zone.csv
+  # Drawn by seasonal_phase.py and cited by neither document since the
+  # phase ladder was dropped from Section 3.4. Either add it to the SI,
+  # where it would also support the restratification-spread and
+  # ice-retreat numbers that currently stand in the text with no figure
+  # behind them, or stop producing it.
+  - fig_seasonal_phase.png
+  - fig_seasonal_phase.pdf
+
+# Data files written beside the figures. Not figures, not dead.
+data_outputs:
+  - crossmodel_inputs.nc
+  - seasonal_phase.csv
+  - figS2_picontrol_envelope_table.csv
